@@ -2,11 +2,11 @@
 
 ## What This Is
 
-Harvey OS is a Plan 9 4th Edition derivative operating system (C, mk-based build, dual kernel trees: legacy `sys/src/9/` and active amd64 `sys/src/9k/`). This project revives the dormant upstream build (last upstream commit 2022-03-30), modernizes the dev environment with Nix, and ports Harvey to aarch64 (ARM64).
+Harvey OS is a Plan 9 4th Edition derivative operating system (C, mk-based build, dual kernel trees: legacy `sys/src/9/` and active amd64 `sys/src/9k/`). This project revives the dormant upstream build (last upstream commit 2022-03-30), modernizes the dev environment with Nix, ports the userspace to aarch64 — and ultimately adopts **r9** (sibling repo `../r9`, a Rust reimplementation of the Plan 9 kernel) as Harvey's kernel, including adding/completing aarch64 support in r9 (qemu `-M virt`, beyond its current raspi3b/4b focus).
 
 ## Core Value
 
-Harvey builds green from a clean checkout and boots on aarch64 under qemu — one command, any host (macOS or Linux).
+Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
 
 ## Requirements
 
@@ -20,35 +20,43 @@ Harvey builds green from a clean checkout and boots on aarch64 under qemu — on
 
 ### Active
 
-- [ ] Full 9k amd64 kernel set green: k10cpu + k10cpuf + k10f (embedded-root variants) — currently blocked by cmd-chain failures (`cc` suite `o^c rgbycc.c`, `4a` `rfork bind lex.c`, venti/ipconfig never installed)
-- [ ] aarch64 target toolchain in-repo: 7a/7c/7l (assembler/compiler/linker) + libc aarch64 + `objtype=aarch64` build wiring
-- [ ] 9k kernel aarch64 port booting to a shell on qemu `-M virt`
+- [ ] Full 9k amd64 kernel set green: k10cpu + k10cpuf + k10f (embedded-root variants) — currently blocked by cmd-chain failures (`jpg/mkfile` derives bogus `oc` from `cputype=unix`, `4a` `rfork bind lex.c`, venti/ipconfig never installed)
+- [ ] aarch64 userspace toolchain in-repo: 7a/7c/7l (assembler/compiler/linker) + libc aarch64 + `objtype=aarch64` build wiring
+- [ ] r9 aarch64 bring-up on qemu `-M virt` (r9's aarch64 is currently raspi3b/4b-only, DTB-driven) — kernel entry, memory map, GIC, PL011 console
+- [ ] r9 maturity work needed to host Harvey userland: process model / syscalls / first-process (`initcode`) boot path (r9 has VM/console/allocator/traps; no userspace exec yet)
+- [ ] Harvey aarch64 userland boots to `/bin/rc` shell on r9 kernel under qemu virt
 - [ ] Build artifacts reproducible from clean checkout on darwin-aarch64 and linux
 
 ### Out of Scope
 
 - 386 legacy kernel (`sys/src/9/pc`) and the ISO/dist stage — deferred; focus is 9k amd64 health first
-- Hardware aarch64 targets (RPi4 etc.) — qemu virt only this milestone; drivers come later
+- Hardware aarch64 targets — r9 already has raspi3b/4b; this project targets qemu virt
+- Harvey 9k (C kernel) aarch64 port — superseded by the r9 adoption decision; 9k stays amd64 reference
 - TLS/security modernization (TLS 1.2 cap, RC4/DES/NULL ciphers) — separate hardening milestone
-- Dual `9` vs `9k` kernel-tree deduplication — tracked concern, not this milestone
+- Dual `9` vs `9k` kernel-tree deduplication — rendered moot by r9 adoption
+- Go-based userland on aarch64 — Go is unsupported on plan9/arm64
 - x86_64-darwin host support — repo targets aarch64 hosts first
 
 ## Context
 
+- **Kernel future is r9**: sibling repo `../r9` (Rust reimplementation of the Plan 9 kernel; cargo workspace: `port/` portable code + per-arch crates `x86_64/`, `riscv64/`, `aarch64/`; xtask build/qemu runners). r9's aarch64 currently targets raspi3b/raspi4b (DTB-driven, PL011, pre-MMU page tables); has VM/console/allocator/traps but no userspace exec path yet. Harvey supplies the userspace, libc, toolchain, and dist machinery; r9 supplies the kernel.
 - **Upstream dormant**: Harvey-OS/harvey last commit 2022-03-30; CI was a fragile expect+qemu bootstrap on EOL Ubuntu 21.10 (`.planning/codebase/CONCERNS.md`)
 - **Build system**: mk + mkfiles; host tools built by `sys/src/cmd/*/BUILD` scripts; kernel build runs in a Linux mount namespace emulating Plan 9's root layout (`sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE` → `BUILD_SETUP_NAMESPACE` → `BUILD` → `build/scripts/linux-build`)
 - **Nix scaffolding**: `flake.nix` + `nix/*.sh`; on darwin the namespace build runs in a lima VM (virtiofs subdir binds yield empty trees, so the VM build rsyncs to guest-local disk and pulls `amd64/`+`386/` back)
 - **Vendored 9-cc**: `sys/src/cmd/unix/9cc/` carries the `iar` subset of 0intro/9-cc with aarch64 host support (see its README)
-- **aarch64 scaffolding**: `build_arm64` in `build/scripts/funcs` references `sys/src/cmd/7?` which do not exist — the port starts from zero toolchain; Plan 9 arm64 references exist upstream (9front/9legacy 7c/7a/7l, bcm kernel port)
-- **Known upstream breakage**: cmd install chain aborts partway (`cc` maketab/rgbycc, `4a` lex.c bind), so `ipconfig`/`venti` never reach `/amd64/bin` and root-embedding kernels (k10cpuf/k10f) fail; `mahjonng` cpp breakage noted in Dockerfile TODO
+- **aarch64 toolchain donors**: 9front (MIT) has `sys/src/cmd/{7a,7c,7l}`, `sys/src/libc/arm64/`, `arm64/mkfile`, libmach `{7.c,7db.c,7obj.c}`, `aout2uimage` — see `.planning/research/STACK.md`. Harvey's libmach wires retired **Alpha** under letter 7 — collides with arm64 7-imports, must be resolved first.
+- **Naming tension**: in-tree vestiges (`build_arm64`, empty `arm64/` dir, mkdirs) use `arm64`; 9front convention is also `arm64`; project decision is `aarch64` — the toolchain phase starts by renaming/quarantining the vestiges.
+- **Known upstream breakage**: `sys/src/cmd/jpg/mkfile:56-68` derives a nonexistent `oc` compiler from `cputype=unix`, aborting the cmd DIRS loop before `ip/`+`venti/` → root-embedding kernels (k10cpuf/k10f) can't find `/amd64/bin/ip/ipconfig`; `4a` `rfork bind lex.c` failure; `mahjonng` cpp breakage noted in Dockerfile TODO
+- **riscv64 cautionary tale**: `riscv64/mkfile` references a `jc/jl/ja` toolchain never committed — vaporware scaffolding. Hard rule: toolchain (7l-linked hello-world) lands before any arch dir/mkfile.
 
 ## Constraints
 
-- **Tech stack**: Plan 9 C dialect + mk; host tools must build with plan9port (`$PLAN9/bin` LAST in PATH per BUILD_ON_UNIX)
-- **Host platforms**: darwin-aarch64 (primary dev machine) and linux aarch64/x86_64; kernel build requires Linux mount namespaces (lima VM on macOS)
-- **Compatibility**: keep upstream Harvey/Plan 9 conventions (`sys/man/6/style`: tabs, lowercase, `nil`, `exits`/`sysfatal`)
+- **Tech stack**: Plan 9 C dialect + mk (Harvey userspace); Rust no_std + cargo xtask (r9 kernel, sibling repo `../r9` — phases will work across both repos); host tools must build with plan9port (`$PLAN9/bin` LAST in PATH per BUILD_ON_UNIX)
+- **Host platforms**: darwin-aarch64 (primary dev machine) and linux aarch64/x86_64; Harvey namespace build requires Linux mount namespaces (lima VM on macOS); r9 builds anywhere cargo+qemu run
+- **Compatibility**: keep upstream Harvey/Plan 9 conventions (`sys/man/6/style`: tabs, lowercase, `nil`, `exits`/`sysfatal`); r9 follows its own rustfmt.toml
 - **Naming**: the 64-bit ARM architecture is `aarch64` (not `arm64`) in this project's tooling and docs
 - **Upstream**: dormant; this repo is now the maintained fork — in-tree fixes are preferred over external patch stacks
+- **Licenses**: Harvey is MIT since 2021 (GPL only via ghostscript fonts); 9front imports are MIT — compatible
 
 ## Key Decisions
 
@@ -60,8 +68,9 @@ Harvey builds green from a clean checkout and boots on aarch64 under qemu — on
 | Per-OS/arch host bin dirs (`.build/hostbin-<os>-aarch64`) | Host and guest builds share the checkout; binaries must not clobber each other | ✓ Good |
 | plan9port `$PLAN9/bin` LAST in PATH | plan9port ships a 9p `mount` that shadows util-linux mount; BUILD_ON_UNIX mandates last | ✓ Good |
 | aarch64 (not arm64) naming | User decision 2026-10-30 | ✓ Good |
+| Adopt r9 (Rust Plan 9 kernel) as kernel future instead of porting 9k/C to aarch64 | User decision 2026-10-30 — r9 exists (../r9), is the modern path; avoids investing in a C kernel port that would be discarded | ✓ Good |
 | 9k amd64 green before 386/ISO | 9k is the active kernel; limit blast radius of the build-tail milestone | — Pending |
-| aarch64 port targets qemu `-M virt` shell | Smallest provable kernel port; hardware later | — Pending |
+| Kernel bring-up on qemu `-M virt` shell | Smallest provable target; r9's raspi focus needs a virt platform anyway | — Pending |
 
 ## Evolution
 
