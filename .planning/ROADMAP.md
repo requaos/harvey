@@ -23,12 +23,13 @@ Decimal phases appear between their surrounding integers in numeric order.
 ### Phase 1: Build-Tail Green (9k amd64)
 **Goal**: The Harvey namespace build is a trustworthy factory — a clean checkout produces the full 9k amd64 kernel set with zero manual intervention, and the tree speaks `aarch64` only.
 **Depends on**: Nothing (first phase)
-**Requirements**: BUILD-01, BUILD-02, BUILD-03, BUILD-04
+**Requirements**: BUILD-01, BUILD-02, BUILD-03, BUILD-04, BUILD-05
 **Success Criteria** (what must be TRUE):
   1. `nix run .#build` from a clean checkout completes the full namespace build and produces `amd64/9k10cpu`, `amd64/9k10cpuf`, and `amd64/9k10f` (plus `.elf` variants) in one run — the `jpg/mkfile` `oc` derivation and `4a` `rfork bind lex.c` failures are gone
   2. The userland install leaves `/amd64/bin` carrying `ip/ipconfig`, `auth/factotum`, and `venti/venti`, so embedded-root kernels link with no "don't know how to make" errors
   3. No live `arm64`-named vestiges remain in build scripts or tree layout (`build_arm64` functions, empty `arm64/` dir, `build/mkdirs` entry renamed or quarantined) — grep finds only documented/quarantined references
   4. A KERNDATE/reproducibility policy is decided and documented in-repo, and the build demonstrably honors it (two clean builds identical, or the timestamp exception written down)
+  5. `nix build .#minimega` produces the VM orchestration binary on linux, and a committed `.mm` script boots the Phase 1 `9k10cpu` kernel on a Linux KVM host (kernel boot log captured) — the smoke harness for everything after
 **Plans**: TBD
 
 ### Phase 2: aarch64 Toolchain + libc (9front donor)

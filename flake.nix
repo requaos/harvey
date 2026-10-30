@@ -25,6 +25,15 @@
         };
     in
     {
+      packages = forAllSystems (system:
+        let pkgs = pkgsFor system; in
+        # minimega VM orchestration, fetched+built by nix (no submodule glue).
+        # Linux-only upstream (KVM, linux/fs.h); manages Harvey/r9 amd64 test
+        # VMs on KVM hosts. aarch64 guests are NOT supported upstream.
+        nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+          minimega = pkgs.callPackage ./nix/minimega.nix { };
+        });
+
       apps = forAllSystems (system:
         let
           pkgs = pkgsFor system;
@@ -71,7 +80,7 @@
             packages = with pkgs; [
               plan9port git gnumake bashInteractive coreutils gnused findutils
               qemu expect curl bzip2 gnutar
-            ] ++ pkgs.lib.optionals isLinux [ util-linux binutils ]
+            ] ++ pkgs.lib.optionals isLinux [ util-linux binutils self.packages.${system}.minimega ]
               ++ pkgs.lib.optionals (!isLinux) [ lima ];
 
             shellHook = ''

@@ -47,6 +47,7 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 - **aarch64 toolchain donors**: 9front (MIT) has `sys/src/cmd/{7a,7c,7l}`, `sys/src/libc/arm64/`, `arm64/mkfile`, libmach `{7.c,7db.c,7obj.c}`, `aout2uimage` — see `.planning/research/STACK.md`. Harvey's libmach wires retired **Alpha** under letter 7 — collides with arm64 7-imports, must be resolved first.
 - **Naming tension**: in-tree vestiges (`build_arm64`, empty `arm64/` dir, mkdirs) use `arm64`; 9front convention is also `arm64`; project decision is `aarch64` — the toolchain phase starts by renaming/quarantining the vestiges.
 - **Known upstream breakage**: `sys/src/cmd/jpg/mkfile:56-68` derives a nonexistent `oc` compiler from `cputype=unix`, aborting the cmd DIRS loop before `ip/`+`venti/` → root-embedding kernels (k10cpuf/k10f) can't find `/amd64/bin/ip/ipconfig`; `4a` `rfork bind lex.c` failure; `mahjonng` cpp breakage noted in Dockerfile TODO
+- **VM orchestration**: minimega (`../minimega` read-only clone for reference; the flake fetches+builds it via `nix/minimega.nix`, pinned tag 3.3.0) manages amd64 test VMs on Linux/KVM hosts with `.mm` scripts. It is x86/KVM-centric upstream — aarch64/r9 test boots use plain qemu instead. On darwin, KVM is unavailable; minimega runs on linux hosts (or the lima guest, TCG-slow).
 - **riscv64 cautionary tale**: `riscv64/mkfile` references a `jc/jl/ja` toolchain never committed — vaporware scaffolding. Hard rule: toolchain (7l-linked hello-world) lands before any arch dir/mkfile.
 
 ## Constraints
@@ -70,6 +71,7 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 | aarch64 (not arm64) naming | User decision 2026-10-30 | ✓ Good |
 | Adopt r9 (Rust Plan 9 kernel) as kernel future instead of porting 9k/C to aarch64 | User decision 2026-10-30 — r9 exists (../r9), is the modern path; avoids investing in a C kernel port that would be discarded | ✓ Good |
 | r9 gets its own flake; Harvey consumes r9 via flake input | User decision 2026-10-30 — flakes compose via git URLs; relative paths/submodules are fragile glue | — Pending |
+| minimega for VM orchestration, fetched+built by nix (`nix/minimega.nix`, no submodule) | User decision 2026-10-30 — single-binary KVM VM manager with scriptable `.mm` files; upstream is x86/KVM-centric so it covers amd64 test VMs only; aarch64/r9 boots stay on plain qemu | ✓ Good |
 | 9k amd64 green before 386/ISO | 9k is the active kernel; limit blast radius of the build-tail milestone | — Pending |
 | Kernel bring-up on qemu `-M virt` shell | Smallest provable target; r9's raspi focus needs a virt platform anyway | — Pending |
 
