@@ -1,0 +1,61 @@
+# Requirements — Harvey OS: Build Revival + r9/aarch64
+
+**Project mode:** standard (horizontal layers — toolchain → libc → kernel → userland)
+**Naming:** `aarch64` everywhere (vestigial `arm64` in-tree artifacts get renamed/quarantined)
+
+## v1 Requirements
+
+### Build Tail (9k amd64 green)
+
+- [ ] **BUILD-01**: `nix run .#build` from a clean checkout completes the full namespace build and produces all three 9k amd64 kernels (`k10cpu`, `k10cpuf`, `k10f`) — fix the cmd-chain aborts: `sys/src/cmd/jpg/mkfile` `oc` derivation, `4a` `rfork bind lex.c`, and any remaining failures
+- [ ] **BUILD-02**: Userland install completes so `/amd64/bin` carries what embedded-root kernels need (`ip/ipconfig`, `auth/factotum`, `venti/venti`) — the root cause of "don't know how to make" kernel failures
+- [ ] **BUILD-03**: Vestigial `arm64` artifacts (`build_arm64` funcs, empty `arm64/` dir, `build/mkdirs` entry) renamed or quarantined to the project's `aarch64` naming before port scaffolding lands
+- [ ] **BUILD-04**: KERNDATE/reproducibility policy decided and documented (timestamp vs pinned) — required before claiming clean-checkout reproducibility
+
+### aarch64 Toolchain + libc (9front donor)
+
+- [ ] **TC-01**: libmach learns arm64 (`7.c`, `7db.c`, `7obj.c`, setmach entry); the retired-Alpha-under-letter-7 collision in Harvey's libmach is resolved (retire or namespace)
+- [ ] **TC-02**: `7a`/`7c`/`7l` vendored from 9front into `sys/src/cmd/` with BUILD scripts; build natively on darwin-aarch64 and linux-aarch64 via the existing toolchain app; 9front `cc` frontend drift reconciled (`compat.h`)
+- [ ] **TC-03**: `sys/src/libc/aarch64/` imported + `9syscall` aarch64 stub generation (`case aarch64`); a 7c/7l-compiled-and-linked hello-world proves the toolchain end-to-end **before** any arch dir/mkfile scaffolding lands (riscv64 `jc/jl/ja` vaporware rule)
+- [ ] **TC-04**: Build wiring completed: `aarch64/mkfile` (CC=7c O=7), `pcc.c` objtype entry, `mkfile.proto` CPUS, config `<objtype>` section literally named `aarch64`
+- [ ] **TC-05**: The userland subset needed for a shell builds for aarch64: rc, ipconfig, factotum, core cmds — plus aout2uimage or equivalent packaging if the boot path needs it
+
+### r9 Kernel (sibling repo `../r9`)
+
+- [ ] **R9-01**: r9 gains a qemu `-M virt` aarch64 platform (alongside raspi3b/4b): kernel entry contract (ELF `-kernel` boot, DTB at 0x40000000, `-cpu cortex-a72`), memory map, GICv2, PL011 console, generic timer — proven by kernel log output in qemu
+- [ ] **R9-02**: r9 process model + `svc` syscall dispatch sufficient for userland (EL0 entry/return, trap frame matching Plan 9 ureg conventions)
+- [ ] **R9-03**: r9 first-process path loads and runs a Harvey aarch64 `init` (embedded root-fs or equivalent delivery), faulting in user pages
+- [ ] **R9-04**: Harvey↔r9 syscall ABI contract documented and enforced by static checks (Harvey's Ar0/va_list systab ABI vs r9's Rust trap frame — cross-repo layout match verified at build time)
+
+### Integration
+
+- [ ] **INT-01**: One command (`nix run` app or `cargo xtask`) boots r9 + Harvey aarch64 userland to an interactive `/bin/rc` shell over PL011 console in qemu
+- [ ] **INT-02**: Expect-style smoke test asserts the shell prompt, runnable on darwin-aarch64 and linux hosts
+- [ ] **INT-03**: Reproducible-from-clean-checkout verified for both repos (documented commands, pinned toolchains)
+
+## v2 Requirements (deferred)
+
+- virtio-9p host mount in r9 qemu-virt (collapses userland iteration time) — top v1.x candidate
+- SMP via PSCI, virtio-net/blk drivers, RTC, PCIe ECAM usage
+- 386 legacy kernel + ISO/dist stage
+- TLS/security hardening (TLS 1.3, cipher pruning)
+- Harvey on r9 for amd64 (replace 9k on the primary arch)
+- Hardware aarch64 bring-up (r9 already has raspi3b/4b base)
+
+## Out of Scope
+
+- Harvey 9k (C kernel) aarch64 port — superseded by r9 adoption (2026-10-30)
+- Go userland on aarch64 — Go unsupported on plan9/arm64
+- ghostscript/full userland `mk install` on aarch64 — MMX asm breakage; prune rather than fix
+- x86_64-darwin host support
+
+## Traceability
+
+(Filled by roadmap)
+
+| Requirement | Phase |
+|-------------|-------|
+| — | — |
+
+---
+*Created 2026-10-30 after research synthesis*
