@@ -31,6 +31,7 @@
 | Fix our tools, workaround vendor | Fix our cpp bugs properly, tolerate vendor hacks | |
 
 **User's choice:** Patch vendored in place
+**Notes:** With a toolchain-first diagnostic rule added later in the session: vendored code built fine for decades — a fresh failure likely means OUR cpp/6c/pcc drifted (cf. mahjongg = our cpp's bug). Check the toolchain first; patch vendored source only when the vendored code is genuinely at fault.
 
 ### Q3: mk DIRS loop semantics
 
