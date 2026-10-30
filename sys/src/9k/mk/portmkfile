@@ -80,7 +80,7 @@ sysseg.$O:	../port/error.h
 taslock.$O:	../port/edf.h
 
 ../port/latin1.h:	/lib/keyboard
-	aux/mklatinkbd /lib/keyboard > $target
+	mklatinkbd /lib/keyboard > $target
 
 ../port/systab.c:	../mk/parse /sys/src/libc/9syscall/sys.h
 	awk -f ../mk/parse -- -mksystab /sys/src/libc/9syscall/sys.h $CONF > $target

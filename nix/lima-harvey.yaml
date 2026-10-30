@@ -1,0 +1,37 @@
+# Lima VM for building Harvey on macOS.
+# The Harvey kernel build needs Linux mount namespaces (unshare -m + bind
+# mounts of /sys, /amd64, /rc, ...), so on darwin it runs in this VM.
+# The host home directory is mounted writable at the same absolute path,
+# so build artifacts (linux_amd64/bin, object files) land directly in the
+# host checkout.
+
+images:
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-arm64.img"
+    arch: "aarch64"
+    digest: "" # fill after first run if desired; cloud images roll
+  - location: "https://cloud-images.ubuntu.com/releases/24.04/release/ubuntu-24.04-server-cloudimg-amd64.img"
+    arch: "x86_64"
+
+cpus: 4
+memory: "8GiB"
+disk: "60GiB"
+
+mounts:
+  - location: "~"
+    writable: true
+
+ssh:
+  loadDotSSHPubKeys: true
+
+provision:
+  - mode: system
+    script: |
+      #!/bin/bash
+      set -eux
+      export DEBIAN_FRONTEND=noninteractive
+      apt-get update
+      apt-get install -y git sudo util-linux
+      if [ ! -x /nix/var/nix/profiles/default/bin/nix ]; then
+        curl --proto '=https' --tlsv1.2 -sSf -L https://install.determinate.systems/nix \
+          | sh -s -- install --no-confirm
+      fi

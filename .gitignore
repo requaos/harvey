@@ -30,3 +30,26 @@ sys/lib/dist/pc/multi
 sys/lib/firmware
 sys/go
 *.acid
+
+# nix
+/result
+/result-*
+
+# graphify
+/graphify-out/
+
+# harvey-on-unix build output
+/.build/
+*.o
+y.tab.c
+y.tab.h
+y.debug
+
+# vendored 9cc build output
+/sys/src/cmd/unix/9cc/obj.*
+
+# namespace-build leftovers
+/sys/src/exports.*
+/sys/src/buildnamespace
+/sys/src/9k/root/nvram
+/sys/src/cmd/unix/9cc/iar/iar

@@ -1,0 +1,23 @@
+# Vendored subset of 9-cc (https://github.com/0intro/9-cc @ 634e7371,
+# "master" as of 2022-04-04), the pieces Harvey needs to build `iar` —
+# the Inferno/Plan 9 archiver used as `ar` in the unix build
+# (see BUILD_ON_UNIX and build/BUILD_IN_DOCKER).
+#
+# Layout mirrors upstream, minus everything unrelated to iar:
+#   include/    shared headers (a.out.h, ar.h, bio.h, fcall.h, mach.h)
+#   cmd/*/      *.out.h object format headers referenced by libmach
+#   lib9/       posix subset of src/lib9 (+ linux/ darwin/ per-host lib9.h)
+#   libbio/     src/libbio
+#   libmach/    src/libmach
+#   iar/        src/cmd/iar (ar.c + posix.c)
+#
+# Local modifications vs upstream:
+#   * lib9/getcallerpc.c — single portable version using
+#     __builtin_return_address; replaces per-platform asm variants
+#     (9-cc ships none for MacOSX-arm/amd64 or Linux-arm64).
+#   * lib9/darwin/lib9.h — removed the <architecture/i386/fpu.h> FPU block
+#     (x86-only header, gone from modern macOS SDKs).
+#   * libmach/vdb.c + vcodas.c — renamed static `fsub` to `vfsub`; glibc >= 2.44 in
+#     C23 mode declares fsub() via bits/mathcalls-narrow.h.
+#   * libmath/libregexp and the rest of src/cmd are not vendored
+#     (iar links only against mach/bio/9).

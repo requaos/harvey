@@ -59,9 +59,19 @@ mount --bind $HARVEY/rc /rc
 mkdir -p /mail
 mount --bind $HARVEY/mail /mail
 
-# yuk - remove this
-cp -R /lib/* $HARVEY/lib
-mount --bind $HARVEY/lib /lib
+# /lib must show harvey's lib while keeping the distro runtime reachable.
+# A plain bind of $HARVEY/lib over /lib (usrmerge: -> /usr/lib) hides the
+# loader + libselinux/libpam/... and every distro binary then fails to exec.
+# Stage a merged copy FIRST (while /lib is still intact — cp itself needs
+# the loader), then bind it over. All of this vanishes when the mount
+# namespace exits.
+if [ -L /lib ]; then LIBREAL=$(readlink -f /lib); else LIBREAL=/lib; fi
+NSLIB=/tmp/nslib.$$
+mkdir -p $NSLIB
+cp -a "$LIBREAL"/. $NSLIB/
+cp -a $HARVEY/lib/. $NSLIB/
+chmod 1777 $NSLIB	# build runs as non-root; allow mkdir /lib/audio etc.
+mount --bind $NSLIB "$LIBREAL"
 
 mkdir -p /unix
 mount --bind $HARVEY/unix /unix
@@ -71,3 +81,7 @@ mount --bind $HARVEY/usr/glenda /usr/glenda
 
 echo su  $1 bash BUILD $2
 su -c ./BUILD $USER
+
+# unwind the staged /lib
+umount "$LIBREAL" 2>/dev/null || true
+rm -rf "$NSLIB"
