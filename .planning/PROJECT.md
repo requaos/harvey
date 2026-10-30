@@ -69,6 +69,7 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 | plan9port `$PLAN9/bin` LAST in PATH | plan9port ships a 9p `mount` that shadows util-linux mount; BUILD_ON_UNIX mandates last | ✓ Good |
 | aarch64 (not arm64) naming | User decision 2026-10-30 | ✓ Good |
 | Adopt r9 (Rust Plan 9 kernel) as kernel future instead of porting 9k/C to aarch64 | User decision 2026-10-30 — r9 exists (../r9), is the modern path; avoids investing in a C kernel port that would be discarded | ✓ Good |
+| r9 gets its own flake; Harvey consumes r9 via flake input | User decision 2026-10-30 — flakes compose via git URLs; relative paths/submodules are fragile glue | — Pending |
 | 9k amd64 green before 386/ISO | 9k is the active kernel; limit blast radius of the build-tail milestone | — Pending |
 | Kernel bring-up on qemu `-M virt` shell | Smallest provable target; r9's raspi focus needs a virt platform anyway | — Pending |
 

@@ -26,12 +26,14 @@
 - [ ] **R9-02**: r9 process model + `svc` syscall dispatch sufficient for userland (EL0 entry/return, trap frame matching Plan 9 ureg conventions)
 - [ ] **R9-03**: r9 first-process path loads and runs a Harvey aarch64 `init` (embedded root-fs or equivalent delivery), faulting in user pages
 - [ ] **R9-04**: Harvey↔r9 syscall ABI contract documented and enforced by static checks (Harvey's Ar0/va_list systab ABI vs r9's Rust trap frame — cross-repo layout match verified at build time)
+- [ ] **R9-05**: r9 repo carries its own `flake.nix` managing its build environment (pinned rust toolchain + `llvm-tools` for `llvm-objcopy`, qemu, cargo xtask) — devshell + apps mirroring this repo's conventions, so r9 builds reproducibly standalone
 
 ### Integration
 
 - [ ] **INT-01**: One command (`nix run` app or `cargo xtask`) boots r9 + Harvey aarch64 userland to an interactive `/bin/rc` shell over PL011 console in qemu
 - [ ] **INT-02**: Expect-style smoke test asserts the shell prompt, runnable on darwin-aarch64 and linux hosts
 - [ ] **INT-03**: Reproducible-from-clean-checkout verified for both repos (documented commands, pinned toolchains)
+- [ ] **INT-04**: Harvey's flake consumes r9 as a proper **flake input** (git URL with pinned rev) — no relative-path (`../r9`) or git-submodule glue between the repos
 
 ## v2 Requirements (deferred)
 
@@ -51,11 +53,26 @@
 
 ## Traceability
 
-(Filled by roadmap)
-
-| Requirement | Phase |
-|-------------|-------|
-| — | — |
+| Requirement | Phase | Status |
+|-------------|-------|--------|
+| BUILD-01 | Phase 1 | Pending |
+| BUILD-02 | Phase 1 | Pending |
+| BUILD-03 | Phase 1 | Pending |
+| BUILD-04 | Phase 1 | Pending |
+| TC-01 | Phase 2 | Pending |
+| TC-02 | Phase 2 | Pending |
+| TC-03 | Phase 2 | Pending |
+| TC-04 | Phase 2 | Pending |
+| TC-05 | Phase 2 | Pending |
+| R9-01 | Phase 3 | Pending |
+| R9-02 | Phase 4 | Pending |
+| R9-03 | Phase 4 | Pending |
+| R9-04 | Phase 4 | Pending |
+| R9-05 | Phase 3 | Pending |
+| INT-01 | Phase 5 | Pending |
+| INT-02 | Phase 5 | Pending |
+| INT-03 | Phase 5 | Pending |
+| INT-04 | Phase 5 | Pending |
 
 ---
 *Created 2026-10-30 after research synthesis*
