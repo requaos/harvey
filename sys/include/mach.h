@@ -107,7 +107,7 @@ enum
 	ObjAmd64,		/* .6 */
 	ObjSpim,		/* .0 */
 	ObjPower64,		/* .9 */
-	ObjArm64,		/* .4? */
+	ObjArm64,		/* .7 */
 	ObjRiscv,		/* .i */
 	ObjRiscv64,		/* .j */
 	Maxobjtype,
