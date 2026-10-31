@@ -41,8 +41,23 @@ gethunk(void)
 		diag("out of memory");
 		errorexit();
 	}
-	hunk = h;
-	nhunk = nh;
+	/*
+	 * Merge with the current hunk when contiguous (consecutive sbrk
+	 * calls return contiguous addresses while nothing else interleaves
+	 * the break) — REQUIRED for malloc()'s `while(nhunk < n)` loop to
+	 * terminate for n larger than the largest single hunk. 9front's
+	 * cc/compat accumulates unconditionally (nhunk += nh) because it
+	 * grows one arena with brk; with sbrk the merge must be conditional.
+	 * Without it, malloc(n > 25L*NHUNK) loops gethunk forever (observed:
+	 * the arm64 donor-kernel link allocates 3.7MB for the embedded
+	 * bootfs data → thunk reached 88TB before sbrk returned ENOMEM).
+	 */
+	if(h == hunk + nhunk)
+		nhunk += nh;
+	else {
+		hunk = h;
+		nhunk = nh;
+	}
 	thunk += nh;
 }
 

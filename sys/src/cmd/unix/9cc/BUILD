@@ -12,6 +12,16 @@ case "`uname -s`" in
 	*)	echo "9cc: unsupported host OS `uname -s`"; exit 1 ;;
 esac
 
+# bare `ar` below must be the host (binutils/llvm) ar, never iar: once
+# iar is installed as $HARVEY_LINUX_BIN/ar and hostbin is on PATH (the
+# devshell prepends it), `ar` would resolve to iar, whose Plan 9-format
+# archives carry no ELF index — the iar link then fails with GNU ld's
+# "archive has no index". This BUILD needs nothing from hostbin
+# (nix/toolchain.sh runs it on the wrapper PATH for the same reason);
+# strip hostbin entries from PATH here so direct invocations are safe.
+PATH=$(echo "$PATH" | sed 's/^[^:]*\/\.build\/hostbin-[^:]*//; s/:[^:]*\/\.build\/hostbin-[^:]*//g; s/^::*//; s/::*$//')
+export PATH
+
 ROOT=`pwd`
 IFLAGS="-I$ROOT/include -I$ROOT/lib9/$OSTYPE -I$ROOT -I$ROOT/cmd"
 OBJDIR=$ROOT/obj.$OSTYPE

@@ -33,6 +33,15 @@ done
 exec "${PLAN9:?}/bin/9l" "${args[@]}"
 SHIM
 chmod +x "$SHIMDIR/9l"
+# plan9port's 9l autolib calls bare `nm` on HOST ELF objects; with
+# $HARVEY_LINUX_BIN on PATH that resolves to Harvey's nm (nm.BUILD, plan
+# 02-03), which reads ken-format objects only and fails ("Can't read
+# header"), silently breaking autolib (undefined Binit/Bputc/... at link).
+# Shadow it with the wrapper PATH's (binutils) nm for the duration.
+_HOSTNM=$(PATH="$_WRAP_PATH" command -v nm 2>/dev/null || true)
+if [ -n "$_HOSTNM" ]; then
+  ln -sf "$_HOSTNM" "$SHIMDIR/nm"
+fi
 export PATH="$SHIMDIR:$PATH"
 # /bin/rm explicitly: $HARVEY_LINUX_BIN may hold guest-built Linux binaries
 trap '/bin/rm -rf "$SHIMDIR"' EXIT
