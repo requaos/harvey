@@ -20,9 +20,6 @@ ldd `which mk`
 mkdir -p /arm
 mount --bind $HARVEY/arm /arm
 
-mkdir -p /arm64
-mount --bind $HARVEY/arm64 /arm64
-
 mkdir -p /amd64
 mount --bind $HARVEY/amd64 /amd64
 

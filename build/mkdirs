@@ -261,7 +261,6 @@ lst=( \
 	./bbin \
 	./amd64/bbin \
 	./386/bbin \
-	./arm64/bbin \
 	./arm/bbin \
 	./mips64/bbin \
 	./mips/bbin \

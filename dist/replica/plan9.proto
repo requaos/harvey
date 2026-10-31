@@ -35,7 +35,7 @@ amd64	d775 sys sys
 	+	d775 sys sys
 arm	d775 sys sys
 	+	d775 sys sys
-arm64	d775 sys sys
+aarch64	d775 sys sys
 	+	d775 sys sys
 mips	d775 sys sys
 	+	d775 sys sys

@@ -60,10 +60,10 @@ fn build_arm{
 		cd /sys/src/9/bcm && mk nuke && mk CONF'='pi4 install && mk CONF'='pi4cpu install && mk CONF'='pi4wifi install && mk clean
 }
 
-fn build_arm64{
+fn build_aarch64{
 	for(i in /sys/src/libc) {cd $i && mk nuke && mk install && mk clean}
 	for(i in /sys/src/cmd/7?) {cd $i && mk nuke && mk install && mk clean}
-	cd /sys/src && objtype=arm64 {mk nuke && mk install && mk clean}
+	cd /sys/src && objtype=aarch64 {mk nuke && mk install && mk clean}
 }
 
 fn build_power{
