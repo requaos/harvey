@@ -20,7 +20,16 @@ fi
 # Computed host-side: the rsync below excludes .git, so the guest checkout
 # has no git metadata to derive from. Falls back to build time when git
 # metadata is absent (non-reproducible; see build/REPRODUCIBILITY.md).
-KERNDATE="${KERNDATE:-$(cd "$HARVEY" && git log -1 --format=%ct 2>/dev/null || date +%s)}"
+if [ -z "${KERNDATE:-}" ]; then
+	KERNDATE=$(cd "$HARVEY" && git log -1 --format=%ct 2>/dev/null) || KERNDATE=
+fi
+# Numeric validation: date(1) dialects differ (plan9port -n vs GNU/BSD +%s).
+if ! [[ "$KERNDATE" =~ ^[0-9]+$ ]]; then
+	KERNDATE=$(date -n 2>/dev/null) || KERNDATE=
+fi
+if ! [[ "$KERNDATE" =~ ^[0-9]+$ ]]; then
+	KERNDATE=$(date +%s)
+fi
 
 # NOTE: $PLAN9/bin is last in PATH (wrapper), so host tools win; call host
 # grep explicitly — plan9 grep does not support -q/-x.

@@ -14,7 +14,18 @@ export FORCERCFORMK=1
 # Pinned kernel timestamp (BUILD-04); override with KERNDATE=<epoch>.
 # Derive from the checkout's git commit (host-side; the lima guest has no .git);
 # fall back to build time when git metadata is absent.
-export KERNDATE="${KERNDATE:-$(cd "$HARVEY" && git log -1 --format=%ct 2>/dev/null || date +%s)}"
+if [ -z "${KERNDATE:-}" ]; then
+	KERNDATE=$(cd "$HARVEY" && git log -1 --format=%ct 2>/dev/null) || KERNDATE=
+fi
+# plan9port's date (in $HARVEY_LINUX_BIN, first on PATH) prints garbage for
+# GNU's +%s and needs -n; GNU/BSD date needs +%s.  Try both, keep digits only.
+if ! [[ "$KERNDATE" =~ ^[0-9]+$ ]]; then
+	KERNDATE=$(date -n 2>/dev/null) || KERNDATE=
+fi
+if ! [[ "$KERNDATE" =~ ^[0-9]+$ ]]; then
+	KERNDATE=$(date +%s)
+fi
+export KERNDATE
 export CGO_ENABLED=0
 
 for t in pcc cpp ar; do
