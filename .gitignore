@@ -63,3 +63,6 @@ amd64/.userland-ok
 /sys/src/9k/k10/k10cpuf.c
 /sys/src/9k/k10/k10f.c
 /sys/src/9/pc/pccpuf.c
+
+# BUILD-05 minimega harness runtime capture (not committed)
+/boot-9k10cpu.log
