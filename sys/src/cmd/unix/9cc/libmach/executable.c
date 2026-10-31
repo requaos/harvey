@@ -210,7 +210,7 @@ ExecTable exectab[] =
 		FARM64,
 		1,
 		&marm64,
-		sizeof(Exec)+8,
+		(8*4)+8,		/* on-disk: eight u32 + 8-byte hdrmagic (sizeof(Exec) is host-dependent) */
 		nil,
 		commonllp64 },
 	{ 0 },
@@ -402,29 +402,41 @@ commonllp64(int fd, Fhdr *fp, ExecHdr *hp)
 {
 	long pgsize;
 	uvlong entry;
+	u32int *w;
+	int i;
 
 	USED(fd);
-	hswal(&hp->e, sizeof(Exec)/sizeof(long), beswal);
-	if(!(hp->e.exec.magic & HDR_MAGIC))
+	/*
+	 * The on-disk header is eight big-endian 32-bit words plus an
+	 * 8-byte hdrmagic. Decode through a u32 view: on LP64 hosts
+	 * sizeof(long)==8 (so struct Exec is 64 bytes, not 32), and
+	 * hswal(&hp->e, sizeof(Exec)/sizeof(long), beswal) scrambles
+	 * field pairing. (Harvey 02-03; the in-tree copy is only ever
+	 * compiled by Plan 9 compilers, where long is 4 bytes.)
+	 */
+	w = (u32int*)&hp->e;
+	for(i = 0; i < 8; i++)
+		w[i] = beswal(w[i]);
+	if(!(w[0] & HDR_MAGIC))
 		return 0;
 
 	/*
-	 * There can be more.exec.magic here if the
+	 * There can be more.magic here if the
 	 * header ever needs more expansion.
 	 * For now just catch use of any of the
 	 * unused bits.
 	 */
-	if((hp->e.exec.magic & ~DYN_MAGIC)>>16)
+	if((w[0] & ~DYN_MAGIC)>>16)
 		return 0;
 	entry = beswav(hp->e.exechdr64.hdr[0]);
 
 	pgsize = mach->pgsize;
-	settext(fp, entry, pgsize+fp->hdrsz, hp->e.exec.text, fp->hdrsz);
+	settext(fp, entry, pgsize+fp->hdrsz, w[1], fp->hdrsz);
 	setdata(fp, _round(pgsize+fp->txtsz+fp->hdrsz, pgsize),
-		hp->e.exec.data, fp->txtsz+fp->hdrsz, hp->e.exec.bss);
-	setsym(fp, hp->e.exec.syms, hp->e.exec.spsz, hp->e.exec.pcsz, fp->datoff+fp->datsz);
+		w[2], fp->txtsz+fp->hdrsz, w[3]);
+	setsym(fp, w[4], w[6], w[7], fp->datoff+fp->datsz);
 
-	if(hp->e.exec.magic & DYN_MAGIC) {
+	if(w[0] & DYN_MAGIC) {
 		fp->txtaddr = 0;
 		fp->dataddr = fp->txtsz;
 		return 1;

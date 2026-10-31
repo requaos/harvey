@@ -12,3 +12,4 @@ set -e
 (cd $HARVEY/sys/src/cmd/7l && sh BUILD)
 (cd $HARVEY/sys/src/cmd/cpp && sh BUILD)
 (cd $HARVEY/sys/src/cmd/aux && sh BUILD)
+(cd $HARVEY/sys/src/cmd && sh nm.BUILD)
