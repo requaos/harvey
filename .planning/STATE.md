@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Build-Tail Green (9k amd64)
 status: executing
-stopped_at: "Completed 01-01-PLAN.md (build tail green: 3 kernels, populated amd64/bin, checkall)"
-last_updated: "2026-10-31T01:53:18.167Z"
+stopped_at: Completed 01-02-PLAN.md (arm64 quarantine + linux-build Phase 1 scope)
+last_updated: "2026-10-31T02:05:13.842Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 01 execution started
-state_head: 7d481452bcee590a13fcdf584600c76c26637e7d
+state_head: 755c1741537899f8068340c70e86fab4f412793f
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 1
+  completed_plans: 2
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-30)
 ## Current Position
 
 Phase: 01 (Build-Tail Green (9k amd64)) — EXECUTING
-Plan: 2 of 4
+Plan: 3 of 4
 Status: Ready to execute
 Last activity: 2026-10-30 — Phase 01 execution started
 
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0%
 | Plan | Duration | Tasks | Files |
 |------|----------|-------|-------|
 | Phase 01 P01 | 53min | 3 tasks | 12 files |
+| Phase 01 P02 | 6min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -72,6 +73,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-01: efiboot.fat is explicit-only (needs a live Plan 9 system: dossrv+/srv+mount); .efi binaries still build+install — unmasked games tree (D-01)
 - [Phase 01]: 01-01: NVAR=BITS*32 in cc.h restores exact Plan 9 256-var-cap semantics on LP64 hosts — fixes 6c stack smash (ql SIGBUS); one shared definition fixes all compiler dirs
 - [Phase 01]: 01-01: git.allow_default_branch_commits=true — sequential-mode execution commits on master (fork workflow); clean-checkout verification clones the default branch
+- [Phase 01]: 01-02: six-site arm64 quarantine in ONE atomic commit 5af5e89bf (D-05 + Pitfall 3 bind-mount coupling); keepers documented (nix host-mapping, lima yaml, a.out.h/mach.h, unix/9cc, dynld-arm64.c)
+- [Phase 01]: 01-02: Phase 1 green gate = amd64 kernel loop — linux-build arch=(amd64), dist/man stages behind WITH_DIST=1 (RESEARCH OQ-2/OQ-3); revert comments in place
 
 ### Pending Todos
 
@@ -94,6 +97,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-31T01:53:18.154Z
-Stopped at: Completed 01-01-PLAN.md (build tail green: 3 kernels, populated amd64/bin, checkall)
+Last session: 2026-10-31T02:05:13.829Z
+Stopped at: Completed 01-02-PLAN.md (arm64 quarantine + linux-build Phase 1 scope)
 Resume file: None
