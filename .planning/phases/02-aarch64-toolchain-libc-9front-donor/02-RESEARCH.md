@@ -540,20 +540,24 @@ and add `7` to `allos` (else pcc rejects `.7` files as "wrong architecture", lin
 | A5 | 9front's arm64 CONF=qemu kernel boots under qemu `-M virt` TCG (cortex-a72, gic-version=2) as shipped | Pattern 6 | Low — it is 9front's own tested CI/qemu target [CITED: .planning/research/STACK.md + PITFALLS.md, MEDIUM tier]; if it drifts, the failure is in donor territory, not our toolchain |
 | A6 | `-cpu host`/`max` under TCG is not needed; cortex-a72 under TCG is well-supported | Pattern 6 | Low — TCG emulates any listed CPU; HVF is what restricts choice |
 
-## Open Questions
+## Open Questions (all RESOLVED at planning, 2026-10-31)
 
 1. **TC-04 "config section literally named `aarch64`" — which file?**
    - What we know: the dormant `build_aarch64` functions (`build/scripts/build:76`, `linux-build:63`) are already correctly named; the arch lists are `funcs:37` (`arch=(386 amd64)`) and `linux-build:133` (`arch=(amd64)`); dispatch is `build_$i`.
    - What's unclear: whether the roadmap meant these lists or another config surface.
    - Recommendation: treat the funcs/linux-build arch lists as the site (adding `aarch64` there activates `build_aarch64`); planner notes the interpretation in PLAN.md.
+   - **RESOLVED** (adopted by 02-06 + 02-07): the funcs/linux-build arch-list interpretation is taken (Assumption A1); 02-06 records it as a flagged assumption and 02-07 Task 3 performs the activation (`arch=(amd64 aarch64)` + subset-scoped `build_aarch64`). If another config surface was meant, the wiring sites are all enumerated and the correction is one line.
 2. **Binary delivery into the donor guest: bake vs ufs?** (the agent's Discretion)
    - What we know: the CONF's bootdir embeds `$CONF.bootfs.paq` (baking = rebuild paq in-donor-tree with mkpaqfs — deterministic, zero guest config); the CONF has `ethervirtio10` + full ip stack (ufs over tcp = Phase 1 lineage, faster iteration).
    - Recommendation: bake for the D-06/D-08 gates; document ufs as the iteration path.
+   - **RESOLVED** (adopted by 02-04/02-05/02-07): bake-for-gates is implemented in run-gate.sh (02-05) and reused by subset-exec.sh (02-07); ufs-over-tcp is documented as the iteration path in build/aarch64/README.md (02-05 Task 2).
 3. **Host vs target nm/acid for SC#2/D-09?**
    - What we know: host nm needs host libmach (A3); target nm/acid build for aarch64 needs only libc + libmach and run on the donor kernel.
    - Recommendation: host nm for the gate (scriptable); target-build nm/acid as TC-05 stretch (they ride the same libmach).
+   - **RESOLVED** (adopted by 02-03 + 02-07): host nm is built and functionally proven on 7l objects in 02-03 Task 3, and the D-09 gate uses it in 02-07 Task 3. acid is not host-built this phase — ROADMAP SC#2's "nm/acid" is delivered **nm-only** (acid was the stretch half of this question; its 7db.c disassembler tables are landed in libmach either way, and target-built nm/acid ride the same libmach on the donor kernel when a future phase needs them). The nm-only interpretation is recorded in 02-07's objective and success criteria so the phase SUMMARY closes SC#2 against it.
 4. **Commit `enam.c` or generate per-build?**
    - Recommendation: commit it (Harvey's 6c precedent — no enam.c rule in 6c/mkfile); regenerate only when 7.out.h's opcode enum changes (document in 7c/README).
+   - **RESOLVED** (adopted by 02-01): enam.c is generated via the donor mkenam ed script and committed (6c precedent) in 02-01 Task 1; cnam.c is generated per-build via `sh mkcname` in 7l/BUILD (02-01 Task 2).
 
 ## Environment Availability
 
