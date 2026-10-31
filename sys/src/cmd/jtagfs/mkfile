@@ -1,9 +1,6 @@
 </$objtype/mkfile
 BIN=/$objtype/bin
 
-#bad bad...
-Oo=`{cat /$cputype/mkfile|grep '^O'|sed 's/.*=//g'}
-
 TARG=mpssetest\
 	jtagfs\
 
@@ -44,9 +41,15 @@ UPDATE=\
 
 $O.out:	/$objtype/lib/libregexp.a
 
-rtab.c: genrtab.c
-	$Oo^c -FVw genrtab.c && $Oo^l -o $Oo.genrtab genrtab.$Oo
-	./$Oo.genrtab > rtab.c
+rtab.c:	$cputype.genrtab
+	./$cputype.genrtab > rtab.c
+
+$cputype.genrtab:	genrtab.c
+	objtype=$cputype mk genrtab.$cputype
+
+genrtab.$objtype:V:
+	$CC $CFLAGS genrtab.c
+	$LD $LDFLAGS -o $objtype.genrtab genrtab.$O
 
 rtest:V: all
 	./test
