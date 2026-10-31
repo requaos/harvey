@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Build-Tail Green (9k amd64)
 status: executing
-stopped_at: Completed 01-02-PLAN.md (arm64 quarantine + linux-build Phase 1 scope)
-last_updated: "2026-10-31T02:05:13.842Z"
+stopped_at: Completed 01-03-PLAN.md (KERNDATE pin + reproducibility policy)
+last_updated: "2026-10-31T02:15:13.212Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 01 execution started
-state_head: 755c1741537899f8068340c70e86fab4f412793f
+state_head: a1efaf948e491c66e3bf95e8b2a3269a99eb50b8
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 2
+  completed_plans: 3
   percent: 0
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-30)
 ## Current Position
 
 Phase: 01 (Build-Tail Green (9k amd64)) — EXECUTING
-Plan: 3 of 4
+Plan: 4 of 4
 Status: Ready to execute
 Last activity: 2026-10-30 — Phase 01 execution started
 
@@ -58,6 +58,7 @@ Progress: [░░░░░░░░░░] 0%
 |------|----------|-------|-------|
 | Phase 01 P01 | 53min | 3 tasks | 12 files |
 | Phase 01 P02 | 6min | 2 tasks | 5 files |
+| Phase 01 P03 | 8min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -75,6 +76,9 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-01: git.allow_default_branch_commits=true — sequential-mode execution commits on master (fork workflow); clean-checkout verification clones the default branch
 - [Phase 01]: 01-02: six-site arm64 quarantine in ONE atomic commit 5af5e89bf (D-05 + Pitfall 3 bind-mount coupling); keepers documented (nix host-mapping, lima yaml, a.out.h/mach.h, unix/9cc, dynld-arm64.c)
 - [Phase 01]: 01-02: Phase 1 green gate = amd64 kernel loop — linux-build arch=(amd64), dist/man stages behind WITH_DIST=1 (RESEARCH OQ-2/OQ-3); revert comments in place
+- [Phase 01]: 01-03: KERNDATE derivation anchored to $HARVEY checkout (cd "$HARVEY" && git log -1 --format=%ct) in both nix entry points — HARVEY!=PWD invocations must not pin the caller's repo
+- [Phase 01]: 01-03: reproducibility evidence standard = pinned pair identical + KERNDATE+1 negative control differs + restore matches — falsifies 'deterministic anyway'
+- [Phase 01]: 01-03: guest namespace harnesses need su-proof env: re-source captured exports (BUILD's . buildnamespace) + /rc/bin:. PATH tail (repo rc/bin/membername feeds bootmkfile's archive rule)
 
 ### Pending Todos
 
@@ -85,7 +89,7 @@ None yet.
 - Phase 3: `../r9` never audited (adoption decision post-dates research) — map r9 workspace before planning Phase 3
 - Phase 4: Harvey↔r9 syscall ABI undesigned (user side freezes in Phase 2; kernel side greenfield) — highest-risk phase; consider a spike
 - Phase 4: root-fs delivery mechanism to r9 undecided (initrd / embedded blob / virtio-9p escape hatch in v1.x)
-- KERNDATE bit-reproducibility policy must be decided in Phase 1 (BUILD-04) — Phase 5 reproducibility claims depend on it
+- ~~KERNDATE bit-reproducibility policy must be decided in Phase 1 (BUILD-04)~~ RESOLVED by 01-03: pinned git-derived policy documented at build/REPRODUCIBILITY.md and demonstrated bit-identical — Phase 5 reproducibility claims unblocked
 
 ## Deferred Items
 
@@ -97,6 +101,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-31T02:05:13.829Z
-Stopped at: Completed 01-02-PLAN.md (arm64 quarantine + linux-build Phase 1 scope)
+Last session: 2026-10-31T02:15:08.103Z
+Stopped at: Completed 01-03-PLAN.md (KERNDATE pin + reproducibility policy)
 Resume file: None
