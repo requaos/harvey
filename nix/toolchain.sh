@@ -7,6 +7,12 @@ export HARVEY
 _hb_os=$(uname -s); _hb_os=${_hb_os,,}
 _hb_arch=$(uname -m); [ "$_hb_arch" = "arm64" ] && _hb_arch=aarch64
 export HARVEY_LINUX_BIN="${HARVEY_LINUX_BIN:-$HARVEY/.build/hostbin-$_hb_os-$_hb_arch/bin}"
+# Wrapper PATH (no hostbin/shim) for the vendored 9cc build below: 9cc/BUILD
+# invokes bare `ar`, and once iar is installed as $HARVEY_LINUX_BIN/ar the
+# hostbin prepend would resolve `ar` to iar — which writes Plan 9-format
+# archives that GNU ld rejects ("archive has no index"). 9cc/BUILD needs
+# nothing from hostbin, so run it with the wrapper PATH (GNU ar).
+_WRAP_PATH="$PATH"
 export PATH="$HARVEY_LINUX_BIN:$PATH"
 
 if [ ! -x "$HARVEY_LINUX_BIN/pcc" ]; then
@@ -34,6 +40,6 @@ trap '/bin/rm -rf "$SHIMDIR"' EXIT
 (cd "$HARVEY/sys/src" && sh BUILDTOOLCHAIN)
 (cd "$HARVEY/sys/src/cmd" && bash BUILD)
 # vendored 9-cc subset (sys/src/cmd/unix/9cc) — builds iar, installs as ar
-(cd "$HARVEY/sys/src/cmd/unix/9cc" && sh BUILD)
+(cd "$HARVEY/sys/src/cmd/unix/9cc" && PATH="$_WRAP_PATH" sh BUILD)
 
 echo "harvey toolchain built into $HARVEY_LINUX_BIN"
