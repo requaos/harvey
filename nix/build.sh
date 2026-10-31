@@ -32,6 +32,24 @@ done
 # bind mounts + mk install need the per-arch output dirs to exist
 bash "$HARVEY/build/mkdirs"
 
+# Userland preflight (Pitfall 2): the kernel rootdir embedding
+# (9k/mk/parse -> mkrootall) consumes /amd64/bin/{ip/ipconfig,
+# auth/factotum, fossil/fossil, venti/venti} at kernel link time and fails
+# late with a misleading "don't know how to make" when one is missing.
+# Armed by the amd64/.userland-ok sentinel, which is written at the end of
+# this script once a build has left all four binaries in place; until then
+# the check stays inert so a clean-checkout or repairing run is never
+# blocked by state the build itself is about to produce.
+if [ -f "$HARVEY/amd64/.userland-ok" ]; then
+  for f in amd64/bin/ip/ipconfig amd64/bin/auth/factotum \
+           amd64/bin/fossil/fossil amd64/bin/venti/venti; do
+    if [ ! -x "$HARVEY/$f" ]; then
+      echo "preflight: $f missing — cmd chain incomplete" >&2
+      exit 1
+    fi
+  done
+fi
+
 # pcc execs cpp as /bin/cpp; rc scripts use /bin/bind (both absolute paths).
 # sudo must be the setuid system sudo (a nix-store sudo cannot be setuid).
 SUDO=${SUDO:-/usr/bin/sudo}
@@ -46,3 +64,11 @@ for t in 6a 6c 6l 8a 8c 8l; do
 done
 
 (cd "$HARVEY/sys/src" && bash RUN_BUILD_IN_PRIVATE_NAMESPACE)
+
+# Arm the userland preflight (above) once a build has left all four
+# kernel-critical binaries in place.
+for f in amd64/bin/ip/ipconfig amd64/bin/auth/factotum \
+         amd64/bin/fossil/fossil amd64/bin/venti/venti; do
+  [ -x "$HARVEY/$f" ] || exit 0
+done
+touch "$HARVEY/amd64/.userland-ok"
