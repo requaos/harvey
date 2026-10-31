@@ -219,6 +219,18 @@ In build order, as surfaced by whack-a-mole:
 - The clone's only failures are the known 386/dist items owned by 01-02
 - Note: the clone build reuses the guest's persistent toolchain (.build excluded from rsync) — sanctioned by the plan's Pitfall 5 definition (the environment, like an installed compiler, persists; the *tree* is clean)
 
+### Corroboration — second independent clean-checkout verification (continuation session, 2026-10-31T01:48–01:58Z)
+
+A second executor session (spawned to continue this plan after the first session was presumed dead — the two-context interleave above) independently re-ran the entire clean-checkout verification *after* all interleave reconciliation had landed:
+
+- **Clone:** `git clone . …/opencode/harvey-clean-checkout` @ `f254c35c67e616bce7c23b100807a52a84a22168` (identical commit to the first run; **this clone is retained on disk and inspectable**, unlike the first run's cleaned-up `/tmp/harvey-clean-checkout`)
+- **Sequence:** `nix run .#setup && nix run .#toolchain && nix run .#build` → `SEQUENCE_EXIT=0` (log: `/tmp/01-01-clean-build2.log`; start 01:48:31Z, end 01:57:52Z)
+- **Result:** all six kernel artifacts present (`9k10cpu` 2073033 B, `9k10cpuf` 3502788 B, `9k10f` 3315571 B + .elf variants — byte sizes identical to the first run); all four kernel-critical binaries executable; the fresh build compiled `spell/pcode.c` and regenerated `amspell`/`brspell` via `o.pcode` (proving 5c78cae6e on a pristine tree); the clone's mkfile carries exactly one `checkall:V:` target
+- **Tracer evidence fill-in:** the plan's Task 1 verify `test -s sys/src/cmd/jtagfs/rtab.c` cannot pass on the host because vm-build.sh only syncs `amd64/`+`386/` back; verified guest-side instead: `~/harvey-build/sys/src/cmd/jtagfs/rtab.c` = 1701 bytes post-build (jpg's `ycbcr.h`/`rgbv.h` are git-tracked and verified host-side)
+- **checkall rc semantics A/B** (plan9port rc, guest): failure path prints `checkall failures: <list>` and exits 1; green path prints nothing and exits 0 — matching the live namespace run (145 dirs visited, exit 0)
+
+Both independent verification runs at the same commit are green; the interleave reconciliation (fef19a8a5 + f254c35c6) is confirmed inert for the build path.
+
 ## User Setup Required
 
 None.
