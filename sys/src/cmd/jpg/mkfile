@@ -42,7 +42,6 @@ UPDATE=\
 	${TARG:%=%.c}\
 
 </sys/src/cmd/mkmany
-c=`{sed -n 's/^O=//p' /$cputype/mkfile}
 
 $O.tga:		$IMFILES readtga.$O tga.$O
 $O.jpg:		$IMFILES readjpg.$O jpg.$O
@@ -58,17 +57,29 @@ $O.v210:	$IMFILES readv210.$O v210.$O
 
 torgbv.$O:	ycbcr.h rgbv.h
 
-ycbcr.h:	rgbycc.c
-	$c^c rgbycc.c
-	$c^l -o $c.rgbycc rgbycc.$c
-	$c.rgbycc > ycbcr.h
+ycbcr.h:	$cputype.rgbycc
+	./$cputype.rgbycc > ycbcr.h
 
-rgbv.h:	rgbrgbv.c
-	$c^c rgbrgbv.c
-	$c^l -o $c.rgbrgbv rgbrgbv.$c
-	$c.rgbrgbv > rgbv.h
+$cputype.rgbycc:	rgbycc.c
+	objtype=$cputype mk rgbycc.$cputype
+
+rgbycc.$objtype:V:
+	$CC $CFLAGS rgbycc.c
+	$LD $LDFLAGS -o $objtype.rgbycc rgbycc.$O
+
+rgbv.h:	$cputype.rgbrgbv
+	./$cputype.rgbrgbv > rgbv.h
+
+$cputype.rgbrgbv:	rgbrgbv.c
+	objtype=$cputype mk rgbrgbv.$cputype
+
+rgbrgbv.$objtype:V:
+	$CC $CFLAGS rgbrgbv.c
+	$LD $LDFLAGS -o $objtype.rgbrgbv rgbrgbv.$O
 
 nuke:V:	nuke-headers
 
+clean:V:	nuke-headers
+
 nuke-headers:V:
-	rm -f rgbv.h ycbcr.h
+	rm -f rgbv.h ycbcr.h *.rgbycc *.rgbrgbv
