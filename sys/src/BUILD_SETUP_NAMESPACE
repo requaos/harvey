@@ -70,6 +70,12 @@ NSLIB=/tmp/nslib.$$
 mkdir -p $NSLIB
 cp -a "$LIBREAL"/. $NSLIB/
 cp -a $HARVEY/lib/. $NSLIB/
+# cp -a of the checkout's lib/. makes NSLIB owned by the repo owner; with
+# the sticky bit below that triggers fs.protected_symlinks on the root-owned
+# loader symlink (ld-linux-aarch64.so.1 -> aarch64-linux-gnu/...): non-root
+# execve of any distro binary then fails EACCES (su: failed to execute
+# /bin/bash). Keep the staged dir root-owned so dir-owner == symlink-owner.
+chown 0:0 $NSLIB
 chmod 1777 $NSLIB	# build runs as non-root; allow mkdir /lib/audio etc.
 mount --bind $NSLIB "$LIBREAL"
 
