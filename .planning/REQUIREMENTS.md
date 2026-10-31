@@ -16,7 +16,7 @@
 ### aarch64 Toolchain + libc (9front donor)
 
 - [ ] **TC-01**: libmach learns arm64 (`7.c`, `7db.c`, `7obj.c`, setmach entry); the retired-Alpha-under-letter-7 collision in Harvey's libmach is resolved (retire or namespace)
-- [ ] **TC-02**: `7a`/`7c`/`7l` vendored from 9front into `sys/src/cmd/` with BUILD scripts; build natively on darwin-aarch64 and linux-aarch64 via the existing toolchain app; 9front `cc` frontend drift reconciled (`compat.h`)
+- [x] **TC-02**: `7a`/`7c`/`7l` vendored from 9front into `sys/src/cmd/` with BUILD scripts; build natively on darwin-aarch64 and linux-aarch64 via the existing toolchain app; 9front `cc` frontend drift reconciled (`compat.h`)
 - [ ] **TC-03**: `sys/src/libc/aarch64/` imported + `9syscall` aarch64 stub generation (`case aarch64`); a 7c/7l-compiled-and-linked hello-world proves the toolchain end-to-end **before** any arch dir/mkfile scaffolding lands (riscv64 `jc/jl/ja` vaporware rule)
 - [ ] **TC-04**: Build wiring completed: `aarch64/mkfile` (CC=7c O=7), `pcc.c` objtype entry, `mkfile.proto` CPUS, config `<objtype>` section literally named `aarch64`
 - [ ] **TC-05**: The userland subset needed for a shell builds for aarch64: rc, ipconfig, factotum, core cmds — plus aout2uimage or equivalent packaging if the boot path needs it
@@ -61,7 +61,7 @@
 | BUILD-03 | Phase 1 | Complete |
 | BUILD-04 | Phase 1 | Complete |
 | TC-01 | Phase 2 | Pending |
-| TC-02 | Phase 2 | Pending |
+| TC-02 | Phase 2 | Complete |
 | TC-03 | Phase 2 | Pending |
 | TC-04 | Phase 2 | Pending |
 | TC-05 | Phase 2 | Pending |
