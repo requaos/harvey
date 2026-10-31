@@ -6,16 +6,26 @@
 # arm64 == aarch64, the same ISA). Temporary bridge on the way to the
 # r9 kernel — see .planning/ROADMAP.md Phase 2.
 #
-# What was imported: 9front sys/src/libc/arm64/ wholesale — the full
+# What was imported: 9front sys/src/libc/arm64/ — the full
 # execution-proven ABI/asm set (D-14): 16 assembly files (argv0, atom,
 # atomic, atomic64, cycles, fabs, floor, getcallerpc, getfcr, main9,
-# main9p, memmove, memset, setjmp, sqrt, tas) + lock.c, notejmp.c,
-# _seek.c, and the mkfile.
+# main9p, memmove, memset, setjmp, sqrt, tas) + notejmp.c, _seek.c,
+# and the mkfile.
+#
+# NOT imported: the donor's lock.c. 9front modernized Lock to a
+# single-word tas spinlock ({ int val; }); Harvey's Lock stays the
+# classic { long key; long sem; } with the ainc/adec + semacquire
+# protocol, implemented portably in sys/src/libc/port/lock.c — the
+# same file that supplies lock/unlock/canlock for amd64 (the amd64
+# arch dir likewise carries no lock.c). ainc/adec come from the
+# vendored atom.s; the semacquire/semrelease stubs come from the
+# 9syscall generator. (D-14 reconcile: drift vs Harvey's libc.h
+# surfaced at the first compile.)
 #
 # Local modifications vs upstream:
 #   * mkfile line 1 — objtype=arm64 -> objtype=aarch64 (D-06/D-11
-#     rename-on-import; the ONLY content edit in the whole import).
-#     Everything else is byte-identical to the pinned donor.
+#     rename-on-import) and lock.c dropped from CFILES (above). Every
+#     remaining file is byte-identical to the pinned donor.
 #   * notejmp.c includes <ureg.h> — resolved via /$objtype/include,
 #     i.e. aarch64/include/ureg.h (imported by a later plan, post-gate).
 #   * main9.s branches to _callmain, defined in the additive import

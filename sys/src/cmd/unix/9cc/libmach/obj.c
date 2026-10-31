@@ -23,6 +23,7 @@ enum
 /* in [$OS].c */
 int	_is5(char*),
 	_is6(char*),
+	_is7(char*),
 	_is8(char*),
 	_is9(char*),
 	_isk(char*),
@@ -30,6 +31,7 @@ int	_is5(char*),
 	_isv(char*),
 	_read5(Biobuf*, Prog*),
 	_read6(Biobuf*, Prog*),
+	_read7(Biobuf*, Prog*),
 	_read8(Biobuf*, Prog*),
 	_read9(Biobuf*, Prog*),
 	_readk(Biobuf*, Prog*),
@@ -64,6 +66,7 @@ static Obj	obj[] =
 	/*[ObjAmd64]*/	"amd64 .6",	_is6, _read6,
 	/*[ObjSpim]*/	{0, 0,},
 	/*[ObjPower64]*/	"power64 .9",	_is9, _read9,
+	/*[ObjArm64]*/	"arm64 .7",	_is7, _read7,
 	/*[Maxobjtype]*/	0, 0
 };
 

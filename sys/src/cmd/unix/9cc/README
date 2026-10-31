@@ -19,5 +19,29 @@
 #     (x86-only header, gone from modern macOS SDKs).
 #   * libmach/vdb.c + vcodas.c — renamed static `fsub` to `vfsub`; glibc >= 2.44 in
 #     C23 mode declares fsub() via bits/mathcalls-narrow.h.
+#   * libmach arm64 (7-format) support added, from the pinned 9front donor
+#     (https://github.com/9front/9front @ 350266104f1fed81c78c3d05fa44f523bec0ae4d,
+#     branch "front", pinned 2026-10-31; the same pin as sys/src/cmd/7{a,c,l}):
+#       - cmd/7c/7.out.h — donor-verbatim arm64 object format header
+#         (same file as sys/src/cmd/7c/7.out.h)
+#       - libmach/ureg7.h — donor-verbatim arm64/include/ureg.h (the
+#         frozen trap frame; u64int typedefs come from lib9.h)
+#       - libmach/7obj.c, libmach/7.c — donor sys/src/libmach copies,
+#         byte-identical except the include block adapted to this
+#         tree's idiom (<lib9.h> instead of <u.h><libc.h>, quoted
+#         "mach.h", "ureg7.h" local include per the ureg6.h pattern)
+#       - libmach/obj.c — _is7/_read7 decls + [ObjArm64] "arm64 .7"
+#         parser-table row (the enum already existed; the row was
+#         missing upstream)
+#       - libmach/executable.c — extern marm64 + donor-verbatim
+#         R_MAGIC exectab entry + FARM64 commonboot case
+#     Motivation: iar writes an archive's __.SYMDEF only when every
+#     member parses as a known object; without 7-format support, `ar vu`
+#     of .7 objects produced a symdef-less libc.a that 7l cannot link.
+#     The same libmach extension also backs the host nm build
+#     (sys/src/cmd/nm.BUILD).
+#   * BUILD — CFLAGS gains -Wno-error=format-security (the nix devshell
+#     cc wrapper injects -Werror=format-security, which errors as
+#     "ignored without -Wformat" against this tree's -Wno-format).
 #   * libmath/libregexp and the rest of src/cmd are not vendored
 #     (iar links only against mach/bio/9).

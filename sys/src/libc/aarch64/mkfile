@@ -22,7 +22,6 @@ SFILES=\
 	tas.s\
 
 CFILES=\
-	lock.c\
 	notejmp.c\
 	_seek.c\
 

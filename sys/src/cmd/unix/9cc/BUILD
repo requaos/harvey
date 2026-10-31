@@ -19,7 +19,11 @@ OBJDIR=$ROOT/obj.$OSTYPE
 mkdir -p $OBJDIR
 
 CC=${CC:-cc}
-CFLAGS="-O -Wno-implicit-function-declaration -Wno-implicit-int -Wno-deprecated-declarations -Wno-format $IFLAGS"
+# -Wno-error=format-security: nix's devshell cc wrapper injects
+# -Werror=format-security, which errors out as "ignored" against this
+# tree's -Wno-format. The vendored code is decades-old Plan 9 C; the
+# hardening diagnostic is not actionable here.
+CFLAGS="-O -Wno-implicit-function-declaration -Wno-implicit-int -Wno-deprecated-declarations -Wno-format -Wno-error=format-security $IFLAGS"
 
 # lib9 (posix shim)
 (cd lib9 && $CC -c $CFLAGS *.c && ar rv $OBJDIR/lib9.a *.o && rm -f *.o)

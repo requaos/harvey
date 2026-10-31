@@ -70,3 +70,6 @@ amd64/.userland-ok
 
 # BUILD-05 minimega harness runtime capture (not committed)
 /boot-9k10cpu.log
+
+# pre-gate guest build log (generated; the binary hello.7.out IS committed as gate evidence)
+/build/aarch64/pre-gate-build.log
