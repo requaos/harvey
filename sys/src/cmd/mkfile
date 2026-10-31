@@ -37,24 +37,6 @@ dirs:V:
 		mk $MKFLAGS all
 	}
 
-# D-03 report-all diagnostic: visit every dir, collect failures, print the
-# full list at the end. Strict abort-on-first-failure stays with dirs/all;
-# this target never aborts mid-loop. NB: plain {} (not @{}) so the fail
-# accumulator survives — rc @{} forks a subshell.
-checkall:V:
-	fail=()
-	for(i in cc $DIRS) {
-		cd $i
-		echo mk $i
-		if(! mk $MKFLAGS all)
-			fail=($fail $i)
-		cd ..
-	}
-	if(~ $#fail 0)
-		exit
-	echo 'checkall failures: '^$"fail
-	exit checkall
-
 # report-all diagnostic (D-03): visit every dir, collect failures, print the
 # full list at the end; dirs/all keep strict abort-on-first-failure semantics
 # NOTE: brace group (not @{}) so the fail=() accumulator survives; explicit
