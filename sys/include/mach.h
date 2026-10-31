@@ -32,7 +32,6 @@ enum
 	M29000,			/* retired */
 	MARM,
 	MPOWER,
-	MALPHA,			/* retired */
 	NMIPS,
 	MSPARC64,		/* retired */
 	MAMD64,
@@ -61,8 +60,6 @@ enum
 	FPOWER,			/* q.out */
 	FPOWERB,		/* power pc bootable */
 	FMIPS2LE,		/* 0.out */
-	FALPHA,			/* retired */
-	FALPHAB,		/* retired DEC Alpha bootable */
 	FMIPSLE,		/* 3k little endian */
 	FSPARC64,		/* retired */
 	FAMD64,			/* 6.out */
@@ -88,7 +85,6 @@ enum
 	A29000,			/* retired */
 	AARM,
 	APOWER,
-	AALPHA,			/* retired */
 	ASPARC64,		/* retired */
 	AAMD64,
 	APOWER64,
@@ -107,7 +103,6 @@ enum
 	ObjArm,			/* .5 */
 	ObjPower,		/* .q */
 	ObjMips2le,		/* .0 */
-	ObjAlpha,		/* retired */
 	ObjSparc64,		/* retired */
 	ObjAmd64,		/* .6 */
 	ObjSpim,		/* .0 */
