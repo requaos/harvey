@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 01
 current_phase_name: Build-Tail Green (9k amd64)
-status: executing
-stopped_at: Completed 01-03-PLAN.md (KERNDATE pin + reproducibility policy)
-last_updated: "2026-10-31T02:15:13.212Z"
+status: verifying
+stopped_at: Completed 01-04-PLAN.md (minimega smoke harness; BUILD-05 via accepted TCG demonstration)
+last_updated: "2026-10-31T12:58:15.344Z"
 last_activity: 2026-10-30
 last_activity_desc: Phase 01 execution started
-state_head: a1efaf948e491c66e3bf95e8b2a3269a99eb50b8
+state_head: ae37b8c4fa8b4e4e161ba58cba40fd3ea1ff4959
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 4
-  completed_plans: 3
+  completed_plans: 4
   percent: 0
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-10-30)
 
 Phase: 01 (Build-Tail Green (9k amd64)) — EXECUTING
 Plan: 4 of 4
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-10-30 — Phase 01 execution started
 
 Progress: [░░░░░░░░░░] 0%
@@ -59,6 +59,7 @@ Progress: [░░░░░░░░░░] 0%
 | Phase 01 P01 | 53min | 3 tasks | 12 files |
 | Phase 01 P02 | 6min | 2 tasks | 5 files |
 | Phase 01 P03 | 8min | 2 tasks | 5 files |
+| Phase 01 P04 | 60min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -79,6 +80,9 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-03: KERNDATE derivation anchored to $HARVEY checkout (cd "$HARVEY" && git log -1 --format=%ct) in both nix entry points — HARVEY!=PWD invocations must not pin the caller's repo
 - [Phase 01]: 01-03: reproducibility evidence standard = pinned pair identical + KERNDATE+1 negative control differs + restore matches — falsifies 'deterministic anyway'
 - [Phase 01]: 01-03: guest namespace harnesses need su-proof env: re-source captured exports (BUILD's . buildnamespace) + /rc/bin:. PATH tail (repo rc/bin/membername feeds bootmkfile's archive rule)
+- [Phase 01]: 01-04: TCG-degraded serial capture ACCEPTED by human (2026-10-31, blocking checkpoint) as BUILD-05's phase demonstration — dev fleet has no KVM host; KVM path documented (nix build .#minimega && sudo build/mm/boot-9k10cpu.sh) for any Linux x86_64 host
+- [Phase 01]: 01-04: LP64 wide-constant truncation fixed in amd64 toolchain (6c/swt.c zaddr, 6l/span.c oclass, 6c/cgen.c immconst) — harness surfaced a silently miscompiled kernel; dormant-arch siblings (4c/9c/9a/4l/9l) inventoried + deferred
+- [Phase 01]: 01-04: serial capture attaches BEFORE vm start via launch/start .mm split; banner grep (not the boot timer) is the boot-proof source of truth; minimega -e exit status never trusted (socket-appearance gating)
 
 ### Pending Todos
 
@@ -101,6 +105,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-31T02:15:08.103Z
-Stopped at: Completed 01-03-PLAN.md (KERNDATE pin + reproducibility policy)
+Last session: 2026-10-31T12:58:15.330Z
+Stopped at: Completed 01-04-PLAN.md (minimega smoke harness; BUILD-05 via accepted TCG demonstration)
 Resume file: None
