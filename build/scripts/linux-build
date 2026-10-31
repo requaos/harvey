@@ -128,7 +128,9 @@ mkdir -p /lib/audio
 mkdir -p /mail/lib
 mkdir -p /rc/bin
 
-arch=(386 amd64)
+# 386 legacy kernel/userland pass is deferred scope (Phase 1 green gate is
+# amd64-only); re-enable by restoring the 386 element to this assignment.
+arch=(amd64)
 for(i in $arch){
 	echo build $i
 
@@ -154,26 +156,32 @@ for(i in $arch){
 		exit build
 }
 
-# clean
+# dist/man stages are deferred to the ISO/dist milestone; the Phase 1 green
+# gate ends at the kernel loop above. Run with WITH_DIST=1 to include them.
+if(~ $WITH_DIST 1){
 
-cd /sys/src/cmd && mk nuke
+	# clean
 
-# dist
+	cd /sys/src/cmd && mk nuke
 
-for(i in $arch){
-	mkdir -p /sys/lib/dist/bin/$i
+	# dist
+
+	for(i in $arch){
+		mkdir -p /sys/lib/dist/bin/$i
+	}
+	mkdir -p /sys/lib/dist/pc/multi
+	cd /sys/lib/dist/cmd && mk clean && mk install && mk clean
+	cd /sys/lib/dist/cmd/multi && mk clean && mk && mk install && mk scripts && mk clean
+	cd /sys/lib/dist/pc && mk clean && mk cddisk
+	echo IN /sys/lib/dist/pc
+	ls -l
+	cd /sys/src/9/pc && mk nuke
+
+	cd /sys/src/cmd && mk nuke
+
+	# man
+
+	cd /sys/lib/man/lookman && mk index
+	cd /sys/man && mk
+
 }
-mkdir -p /sys/lib/dist/pc/multi
-cd /sys/lib/dist/cmd && mk clean && mk install && mk clean
-cd /sys/lib/dist/cmd/multi && mk clean && mk && mk install && mk scripts && mk clean
-cd /sys/lib/dist/pc && mk clean && mk cddisk
-echo IN /sys/lib/dist/pc
-ls -l
-cd /sys/src/9/pc && mk nuke
-
-cd /sys/src/cmd && mk nuke
-
-# man
-
-cd /sys/lib/man/lookman && mk index
-cd /sys/man && mk
