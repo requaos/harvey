@@ -100,7 +100,7 @@ init.h:		init.out
 	 echo '};'} > init.h
 
 $CONF.$O:	$CONF.c
-	$CC $CFLAGS '-DKERNDATE='`{date -n} $CONF.c
+	$CC $CFLAGS '-DKERNDATE='`{if(~ $#KERNDATE 0) KERNDATE=`{date -n}; echo $KERNDATE} $CONF.c
 
 $CONF.c:	../mk/parse $CONF
 	awk -f ../mk/parse -- -mkdevc $CONF > $CONF.c

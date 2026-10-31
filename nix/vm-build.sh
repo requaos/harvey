@@ -16,6 +16,12 @@ if [ ! -d "$HARVEY/sys/src" ]; then
   exit 1
 fi
 
+# Pinned kernel timestamp (BUILD-04); override with KERNDATE=<epoch>.
+# Computed host-side: the rsync below excludes .git, so the guest checkout
+# has no git metadata to derive from. Falls back to build time when git
+# metadata is absent (non-reproducible; see build/REPRODUCIBILITY.md).
+KERNDATE="${KERNDATE:-$(cd "$HARVEY" && git log -1 --format=%ct 2>/dev/null || date +%s)}"
+
 # NOTE: $PLAN9/bin is last in PATH (wrapper), so host tools win; call host
 # grep explicitly — plan9 grep does not support -q/-x.
 if ! limactl list -q 2>/dev/null | /usr/bin/grep -qx "$VM"; then
@@ -40,7 +46,7 @@ rsync -a --delete -e "$RSYNC_RSH" \
 
 echo "== building in guest (native linux)"
 # shellcheck disable=SC2016
-ssh -F "$SSH_CFG" "$GUEST" "bash -lc 'set -e; cd \"$GUEST_DIR\" && nix run .#setup && nix run .#toolchain && nix run .#build'"
+ssh -F "$SSH_CFG" "$GUEST" "KERNDATE=$KERNDATE bash -lc 'set -e; cd \"$GUEST_DIR\" && nix run .#setup && nix run .#toolchain && nix run .#build'"
 
 echo "== pulling artifacts back (amd64/, 386/)"
 for d in amd64 386; do

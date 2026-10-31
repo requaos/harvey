@@ -11,6 +11,10 @@ export USER="${USER:-root}"
 export objtype=amd64
 export cputype=unix
 export FORCERCFORMK=1
+# Pinned kernel timestamp (BUILD-04); override with KERNDATE=<epoch>.
+# Derive from the checkout's git commit (host-side; the lima guest has no .git);
+# fall back to build time when git metadata is absent.
+export KERNDATE="${KERNDATE:-$(cd "$HARVEY" && git log -1 --format=%ct 2>/dev/null || date +%s)}"
 export CGO_ENABLED=0
 
 for t in pcc cpp ar; do
