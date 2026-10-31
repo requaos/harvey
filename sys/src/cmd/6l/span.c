@@ -343,7 +343,6 @@ int
 oclass(Adr *a)
 {
 	vlong v;
-	long l;
 
 	if(a->type < D_CONST2 && (a->type >= D_INDIR || !isxyreg(a->type) && a->index != D_NONE)) {
 		if(a->index != D_NONE && a->scale == 0) {
@@ -540,8 +539,16 @@ oclass(Adr *a)
 				return Yi1;
 			if(v >= -128 && v <= 127)
 				return Yi8;
-			l = v;
-			if((vlong)l == v)
+			/*
+			 * Ys32 applies only when the value is representable as a
+			 * signed 32-bit immediate.  The historical test assigned
+			 * v to a host `long` and compared back, relying on `long`
+			 * being 32 bits so the assignment truncated; on LP64 hosts
+			 * the test is always true and wide constants are silently
+			 * truncated to imm32 in the emitted code.  Use an explicit
+			 * range check so the test is host-width independent.
+			 */
+			if(v >= -(vlong)0x80000000 && v <= (vlong)0x7fffffff)
 				return Ys32;	/* can sign extend */
 			if((v>>32) == 0)
 				return Yi32;	/* unsigned */

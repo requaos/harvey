@@ -1815,14 +1815,21 @@ layout(Node *f, Node *t, int c, int cv, Node *cn)
 int
 immconst(Node *n)
 {
-	long v;
-
 	if(n->op != OCONST || !typechlpv[n->type->etype])
 		return 0;
 	if(typechl[n->type->etype])
 		return 1;
-	v = n->vconst;
-	return n->vconst == (vlong)v;
+	/*
+	 * A constant is usable as a direct immediate only when it is
+	 * representable as a signed 32-bit value (x86-64 has no imm64
+	 * encoding for arithmetic ops).  The historical test assigned
+	 * vconst to a host `long` and compared back, relying on `long`
+	 * being 32 bits; on LP64 hosts it is always true, so wide
+	 * constants were emitted as immediates for instructions that
+	 * cannot encode them.  Use an explicit host-width-independent
+	 * range check.
+	 */
+	return n->vconst >= -(vlong)0x80000000 && n->vconst <= (vlong)0x7fffffff;
 }
 
 /*

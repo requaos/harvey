@@ -378,7 +378,18 @@ zaddr(Biobuf *b, Adr *a, int s)
 		if(a->offset != 0) {
 			t |= T_OFFSET;
 			l = a->offset;
-			if((vlong)l != a->offset)
+			/*
+			 * T_64 must be set when the offset is not representable
+			 * as a signed 32-bit value.  The historical test,
+			 * (vlong)l != a->offset, relied on host `long` being
+			 * 32 bits so the assignment above truncated; on LP64
+			 * hosts the copy is lossless, T_64 is never set, and
+			 * the high 32 bits of 64-bit constants are silently
+			 * dropped from the object file.  Use an explicit range
+			 * check so the test is host-width independent.
+			 */
+			if(a->offset > (vlong)0x7fffffff ||
+			   a->offset < -(vlong)0x80000000)
 				t |= T_64;
 		}
 		break;
