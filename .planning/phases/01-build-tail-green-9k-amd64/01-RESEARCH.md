@@ -395,17 +395,21 @@ Banner assertion grounded in-tree: `print("\nPlan 9\n");` [VERIFIED: sys/src/9k/
 | A5 | The current dirty tree (rc/bin/Kill, troff fonts, postscript edits, untracked generated `k10f.c`/`pccpuf.c`) is unrelated to Phase 1 failures. | Runtime State Inventory | If wrong, some "breakage" is local edits; the clean-checkout verification exposes it immediately |
 | A6 | `vm config initrd` is unnecessary for k10cpu (root fs embedded via rootdir). CONTEXT's "kernel+initrd" phrasing is advisory. | Pattern 5 | None — executor adds an initrd line only if bring-up shows a need |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Where is the Linux KVM host for BUILD-05's letter-of-requirement demonstration?**
    - What we know: dev fleet = darwin-aarch64 host + linux-aarch64 lima guest with **no `/dev/kvm`** [verified by ssh probe 2026-10-30]; minimega is x86/KVM-centric and manages amd64 VMs only; TCG fallback exists (A2).
    - What's unclear: whether the user has (or will accept) an x86_64-linux KVM host / CI runner / nested-virt environment for the final demonstration — or accepts the TCG-degraded boot-log capture as this phase's proof with full-KVM verification deferred.
    - Recommendation: plan the harness with TCG as the development path + a `checkpoint:human-verify` (or user-provided host) for the KVM demonstration. The `.mm` script and capture mechanics are identical either way.
+   - **Disposition (RESOLVED):** 01-04-PLAN.md — the wrapper develops against the TCG path (`MM_TCG`/`MM_QEMU`) and the blocking `checkpoint:human-verify` task ("Boot demonstration") puts the KVM-vs-TCG acceptance decision to the user.
 2. **Is the 386 pass inside the green gate?** `linux-build` runs `arch=(386 amd64)` — build_386 compiles the whole userland with 8c *and* builds legacy `9/pc` kernels + pcboot **before** amd64 starts [VERIFIED: build/scripts/linux-build:131-155, 6-24]. Phase boundary says 386 legacy kernels are NOT in this phase.
    - Recommendation: narrow to `arch=(amd64)` this phase (documented, trivially reversible); otherwise the whack-a-mole tail roughly doubles and drags in the deferred 386/ISO milestone.
+   - **Disposition (RESOLVED):** 01-02-PLAN.md Task 2 — `arch=(amd64)` with a revert comment; 386 pass deferred, trivially reversible.
 3. **Do the dist/man stages belong to "the full namespace build"?** linux-build continues past the kernels into `/sys/lib/dist` (`mk cddisk` — ISO-adjacent) and man indexing [VERIFIED: build/scripts/linux-build:157-179]. Kernels are already produced by that point.
    - Recommendation: define green = through the kernel loop; gate dist/man behind a flag or split `linux-build`, leaving ISO/dist to its deferred milestone. Confirm against success criterion 1's wording with the user if the checker disagrees.
+   - **Disposition (RESOLVED):** 01-02-PLAN.md Task 2 — dist/man stages gated behind `WITH_DIST=1`; the green gate ends at the kernel loop.
 4. **Reproducibility doc location** — `build/REPRODUCIBILITY.md` suggested; planner may choose `docs/` or README. Cosmetic.
+   - **Disposition (RESOLVED):** 01-03-PLAN.md Task 2 — policy doc lands at `build/REPRODUCIBILITY.md` as suggested.
 
 ## Environment Availability
 
