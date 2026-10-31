@@ -1,4 +1,4 @@
-TARG=bootia32.efi bootx64.efi efiboot.fat
+TARG=bootia32.efi bootx64.efi
 HFILES=fns.h mem.h
 IMAGEBASE=0x8000
 CFLAGS=-FTVw
@@ -61,6 +61,11 @@ sub.6:	sub.c
 
 %.6:	$HFILES
 
+# efiboot.fat assembles a FAT ESP image with dossrv + /srv + mount — it
+# needs a live Plan 9 system and cannot run in the unix namespace build
+# (upstream only ever ran this on a self-hosted Plan 9 VM). Build it
+# explicitly with `mk efiboot.fat` on Plan 9; same treatment as test.iso
+# and test.fat below, which were always explicit-only.
 efiboot.fat:D:	bootia32.efi bootx64.efi
 	s = $target.$pid
 	rm -f $target
