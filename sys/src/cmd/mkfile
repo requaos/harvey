@@ -37,6 +37,22 @@ dirs:V:
 		mk $MKFLAGS all
 	}
 
+# report-all diagnostic (D-03): visit every dir, collect failures, print the
+# full list at the end; dirs/all keep strict abort-on-first-failure semantics
+checkall:V:
+	fail=()
+	for(i in cc $DIRS) @{
+		cd $i
+		echo mk $i
+		if(! mk $MKFLAGS all)
+			fail=($fail $i)
+		cd ..
+	}
+	if(! ~ $#fail 0) {
+		echo 'checkall failures: '^$"fail
+		exit checkall
+	}
+
 all:V:	$PROGS dirs
 
 ^([$OS])\.(.*):R:	\2.\1
