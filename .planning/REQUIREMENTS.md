@@ -7,8 +7,8 @@
 
 ### Build Tail (9k amd64 green)
 
-- [ ] **BUILD-01**: `nix run .#build` from a clean checkout completes the full namespace build and produces all three 9k amd64 kernels (`k10cpu`, `k10cpuf`, `k10f`) — fix the cmd-chain aborts: `sys/src/cmd/jpg/mkfile` `oc` derivation, `4a` `rfork bind lex.c`, and any remaining failures
-- [ ] **BUILD-02**: Userland install completes so `/amd64/bin` carries what embedded-root kernels need (`ip/ipconfig`, `auth/factotum`, `venti/venti`) — the root cause of "don't know how to make" kernel failures
+- [x] **BUILD-01**: `nix run .#build` from a clean checkout completes the full namespace build and produces all three 9k amd64 kernels (`k10cpu`, `k10cpuf`, `k10f`) — fix the cmd-chain aborts: `sys/src/cmd/jpg/mkfile` `oc` derivation, `4a` `rfork bind lex.c`, and any remaining failures
+- [x] **BUILD-02**: Userland install completes so `/amd64/bin` carries what embedded-root kernels need (`ip/ipconfig`, `auth/factotum`, `venti/venti`) — the root cause of "don't know how to make" kernel failures
 - [ ] **BUILD-03**: Vestigial `arm64` artifacts (`build_arm64` funcs, empty `arm64/` dir, `build/mkdirs` entry) renamed or quarantined to the project's `aarch64` naming before port scaffolding lands
 - [ ] **BUILD-04**: KERNDATE/reproducibility policy decided and documented (timestamp vs pinned) — required before claiming clean-checkout reproducibility
 - [ ] **BUILD-05**: minimega (VM orchestration, Sandia) is packaged by the flake (`packages.minimega`, `fetchFromGitHub` + `buildGoModule`, pinned tag) and a `.mm` script boots the built 9k amd64 kernel on a Linux KVM host — the smoke-test harness for Phase 1 output. Boundary: minimega is x86/KVM-centric upstream (hardcoded `qemu-system-x86`), so it manages amd64 VMs only; aarch64/r9 boots stay on plain qemu (xtask/flake apps)
@@ -56,8 +56,8 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BUILD-01 | Phase 1 | Pending |
-| BUILD-02 | Phase 1 | Pending |
+| BUILD-01 | Phase 1 | Complete |
+| BUILD-02 | Phase 1 | Complete |
 | BUILD-03 | Phase 1 | Pending |
 | BUILD-04 | Phase 1 | Pending |
 | TC-01 | Phase 2 | Pending |
