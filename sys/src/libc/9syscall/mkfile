@@ -93,6 +93,14 @@ install:V:
 			echo MOVQ '$'$n, RARG
 			echo SYSCALL
 			echo RET
+		case aarch64
+			j=$i
+			if(~ $i seek) j=_seek
+			echo TEXT $j'(SB)', 1, '$0'
+			echo MOV R0, '0(FP)'
+			echo MOV '$'$n, R0
+			echo SVC
+			echo RETURN
 		case sparc
 			echo TEXT $i'(SB)', 1, '$0'
 			echo MOVW R7, '0(FP)'
