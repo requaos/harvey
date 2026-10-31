@@ -7,5 +7,8 @@ set -e
 (cd $HARVEY/sys/src/cmd/8a && sh BUILD)
 (cd $HARVEY/sys/src/cmd/8c && sh BUILD)
 (cd $HARVEY/sys/src/cmd/8l && sh BUILD)
+(cd $HARVEY/sys/src/cmd/7a && sh BUILD)
+(cd $HARVEY/sys/src/cmd/7c && sh BUILD)
+(cd $HARVEY/sys/src/cmd/7l && sh BUILD)
 (cd $HARVEY/sys/src/cmd/cpp && sh BUILD)
 (cd $HARVEY/sys/src/cmd/aux && sh BUILD)
