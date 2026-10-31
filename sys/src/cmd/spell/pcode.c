@@ -27,7 +27,7 @@ Biobuf	bout;
 
 void	readinput(int f);
 long	typecode(char *str);
-int	wcmp(void*, void*);
+int	wcmp(const void*, const void*);
 void	pdict(void);
 void	sput(int);
 
@@ -59,7 +59,8 @@ main(int argc, char *argv[])
 	exits(0);
 }
 
-wcmp(void *a, void *b)
+int
+wcmp(const void *a, const void *b)
 {
 
 	return strcmp(((Dict*)a)->word, ((Dict*)b)->word);
