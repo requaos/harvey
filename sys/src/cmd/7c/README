@@ -1,0 +1,41 @@
+# Vendored 9front arm64 C compiler `7c`
+# (https://github.com/9front/9front @ 350266104f1fed81c78c3d05fa44f523bec0ae4d,
+# branch "front", pinned 2026-10-31).
+#
+# 7c is Harvey's aarch64 compiler: the project's tree name for the
+# architecture is `aarch64` (D-01: arm64 == aarch64, the same ISA);
+# the tool letter stays 7. Imported as a temporary bridge on the way to
+# the r9 kernel — see .planning/ROADMAP.md Phase 2.
+#
+# What was imported: sys/src/cmd/7c/ wholesale (including 7.out.h, the
+# object-format header shared with 7a, 7l and libmach's 7obj.c).
+#
+# Local modifications vs upstream (D-13: drift is shimmed in vendored
+# files only — Harvey's shared cc frontend is untouched):
+#   * math.h — added; two-line unix-SDK shadow copied verbatim from
+#     6c/math.h. Without it plan9port's u.h pulls the host SDK math.h,
+#     whose round(double)/log2(double) collide with cc.h's
+#     round(long,int)/log2(uvlong).
+#   * gc.h — swcmp declaration changed to the const-qualified form
+#     `int swcmp(const void*, const void*)`, matching Harvey's
+#     cc/pswt.c definition (and 6c/gc.h).
+#   * sgen.c / cgen.c / txt.c — 9front's rotate-fold optimization
+#     excised (3 sites): the rolor(n) call in sgen.c, the `case OROL:`
+#     label in cgen.c, and the OROL case block in txt.c. Harvey's shared
+#     frontend has no OROL node producer, so the vendored consumers are
+#     dead code; removing them keeps the shared frontend untouched.
+#     Zero functional loss (no rotate fusion).
+#   * txt.c — thestring set to the aarch64 arch name (donor value was
+#     arm64). Harvey's host-built tools resolve includes as
+#     /{thestring}/include (cc/lex.c), and Harvey's tree names the arch
+#     dir aarch64.
+#   * enam.c — generated from vendored 7.out.h by the donor mkenam ed
+#     script and committed (6c precedent: no enam.c rule in the mkfile).
+#     Regenerate only when 7.out.h's opcode enum changes.
+#   * mkfile — rewritten in Harvey idiom (6c/mkfile model, minus div;
+#     donor's used <../cc/mkfile.port which Harvey lacks).
+#   * BUILD — new; host build via plan9port 9c/9l (6c/BUILD pattern,
+#     no -static, no div.c).
+#
+# Licenses: MIT-compatible; credit Bell Labs/Lucent, Vita Nuova,
+# C H Forsyth, and 9front.

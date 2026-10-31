@@ -53,6 +53,9 @@ y.debug
 /sys/src/buildnamespace
 /sys/src/9k/root/nvram
 /sys/src/cmd/unix/9cc/iar/iar
+/sys/src/cmd/7a/7a
+/sys/src/cmd/7c/7c
+/sys/src/cmd/7l/7l
 
 # build outputs produced by the nix build path
 amd64/*.efi
