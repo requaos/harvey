@@ -44,6 +44,7 @@ sys/go
 y.tab.c
 y.tab.h
 y.debug
+/sys/src/cmd/7l/cnam.c
 
 # vendored 9cc build output
 /sys/src/cmd/unix/9cc/obj.*

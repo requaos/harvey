@@ -1,0 +1,48 @@
+# Vendored 9front arm64 linker `7l` (ken linker)
+# (https://github.com/9front/9front @ 350266104f1fed81c78c3d05fa44f523bec0ae4d,
+# branch "front", pinned 2026-10-31).
+#
+# 7l is Harvey's aarch64 linker: the project's tree name for the
+# architecture is `aarch64` (D-01: arm64 == aarch64, the same ISA);
+# the tool letter stays 7. Emits Plan 9 a.out (R_MAGIC) only.
+# Temporary bridge on the way to the r9 kernel — see
+# .planning/ROADMAP.md Phase 2.
+#
+# What was imported: sys/src/cmd/7l/ wholesale (asm.c, asmout.c,
+# bits.c, compat.c, dyn.c, l.h, list.c, mkcname, mod.c, noop.c, obj.c,
+# optab.c, pass.c, span.c).
+#
+# Local modifications vs upstream (D-13: drift is shimmed in vendored
+# files only — Harvey's shared cc frontend is untouched):
+#   * l.h — MAXIO set to (16*1024): the donor defines it as IOUNIT,
+#     which exists in neither plan9port's nor Harvey's libc.h
+#     (6l/l.h uses (16*1024)).
+#   * obj.c — thestring set to the aarch64 arch name (donor value was
+#     arm64): the linker library search path is /{thestring}/lib, so
+#     the donor value would never find /aarch64/lib/libc.a.
+#   * unixcompat.c — new Harvey file (6l/unixcompat.c shape): hunk-
+#     backed malloc/calloc/free/realloc, mysbrk returning sbrk(size),
+#     setmalloctag no-op, and the my* host-OS wrappers, self-contained
+#     (the donor keeps this allocator static inside its own cc/compat;
+#     Harvey's cc/compat has no allocator). gethunk calls mysbrk,
+#     never malloc — malloc→gethunk→malloc infinite recursion was
+#     reproduced in phase-2 research (Pitfall A).
+#   * dynstub.c — new Harvey file: dynreloc no-op + fail-loud asmdyn.
+#     dyn.c is not built (Harvey links statically), but asm.c/asmout.c
+#     still reference both symbols; dynreloc is reached even on static
+#     links (C_ADDR operands, brdist) where the donor only records
+#     entries asmdyn writes under dlm mode, so the no-op is
+#     output-equivalent. asmdyn is only reachable via dlm mode and
+#     errors out if ever triggered.
+#   * BUILD — new; host build via plan9port 9c/9l (6l/BUILD pattern).
+#     compat.c is native-only (unixcompat.c replaces it on the host);
+#     dyn.c is replaced by dynstub.c — Harvey links statically.
+#   * mkfile — Harvey idiom (6l/mkfile model). cnam.$O is generated
+#     per-build from l.h's C_* enum by `sh mkcname` (the donor used
+#     rc; the script itself is pure ed heredoc); enam.$O compiles the
+#     committed ../7c/enam.c (6c precedent); dynstub.$O stands in for
+#     dyn.$O and the donor's rc-only regeneration rule for enam.c is
+#     dropped.
+#
+# Licenses: MIT-compatible; credit Bell Labs/Lucent, Vita Nuova,
+# C H Forsyth, and 9front.

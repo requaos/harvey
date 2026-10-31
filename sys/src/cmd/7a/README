@@ -1,0 +1,36 @@
+# Vendored 9front arm64 assembler `7a`
+# (https://github.com/9front/9front @ 350266104f1fed81c78c3d05fa44f523bec0ae4d,
+# branch "front", pinned 2026-10-31).
+#
+# 7a is Harvey's aarch64 assembler: the project's tree name for the
+# architecture is `aarch64` (D-01: arm64 == aarch64, the same ISA);
+# the tool letter stays 7. Temporary bridge on the way to the r9
+# kernel — see .planning/ROADMAP.md Phase 2.
+#
+# What was imported: sys/src/cmd/7a/ wholesale (a.h, a.y, lex.c).
+#
+# Local modifications vs upstream (D-13: drift is shimmed in vendored
+# files only — Harvey's shared cc frontend is untouched):
+#   * a.h — BUFSIZ defined as (16*1024): the donor defines it as
+#     IOUNIT, which exists in neither plan9port's nor Harvey's libc.h
+#     (6a/a.h uses (16*1024)).
+#   * a.h — macexpand declaration changed to the 2-arg Harvey form
+#     void macexpand(Sym*, char*), matching cc/macbody (the donor
+#     ships a 3-arg form; 7a never calls it directly).
+#   * a.h — hunk-allocator declarations appended
+#     (EXTERN hunk/nhunk/thunk, gethunk, allocn, mysbrk): Harvey's
+#     shared lexbody defines alloc/allocn over the hunk allocator and
+#     macbody defines gethunk over mysbrk; the donor keeps that
+#     allocator static inside its own cc/compat. Storage comes from
+#     lex.c's `#define EXTERN` (empty), same as 6a.
+#   * lex.c — thestring set to the aarch64 arch name (donor value was
+#     arm64): Harvey's namespace include resolution maps
+#     /{thestring}/include to /aarch64/include.
+#   * mkfile — Harvey idiom (6a/mkfile model; HFILES references
+#     ../7c/7.out.h, the lex.$O dep on ../cc/macbody ../cc/lexbody
+#     ../cc/compat retained from the donor).
+#   * BUILD — new; host build via plan9port yacc/9c/9l (6a/BUILD
+#     pattern).
+#
+# Licenses: MIT-compatible; credit Bell Labs/Lucent, Vita Nuova,
+# C H Forsyth, and 9front.
