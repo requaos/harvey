@@ -36,7 +36,11 @@ typedef	Rune	TRune;	/* target system type */
 #define	MASK(n)		(SIGN(n)|(SIGN(n)-1))
 
 #define	BITS	8
-#define	NVAR	(BITS*sizeof(ulong)*8)
+/* bits.c indexes b[n/32] with 32-bit words; on LP64 unix hosts ulong is
+ * 64 bits and BITS*sizeof(ulong)*8 (=512) would let nvar overrun the
+ * 256-bit bitmap (stack smash in blsh, e.g. compiling ql/span.c).
+ * Plan 9 semantics = BITS*32 (=256) on every platform. */
+#define	NVAR	(BITS*32)
 struct	Bits
 {
 	ulong	b[BITS];
