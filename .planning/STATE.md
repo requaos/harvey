@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-30)
+See: .planning/PROJECT.md (updated 2026-10-31)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 01 — Build-Tail Green (9k amd64)
+**Current focus:** Phase 2 — aarch64 Toolchain + libc (9front donor)
 
 ## Current Position
 
@@ -94,6 +94,8 @@ None yet.
 - Phase 4: Harvey↔r9 syscall ABI undesigned (user side freezes in Phase 2; kernel side greenfield) — highest-risk phase; consider a spike
 - Phase 4: root-fs delivery mechanism to r9 undecided (initrd / embedded blob / virtio-9p escape hatch in v1.x)
 - ~~KERNDATE bit-reproducibility policy must be decided in Phase 1 (BUILD-04)~~ RESOLVED by 01-03: pinned git-derived policy documented at build/REPRODUCIBILITY.md and demonstrated bit-identical — Phase 5 reproducibility claims unblocked
+- Phase 2: post-banner `bad magic` pool panic in 9k embedded-root `boot` (deferred-items #2) — 9k amd64 boots to banner only; fix before relying on the harness for deeper smoke signals
+- Phase 2: open code-review debt carried in 01-REVIEW-DISPOSITION.md — CR-01 (boot-9k10cpu.sh has no shebang; `sudo` direct invocation fails on dash hosts) + WR-01..04 (KERNDATE silent fallback, preflight deadlock hatch, socat attach race, checkall cd cascade); none goal-blocking, fix early in Phase 2
 
 ## Deferred Items
 
@@ -105,6 +107,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-10-31T12:58:15.330Z
+Last session: 2026-10-31T13:45:00.000Z
 Stopped at: Phase 01 complete, ready to plan Phase 2
 Resume file: None

@@ -17,15 +17,16 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 - ✓ 9k amd64 kernel (`k10cpu`) builds via the lima-VM namespace build on macOS hosts — validated this session (`amd64/9k10cpu`, `.elf`)
 - ✓ Codebase map + knowledge graph for navigation — `.planning/codebase/`, `.planning/graphs/`
 - ✓ amd64 libc + core userspace libraries build green in the namespace build — this session
+- ✓ Full 9k amd64 kernel set green from clean checkout: k10cpu + k10cpuf + k10f (all + `.elf`), two fresh-clone proofs — Phase 1
+- ✓ Same-path bit-reproducible kernels: KERNDATE pinned from git commit (env-overridable), bit-identical demo + negative control — Phase 1 (`build/REPRODUCIBILITY.md`; conffile absolute-path exception documented)
+- ✓ 9k10cpu boots under minimega/qemu with `Plan 9` banner captured over serial (TCG mode, human-accepted) — Phase 1 (`build/mm/`)
 
 ### Active
 
-- [ ] Full 9k amd64 kernel set green: k10cpu + k10cpuf + k10f (embedded-root variants) — currently blocked by cmd-chain failures (`jpg/mkfile` derives bogus `oc` from `cputype=unix`, `4a` `rfork bind lex.c`, venti/ipconfig never installed)
 - [ ] aarch64 userspace toolchain in-repo: 7a/7c/7l (assembler/compiler/linker) + libc aarch64 + `objtype=aarch64` build wiring
 - [ ] r9 aarch64 bring-up on qemu `-M virt` (r9's aarch64 is currently raspi3b/4b-only, DTB-driven) — kernel entry, memory map, GIC, PL011 console
 - [ ] r9 maturity work needed to host Harvey userland: process model / syscalls / first-process (`initcode`) boot path (r9 has VM/console/allocator/traps; no userspace exec yet)
 - [ ] Harvey aarch64 userland boots to `/bin/rc` shell on r9 kernel under qemu virt
-- [ ] Build artifacts reproducible from clean checkout on darwin-aarch64 and linux
 
 ### Out of Scope
 
@@ -72,7 +73,11 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 | Adopt r9 (Rust Plan 9 kernel) as kernel future instead of porting 9k/C to aarch64 | User decision 2026-10-30 — r9 exists (../r9), is the modern path; avoids investing in a C kernel port that would be discarded | ✓ Good |
 | r9 gets its own flake; Harvey consumes r9 via flake input | User decision 2026-10-30 — flakes compose via git URLs; relative paths/submodules are fragile glue | — Pending |
 | minimega for VM orchestration, fetched+built by nix (`nix/minimega.nix`, no submodule) | User decision 2026-10-30 — single-binary KVM VM manager with scriptable `.mm` files; upstream is x86/KVM-centric so it covers amd64 test VMs only; aarch64/r9 boots stay on plain qemu | ✓ Good |
-| 9k amd64 green before 386/ISO | 9k is the active kernel; limit blast radius of the build-tail milestone | — Pending |
+| Host-built generators normalize on the awk idiom (`objtype=$cputype mk <tool>.$cputype`) | Phase 1 — deriving tool names from `$cputype`/`$c^c` produced nonexistent `oc`/`ol`; awk's recursion is the proven in-tree pattern | ✓ Good |
+| KERNDATE pinned from git commit timestamp, derived host-side, env-overridable | Phase 1 (BUILD-04) — guest rsync excludes `.git`; same-path bit-reproducibility + documented conffile exception | ✓ Good |
+| TCG boot capture accepted for BUILD-05 demonstration | Checkpoint 2026-10-31 — dev fleet has no `/dev/kvm`; KVM path documented for any linux x86_64 host | ✓ Good (scoped) |
+| Boot-test the toolchain, not just build-test it | Phase 1 — build-green masked LP64 wide-constant truncation in 6c/6l (zaddr/oclass/immconst, NVAR); only a boot attempt exposed the silent corruption | ✓ Good |
+| 9k amd64 green before 386/ISO | 9k is the active kernel; limit blast radius of the build-tail milestone | ✓ Good (Phase 1 enforced via `arch=(amd64)` + `WITH_DIST` gate) |
 | Kernel bring-up on qemu `-M virt` shell | Smallest provable target; r9's raspi focus needs a virt platform anyway | — Pending |
 
 ## Evolution
@@ -93,4 +98,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-30 after initialization*
+*Last updated: 2026-10-31 after Phase 1*
