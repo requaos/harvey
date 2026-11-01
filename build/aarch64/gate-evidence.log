@@ -1,0 +1,51 @@
+=== 02-05 TC-03 execution gate — 2026-11-01T04:28:11Z ===
+donor: 9front branch front @ 350266104f1fed81c78c3d05fa44f523bec0ae4d (D-10 pin; kernel built in-donor-tree by Harvey's vendored 7a/7c/7l, plan 02-04)
+gate kernel: .build/9front-dist/9qemu-gate.u sha256 b258235c0d209f0e529bc484752854ee1c08f2ed97b97bd3c94cdad8666b7eba (guest donor rebake; hello embedded via CONF=qemu bootdir as /boot/hello)
+host sha256 (committed build/aarch64/hello.7.out): 1c89e0990e386ae503d9f513d3a6c1985222f772d1edb40016c19aa3881abb04
+guest sha256 (staged 9front-donor/arm64/bin/hello): 1c89e0990e386ae503d9f513d3a6c1985222f772d1edb40016c19aa3881abb04
+hashes match: yes — the binary that ran in the guest is the committed binary
+serial banner:       Plan 9
+serial bootfs stamp: qemu.bootfs: Sun Nov  1 01:14:50 GMT 2026
+serial fingerprint:  fingerprint: a4e311b400075f391fa7852f25e28befecbd1e58
+serial rc prompt:    term% 
+serial command:      /boot/hello
+serial marker:       hello aarch64 harvey
+serial exit status:  __GSD_EXIT__ (rc $status empty — exits(nil) success)
+serial-log fault scan: clean (0 matching lines)
+gate: PASS
+=== end ===
+
+=== 02-05 TC-03 execution gate — 2026-11-01T04:28:50Z ===
+donor: 9front branch front @ 350266104f1fed81c78c3d05fa44f523bec0ae4d (D-10 pin; kernel built in-donor-tree by Harvey's vendored 7a/7c/7l, plan 02-04)
+gate kernel: .build/9front-dist/9qemu-gate.u sha256 29f1bf3d8db7f1816ff84048b3362c3a2f190b1f375b71eb3ffb4b17bbbfa05b (guest donor rebake; hello embedded via CONF=qemu bootdir as /boot/hello)
+host sha256 (committed build/aarch64/hello.7.out): 1c89e0990e386ae503d9f513d3a6c1985222f772d1edb40016c19aa3881abb04
+guest sha256 (staged 9front-donor/arm64/bin/hello): 1c89e0990e386ae503d9f513d3a6c1985222f772d1edb40016c19aa3881abb04
+hashes match: yes — the binary that ran in the guest is the committed binary
+serial banner:       Plan 9
+serial bootfs stamp: qemu.bootfs: Sun Nov  1 01:14:50 GMT 2026
+serial fingerprint:  fingerprint: a4e311b400075f391fa7852f25e28befecbd1e58
+serial rc prompt:    term% 
+serial command:      /boot/hello
+serial marker:       hello aarch64 harvey
+serial exit status:  __GSD_EXIT__ (rc $status empty — exits(nil) success)
+serial-log fault scan: clean (0 matching lines)
+gate: PASS
+=== end ===
+
+=== 02-05 TC-03 execution gate — 2026-11-01T04:29:33Z ===
+donor: 9front branch front @ 350266104f1fed81c78c3d05fa44f523bec0ae4d (D-10 pin; kernel built in-donor-tree by Harvey's vendored 7a/7c/7l, plan 02-04)
+gate kernel: .build/9front-dist/9qemu-gate.u sha256 340a79ab1568784b10bb34cf1fef0927c672d45a898ef056742b3dd1c138ab89 (guest donor rebake; hello embedded via CONF=qemu bootdir as /boot/hello)
+host sha256 (committed build/aarch64/hello.7.out): 1c89e0990e386ae503d9f513d3a6c1985222f772d1edb40016c19aa3881abb04
+guest sha256 (staged 9front-donor/arm64/bin/hello): 1c89e0990e386ae503d9f513d3a6c1985222f772d1edb40016c19aa3881abb04
+hashes match: yes — the binary that ran in the guest is the committed binary
+serial banner:       Plan 9
+serial bootfs stamp: qemu.bootfs: Sun Nov  1 01:14:50 GMT 2026
+serial fingerprint:  fingerprint: a4e311b400075f391fa7852f25e28befecbd1e58
+serial rc prompt:    term% 
+serial command:      /boot/hello
+serial marker:       hello aarch64 harvey
+serial exit status:  __GSD_EXIT__ (rc $status empty — exits(nil) success)
+serial-log fault scan: clean (0 matching lines)
+gate: PASS
+=== end ===
+
