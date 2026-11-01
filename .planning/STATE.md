@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: aarch64 Toolchain + libc (9front donor)
 status: executing
-stopped_at: Completed 02-04-PLAN.md
-last_updated: "2026-11-01T03:42:31.758Z"
+stopped_at: Completed 02-05-PLAN.md
+last_updated: "2026-11-01T15:06:19.308Z"
 last_activity: 2026-10-31
 last_activity_desc: Phase 02 execution started
-state_head: cb0290977f4864d366aeb9b4c0715a5789182386
+state_head: d275b1ab946dafbf5c4f939cd640ba49e5ce04f0
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 8
+  completed_plans: 9
   percent: 20
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 02 (aarch64 Toolchain + libc (9front donor)) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-10-31 — Phase 02 execution started
 
@@ -64,6 +64,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P02 | 5 min | 2 tasks | 13 files |
 | Phase 02 P03 | 19 min | 3 tasks | 28 files |
 | Phase 02 P04 | 4h 41m | 2 tasks | 19 files |
+| Phase 02 P05 | 11h 18m (incl. human-verify wait) | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -89,6 +90,9 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-04: serial capture attaches BEFORE vm start via launch/start .mm split; banner grep (not the boot timer) is the boot-proof source of truth; minimega -e exit status never trusted (socket-appearance gating)
 - [Phase 02]: audit-7c7l vindicated: cc/pswt.c LP64 switch-sort miscompile (doswit (long)c->val no-op on LP64 → swcmp signed sort disagrees with swit2's signed target compare tree) was the donor kernel's deterministic "bad magic" pool panic; fixed host-independently as (vlong)(int); Phase-1 9k-amd64 pool panic is the same signature (deferred item 8: re-test with fixed 6c)
 - [Phase 02]: donor↔qemu-11.1.2 drift accommodated harness-side only (D-12): gic-version=3, highmem-ecam=off, DTB pre-placement, GICR0 WAKER wake poke via raw-RSP gdbpoke9.py (qemu resets redistributor asleep; donor gic.c never wakes it; no ticks → dead console input), console=0 (kbdfs input device), virtio-net-pci-non-transitional (ethervirtio10 matches only modern 0x1041)
+- [Phase 02]: 02-05: TC-03 gate SATISFIED and human-approved — committed hello.7.out executes on the 9front donor kernel (marker after term% prompt, clean exit, sha256 1c89e099 both sides, three consecutive PASS blocks); scaffolding 02-06 unblocked; hello.7.out is Phase 4's ABI bisect point
+- [Phase 02]: 02-05: guest path resolution — CONF=qemu bootdir embed lands at /boot/hello (devroot exposes only boot/); bootfs.paq is unmounted before the shell so paq-baked binaries are unrunnable at the rc prompt; mkpaqfs not re-run
+- [Phase 02]: 02-05: bake-vs-ufs resolved in build/aarch64/README.md (research OQ-2) — bake-into-bootfs for gates (deterministic), ufs-over-tcp for iteration (ethervirtio10 + ip stack; srv9.py proves host 9P2000/tcp to this guest)
 
 ### Pending Todos
 
@@ -113,6 +117,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-01T03:42:19.479Z
-Stopped at: Completed 02-04-PLAN.md
+Last session: 2026-11-01T15:06:19.285Z
+Stopped at: Completed 02-05-PLAN.md
 Resume file: None
