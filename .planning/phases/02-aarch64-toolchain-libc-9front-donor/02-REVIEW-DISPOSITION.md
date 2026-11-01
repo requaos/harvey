@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: CR-01
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "run-gate.sh's \"scaffolding-free\" assertion is stale — the TC-03 gate now always fails (after appending PASS evidence)"
   - id: WR-01
     severity: warning
@@ -17,7 +17,7 @@ findings:
     title: "nsrun.sh root mode runs the entire bind/staging sequence without `set -e`"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "gdbpoke9.py's 120s default deadline is far below the 600–1500s boot budgets — false gate failures on slow TCG boots"
   - id: WR-04
     severity: warning
@@ -99,7 +99,7 @@ findings:
     severity: info
     disposition: open
     title: "pcc.c `allos` still lacks `4` and `x` though the table has mips64/spim64 rows (pre-existing)"
-open: 15
+open: 13
 total: 24
 recorded: 2026-11-01T19:11:52.535Z
 ---
@@ -108,10 +108,10 @@ recorded: 2026-11-01T19:11:52.535Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | open | - |
+| CR-01 | critical | fixed | 02-REVIEW-FIX.md (re-titled heading; verified same finding — fix commit 064c6a185) |
 | WR-01 | warning | fixed | 02-REVIEW-FIX.md |
 | WR-02 | warning | fixed | 02-REVIEW-FIX.md |
-| WR-03 | warning | open | - |
+| WR-03 | warning | fixed | 02-REVIEW-FIX.md (re-titled heading; verified same finding — fix commit f494b7727) |
 | WR-04 | warning | fixed | 02-REVIEW-FIX.md |
 | WR-05 | warning | fixed | 02-REVIEW-FIX.md |
 | WR-06 | warning | fixed | 02-REVIEW-FIX.md |
