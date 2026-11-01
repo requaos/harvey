@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: r9 qemu-virt Platform Bring-up
 status: executing
-stopped_at: Completed 03-02-PLAN.md
-last_updated: "2026-11-01T22:43:51.211Z"
+stopped_at: Completed 03-03-PLAN.md
+last_updated: "2026-11-01T23:15:52.223Z"
 last_activity: 2026-11-01
 last_activity_desc: Phase 03 execution started
-state_head: 68d20e843945e2492da98346fdb58eb54264d1fe
+state_head: 91d2237270b53f2ac9fbffc2a507438efdd15dea
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 17
-  completed_plans: 13
+  completed_plans: 14
   percent: 40
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-01)
 ## Current Position
 
 Phase: 03 (r9 qemu-virt Platform Bring-up) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-11-01 — Phase 03 execution started
 
@@ -70,6 +70,7 @@ Progress: [████░░░░░░] 40%
 | Phase 02 P07 | 47 min | 3 tasks | 16 files |
 | Phase 03 P01 | 13 min | 1 tasks | 2 files |
 | Phase 03 P02 | 5 min | 2 tasks | 12 files |
+| Phase 03 P03 | 30 min (incl. human-decision checkpoint) | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -101,6 +102,10 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-07: subset lib set = the #pragma-lib closure discovered at link time (libbio libregexp libndb libString libthread lib9p beyond the named libip/libmp/libsec/libauth/libauthsrv); libbio precedes the 7? loop (7a/a.h includes bio.h); factotum ships via per-target install (fgui's graphics stack is out of scope)
 - [Phase 02]: 02-07: mpvecdigmulsub split into its own libmp port file retires the 2021 PORT rename — archive member names now align 1:1 with text symbols (empty-arch dirs get portable C, asm arches cull via reduce, ape's broken-bind reduce can never duplicate-symbol)
 - [Phase 02]: 02-07: srv9.py --writable-prefix (opt-in, scoped) is the guest's writable-scratch mechanism (kernel MCREATE bind already permits /tmp); nix run .#build rc is never trusted — artifact checks + zero-failure-marker log scan are the gate (BUILD's break-glass bash tail swallows statuses, deferred item 12)
+- [Phase 03]: 03-03: tcg/cortex-a72 built-in defaults fire only on the virt arm — existing raspi TOMLs sprout no new argv (backward-compat holds end-to-end, verbose-probe verified); darwin runs TCG this phase (HVF rejects GICv2 on qemu 11.1.2, research P2), hvf remains selectable for a future GICv3 driver
+- [Phase 03]: 03-03: superseded apply_to_qemu_step free function removed outright instead of kept as a delegating shim — xtask-internal API with a single call site; a compat wrapper would be dead code
+- [Phase 03]: 03-03: written raspi3b boot-smoke gate satisfied by substituted A/B evidence (human decision A, 2026-11-01) — identical pre-existing raspi3b-on-qemu-11.1.2 guest abort at FAR 0xfe215004 pre-plan (6a309ae/ae4cd08) and post-plan with byte-identical raspi argv proves NO REGRESSION; upstream defect (rpi4 AUX_ENABLES MMIO on raspi3b machine; suspect init_early_uart_rpi4) deferred
+- [Phase 03]: 03-03: darwin qemu smoke isolation — setsid absent on macOS; backgrounded subshell + pkill -f with bracket-fixed pattern ([q]emu-system-aarch64.*raspi3b) so pkill cannot self-match the harness shell argv
 
 ### Pending Todos
 
@@ -125,6 +130,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-01T22:43:51.161Z
-Stopped at: Completed 03-02-PLAN.md
+Last session: 2026-11-01T23:15:52.171Z
+Stopped at: Completed 03-03-PLAN.md
 Resume file: None

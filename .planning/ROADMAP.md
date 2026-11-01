@@ -83,7 +83,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. PL011 console (`0x09000000`) runs polled-then-IRQ: typed input is received interrupt-driven and visible in the kernel log
   5. A deliberate kernel panic prints registers/stack on the console and halts cleanly (no silent wedge) — the debug path for Phase 4 exists
 
-**Plans**: 2/6 plans executed (6 waves; tracer-first — the virt boot-to-banner slice in 03-04 precedes IRQ/harness expansion; 03-02→03-03 is a declared sequential edge, not same-wave parallel)
+**Plans**: 3/6 plans executed (6 waves; tracer-first — the virt boot-to-banner slice in 03-04 precedes IRQ/harness expansion; 03-02→03-03 is a declared sequential edge, not same-wave parallel)
 **Wave 1**
 - [x] 03-01-PLAN.md — r9 flake.nix (R9-05, D-08/D-09): devShell via rust-overlay on rust-toolchain.toml + apps.build; darwin proof automated, linux leg by hand (D-10)
 
@@ -91,7 +91,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 03-02-PLAN.md — platform tree restructure (D-01/D-03): raspi drivers under platform/, cfg dispatch + check-cfg, main9 raspi gating, trap init/unmask split (P5)
 
 **Wave 3** *(blocked on Wave 2 — 03-03's raspi boot-smoke builds+boots the aarch64 tree 03-02 rewrites; declared depends_on edge)*
-- [ ] 03-03-PLAN.md — xtask plumbing (D-05/D-06/D-07): [qemu] cpu/smp/memory/accel + [dist] format, config-aware DistStep, virt serial/ELF QemuStep arm, override chain
+- [x] 03-03-PLAN.md — xtask plumbing (D-05/D-06/D-07): [qemu] cpu/smp/memory/accel + [dist] format, config-aware DistStep, virt serial/ELF QemuStep arm, override chain
 
 **Wave 4** *(blocked on Wave 3)*
 - [ ] 03-04-PLAN.md — TRACER: virt boots to the r9 banner (SC#2) — virt-gicv2.dts/.dtb, config_virt.toml, P1/P3/P4 memory fixes (incl. init_vm DTB fallback), early PL011 (D-02), platform/virt skeleton + DTB-derived machine info (D-04)
@@ -142,6 +142,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Build-Tail Green (9k amd64) | 4/4 | Complete    | 2026-10-31 |
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
-| 3. r9 qemu-virt Platform Bring-up | 2/6 | In Progress|  |
+| 3. r9 qemu-virt Platform Bring-up | 3/6 | In Progress|  |
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | 0/TBD | Not started | - |
 | 5. Shell Boot + One-Command Integration | 0/TBD | Not started | - |
