@@ -1,5 +1,5 @@
 ---
-status: passed
+status: complete
 phase: 02-aarch64-toolchain-libc-9front-donor
 source: [02-VERIFICATION.md]
 started: 2026-11-01T16:35:00Z
@@ -8,10 +8,9 @@ updated: 2026-11-01T19:15:00Z
 
 ## Current Test
 
-number: —
-name: (all tests passed)
-expected: |
-  The Harvey aarch64 shell subset (rc, grep, ipconfig, factotum, 12 core cmds — all 7c-compiled) visibly executes on the 9front donor kernel command-by-command: echo sentinel, ls /, cat/grep/sed/wc pipelines, date, test, ps, mkdir/cp/mv/rm round-trip, ipconfig usage, factotum resident in ps, closing SUBSET-OK. Zero panic/trap/sys: note lines.
+[testing complete]
+
+<!-- (archived final state) number: — name: (all tests passed) expected: The Harvey aarch64 shell subset (rc, grep, ipconfig, factotum, 12 core cmds — all 7c-compiled) visibly executes on the 9front donor kernel command-by-command: echo sentinel, ls /, cat/grep/sed/wc pipelines, date, test, ps, mkdir/cp/mv/rm round-trip, ipconfig usage, factotum resident in ps, closing SUBSET-OK. Zero panic/trap/sys: note lines.
 awaiting: nothing — complete
 
 ## Tests
