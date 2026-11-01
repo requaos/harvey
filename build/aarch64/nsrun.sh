@@ -41,6 +41,13 @@ BUILD_USER="${1:?usage: nsrun.sh <user> <exports-file> '<command>'}"
 ENVFILE="${2:?usage: nsrun.sh <user> <exports-file> '<command>'}"
 CMD="${3:?usage: nsrun.sh <user> <exports-file> '<command>'}"
 
+# fail hard on any setup error: an unchecked bind/staging failure leaves
+# a partial namespace and the command then dies later with misleading
+# missing-include errors. (The --wrap branch above sets -e itself; the
+# su capture at the bottom re-disables it around the deliberate status
+# capture.)
+set -e
+
 # captured devshell exports: HARVEY, HARVEY_LINUX_BIN, PLAN9, PATH, ...
 . "$ENVFILE"
 
