@@ -498,7 +498,11 @@ zname(Biobuf *b, Sym *s, int t)
 char*
 zaddr(char *bp, Adr *a, int s)
 {
-	long l;
+	int l;		/* Harvey LP64 fix: int (fixed 32-bit), not long —
+				 * with 64-bit long the truncation check below never
+				 * fires and D_CONST offsets >32 bits (e.g. -KZERO)
+				 * lose their high word in the object stream
+				 * (same class as the phase-1 6c/swt.c zaddr fix) */
 	Ieee e;
 
 	if(a->type == D_CONST){

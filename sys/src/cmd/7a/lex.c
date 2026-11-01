@@ -784,7 +784,13 @@ zname(char *n, int t, int s)
 void
 zaddr(Gen *a, int s)
 {
-	long l;
+	int l;		/* Harvey LP64 fix: must be int (fixed 32-bit), not
+				 * long — with 64-bit long the truncation check below
+				 * never fires and D_CONST offsets >32 bits (e.g.
+				 * -KZERO = 0x80000000) get written as 32 bits, losing
+				 * the high word (6a/lex.c zaddr uses int l for the
+				 * same reason; same class as the phase-1 6c/swt.c
+				 * zaddr LP64 fix) */
 	int i;
 	char *n;
 	Ieee e;
