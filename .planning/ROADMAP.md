@@ -53,14 +53,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. `objtype=aarch64` build wiring works end-to-end: `aarch64/mkfile` (CC=7c O=7), `pcc.c` objtype entry, `mkfile.proto` CPUS, config section literally named `aarch64`
   5. The shell-boot userland subset (`rc`, `ipconfig`, `factotum`, core cmds) builds for aarch64 with `sys/src/libc/aarch64/` + generated `9syscall` SVC stubs — these stubs freeze the user side of the Harvey↔r9 ABI
 
-**Plans**: 3/7 plans executed (5 waves)
+**Plans**: 4/7 plans executed (5 waves)
 **Wave 1**
 - [x] 02-01-PLAN.md — Vendor 7a/7c/7l from pinned 9front + nine-shim set (+ planner-found thestring shim) + host builds + BUILDTOOLCHAIN wiring + native-compile sweep check (TC-02)
 - [x] 02-02-PLAN.md — Alpha excision (D-04/D-05) + libmach arm64: vendored 7.c/7db.c/7obj.c + setmach/exectab/objtable wiring (TC-01)
 
 **Wave 2** *(blocked on Wave 1)*
 - [x] 02-03-PLAN.md — case aarch64 ABI-freeze generator + callmain.c + libc/aarch64 verbatim import + pre-gate namespace build → committed hello.7.out + host nm (TC-03 build half, TC-01 functional)
-- [ ] 02-04-PLAN.md — Donor-kernel harness: in-donor-tree CONF=qemu build with our 7a/7c/7l in lima (D-07) + TCG boot-to-shell with serial proof (TC-03 harness)
+- [x] 02-04-PLAN.md — Donor-kernel harness: in-donor-tree CONF=qemu build with our 7a/7c/7l in lima (D-07) + TCG boot-to-shell with serial proof (TC-03 harness)
 
 **Wave 3** *(blocked on Wave 2)*
 - [ ] 02-05-PLAN.md — THE GATE (tracer): hello-world executes on the 9front donor kernel, evidence committed before any scaffolding (D-06, SC#3) + harness README (D-10 pin record)
@@ -124,7 +124,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Build-Tail Green (9k amd64) | 4/4 | Complete    | 2026-10-31 |
-| 2. aarch64 Toolchain + libc | 3/7 | In Progress|  |
+| 2. aarch64 Toolchain + libc | 4/7 | In Progress|  |
 | 3. r9 qemu-virt Platform Bring-up | 0/TBD | Not started | - |
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | 0/TBD | Not started | - |
 | 5. Shell Boot + One-Command Integration | 0/TBD | Not started | - |

@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 02
 current_phase_name: aarch64 Toolchain + libc (9front donor)
 status: executing
-stopped_at: "02-04 mid-plan checkpoint:decision (donor boot panic)"
-last_updated: "2026-11-01T00:22:54.405Z"
+stopped_at: Completed 02-04-PLAN.md
+last_updated: "2026-11-01T03:42:31.758Z"
 last_activity: 2026-10-31
 last_activity_desc: Phase 02 execution started
-state_head: 3dee6291876010847bf5c5136acf472fb69f4b23
+state_head: cb0290977f4864d366aeb9b4c0715a5789182386
 progress:
   total_phases: 5
   completed_phases: 1
   total_plans: 11
-  completed_plans: 7
+  completed_plans: 8
   percent: 20
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-10-31)
 ## Current Position
 
 Phase: 02 (aarch64 Toolchain + libc (9front donor)) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-10-31 — Phase 02 execution started
 
@@ -63,6 +63,7 @@ Progress: [██░░░░░░░░] 20%
 | Phase 02 P01 | 13 min | 3 tasks | 46 files |
 | Phase 02 P02 | 5 min | 2 tasks | 13 files |
 | Phase 02 P03 | 19 min | 3 tasks | 28 files |
+| Phase 02 P04 | 4h 41m | 2 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -86,6 +87,8 @@ Recent decisions affecting current work:
 - [Phase 01]: 01-04: TCG-degraded serial capture ACCEPTED by human (2026-10-31, blocking checkpoint) as BUILD-05's phase demonstration — dev fleet has no KVM host; KVM path documented (nix build .#minimega && sudo build/mm/boot-9k10cpu.sh) for any Linux x86_64 host
 - [Phase 01]: 01-04: LP64 wide-constant truncation fixed in amd64 toolchain (6c/swt.c zaddr, 6l/span.c oclass, 6c/cgen.c immconst) — harness surfaced a silently miscompiled kernel; dormant-arch siblings (4c/9c/9a/4l/9l) inventoried + deferred
 - [Phase 01]: 01-04: serial capture attaches BEFORE vm start via launch/start .mm split; banner grep (not the boot timer) is the boot-proof source of truth; minimega -e exit status never trusted (socket-appearance gating)
+- [Phase 02]: audit-7c7l vindicated: cc/pswt.c LP64 switch-sort miscompile (doswit (long)c->val no-op on LP64 → swcmp signed sort disagrees with swit2's signed target compare tree) was the donor kernel's deterministic "bad magic" pool panic; fixed host-independently as (vlong)(int); Phase-1 9k-amd64 pool panic is the same signature (deferred item 8: re-test with fixed 6c)
+- [Phase 02]: donor↔qemu-11.1.2 drift accommodated harness-side only (D-12): gic-version=3, highmem-ecam=off, DTB pre-placement, GICR0 WAKER wake poke via raw-RSP gdbpoke9.py (qemu resets redistributor asleep; donor gic.c never wakes it; no ticks → dead console input), console=0 (kbdfs input device), virtio-net-pci-non-transitional (ethervirtio10 matches only modern 0x1041)
 
 ### Pending Todos
 
@@ -110,6 +113,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-01T00:22:54.380Z
-Stopped at: 02-04 mid-plan checkpoint:decision (donor boot panic)
-Resume file: .planning/phases/02-aarch64-toolchain-libc-9front-donor/02-04-PLAN.md
+Last session: 2026-11-01T03:42:19.479Z
+Stopped at: Completed 02-04-PLAN.md
+Resume file: None
