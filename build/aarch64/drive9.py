@@ -27,16 +27,23 @@
 #      and factotum -u (promptforhostowner, fs.c util.c:699-713) reads
 #      getenv("user") first — no readcons prompt when set.
 #   3. wait for an interactive rc shell: probe with
-#      `echo __GSD_SHELL_OK__` every few seconds; the kernel console
-#      echoes typed input immediately, but a line containing ONLY the
-#      marker (^__GSD_SHELL_OK__$) can only come from rc executing the
-#      echo — that is the shell proof.
+#      `echo __GSD_SHELL_^OK__` every few seconds. rc's ^ concatenation
+#      means the console-echoed command line never contains the
+#      contiguous marker, so a line containing ONLY the marker
+#      (^__GSD_SHELL_OK__$) can only be rc's OUTPUT — rc evaluated the
+#      concatenation. Echo alone cannot satisfy the proof, even if the
+#      console input path drops burst-leading bytes while kbdfs is busy
+#      (dropping exactly "echo " used to leave a matching line).
 #   4. set prompt='term% ' and emit one more marker: the rc-emitted
 #      "term% " prompt line in the log satisfies the plan's
 #      (term|cpu)% assertion — the donor's default prompt is bare '% '
 #      (rc/lib/rcmain), so we set the documented signature explicitly.
-#      This is a stronger proof than a prompt grep: rc only prints the
-#      new prompt because it evaluated our assignment interactively.
+#      The proof is anchored (^term% $ — the echoed assignment line
+#      "prompt='term% '" contains the substring but cannot match) and
+#      order-dependent (the prompt is accepted only in the buffer
+#      region AFTER the probe marker's output line): rc printed the new
+#      prompt because it evaluated our assignment interactively, then
+#      executed our echo.
 #
 # Panic/trap fast-fail: any "panic" or "trap:" line aborts immediately.
 #
@@ -53,8 +60,17 @@ SHELL_MARKER = "__GSD_SHELL_OK__"
 PANIC_RE = re.compile(rb"panic|trap:", re.I)
 BOOTARGS_RE = re.compile(rb"bootargs is \(tcp")
 AUTH_RE = re.compile(rb"auth address is\?")
-SHELL_RE = re.compile(rb"(?m)^__GSD_SHELL_OK__\r?$")
-PROMPT_RE = re.compile(rb"term% ")
+SHELL_RE = re.compile(rb"(?m)^" + SHELL_MARKER.encode() + rb"\r?$")
+# The liveness probe splits the marker with rc's ^ concatenation
+# operator: the echoed command line ("echo __GSD_SHELL_^OK__") never
+# contains the contiguous marker, so SHELL_RE can only match rc's
+# output line. (Byte-drop safety: a line matching SHELL_RE now needs
+# both the burst-leading "echo " AND the mid-marker caret to vanish.)
+SHELL_PROBE = b"echo __GSD_SHELL_^OK__\r"
+# Anchored to a bare prompt line: the echoed assignment line
+# ("prompt='term% '") contains "term% " as a substring but cannot match.
+PROMPT_RE = re.compile(rb"(?m)^term% $")
+PROMPT_SET_RE = re.compile(rb"(?m)^__GSD_PROMPT_SET__\r?$")
 
 
 class Log:
@@ -77,6 +93,14 @@ class Log:
     def search(self, rx):
         with self.lock:
             return rx.search(self.buf) is not None
+
+    def search_from(self, rx, base):
+        with self.lock:
+            return rx.search(self.buf, base) is not None
+
+    def length(self):
+        with self.lock:
+            return len(self.buf)
 
 
 def reader(sock, log):
@@ -193,7 +217,7 @@ def main(argv):
             break
         if time.time() >= nextprobe:
             try:
-                s.sendall(b"echo " + SHELL_MARKER.encode() + b"\r")
+                s.sendall(SHELL_PROBE)
             except OSError:
                 return fail(log, "serial socket closed during boot")
             nextprobe = time.time() + 5
@@ -202,13 +226,24 @@ def main(argv):
         return fail(log, "no interactive rc shell within %ds budget" % budget)
     sys.stderr.write("drive9: rc shell reached (marker executed)\n")
 
-    # 5. set the documented prompt signature and prove it was evaluated
+    # 5. set the documented prompt signature and prove it was evaluated.
+    #    Order-dependent: wait for the probe's OUTPUT line first (rc
+    #    provably executing), then accept the anchored bare prompt only
+    #    in the buffer region after the base recorded here — the echoed
+    #    assignment line alone can never satisfy either regex.
+    base = log.length()
     s.sendall(b"prompt='term% '\r")
     time.sleep(1)
     s.sendall(b"echo __GSD_PROMPT_SET__\r")
     pdeadline = time.time() + 60
     while time.time() < pdeadline:
-        if log.search(PROMPT_RE):
+        if log.search_from(PROMPT_SET_RE, base):
+            break
+        time.sleep(0.5)
+    else:
+        return fail(log, "shell did not execute the prompt probe")
+    while time.time() < pdeadline:
+        if log.search_from(PROMPT_RE, base):
             sys.stderr.write("drive9: rc printed the term%% prompt — shell is live\n")
             return 0
         time.sleep(0.5)

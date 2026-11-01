@@ -362,8 +362,15 @@ SHELL_MARKER = "__GSD_SHELL_OK__"
 PANIC_RE = re.compile(rb"panic|trap:", re.I)
 BOOTARGS_RE = re.compile(rb"bootargs is \(tcp")
 AUTH_RE = re.compile(rb"auth address is\?")
-SHELL_RE = re.compile(rb"(?m)^__GSD_SHELL_OK__\r?$")
-PROMPT_RE = re.compile(rb"term% ")
+SHELL_RE = re.compile(rb"(?m)^" + SHELL_MARKER.encode() + rb"\r?$")
+# drive9.py probe discipline: the marker is split with rc's ^
+# concatenation operator, so the echoed command line never contains the
+# contiguous marker and SHELL_RE can only match rc's output line.
+SHELL_PROBE = b"echo __GSD_SHELL_^OK__\r"
+# Anchored to a bare prompt line: the echoed assignment line
+# ("prompt='term% '") contains "term% " as a substring but cannot match.
+PROMPT_RE = re.compile(rb"(?m)^term% $")
+PROMPT_SET_RE = re.compile(rb"(?m)^__GSD_PROMPT_SET__\r?$")
 
 # the exercise table: (command, output regex, timeout, description)
 # Every command runs our Harvey-built binaries from /boot/h*; the shell
@@ -561,7 +568,7 @@ def main(argv):
             break
         if time.time() >= nextprobe:
             try:
-                s.sendall(b"echo " + SHELL_MARKER.encode() + b"\r")
+                s.sendall(SHELL_PROBE)
             except OSError:
                 return fail(log, "serial socket closed during boot")
             nextprobe = time.time() + 5
@@ -571,9 +578,13 @@ def main(argv):
     sys.stderr.write("subsetdrive9: rc shell reached (marker executed)\n")
 
     # 5. set the documented prompt signature and prove it was evaluated
-    #    (gatedrive9.py's race note: wait for the probe's OUTPUT line —
-    #    rc provably idle — before sending anything else, then pace
-    #    every later send at human-typing speed with echo verification)
+    #    (gatedrive9.py's race note, strengthened: PROMPT_RE is anchored
+    #    to a bare ^term% $ line so the echoed assignment cannot match,
+    #    and both regexes search only the buffer region after the base
+    #    recorded here — wait for the probe's OUTPUT line first, rc
+    #    provably executing, then the prompt; pace every later send at
+    #    human-typing speed with echo verification)
+    base = log.length()
     s.sendall(b"prompt='term% '\r")
     time.sleep(1)
     s.sendall(b"echo __GSD_PROMPT_SET__\r")
@@ -581,20 +592,19 @@ def main(argv):
     while time.time() < pdeadline:
         if PANIC_RE.search(log.tail(8192)):
             return fail(log, "kernel fault at the shell")
-        if log.search(PROMPT_RE):
-            break
-        time.sleep(0.5)
-    else:
-        return fail(log, "shell did not emit the term% prompt after assignment")
-    edeadline = time.time() + 60
-    while time.time() < edeadline:
-        if PANIC_RE.search(log.tail(8192)):
-            return fail(log, "kernel fault at the shell")
-        if log.search(re.compile(rb"(?m)^__GSD_PROMPT_SET__\r?$")):
+        if log.search_from(PROMPT_SET_RE, base):
             break
         time.sleep(0.5)
     else:
         return fail(log, "shell did not execute the prompt probe")
+    while time.time() < pdeadline:
+        if PANIC_RE.search(log.tail(8192)):
+            return fail(log, "kernel fault at the shell")
+        if log.search_from(PROMPT_RE, base):
+            break
+        time.sleep(0.5)
+    else:
+        return fail(log, "shell did not emit the term% prompt after assignment")
     sys.stderr.write("subsetdrive9: rc printed the term%% prompt — shell is live and idle\n")
 
     def paced_send(cmd):

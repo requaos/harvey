@@ -334,8 +334,15 @@ SHELL_MARKER = "__GSD_SHELL_OK__"
 PANIC_RE = re.compile(rb"panic|trap:", re.I)
 BOOTARGS_RE = re.compile(rb"bootargs is \(tcp")
 AUTH_RE = re.compile(rb"auth address is\?")
-SHELL_RE = re.compile(rb"(?m)^__GSD_SHELL_OK__\r?$")
-PROMPT_RE = re.compile(rb"term% ")
+SHELL_RE = re.compile(rb"(?m)^" + SHELL_MARKER.encode() + rb"\r?$")
+# drive9.py probe discipline: the marker is split with rc's ^
+# concatenation operator, so the echoed command line never contains the
+# contiguous marker and SHELL_RE can only match rc's output line.
+SHELL_PROBE = b"echo __GSD_SHELL_^OK__\r"
+# Anchored to a bare prompt line: the echoed assignment line
+# ("prompt='term% '") contains "term% " as a substring but cannot match.
+PROMPT_RE = re.compile(rb"(?m)^term% $")
+PROMPT_SET_RE = re.compile(rb"(?m)^__GSD_PROMPT_SET__\r?$")
 HELLO_RE = re.compile(rb"hello aarch64 harvey")
 STATUS_RE = re.compile(rb"(?m)^__GSD_EXIT__\r?$")
 
@@ -483,7 +490,7 @@ def main(argv):
             break
         if time.time() >= nextprobe:
             try:
-                s.sendall(b"echo " + SHELL_MARKER.encode() + b"\r")
+                s.sendall(SHELL_PROBE)
             except OSError:
                 return fail(log, "serial socket closed during boot")
             nextprobe = time.time() + 5
@@ -493,36 +500,41 @@ def main(argv):
     sys.stderr.write("gatedrive9: rc shell reached (marker executed)\n")
 
     # 5. set the documented prompt signature and prove it was evaluated.
-    #    PROMPT_RE matches the prompt printed after the assignment —
-    #    BEFORE the echo probe has executed. Sending the next command in
-    #    that window races the console input path (the first byte of a
-    #    burst can be dropped while kbdfs's cooked-mode line discipline
-    #    is busy — observed: `/hello` delivered as `hello`). So the gate
-    #    waits for the echo probe's OUTPUT line (rc is then provably
-    #    idle at a fresh prompt) and sends every later command paced
+    #    The proof is anchored and order-dependent: PROMPT_RE matches
+    #    only a bare ^term% $ line (the echoed assignment line
+    #    "prompt='term% '" contains the substring but cannot match), and
+    #    both regexes are searched only in the buffer region after the
+    #    base recorded here — rc provably evaluated the assignment AND
+    #    executed the probe. rc is then idle at a fresh prompt; sending
+    #    the next command earlier races the console input path (the
+    #    first byte of a burst can be dropped while kbdfs's cooked-mode
+    #    line discipline is busy — observed: `/hello` delivered as
+    #    `hello`). So the gate waits for the echo probe's OUTPUT line
+    #    first, then the prompt, and sends every later command paced
     #    (human-typing speed) with echo verification.
+    base = log.length()
     s.sendall(b"prompt='term% '\r")
     time.sleep(1)
     s.sendall(b"echo __GSD_PROMPT_SET__\r")
+    # wait for the echo OUTPUT (not the echoed command): rc is idle now
     pdeadline = time.time() + 60
     while time.time() < pdeadline:
         if PANIC_RE.search(log.tail(8192)):
             return fail(log, "kernel fault at the shell")
-        if log.search(PROMPT_RE):
-            break
-        time.sleep(0.5)
-    else:
-        return fail(log, "shell did not emit the term% prompt after assignment")
-    # wait for the echo OUTPUT (not the echoed command): rc is idle now
-    edeadline = time.time() + 60
-    while time.time() < edeadline:
-        if PANIC_RE.search(log.tail(8192)):
-            return fail(log, "kernel fault at the shell")
-        if log.search(re.compile(rb"(?m)^__GSD_PROMPT_SET__\r?$")):
+        if log.search_from(PROMPT_SET_RE, base):
             break
         time.sleep(0.5)
     else:
         return fail(log, "shell did not execute the prompt probe")
+    # then require the anchored bare prompt after the probe output
+    while time.time() < pdeadline:
+        if PANIC_RE.search(log.tail(8192)):
+            return fail(log, "kernel fault at the shell")
+        if log.search_from(PROMPT_RE, base):
+            break
+        time.sleep(0.5)
+    else:
+        return fail(log, "shell did not emit the term% prompt after assignment")
     sys.stderr.write("gatedrive9: rc printed the term%% prompt — shell is live and idle\n")
 
     def paced_send(cmd):
