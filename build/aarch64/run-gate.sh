@@ -723,9 +723,10 @@ STATUS_LINE=$(grep -m1 '^__GSD_EXIT__' "$RUNLOG" | tr -d '\r' | sed 's/^[[:space
 	echo ""
 } >> "$EVIDENCE"
 
-# the committed tree must stay scaffolding-free (the riscv64 rule)
-if [ -e "$HARVEY/aarch64" ]; then
-	err "aarch64/ leaked into the committed tree"
-fi
+# NOTE: the pre-gate "committed tree must stay scaffolding-free"
+# assertion was removed when plan 02-06 committed the arch dir
+# (aarch64/mkfile, include/{u.h,ureg.h}, ABI.md — commit a7945d8b5).
+# aarch64/ is now legitimate committed wiring, so the gate is idempotent
+# again (README: consecutive runs append consecutive PASS blocks).
 
 echo "== PASS: hello.7.out executed on the 9front donor kernel; evidence appended to $EVIDENCE"
