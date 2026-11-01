@@ -53,7 +53,20 @@ doswit(Node *n)
 		if(isv)
 			q->val = c->val;
 		else
-			q->val = (long)c->val;	/* cast ensures correct value for 32-bit switch on 64-bit architecture */
+			/*
+			 * Harvey LP64 fix: sign-extend the 32-bit case constant
+			 * host-independently.  The old (long)c->val relied on host
+			 * long being 32 bits; on LP64 hosts long is 64 bits, no
+			 * truncation happens, and swcmp's signed sort then orders
+			 * negative-int32 constants (e.g. pool.c's UNALLOC_MAGIC
+			 * 0xCAB00D1F) as large positives — while swit2's emitted
+			 * tree compares signed on the target (b.gt).  Tree and
+			 * compares disagree, so cases whose target-signed value
+			 * exceeds the split point become unreachable and execution
+			 * falls to default (donor kernel: blockcheck's ALLOC_MAGIC
+			 * case unreachable → "panic: bad magic" at links()).
+			 */
+			q->val = (vlong)(int)c->val;
 		q++;
 	}
 	qsort(iq, nc, sizeof(C1), swcmp);
@@ -105,7 +118,7 @@ doswit(Node *n)
 		for(j = i; j < nc; j++){
 			if((iq[j].val>>32) != iqh[nh].val)
 				break;
-			q->val = (long)iq[j].val;
+			q->val = (vlong)(int)iq[j].val;	/* LP64: sign-extend low half (see doswit above) */
 			q->label = iq[j].label;
 			q++;
 		}
