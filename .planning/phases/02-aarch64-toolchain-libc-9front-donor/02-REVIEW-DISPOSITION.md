@@ -9,11 +9,11 @@ findings:
     title: "run-gate.sh's \"scaffolding-free\" assertion is stale — the TC-03 gate now always fails (after appending PASS evidence)"
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "pre-gate-build.sh carries the same stale assertion and is obsolete-but-undocumented"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "nsrun.sh root mode runs the entire bind/staging sequence without `set -e`"
   - id: WR-03
     severity: warning
@@ -21,31 +21,31 @@ findings:
     title: "gdbpoke9.py's 120s default deadline is far below the 600–1500s boot budgets — false gate failures on slow TCG boots"
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "drive9.py's \"stronger\" prompt proof is satisfied by console echo alone; SHELL_RE is one 5-byte drop away from a false positive"
   - id: WR-05
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "9cc/BUILD has no `set -e` — mid-build failures can exit 0 against stale archives"
   - id: WR-06
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "9cc README's executable.c provenance omits the LP64 commonllp64 rewrite"
   - id: WR-07
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "donor-vm-build.sh's stale-object sweep deletes two tracked donor files"
   - id: WR-08
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "vm-build.sh reports success when the guest build fails"
   - id: WR-09
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "nix/build.sh lacks `set -e`; sudo-cp installs and the namespace build both fail softly"
   - id: WR-10
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "build/mkdirs declares `#!/bin/sh` but is bash (arrays)"
   - id: IN-01
     severity: info
@@ -99,9 +99,9 @@ findings:
     severity: info
     disposition: open
     title: "pcc.c `allos` still lacks `4` and `x` though the table has mips64/spim64 rows (pre-existing)"
-open: 24
+open: 15
 total: 24
-recorded: 2026-11-01T16:27:10.884Z
+recorded: 2026-11-01T19:11:52.535Z
 ---
 
 # Phase 02: Code Review Disposition
@@ -109,16 +109,16 @@ recorded: 2026-11-01T16:27:10.884Z
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
 | CR-01 | critical | open | - |
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
+| WR-01 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 02-REVIEW-FIX.md |
 | WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
-| WR-05 | warning | open | - |
-| WR-06 | warning | open | - |
-| WR-07 | warning | open | - |
-| WR-08 | warning | open | - |
-| WR-09 | warning | open | - |
-| WR-10 | warning | open | - |
+| WR-04 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-05 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-06 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-07 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-08 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-09 | warning | fixed | 02-REVIEW-FIX.md |
+| WR-10 | warning | fixed | 02-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
