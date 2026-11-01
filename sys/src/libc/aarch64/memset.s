@@ -1,6 +1,11 @@
 TEXT memset(SB), $0
 	MOVBU	c+8(FP), R1
-	MOV	n+16(FP), R2
+	/* D-14 reconcile: Harvey's libc.h declares memset(void*, int, ulong)
+	 * with 32-bit ulong; 9front's usize is 64-bit and this load was MOV
+	 * (64-bit), reading garbage in the high half of the slot -> runaway
+	 * loop (02-05 gate: fault write at USTKTOP). MOVWU reads the slot
+	 * as stored by callers of Harvey's prototype. */
+	MOVWU	n+16(FP), R2
 
 	MOV	R0, R5
 	ADD	R0, R2, R3

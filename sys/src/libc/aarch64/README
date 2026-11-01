@@ -25,7 +25,17 @@
 # Local modifications vs upstream:
 #   * mkfile line 1 — objtype=arm64 -> objtype=aarch64 (D-06/D-11
 #     rename-on-import) and lock.c dropped from CFILES (above). Every
-#     remaining file is byte-identical to the pinned donor.
+#     remaining file is byte-identical to the pinned donor except the
+#     two reconciles below.
+#   * memset.s, memmove.s — the donor reads the n argument with a
+#     64-bit MOV, matching 9front's libc.h `usize` (64-bit); Harvey's
+#     libc.h declares `ulong` (32-bit) for both functions, so 7c
+#     callers store only 32 bits and the donor load picked up garbage
+#     in the high half of the slot (a runaway memset loop faulting at
+#     USTKTOP was the 02-05 execution gate's first find). Both loads
+#     are now MOVWU (32-bit zero-extending), matching Harvey's
+#     prototypes. Same D-14 reconcile class as lock.c: 9front's typed
+#     size drift, adapted to Harvey's libc.h.
 #   * notejmp.c includes <ureg.h> — resolved via /$objtype/include,
 #     i.e. aarch64/include/ureg.h (imported by a later plan, post-gate).
 #   * main9.s branches to _callmain, defined in the additive import

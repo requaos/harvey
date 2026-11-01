@@ -1,7 +1,11 @@
 TEXT memcpy(SB), 1, $-4
 TEXT memmove(SB), $0
 	MOV	from+8(FP), R1
-	MOV	n+16(FP), R2
+	/* D-14 reconcile: Harvey's libc.h declares n as ulong (32-bit),
+	 * 9front's as usize (64-bit); the donor's 64-bit MOV read garbage
+	 * in the high half of the slot (02-05 gate). MOVWU matches the
+	 * Harvey prototype. */
+	MOVWU	n+16(FP), R2
 
 	CMP	R0, R1
 	BEQ	_done
