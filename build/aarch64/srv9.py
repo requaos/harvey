@@ -23,7 +23,21 @@
 # Wire format verified against Harvey's sys/src/libc/9sys/convD2M.c,
 # convS2M.c and sys/include/fcall.h (all fields little-endian).
 #
+# Opt-in writable scratch (plan 02-07 Task 2): --writable-prefix PATH
+# (repeatable) lifts the read-only Rerror for paths under PREFIX
+# (guest-visible absolute prefixes, e.g. /tmp and /usr/glenda/tmp —
+# the donor's lib/namespace binds one onto the other with -c, so
+# covered either way). The subset-exec.sh gate needs a writable
+# hierarchical scratch for its mkdir/cp/mv/rm round-trip; the kernel
+# permits creates there via the bind's MCREATE flag (chan.c createdir
+# has no mode check), so only the server had to agree. Paths under a
+# writable prefix report 0777/0666 modes (dirstat honesty); qid.vers
+# bumps on every mutation so a -C (cached) mount never serves a stale
+# listing. Default (no flag) is byte-identical read-only behavior —
+# boot-9qemu.sh and run-gate.sh are unaffected.
+#
 # usage: srv9.py serve --root DIR --host 127.0.0.1 --port 1564
+#        [--writable-prefix /tmp --writable-prefix /usr/glenda/tmp]
 #        (1564 not 564: 564 is privileged on macOS/Linux; qemu user-net
 #        guestfwd maps guest 10.0.2.100:564 to host 127.0.0.1:1564)
 
@@ -45,13 +59,13 @@ Rerror = 107
 Tflush, Rflush = 108, 109
 Twalk, Rwalk = 110, 111
 Topen, Ropen = 112, 113
-Tcreate = 114
+Tcreate, Rcreate = 114, 115
 Tread, Rread = 116, 117
-Twrite = 118
+Twrite, Rwrite = 118, 119
 Tclunk, Rclunk = 120, 121
-Tremove = 122
+Tremove, Rremove = 122, 123
 Tstat, Rstat = 124, 125
-Twstat = 126
+Twstat, Rwstat = 126, 127
 
 QTDIR = 0x80
 DMDIR = 0x80000000
@@ -92,11 +106,34 @@ class Fid:
 
 
 class Srv:
-    def __init__(self, root, logf=None):
+    def __init__(self, root, logf=None, writable=()):
         self.root = os.path.realpath(root)
         self.lock = threading.Lock()
         self.fids = {}            # per-connection fid table
         self.logf = logf
+        # writable scratch prefixes (guest-visible, e.g. "/tmp"), stored
+        # as host-side realpaths
+        self.wr = [os.path.realpath(os.path.join(self.root, p.lstrip("/")))
+                   for p in writable]
+        self.vmap = {}            # host path -> qid version (bumps on mutation)
+
+    def writable(self, path):
+        real = os.path.realpath(path)
+        for p in self.wr:
+            if real == p or real.startswith(p + os.sep):
+                return True
+        return False
+
+    def bump(self, path):
+        real = os.path.realpath(path)
+        self.vmap[real] = self.vmap.get(real, 0) + 1
+
+    def dropdircache(self):
+        # a mutation invalidated cached directory listings on every fid
+        with self.lock:
+            for f in self.fids.values():
+                f.dirbuf = None
+                f.dirents = None
 
     def log(self, msg):
         if self.logf:
@@ -104,14 +141,20 @@ class Srv:
             self.logf.flush()
 
     def qidfor(self, path):
+        real = os.path.realpath(path)
+        vers = self.vmap.get(real, 0)
         try:
             st = os.stat(path)
             ino = st.st_ino & 0xFFFFFFFFFFFFFFFF
             if ino == 0:
                 ino = abs(hash(path)) & 0xFFFFFFFFFFFFFFFF
             if statmod.S_ISDIR(st.st_mode):
-                return Qid(QTDIR, ino)
-            return Qid(0, ino)
+                q = Qid(QTDIR, ino)
+                q.vers = vers
+                return q
+            q = Qid(0, ino)
+            q.vers = vers
+            return q
         except OSError:
             return Qid(0, abs(hash(path)) & 0xFFFFFFFFFFFFFFFF)
 
@@ -127,7 +170,10 @@ class Srv:
             name = os.path.basename(path) or "/"
         isdir = statmod.S_ISDIR(st.st_mode)
         q = self.qidfor(path)
-        mode = (DMDIR | 0o555) if isdir else 0o555
+        if self.writable(path):
+            mode = (DMDIR | 0o777) if isdir else 0o666
+        else:
+            mode = (DMDIR | 0o555) if isdir else 0o555
         length = 0 if isdir else st.st_size
         mtime = int(st.st_mtime) & 0xFFFFFFFF
         body = b"".join([
@@ -283,8 +329,108 @@ class Srv:
                 self.fids.pop(fid, None)
             return Rclunk, b""
 
-        if ctype in (Tcreate, Twrite, Tremove, Twstat):
-            raise P9Error("read only")
+        if ctype == Tcreate:
+            fid = struct.unpack_from("<I", p, 0)[0]
+            nlen = struct.unpack_from("<H", p, 4)[0]
+            name = p[6:6 + nlen].decode("utf-8", "replace")
+            perm = struct.unpack_from("<I", p, 6 + nlen)[0]
+            f = self.resolve(fid)
+            if not self.writable(f.path):
+                raise P9Error("read only")
+            if not os.path.isdir(f.path):
+                raise P9Error("not a directory")
+            if name in ("", ".", "..") or "/" in name:
+                raise P9Error("bad name in create")
+            npath = os.path.join(f.path, name)
+            try:
+                if perm & DMDIR:
+                    os.mkdir(npath)
+                else:
+                    fd = os.open(npath, os.O_CREAT | os.O_EXCL | os.O_WRONLY, 0o666)
+                    os.close(fd)
+            except FileExistsError:
+                raise P9Error("file exists")
+            except OSError:
+                raise P9Error("i/o error")
+            self.bump(f.path)          # parent dir listing changed
+            self.bump(npath)
+            self.dropdircache()
+            f.path = npath
+            f.open = True
+            f.dirbuf = None
+            f.dirents = None
+            return Rcreate, self.qidfor(npath).encode() + p32(0)
+
+        if ctype == Twrite:
+            fid = struct.unpack_from("<I", p, 0)[0]
+            offset = struct.unpack_from("<Q", p, 4)[0]
+            count = struct.unpack_from("<I", p, 12)[0]
+            data = p[16:16 + count]
+            f = self.resolve(fid)
+            if not self.writable(f.path):
+                raise P9Error("read only")
+            try:
+                with open(f.path, "r+b") as fp:
+                    fp.seek(offset)
+                    fp.write(data)
+            except OSError:
+                raise P9Error("i/o error")
+            self.bump(f.path)
+            return Rwrite, p32(len(data))
+
+        if ctype == Tremove:
+            fid = struct.unpack_from("<I", p, 0)[0]
+            f = self.resolve(fid)
+            if not self.writable(f.path):
+                raise P9Error("read only")
+            try:
+                if os.path.isdir(f.path):
+                    os.rmdir(f.path)
+                else:
+                    os.remove(f.path)
+            except OSError:
+                raise P9Error("i/o error")
+            self.bump(os.path.dirname(f.path))
+            self.dropdircache()
+            with self.lock:
+                self.fids.pop(fid, None)
+            return Rremove, b""
+
+        if ctype == Twstat:
+            # mv(1) renames via dirwstat with only the name field set
+            # (nulldir + null.name); apply exactly that and no-op the
+            # rest. Stat body: type(2) dev(4) qid(13) mode(4) atime(4)
+            # mtime(4) length(8) then pstr name — name begins at offset
+            # fid(4)+size(2)+39 = 45.
+            fid = struct.unpack_from("<I", p, 0)[0]
+            f = self.resolve(fid)
+            if not self.writable(f.path):
+                raise P9Error("read only")
+            noff = 4 + 2 + 39
+            if len(p) >= noff + 2:
+                nlen = struct.unpack_from("<H", p, noff)[0]
+                name = p[noff + 2:noff + 2 + nlen].decode("utf-8", "replace")
+            else:
+                name = ""
+            if name and name not in (".", "..") and "/" not in name:
+                parent = os.path.dirname(f.path)
+                npath = os.path.join(parent, name)
+                if not self.writable(npath):
+                    raise P9Error("read only")
+                try:
+                    if os.path.exists(npath):
+                        if os.path.isdir(npath):
+                            os.rmdir(npath)
+                        else:
+                            os.remove(npath)
+                    os.rename(f.path, npath)
+                except OSError:
+                    raise P9Error("i/o error")
+                f.path = npath
+                self.bump(parent)
+                self.bump(npath)
+                self.dropdircache()
+            return Rwstat, b""
 
         raise P9Error("unknown message type %d" % ctype)
 
@@ -338,17 +484,18 @@ def recvn(conn, n):
     return buf
 
 
-def serve(root, host, port, logf=None):
+def serve(root, host, port, logf=None, writable=()):
     if not os.path.isdir(root):
         sys.stderr.write("srv9: %s is not a directory\n" % root)
         return 2
-    srv = Srv(root, logf=logf)
+    srv = Srv(root, logf=logf, writable=writable)
     lsock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     lsock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     lsock.bind((host, port))
     lsock.listen(16)
-    sys.stderr.write("srv9: serving %s on %s:%d (9P2000, read-only)\n"
-                     % (os.path.realpath(root), host, port))
+    mode = "read-only" if not writable else "writable prefixes: %s" % ", ".join(writable)
+    sys.stderr.write("srv9: serving %s on %s:%d (9P2000, %s)\n"
+                     % (os.path.realpath(root), host, port, mode))
     sys.stderr.flush()
     while True:
         conn, addr = lsock.accept()
@@ -358,11 +505,12 @@ def serve(root, host, port, logf=None):
 
 def main(argv):
     if len(argv) < 2 or argv[1] != "serve":
-        sys.stderr.write("usage: srv9.py serve --root DIR [--host H] [--port P]\n")
+        sys.stderr.write("usage: srv9.py serve --root DIR [--host H] [--port P] [--writable-prefix PATH ...]\n")
         return 2
     root = None
     host = "127.0.0.1"
     port = 1564
+    writable = []
     i = 2
     while i < len(argv):
         if argv[i] == "--root":
@@ -374,13 +522,16 @@ def main(argv):
         elif argv[i] == "--port":
             port = int(argv[i + 1])
             i += 2
+        elif argv[i] == "--writable-prefix":
+            writable.append(argv[i + 1])
+            i += 2
         else:
             sys.stderr.write("srv9: unknown arg %s\n" % argv[i])
             return 2
     if root is None:
         sys.stderr.write("srv9: --root required\n")
         return 2
-    return serve(root, host, port)
+    return serve(root, host, port, writable=writable)
 
 
 if __name__ == "__main__":
