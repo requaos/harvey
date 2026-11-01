@@ -473,14 +473,16 @@ These need only the devshell. Deeper optional check: `cargo xtask qemu --arch aa
 | A4 | qemu's ELF entry resolution uses the physical load address when e_entry is high-half (mechanism not fully source-confirmed; behavior empirically verified) | boot contract | none for r9 (its entry = start of first load segment either way) |
 | A5 | check-cfg warnings appear for new `--cfg platform` values (cosmetic) | P10 | warnings in CI logs only |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **Does the trimmed DTB stay valid across qemu bumps?**
+All three questions carry documented dispositions encoded in plans 03-02/03-03/03-04 — nothing remains open for planning or execution.
+
+1. **Does the trimmed DTB stay valid across qemu bumps?** — DISPOSITION: resolved by the P11 drift policy; encoded in plan 03-04 Task 1 step (1) (committed `virt-gicv2.{dts,dtb}` with the regeneration-procedure header comment) and the 03-06 HowItWorks.md update.
    - Known: qemu injects `/memory` + `/chosen` even with `-dtb`; device addresses are machine-model constants.
    - Unclear: nothing functional — only drift-watch (P11). Regeneration procedure: `qemu-system-aarch64 -M virt,gic-version=2 -machine dumpdtb=… ` → dtc dtb→dts→dtb → commit both.
    - Recommendation: commit `virt-gicv2.{dts,dtb}`; regenerate on qemu pin bumps.
-2. **linux-aarch64 KVM GICv2 availability on the fleet's linux host** (A2) — resolved by D-10's manual run; TCG fallback already specified.
-3. **`test_sysexit` fate in virt main9** — CONTEXT delegates to planner; research recommends gating it to raspi configs (Phase 4 scope), keeping virt main9 minimal.
+2. **linux-aarch64 KVM GICv2 availability on the fleet's linux host** (A2) — resolved by D-10's manual run; TCG fallback already specified. DISPOSITION: the fallback is wired in plan 03-03's accel override chain (flag → R9_ACCEL env → TOML → tcg default).
+3. **`test_sysexit` fate in virt main9** — CONTEXT delegates to planner; research recommends gating it to raspi configs (Phase 4 scope), keeping virt main9 minimal. DISPOSITION: adopted verbatim — plan 03-02 Task 2 step (1) gates `test_sysexit` and the user-page-table block behind cfg(not(platform = "virt")) with a Phase-4-revisits comment.
 
 ## Environment Availability
 
