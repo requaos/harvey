@@ -83,9 +83,24 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. PL011 console (`0x09000000`) runs polled-then-IRQ: typed input is received interrupt-driven and visible in the kernel log
   5. A deliberate kernel panic prints registers/stack on the console and halts cleanly (no silent wedge) — the debug path for Phase 4 exists
 
-**Plans**: TBD
+**Plans**: 6 plans (5 waves; tracer-first — the virt boot-to-banner slice in 03-04 precedes IRQ/harness expansion)
+**Wave 1**
+- [ ] 03-01-PLAN.md — r9 flake.nix (R9-05, D-08/D-09): devShell via rust-overlay on rust-toolchain.toml + apps.build; darwin proof automated, linux leg by hand (D-10)
 
-**Pre-planning flag**: `/gsd-map-codebase` (or equivalent audit) on `../r9` before planning — the research run never inspected it (r9 adoption post-dates research). Map the platform abstraction, raspi boot structure, trap frames, and xtask qemu wiring first.
+**Wave 2** *(blocked on Wave 1 — the devshell is the phase's build bootstrap)*
+- [ ] 03-02-PLAN.md — platform tree restructure (D-01/D-03): raspi drivers under platform/, cfg dispatch + check-cfg, main9 raspi gating, trap init/unmask split (P5)
+- [ ] 03-03-PLAN.md — xtask plumbing (D-05/D-06/D-07): [qemu] cpu/smp/memory/accel + [dist] format, config-aware DistStep, virt serial/ELF QemuStep arm, override chain
+
+**Wave 3** *(blocked on Wave 2)*
+- [ ] 03-04-PLAN.md — TRACER: virt boots to the r9 banner (SC#2) — virt-gicv2.dts/.dtb, config_virt.toml, P1/P3/P4 memory fixes, early PL011 (D-02), platform/virt skeleton + DTB-derived machine info (D-04)
+
+**Wave 4** *(blocked on Wave 3 — IRQ work rides the proven boot slice)*
+- [ ] 03-05-PLAN.md — GICv2 + generic timer + PL011 RX IRQ echo (SC#3/SC#4, verified register sequences) + cargo xtask boot-test harness (D-11, zero-dep unix-socket)
+
+**Wave 5** *(blocked on Wave 4)*
+- [ ] 03-06-PLAN.md — panic config gate (SC#5, D-12 brk route) + README/HowItWorks + evidence consolidation into Harvey .planning (D-13) + phase-gate human review
+
+**Pre-planning flag**: `/gsd-map-codebase` (or equivalent audit) on `../r9` before planning — SATISFIED by this phase's PATTERNS.md (31 files scanned, all cited paths git-verified at r9 HEAD 33a9273)
 
 ### Phase 4: r9 Userspace-Exec + Harvey↔r9 ABI
 
@@ -125,6 +140,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Build-Tail Green (9k amd64) | 4/4 | Complete    | 2026-10-31 |
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
-| 3. r9 qemu-virt Platform Bring-up | 0/TBD | Not started | - |
+| 3. r9 qemu-virt Platform Bring-up | 0/6 | Planned | - |
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | 0/TBD | Not started | - |
 | 5. Shell Boot + One-Command Integration | 0/TBD | Not started | - |
