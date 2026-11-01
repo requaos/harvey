@@ -68,7 +68,7 @@ mpvecdigmuladd(mpdigit *b, int n, mpdigit m, mpdigit *p)
 
 // prereq: p must have room for n+1 digits
 int
-PORTmpvecdigmulsub(mpdigit *b, int n, mpdigit m, mpdigit *p)
+mpvecdigmulsub(mpdigit *b, int n, mpdigit m, mpdigit *p)
 {
 	int i;
 	mpdigit x, y, part[2], borrow;
