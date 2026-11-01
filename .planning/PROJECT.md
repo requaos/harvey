@@ -20,13 +20,14 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 - ✓ Full 9k amd64 kernel set green from clean checkout: k10cpu + k10cpuf + k10f (all + `.elf`), two fresh-clone proofs — Phase 1
 - ✓ Same-path bit-reproducible kernels: KERNDATE pinned from git commit (env-overridable), bit-identical demo + negative control — Phase 1 (`build/REPRODUCIBILITY.md`; conffile absolute-path exception documented)
 - ✓ 9k10cpu boots under minimega/qemu with `Plan 9` banner captured over serial (TCG mode, human-accepted) — Phase 1 (`build/mm/`)
+- ✓ aarch64 userspace toolchain in-repo: vendored 9front 7a/7c/7l (pinned `350266104f`, Harvey shims), libmach arm64 (Alpha excised from letter 7), libc/aarch64 + frozen syscall ABI (`aarch64/ABI.md`), `objtype=aarch64` wiring — Phase 2 (TC-01…TC-05; proven by execution: hello.7.out + 16-binary shell subset run on the 9front donor kernel under qemu TCG)
 
 ### Active
 
-- [ ] aarch64 userspace toolchain in-repo: 7a/7c/7l (assembler/compiler/linker) + libc aarch64 + `objtype=aarch64` build wiring
 - [ ] r9 aarch64 bring-up on qemu `-M virt` (r9's aarch64 is currently raspi3b/4b-only, DTB-driven) — kernel entry, memory map, GIC, PL011 console
 - [ ] r9 maturity work needed to host Harvey userland: process model / syscalls / first-process (`initcode`) boot path (r9 has VM/console/allocator/traps; no userspace exec yet)
 - [ ] Harvey aarch64 userland boots to `/bin/rc` shell on r9 kernel under qemu virt
+- [ ] Re-test the Phase 1 9k-amd64 embedded-root `bad magic` pool panic against the LP64-fixed 6c (same signature as the pswt.c bug fixed in Phase 2) — deferred-items.md #8
 
 ### Out of Scope
 
@@ -45,7 +46,7 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 - **Build system**: mk + mkfiles; host tools built by `sys/src/cmd/*/BUILD` scripts; kernel build runs in a Linux mount namespace emulating Plan 9's root layout (`sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE` → `BUILD_SETUP_NAMESPACE` → `BUILD` → `build/scripts/linux-build`)
 - **Nix scaffolding**: `flake.nix` + `nix/*.sh`; on darwin the namespace build runs in a lima VM (virtiofs subdir binds yield empty trees, so the VM build rsyncs to guest-local disk and pulls `amd64/`+`386/` back)
 - **Vendored 9-cc**: `sys/src/cmd/unix/9cc/` carries the `iar` subset of 0intro/9-cc with aarch64 host support (see its README)
-- **aarch64 toolchain donors**: 9front (MIT) has `sys/src/cmd/{7a,7c,7l}`, `sys/src/libc/arm64/`, `arm64/mkfile`, libmach `{7.c,7db.c,7obj.c}`, `aout2uimage` — see `.planning/research/STACK.md`. Harvey's libmach wires retired **Alpha** under letter 7 — collides with arm64 7-imports, must be resolved first.
+- **aarch64 toolchain donors**: 9front (MIT) vendored at pin `350266104f` in Phase 2 — `sys/src/cmd/{7a,7c,7l}`, `sys/src/libc/aarch64/`, libmach `{7.c,7db.c,7obj.c}` (retired-Alpha letter-7 collision resolved by excision, D-04/D-05). The pinned donor tree doubles as the execution reference: it builds its own CONF=qemu kernel with Harvey's tools and boots it for the TC-03/TC-05 gates (`build/aarch64/`).
 - **Naming tension**: in-tree vestiges (`build_arm64`, empty `arm64/` dir, mkdirs) use `arm64`; 9front convention is also `arm64`; project decision is `aarch64` — the toolchain phase starts by renaming/quarantining the vestiges.
 - **Known upstream breakage**: `sys/src/cmd/jpg/mkfile:56-68` derives a nonexistent `oc` compiler from `cputype=unix`, aborting the cmd DIRS loop before `ip/`+`venti/` → root-embedding kernels (k10cpuf/k10f) can't find `/amd64/bin/ip/ipconfig`; `4a` `rfork bind lex.c` failure; `mahjonng` cpp breakage noted in Dockerfile TODO
 - **VM orchestration**: minimega (`../minimega` read-only clone for reference; the flake fetches+builds it via `nix/minimega.nix`, pinned tag 3.3.0) manages amd64 test VMs on Linux/KVM hosts with `.mm` scripts. It is x86/KVM-centric upstream — aarch64/r9 test boots use plain qemu instead. On darwin, KVM is unavailable; minimega runs on linux hosts (or the lima guest, TCG-slow).
@@ -78,6 +79,13 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 | TCG boot capture accepted for BUILD-05 demonstration | Checkpoint 2026-10-31 — dev fleet has no `/dev/kvm`; KVM path documented for any linux x86_64 host | ✓ Good (scoped) |
 | Boot-test the toolchain, not just build-test it | Phase 1 — build-green masked LP64 wide-constant truncation in 6c/6l (zaddr/oclass/immconst, NVAR); only a boot attempt exposed the silent corruption | ✓ Good |
 | 9k amd64 green before 386/ISO | 9k is the active kernel; limit blast radius of the build-tail milestone | ✓ Good (Phase 1 enforced via `arch=(amd64)` + `WITH_DIST` gate) |
+| Vendor-and-own 9front toolchain at a pinned donor SHA, per-dir provenance READMEs (D-10) | Phase 2 — supply-chain discipline is the phase's real security content; one fetch, hard rev-parse gate | ✓ Good |
+| Execution-gated ordering: a 7l-linked binary RUNS on the donor kernel before any `aarch64/` scaffolding/CPUS lands | Phase 2 — riscv64 vaporware rule enforced structurally; the gate caught two real bugs (pswt.c LP64 switch sign-extension; memset/memmove n-width) | ✓ Good |
+| User-side syscall ABI freeze: `9syscall case aarch64` donor-verbatim + canonical `aarch64/ABI.md` (R0/SP+8/SVC, NMOUNT=54) | Phase 2 (D-15) — r9 Phase 4 consumes this contract; execution-validated before publication | ✓ Good |
+| Host nm built against the 9cc-tree libmach, not Harvey's in-tree libmach | Phase 2 — in-tree executable.c hits an LP64-host embedded-typedef dialect wall; 9cc route is the plan's fallback with arm64 support vendored there | ✓ Good (recorded) |
+| qemu-11.1.2 donor drift accommodated harness-side only (GIC wake poke, console=0, virtio-non-transitional, ECAM/DTB loader) | Phase 2 (D-12) — donor tree stays pristine; vendor fidelity outranks convenience | ✓ Good |
+| libmp `mpvecdigmulsub` split (retire the 2021 PORT rename); member/symbol 1:1 | Phase 2 (02-07) — archive member lookup needs name equality on aarch64 | ✓ Good |
+| Default build is dual-arch: `arch=(amd64 aarch64)` with subset-scoped `build_aarch64` | Phase 2 (02-07) — TC-05 acceptance + regression coverage in one `nix run .#build` | ✓ Good |
 | Kernel bring-up on qemu `-M virt` shell | Smallest provable target; r9's raspi focus needs a virt platform anyway | — Pending |
 
 ## Evolution
@@ -98,4 +106,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-10-31 after Phase 1*
+*Last updated: 2026-11-01 after Phase 2*

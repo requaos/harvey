@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-10-31)
+See: .planning/PROJECT.md (updated 2026-11-01)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 02 — aarch64 Toolchain + libc (9front donor)
+**Current focus:** Phase 3 — r9 qemu-virt Platform Bring-up
 
 ## Current Position
 
@@ -96,9 +96,9 @@ Recent decisions affecting current work:
 - [Phase 02]: 02-05: TC-03 gate SATISFIED and human-approved — committed hello.7.out executes on the 9front donor kernel (marker after term% prompt, clean exit, sha256 1c89e099 both sides, three consecutive PASS blocks); scaffolding 02-06 unblocked; hello.7.out is Phase 4's ABI bisect point
 - [Phase 02]: 02-05: guest path resolution — CONF=qemu bootdir embed lands at /boot/hello (devroot exposes only boot/); bootfs.paq is unmounted before the shell so paq-baked binaries are unrunnable at the rc prompt; mkpaqfs not re-run
 - [Phase 02]: 02-05: bake-vs-ufs resolved in build/aarch64/README.md (research OQ-2) — bake-into-bootfs for gates (deterministic), ufs-over-tcp for iteration (ethervirtio10 + ip stack; srv9.py proves host 9P2000/tcp to this guest)
-- [Phase 02]: [Phase 02]: 02-07: subset lib set = the #pragma-lib closure discovered at link time (libbio libregexp libndb libString libthread lib9p beyond the named libip/libmp/libsec/libauth/libauthsrv); libbio precedes the 7? loop (7a/a.h includes bio.h); factotum ships via per-target install (fgui's graphics stack is out of scope)
-- [Phase 02]: [Phase 02]: 02-07: mpvecdigmulsub split into its own libmp port file retires the 2021 PORT rename — archive member names now align 1:1 with text symbols (empty-arch dirs get portable C, asm arches cull via reduce, ape's broken-bind reduce can never duplicate-symbol)
-- [Phase 02]: [Phase 02]: 02-07: srv9.py --writable-prefix (opt-in, scoped) is the guest's writable-scratch mechanism (kernel MCREATE bind already permits /tmp); nix run .#build rc is never trusted — artifact checks + zero-failure-marker log scan are the gate (BUILD's break-glass bash tail swallows statuses, deferred item 12)
+- [Phase 02]: 02-07: subset lib set = the #pragma-lib closure discovered at link time (libbio libregexp libndb libString libthread lib9p beyond the named libip/libmp/libsec/libauth/libauthsrv); libbio precedes the 7? loop (7a/a.h includes bio.h); factotum ships via per-target install (fgui's graphics stack is out of scope)
+- [Phase 02]: 02-07: mpvecdigmulsub split into its own libmp port file retires the 2021 PORT rename — archive member names now align 1:1 with text symbols (empty-arch dirs get portable C, asm arches cull via reduce, ape's broken-bind reduce can never duplicate-symbol)
+- [Phase 02]: 02-07: srv9.py --writable-prefix (opt-in, scoped) is the guest's writable-scratch mechanism (kernel MCREATE bind already permits /tmp); nix run .#build rc is never trusted — artifact checks + zero-failure-marker log scan are the gate (BUILD's break-glass bash tail swallows statuses, deferred item 12)
 
 ### Pending Todos
 
@@ -107,11 +107,11 @@ None yet.
 ### Blockers/Concerns
 
 - Phase 3: `../r9` never audited (adoption decision post-dates research) — map r9 workspace before planning Phase 3
-- Phase 4: Harvey↔r9 syscall ABI undesigned (user side freezes in Phase 2; kernel side greenfield) — highest-risk phase; consider a spike
+- Phase 4: Harvey↔r9 syscall ABI kernel side greenfield (user side frozen in Phase 2: `aarch64/ABI.md`, execution-validated) — highest-risk phase; consider a spike
 - Phase 4: root-fs delivery mechanism to r9 undecided (initrd / embedded blob / virtio-9p escape hatch in v1.x)
 - ~~KERNDATE bit-reproducibility policy must be decided in Phase 1 (BUILD-04)~~ RESOLVED by 01-03: pinned git-derived policy documented at build/REPRODUCIBILITY.md and demonstrated bit-identical — Phase 5 reproducibility claims unblocked
-- Phase 2: post-banner `bad magic` pool panic in 9k embedded-root `boot` (deferred-items #2) — 9k amd64 boots to banner only; fix before relying on the harness for deeper smoke signals
-- Phase 2: open code-review debt carried in 01-REVIEW-DISPOSITION.md — CR-01 (boot-9k10cpu.sh has no shebang; `sudo` direct invocation fails on dash hosts) + WR-01..04 (KERNDATE silent fallback, preflight deadlock hatch, socat attach race, checkall cd cascade); none goal-blocking, fix early in Phase 2
+- 9k-amd64 post-banner `bad magic` pool panic — same signature as the pswt.c LP64 bug fixed in Phase 2; re-test with the fixed 6c (deferred-items.md #8) before relying on the harness for deeper smoke signals
+- Hygiene debt: Phase 1 review items (01-REVIEW-DISPOSITION.md: boot-9k10cpu.sh shebang, KERNDATE fallback, preflight hatch, socat race, checkall cascade) + Phase 2's 13 open Info findings (02-REVIEW-DISPOSITION.md) + WR-04 prompt-proof end-to-end confirmation on the next live TCG gate run; none goal-blocking
 
 ## Deferred Items
 
@@ -123,6 +123,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-01T16:06:34.203Z
+Last session: 2026-11-01T19:45:00Z
 Stopped at: Phase 02 complete, ready to plan Phase 3
 Resume file: None
