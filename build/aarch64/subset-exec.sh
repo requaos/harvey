@@ -719,6 +719,7 @@ fi
 if [ "${WAKE_POKE:-1}" != "0" ]; then
 	"$PYTHON" "$HARVEY/build/aarch64/gdbpoke9.py" --sock "$TMPD/gdb.sock" \
 		--watch-file "$RUNLOG" --watch-str "bootargs is" \
+		--deadline "$BOOT_BUDGET" \
 		> "$TMPD/gdbpoke.log" 2>&1 &
 	POKE_PID=$!
 else
