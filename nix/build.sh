@@ -1,6 +1,13 @@
 # Full kernel build inside a private mount namespace (Linux only).
 # Mirrors build/BUILD_IN_DOCKER + sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE.
 # Wrapper provides: PLAN9; plan9port+bash+util-linux+sudo+gnused+mount on PATH.
+
+# fail loudly: the sudo-cp installs into /bin and the mkfile fixups must
+# not fail silently (they surface later as confusing pcc/cpp exec
+# errors). The KERNDATE cascade below is -e-safe (explicit `|| KERNDATE=`
+# fallbacks + regex checks).
+set -e
+
 HARVEY="${HARVEY:-$PWD}"
 export HARVEY
 _hb_os=$(uname -s); _hb_os=${_hb_os,,}
@@ -94,7 +101,15 @@ for t in 6a 6c 6l 8a 8c 8l; do
   [ -x "$HARVEY_LINUX_BIN/$t" ] && "$SUDO" cp "$HARVEY_LINUX_BIN/$t" "/bin/$t"
 done
 
-(cd "$HARVEY/sys/src" && bash RUN_BUILD_IN_PRIVATE_NAMESPACE)
+# capture the build status explicitly: without this, a failed namespace
+# build was masked by the preflight-arm tail below (its `|| exit 0`
+# exited 0 when the four sentinel binaries were absent — i.e. exactly
+# when the build had failed).
+(cd "$HARVEY/sys/src" && bash RUN_BUILD_IN_PRIVATE_NAMESPACE) || {
+	RC=$?
+	echo "error: namespace build failed (rc=$RC)" >&2
+	exit $RC
+}
 
 # Arm the userland preflight (above) once a build has left all four
 # kernel-critical binaries in place.
