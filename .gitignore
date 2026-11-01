@@ -2,6 +2,7 @@
 /bbin
 
 *.6
+*.7
 *.8
 386/9*
 386/*bin
@@ -15,6 +16,10 @@ amd64/9*
 amd64/*bin
 amd64/init
 amd64/lib
+/aarch64/9*
+/aarch64/*bin
+/aarch64/init
+/aarch64/lib
 arm/9*
 arm/*bin
 arm/init
@@ -58,6 +63,7 @@ y.debug
 /sys/src/cmd/7c/7c
 /sys/src/cmd/7l/7l
 /sys/src/cmd/nm
+/sys/src/cmd/pcc
 
 # build outputs produced by the nix build path
 amd64/*.efi

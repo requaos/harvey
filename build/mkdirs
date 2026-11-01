@@ -47,6 +47,24 @@ lst=( \
 	./amd64/bin/venti \
 	./amd64/lib \
 	./amd64/lib/ape \
+	./aarch64/bin \
+	./aarch64/bin/ape \
+	./aarch64/bin/auth \
+	./aarch64/bin/aux \
+	./aarch64/bin/bitsy \
+	./aarch64/bin/dial \
+	./aarch64/bin/disk \
+	./aarch64/bin/fossil \
+	./aarch64/bin/fs \
+	./aarch64/bin/games \
+	./aarch64/bin/ip/httpd \
+	./aarch64/bin/ndb \
+	./aarch64/bin/replica \
+	./aarch64/bin/upas \
+	./aarch64/bin/usb \
+	./aarch64/bin/venti \
+	./aarch64/lib \
+	./aarch64/lib/ape \
 	./arm/bin/auth \
 	./arm/bin/aux \
 	./arm/bin/bitsy \
@@ -260,6 +278,7 @@ lst=( \
 	./usr/glenda/tmp \
 	./bbin \
 	./amd64/bbin \
+	./aarch64/bbin \
 	./386/bbin \
 	./arm/bbin \
 	./mips64/bbin \

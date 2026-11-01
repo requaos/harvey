@@ -10,12 +10,15 @@ typedef struct Objtype {
 	char	*oname;
 } Objtype;
 
-/* sync with /sys/src/ape/cmd/cc.c */
+/* sync with /sys/src/ape/cmd/cc.c — except the aarch64 row:
+ * APE on aarch64 is out of scope this phase, so cc.c deliberately
+ * lacks the aarch64 entry (2026-11-01) */
 Objtype objtype[] = {
 	{"spim",	"0c", "0l", "0", "0.out"},
 	{"mips64",	"4c", "4l", "4", "4.out"},
 	{"arm",		"5c", "5l", "5", "5.out"},
 	{"amd64",	"6c", "6l", "6", "6.out"},
+	{"aarch64",	"7c", "7l", "7", "7.out"},
 	{"386",		"8c", "8l", "8", "8.out"},
 	{"power64",	"9c", "9l", "9", "9.out"},
 	{"sparc",	"kc", "kl", "k", "k.out"},
@@ -25,7 +28,7 @@ Objtype objtype[] = {
 	{"riscv64",	"jc", "jl", "j", "j.out"},
 	{"spim64",	"xc", "xl", "x", "x.out"},
 };
-char	*allos = "05689kqvij";
+char	*allos = "056789kqvij";
 
 enum {
 	Nobjs = (sizeof objtype)/(sizeof objtype[0]),
