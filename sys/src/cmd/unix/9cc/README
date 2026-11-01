@@ -33,8 +33,12 @@
 #       - libmach/obj.c — _is7/_read7 decls + [ObjArm64] "arm64 .7"
 #         parser-table row (the enum already existed; the row was
 #         missing upstream)
-#       - libmach/executable.c — extern marm64 + donor-verbatim
-#         R_MAGIC exectab entry + FARM64 commonboot case
+#       - libmach/executable.c — extern marm64 + R_MAGIC exectab entry
+#         with on-disk `(8*4)+8` hsize literal (replacing
+#         sizeof(Exec)+8 — sizeof(Exec) is host-dependent) + FARM64
+#         commonboot case + commonllp64 LP64 decode fix (u32 view;
+#         `long` is 8 bytes on LP64 hosts, so the donor's
+#         hswal(sizeof(Exec)/sizeof(long)) scrambles the header — 02-03)
 #     Motivation: iar writes an archive's __.SYMDEF only when every
 #     member parses as a known object; without 7-format support, `ar vu`
 #     of .7 objects produced a symdef-less libc.a that 7l cannot link.
