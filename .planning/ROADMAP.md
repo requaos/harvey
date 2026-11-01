@@ -13,7 +13,7 @@ Revive Harvey's dormant build factory first (9k amd64 green from a clean checkou
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Build-Tail Green (9k amd64)** - Fix cmd-chain aborts so `nix run .#build` produces k10cpu + k10cpuf + k10f from a clean checkout; quarantine `arm64` vestiges; pin reproducibility policy (completed 2026-10-31)
-- [ ] **Phase 2: aarch64 Toolchain + libc (9front donor)** - Vendor 7a/7c/7l + libmach arm64 + libc/aarch64; 7l-linked hello-world gate before any arch scaffolding; shell-subset userland builds for aarch64
+- [x] **Phase 2: aarch64 Toolchain + libc (9front donor)** - Vendor 7a/7c/7l + libmach arm64 + libc/aarch64; 7l-linked hello-world gate before any arch scaffolding; shell-subset userland builds for aarch64 (completed 2026-11-01)
 - [ ] **Phase 3: r9 qemu-virt Platform Bring-up** - *(cross-repo: `../r9`)* r9 aarch64 boots on qemu `-M virt`: kernel entry, memory map, GICv2, PL011 console, generic timer
 - [ ] **Phase 4: r9 Userspace-Exec + Harvey↔r9 ABI** - *(cross-repo: `../r9`)* EL0 entry/exit, `svc` syscall dispatch matching Harvey's frozen user-side ABI, first-process loading, trap-frame static checks
 - [ ] **Phase 5: Shell Boot + One-Command Integration** - One command boots r9 + Harvey aarch64 userland to `/bin/rc`; expect smoke test green on darwin-aarch64 and linux; clean-checkout reproducibility verified
@@ -53,7 +53,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. `objtype=aarch64` build wiring works end-to-end: `aarch64/mkfile` (CC=7c O=7), `pcc.c` objtype entry, `mkfile.proto` CPUS, config section literally named `aarch64`
   5. The shell-boot userland subset (`rc`, `ipconfig`, `factotum`, core cmds) builds for aarch64 with `sys/src/libc/aarch64/` + generated `9syscall` SVC stubs — these stubs freeze the user side of the Harvey↔r9 ABI
 
-**Plans**: 7/7 plans executed (5 waves)
+**Plans**: 7/7 plans complete (5 waves)
 **Wave 1**
 - [x] 02-01-PLAN.md — Vendor 7a/7c/7l from pinned 9front + nine-shim set (+ planner-found thestring shim) + host builds + BUILDTOOLCHAIN wiring + native-compile sweep check (TC-02)
 - [x] 02-02-PLAN.md — Alpha excision (D-04/D-05) + libmach arm64: vendored 7.c/7db.c/7obj.c + setmach/exectab/objtable wiring (TC-01)
@@ -124,7 +124,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Build-Tail Green (9k amd64) | 4/4 | Complete    | 2026-10-31 |
-| 2. aarch64 Toolchain + libc | 7/7 | In Progress|  |
+| 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
 | 3. r9 qemu-virt Platform Bring-up | 0/TBD | Not started | - |
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | 0/TBD | Not started | - |
 | 5. Shell Boot + One-Command Integration | 0/TBD | Not started | - |
