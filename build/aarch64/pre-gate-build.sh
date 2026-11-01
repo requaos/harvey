@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # build/aarch64/pre-gate-build.sh — the riscv64-vaporware pre-gate:
 # compile libc for aarch64 and link a hello-world Plan 9 binary using
 # the COMMITTED mkfiles, with the pre-gate arch scaffolding
@@ -6,6 +6,13 @@
 # DISPOSABLE GUEST COPY ONLY. The committed tree gains the linked
 # binary (build/aarch64/hello.7.out) but no arch scaffolding —
 # aarch64/, CPUS, pcc.c all land post-gate in plan 02-06.
+#
+# OBSOLETE post-02-06: the arch scaffolding is now committed (aarch64/
+# mkfile, include/{u.h,ureg.h}, ABI.md), so the guest-scratch injection
+# this script exists to perform is already wired in. The script refuses
+# to run on a post-02-06 tree (the guard below, exit 2); use
+# objtype=aarch64 mk in the namespace instead. Kept committed as the
+# historical record of how hello.7.out was produced pre-gate.
 #
 # Steps:
 #   1. pin-verify .build/9front-donor (the phase's single supply-chain
@@ -38,7 +45,7 @@
 # Wrapper/env provides: limactl + openssh + rsync on PATH (nix
 # devshell on darwin), same as vm-run.sh.
 #
-# usage: sh build/aarch64/pre-gate-build.sh   (from the repo root,
+# usage: bash build/aarch64/pre-gate-build.sh   (from the repo root,
 # inside the nix devshell)
 
 set -eu
@@ -53,6 +60,14 @@ LOG="$HARVEY/build/aarch64/pre-gate-build.log"
 if [ ! -d "$HARVEY/sys/src" ]; then
 	echo "error: $HARVEY does not look like the harvey checkout (missing sys/src)" >&2
 	exit 1
+fi
+
+# obsolescence guard: plan 02-06 committed the arch scaffolding, so the
+# guest-scratch injection below is already wired in — running this
+# script would only rebuild what the namespace build does directly.
+if [ -e "$HARVEY/aarch64/mkfile" ]; then
+	echo "pre-gate-build.sh is obsolete post-02-06 (aarch64/ is committed); use objtype=aarch64 mk in the namespace" >&2
+	exit 2
 fi
 
 # 1. donor pin gate
