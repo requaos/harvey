@@ -55,7 +55,11 @@ rsync -a --delete -e "$RSYNC_RSH" \
 
 echo "== building in guest (native linux)"
 # shellcheck disable=SC2016
-ssh -F "$SSH_CFG" "$GUEST" "KERNDATE=$KERNDATE bash -lc 'set -e; cd \"$GUEST_DIR\" && nix run .#setup && nix run .#toolchain && nix run .#build'"
+ssh -F "$SSH_CFG" "$GUEST" "KERNDATE=$KERNDATE bash -lc 'set -e; cd \"$GUEST_DIR\" && nix run .#setup && nix run .#toolchain && nix run .#build'" || {
+	RC=$?
+	echo "error: guest build failed (rc=$RC) — refusing to rsync artifacts back" >&2
+	exit $RC
+}
 
 echo "== pulling artifacts back (amd64/, 386/, aarch64/)"
 for d in amd64 386 aarch64; do
