@@ -122,12 +122,14 @@ ssh -F "$SSH_CFG" "$GUEST" "cd \"$GUEST_DIR\" && nix develop -c sh -c 'for t in 
 #     Sweep compiler outputs from the guest donor tree: *.7 objects, the
 #     $O.<name> linked intermediates (7.paqfs, 7.rc, ... — mk sees them
 #     fresh vs unchanged sources and skips recompiles even when /arm64/
-#     bin was cleaned; 7c/7.out.h and libmach/7.c are tracked sources and
-#     are excluded), and the installed arm64/{lib,bin,init}. Planted
-#     generators (unix.maketab, mklatin.unix), the corrected systab.h and
-#     the ucd tables are all named differently and survive.
+#     bin was cleaned), and the installed arm64/{lib,bin,init}. Tracked
+#     donor sources are excluded: 7c/7.out.h + libmach/7.c from the 7.*
+#     arm, and the awk test fixtures cmd/awk/test/{p.7,expected.p.7}
+#     from the *.7 arm. Planted generators (unix.maketab, mklatin.unix),
+#     the corrected systab.h and the ucd tables are all named
+#     differently and survive.
 echo "== sweeping stale donor compiler outputs in ~/$GUEST_DONOR"
-ssh -F "$SSH_CFG" "$GUEST" "find \"$GUEST_DONOR/sys/src\" -name '*.7' -delete; find \"$GUEST_DONOR/sys/src\" -name '7.*' ! -name '7.out.h' ! -name '7.c' -delete; rm -rf \"$GUEST_DONOR/arm64/lib\" \"$GUEST_DONOR/arm64/bin\" \"$GUEST_DONOR/arm64/init\""
+ssh -F "$SSH_CFG" "$GUEST" "find \"$GUEST_DONOR/sys/src\" -name '*.7' ! -path '*/cmd/awk/test/*' -delete; find \"$GUEST_DONOR/sys/src\" -name '7.*' ! -name '7.out.h' ! -name '7.c' -delete; rm -rf \"$GUEST_DONOR/arm64/lib\" \"$GUEST_DONOR/arm64/bin\" \"$GUEST_DONOR/arm64/init\""
 
 # 5. push the donor checkout (no --delete: guest build outputs live in
 #    the tree, so reruns are incremental; the pin is immutable)
