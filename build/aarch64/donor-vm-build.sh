@@ -114,6 +114,17 @@ ssh -F "$SSH_CFG" "$GUEST" "cd \"$GUEST_DIR\" && if [ ! -x \"$GHB/7c\" ] || [ ! 
 echo "== rebuilding guest 7a/7c/7l + iar (ar) from vendored sources"
 ssh -F "$SSH_CFG" "$GUEST" "cd \"$GUEST_DIR\" && nix develop -c sh -c 'for t in 7a 7c 7l; do (cd sys/src/cmd/\$t && sh BUILD) || exit 1; done' && nix develop -c sh -c 'cd sys/src/cmd/unix/9cc && sh BUILD'"
 
+# 4b. the toolchain is rebuilt unconditionally above, but mk's freshness
+#     graph does not name the toolchain binaries as prerequisites — donor
+#     objects compiled by a previous toolchain would be relinked STALE
+#     (observed in the 02-04 audit: pool.7 survived the pswt.c LP64 fix
+#     and the donor kernel's blockcheck panic persisted byte-identical).
+#     Sweep compiler outputs from the guest donor tree; sources, planted
+#     generators (unix.maketab, mklatin.unix), the corrected systab.h and
+#     the ucd tables are all named differently and survive.
+echo "== sweeping stale donor compiler outputs in ~/$GUEST_DONOR"
+ssh -F "$SSH_CFG" "$GUEST" "find \"$GUEST_DONOR/sys/src\" -name '*.7' -delete; find \"$GUEST_DONOR/sys/src\" -name '7.factotum' -delete; rm -rf \"$GUEST_DONOR/arm64/lib\" \"$GUEST_DONOR/arm64/bin\" \"$GUEST_DONOR/arm64/init\""
+
 # 5. push the donor checkout (no --delete: guest build outputs live in
 #    the tree, so reruns are incremental; the pin is immutable)
 echo "== pushing donor checkout to guest ~/$GUEST_DONOR"
