@@ -3,16 +3,16 @@ status: testing
 phase: 02-aarch64-toolchain-libc-9front-donor
 source: [02-VERIFICATION.md]
 started: 2026-11-01T16:35:00Z
-updated: 2026-11-01T16:35:00Z
+updated: 2026-11-01T16:45:00Z
 ---
 
 ## Current Test
 
-number: 1
-name: D-08 subset execution log eyeball
+number: 2
+name: Review triage: CR-01 + warnings disposition
 expected: |
   The Harvey aarch64 shell subset (rc, grep, ipconfig, factotum, 12 core cmds — all 7c-compiled) visibly executes on the 9front donor kernel command-by-command: echo sentinel, ls /, cat/grep/sed/wc pipelines, date, test, ps, mkdir/cp/mv/rm round-trip, ipconfig usage, factotum resident in ps, closing SUBSET-OK. Zero panic/trap/sys: note lines.
-awaiting: user response
+awaiting: fix run (CR-01 + WR-01..10 via gsd-code-fixer)
 
 ## Tests
 
@@ -31,9 +31,9 @@ result: [pending]
 ## Summary
 
 total: 2
-passed: 0
+passed: 1
 issues: 0
-pending: 2
+pending: 1
 skipped: 0
 blocked: 0
 
