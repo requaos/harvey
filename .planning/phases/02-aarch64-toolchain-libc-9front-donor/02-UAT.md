@@ -10,16 +10,13 @@ updated: 2026-11-01T19:15:00Z
 
 [testing complete]
 
-<!-- (archived final state) number: — name: (all tests passed) expected: The Harvey aarch64 shell subset (rc, grep, ipconfig, factotum, 12 core cmds — all 7c-compiled) visibly executes on the 9front donor kernel command-by-command: echo sentinel, ls /, cat/grep/sed/wc pipelines, date, test, ps, mkdir/cp/mv/rm round-trip, ipconfig usage, factotum resident in ps, closing SUBSET-OK. Zero panic/trap/sys: note lines.
-awaiting: nothing — complete
-
 ## Tests
 
 ### 1. D-08 subset execution log eyeball
 Open `.build/9front-dist/subset-exec.log` and read the captured serial session.
 expected: The Harvey aarch64 shell subset (rc, grep, ipconfig, factotum, 12 core cmds — all 7c-compiled) visibly executes on the 9front donor kernel command-by-command: echo sentinel, ls /, cat/grep/sed/wc pipelines, date, test, ps, mkdir/cp/mv/rm round-trip, ipconfig usage, factotum resident in ps, closing SUBSET-OK. Zero panic/trap/sys: note lines.
 why_human: Plan 02-07 Task 2 carries an explicit human-check for the D-08 execution gate; unlike the TC-03 gate (human-approved 2026-11-01), no human approval of this log is recorded in the phase artifacts. Automated greps pass (markers + SUBSET-OK present, 0 fault lines) but the plan requires a human eyeball of the capture.
-result: [pending]
+result: [passed] — human approved the captured log in-conversation 2026-11-01
 
 ### 2. Review triage: CR-01 + warnings disposition
 Decide the disposition of code-review critical CR-01 (and warnings WR-01..WR-10 — all 24 findings recorded open in 02-REVIEW-DISPOSITION.md).
