@@ -12,6 +12,12 @@ case "`uname -s`" in
 	*)	echo "9cc: unsupported host OS `uname -s`"; exit 1 ;;
 esac
 
+# abort on the first failing step: without this, a failed library
+# compile leaves the exit status to the final iar link, which succeeds
+# against a stale archive from a previous run — the silent-staleness
+# class the per-phase BUILDs (7a/7c/7l, nm) all guard against with -e.
+set -e
+
 # bare `ar` below must be the host (binutils/llvm) ar, never iar: once
 # iar is installed as $HARVEY_LINUX_BIN/ar and hostbin is on PATH (the
 # devshell prepends it), `ar` would resolve to iar, whose Plan 9-format
