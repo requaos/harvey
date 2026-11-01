@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/usr/bin/env bash
 # Derived from a 9legacy script of the same function.
 
 # find . -type d -empty | awk '{print "\t"$1" \\"}'
