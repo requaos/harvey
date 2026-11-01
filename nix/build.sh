@@ -6,7 +6,23 @@ export HARVEY
 _hb_os=$(uname -s); _hb_os=${_hb_os,,}
 _hb_arch=$(uname -m); [ "$_hb_arch" = "arm64" ] && _hb_arch=aarch64
 export HARVEY_LINUX_BIN="${HARVEY_LINUX_BIN:-$HARVEY/.build/hostbin-$_hb_os-$_hb_arch/bin}"
-export PATH="$HARVEY_LINUX_BIN:$PATH:/rc/bin:."
+# plan9port's 9l autolib calls bare `nm` on HOST ELF objects (e.g.
+# cmd/awk's maketab host build); with $HARVEY_LINUX_BIN first on PATH that
+# resolves to Harvey's ken-format nm (nm.BUILD, plan 02-03), which fails
+# "Can't read header" and silently breaks autolib (undefined Bopen/Brdline/
+# Blinelen at link). Shadow it with the wrapper PATH's (binutils) nm for
+# the duration — the same shim nix/toolchain.sh installs for the toolchain
+# build. Nothing in the Plan 9 build itself calls nm.
+_WRAP_PATH="$PATH"
+_NM_SHIMDIR="$(mktemp -d "${TMPDIR:-/tmp}/harvey-nm-shim.XXXXXX")"
+_HOSTNM=$(PATH="$_WRAP_PATH" command -v nm 2>/dev/null || true)
+if [ -n "$_HOSTNM" ]; then
+  ln -sf "$_HOSTNM" "$_NM_SHIMDIR/nm"
+  export PATH="$_NM_SHIMDIR:$HARVEY_LINUX_BIN:$PATH:/rc/bin:."
+else
+  export PATH="$HARVEY_LINUX_BIN:$PATH:/rc/bin:."
+fi
+trap '/bin/rm -rf "$_NM_SHIMDIR"' EXIT
 export USER="${USER:-root}"
 export objtype=amd64
 export cputype=unix

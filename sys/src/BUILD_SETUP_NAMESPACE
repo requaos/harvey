@@ -23,6 +23,9 @@ mount --bind $HARVEY/arm /arm
 mkdir -p /amd64
 mount --bind $HARVEY/amd64 /amd64
 
+mkdir -p /aarch64
+mount --bind $HARVEY/aarch64 /aarch64
+
 mkdir -p /386
 mount --bind $HARVEY/386 /386
 

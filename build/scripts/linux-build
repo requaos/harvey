@@ -60,10 +60,33 @@ fn build_arm{
 		cd /sys/src/9/bcm && mk nuke && mk CONF'='pi4 install && mk CONF'='pi4cpu install && mk CONF'='pi4wifi install && mk clean
 }
 
+# aarch64 scope (Phase 2, TC-05): the proven shell-boot subset only — NOT
+# the full /sys/src tree (out-of-scope full userland dirs carry known
+# aarch64 breakage; REQUIREMENTS says prune rather than fix). The subset is
+# explicit and proven by build/aarch64/subset-build.sh: libc, the
+# #pragma-lib closure the subset links against (libbio libregexp libip
+# libndb libmp libsec libString libthread lib9p libauth libauthsrv — the
+# plan's named libip/libmp/libsec/libauth/libauthsrv plus what link-time
+# discovery added), the 7? target toolchain (self-hosted), and the named
+# command subset (rc, grep, ip/ipconfig, auth/factotum + the twelve
+# single-file commands via cmd's per-target install).
 fn build_aarch64{
-	for(i in /sys/src/libc) {cd $i && mk nuke && mk install && mk clean}
-	for(i in /sys/src/cmd/7?) {cd $i && mk nuke && mk install && mk clean}
-	cd /sys/src && objtype=aarch64 {mk nuke && mk install && mk clean}
+	for(i in /sys/src/libc) {cd $i && objtype=aarch64 mk nuke && objtype=aarch64 mk install && objtype=aarch64 mk clean}
+	# libbio precedes the 7? loop: 7a/a.h includes <bio.h> (#pragma lib);
+	# the amd64 6? loop never learns this because 6a/6c/6l don't use bio
+	for(i in /sys/src/libbio) {cd $i && objtype=aarch64 mk install}
+	for(i in /sys/src/cmd/7?) {cd $i && objtype=aarch64 mk nuke && objtype=aarch64 mk install && objtype=aarch64 mk clean}
+	for(i in libregexp libip libndb libmp libsec libString libthread lib9p libauth libauthsrv){
+		cd /sys/src/$i && objtype=aarch64 mk install
+	}
+	for(i in rc grep ip/ipconfig){
+		cd /sys/src/cmd/$i && objtype=aarch64 mk install
+	}
+	# factotum installs per-target: the dir's second TARG (fgui) needs the
+	# out-of-scope graphics stack (libdraw/libcontrol) and is not in the
+	# named subset
+	cd /sys/src/cmd/auth/factotum && objtype=aarch64 mk factotum.install
+	cd /sys/src/cmd && objtype=aarch64 mk cat.install cp.install date.install echo.install ls.install mkdir.install mv.install ps.install rm.install sed.install test.install wc.install
 }
 
 fn build_power{
@@ -128,9 +151,12 @@ mkdir -p /lib/audio
 mkdir -p /mail/lib
 mkdir -p /rc/bin
 
-# 386 legacy kernel/userland pass is deferred scope (Phase 1 green gate is
-# amd64-only); re-enable by restoring the 386 element to this assignment.
-arch=(amd64)
+# 386 legacy kernel/userland pass is deferred scope (re-enable by restoring
+# the 386 element to this assignment). Phase 1's green gate was amd64-only;
+# Phase 2 extends it: aarch64 runs the proven shell-boot subset (see
+# build_aarch64 above — libc, the subset's lib closure, the 7? toolchain,
+# and the named commands), never the full tree.
+arch=(amd64 aarch64)
 for(i in $arch){
 	echo build $i
 

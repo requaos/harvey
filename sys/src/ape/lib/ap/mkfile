@@ -18,7 +18,12 @@ installall:V:
 
 clean nuke:V:
 	for(i in $DIRS $CPUS)@{
-		echo $i
-		cd $i
-		mk $MKFLAGS $target
+		if(test -d $i) {
+			echo $i
+			cd $i
+			mk $MKFLAGS $target
+		}
+		if not {
+			echo skipping $i '(no dir)'
+		}
 	}

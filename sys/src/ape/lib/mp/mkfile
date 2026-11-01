@@ -17,9 +17,14 @@ nuke:V: clean
 
 clean:V:
 	for(i in $DIRS)@{
-		echo $i
-		cd $i
-		mk $MKFLAGS $target
+		if(test -d $i) {
+			echo $i
+			cd $i
+			mk $MKFLAGS $target
+		}
+		if not {
+			echo skipping $i '(no dir)'
+		}
 	}
 
 installall:V:
