@@ -150,7 +150,8 @@ covered_files:
   - .planning/phases/02-aarch64-toolchain-libc-9front-donor/02-SECURITY.md
   - .planning/phases/02-aarch64-toolchain-libc-9front-donor/02-UAT.md
   - .planning/phases/02-aarch64-toolchain-libc-9front-donor/deferred-items.md
-covered_digest: "v4:sha256:958943e5c9f3483d1f4b29a10bba1457f42a121ed225a973a8da8ba6cd7d2b3b"
+
+covered_digest: "v2:sha256:6b3c43b439b9e554eeff4753398980bcdcc7dd75247cbc6f5af852edda5520dc"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
