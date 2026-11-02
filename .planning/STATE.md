@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 04
-current_phase_name: r9 Userspace-Exec + Harvey↔r9 ABI
-status: verifying
-stopped_at: Completed 04-08-PLAN.md
-last_updated: "2026-11-02T19:26:49.635Z"
-last_activity: 2026-11-01
-last_activity_desc: Phase 04 execution started
-state_head: 38d9813b3240612d9afcea9935b255be4125b5c5
+current_phase: 5
+current_phase_name: Shell Boot + One-Command Integration
+status: planning
+stopped_at: Phase 04 complete, ready to plan Phase 5
+last_updated: "2026-11-02T20:50:50.159Z"
+last_activity: 2026-11-02
+last_activity_desc: Phase 04 complete, transitioned to Phase 5
+state_head: 0d191b239d508abd0aa4aa022795c5b8269e4d4b
 progress:
   total_phases: 5
-  completed_phases: 3
+  completed_phases: 4
   total_plans: 25
   completed_plans: 25
-  percent: 60
+  percent: 80
 ---
 
 # Project State
@@ -23,21 +23,21 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-02)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 04 — r9 Userspace-Exec + Harvey↔r9 ABI
+**Current focus:** Phase 5 — Shell Boot + One-Command Integration
 
 ## Current Position
 
-Phase: 04 (r9 Userspace-Exec + Harvey↔r9 ABI) — EXECUTING
-Plan: 8 of 8
-Status: Phase complete — ready for verification
-Last activity: 2026-11-01 — Phase 04 execution started
+Phase: 5 — Shell Boot + One-Command Integration
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-02 — Phase 04 complete, transitioned to Phase 5
 
-Progress: [██████░░░░] 60%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 17
+- Total plans completed: 25
 - Average duration: —
 - Total execution time: —
 
@@ -48,6 +48,7 @@ Progress: [██████░░░░] 60%
 | 01 | 4 | - | - |
 | 02 | 7 | - | - |
 | 03 | 6 | - | - |
+| 04 | 8 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: —
@@ -155,10 +156,13 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 4: Harvey↔r9 syscall ABI kernel side greenfield (user side frozen in Phase 2: `aarch64/ABI.md`, execution-validated) — highest-risk phase; consider a spike
-- Phase 4: root-fs delivery mechanism to r9 undecided (initrd / embedded blob / virtio-9p escape hatch in v1.x)
-- Phase 4: WR-01 — the virt TTBR0 identity map (0–1 GiB Normal/RW/executable, covering GIC+PL011 MMIO) is never torn down post-boot; raspi's user-table switch is cfg'd out on virt — consider explicitly in Phase 4 planning (03-REVIEW-DISPOSITION.md)
+- ~~Phase 4: Harvey↔r9 syscall ABI kernel side greenfield~~ RESOLVED — Phase 4 complete: ABI published + build-pinned (R9-04), measured-set dispatch (R9-02), first-process demand-paged path (R9-03); the Wave-0 spike pattern caught the A3 delivery falsification early
+- ~~Phase 4: root-fs delivery mechanism to r9 undecided~~ RESOLVED — D-01 amended (04-01): qemu generic loader + fdtput-patched DTB (qemu never delivers -initrd for ELF kernels)
+- ~~Phase 4: WR-01 — virt TTBR0 identity map never torn down~~ RESOLVED by 04-05 (D-10 teardown + console-liveness proof at every exec-profile boot)
 - ~~KERNDATE bit-reproducibility policy must be decided in Phase 1 (BUILD-04)~~ RESOLVED by 01-03: pinned git-derived policy documented at build/REPRODUCIBILITY.md and demonstrated bit-identical — Phase 5 reproducibility claims unblocked
+- Phase 5: note-delivery timing race (smokenote `note-timeout` flake, ~1/3 virtmulti runs, reproduces on pre-fix base) — debug candidate; 04-REVIEW-FIX.md
+- Phase 5: stack-growth machinery proven-by-shared-path but never exercised (no evidence run grew the stack; UAT-accepted) — first deep-stack binary is the real test
+- Phase 5: 8 open Info findings (04-REVIEW-DISPOSITION.md) + phase-04 deferred #2/#3/#4 (harness qemu cleanup, cold-pointer syscall aborts, contained heisenbug) — none goal-blocking
 - 9k-amd64 post-banner `bad magic` pool panic — same signature as the pswt.c LP64 bug fixed in Phase 2; re-test with the fixed 6c (deferred-items.md #8) before relying on the harness for deeper smoke signals
 - Hygiene debt: Phase 1 review items (01-REVIEW-DISPOSITION.md) + Phase 2's 13 open Info findings (02-REVIEW-DISPOSITION.md) + Phase 3's 5 open warnings / 10 open Info (03-REVIEW-DISPOSITION.md; WR-02 boot-test platform guard, WR-03 raspi uartpl011 gpiosetpull MMIO window, WR-04 map_phys_range swallowed mid-range failure, WR-05 timer INTID DTB-mismatch warn-only) + upstream raspi3b-on-qemu-11.1.2 defect (phase-03 deferred-items.md #1, human-accepted A/B evidence); none goal-blocking
 
@@ -172,6 +176,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T19:26:49.571Z
-Stopped at: Completed 04-08-PLAN.md
+Last session: 2026-11-02T21:00:00.000Z
+Stopped at: Phase 04 verified + complete (UAT 3/3, SECURITY threats_open: 0, review fixes 9/9), ready to plan Phase 5
 Resume file: None

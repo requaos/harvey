@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Build-Tail Green (9k amd64)** - Fix cmd-chain aborts so `nix run .#build` produces k10cpu + k10cpuf + k10f from a clean checkout; quarantine `arm64` vestiges; pin reproducibility policy (completed 2026-10-31)
 - [x] **Phase 2: aarch64 Toolchain + libc (9front donor)** - Vendor 7a/7c/7l + libmach arm64 + libc/aarch64; 7l-linked hello-world gate before any arch scaffolding; shell-subset userland builds for aarch64 (completed 2026-11-01)
 - [x] **Phase 3: r9 qemu-virt Platform Bring-up** - *(cross-repo: `../r9`)* r9 aarch64 boots on qemu `-M virt`: kernel entry, memory map, GICv2, PL011 console, generic timer (completed 2026-11-01)
-- [ ] **Phase 4: r9 Userspace-Exec + Harvey↔r9 ABI** - *(cross-repo: `../r9`)* EL0 entry/exit, `svc` syscall dispatch matching Harvey's frozen user-side ABI, first-process loading, trap-frame static checks
+- [x] **Phase 4: r9 Userspace-Exec + Harvey↔r9 ABI** - *(cross-repo: `../r9`)* EL0 entry/exit, `svc` syscall dispatch matching Harvey's frozen user-side ABI, first-process loading, trap-frame static checks (completed 2026-11-02)
 - [ ] **Phase 5: Shell Boot + One-Command Integration** - One command boots r9 + Harvey aarch64 userland to `/bin/rc`; expect smoke test green on darwin-aarch64 and linux; clean-checkout reproducibility verified
 
 ## Phase Details
@@ -115,7 +115,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. r9's first-process path loads a Harvey aarch64 `init` from an embedded root-fs or equivalent delivery, faulting in user text and growing the user stack (with icache maintenance after text load)
   4. A syscall smoke suite (rfork, notes, basic fd ops) runs from EL0 without kernel panic — exercised before the full shell is attempted
 
-**Plans**: 8/8 plans executed (7 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-7 are strictly sequential because each layer of the exec path is exercised by the next)
+**Plans**: 8/8 plans complete (7 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-7 are strictly sequential because each layer of the exec path is exercised by the next)
 
 **Wave 1**
 - [x] 04-01-PLAN.md — Falsification spikes (TRACER): qemu -initrd → DTB /chosen probe end-to-end + mkpaqfs host producer + committed paqfs fixture + D-14 donor syscall-trace artifact (R9-02/R9-03 substrate)
@@ -165,5 +165,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Build-Tail Green (9k amd64) | 4/4 | Complete    | 2026-10-31 |
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
 | 3. r9 qemu-virt Platform Bring-up | 6/6 | Complete    | 2026-11-01 |
-| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 8/8 | In Progress|  |
+| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 8/8 | Complete    | 2026-11-02 |
 | 5. Shell Boot + One-Command Integration | 0/TBD | Not started | - |

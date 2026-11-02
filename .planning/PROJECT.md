@@ -23,11 +23,13 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 - ✓ aarch64 userspace toolchain in-repo: vendored 9front 7a/7c/7l (pinned `350266104f`, Harvey shims), libmach arm64 (Alpha excised from letter 7), libc/aarch64 + frozen syscall ABI (`aarch64/ABI.md`), `objtype=aarch64` wiring — Phase 2 (TC-01…TC-05; proven by execution: hello.7.out + 16-binary shell subset run on the 9front donor kernel under qemu TCG)
 - ✓ r9 aarch64 boots on qemu `-M virt,gic-version=2`: platform tree (`platform/{raspi3b,raspi4b,virt}`), ELF `-kernel` + committed DTB at `0x40000000`, GICv2 + generic timer ticks, PL011 IRQ echo, `cargo xtask boot-test` harness, `virtpanic` debug gate — Phase 3 (SC#1–5; evidence bundle byte-identically reproducible, `03-VERIFICATION.md` 22/22)
 - ✓ r9 carries its own `flake.nix` (rust-overlay honoring `rust-toolchain.toml`, qemu + dtc, `apps.build`) — Phase 3 (R9-05; darwin + linux legs both passed)
+- ✓ r9 loads and runs Harvey aarch64 userland binaries: paqfs initrd delivery (loader + patched DTB), devroot, demand-paged exec, EL0 entry, SVC dispatch (measured set), preemptive round-robin, RFORK/AWAIT/EXITS, notes via devproc-lite — Phase 4 (R9-02/R9-03; SC#2 hello.7.out prints, SC#4 smoke suite green; `04-EVIDENCE.md`, r9 pinned `54e8c10`)
+- ✓ Harvey↔r9 syscall ABI published + build-enforced: TrapFrame ≡ `aarch64/include/ureg.h` field-for-field (35×u64, stride 288), two-layer static checks (const asserts + xtask `ureg-check` with negative control) — Phase 4 (R9-04/SC#1; `aarch64/ABI.md` kernel-side appendix)
 
 ### Active
 
-- [ ] r9 maturity work needed to host Harvey userland: process model / syscalls / first-process (`initcode`) boot path (r9 has VM/console/allocator/traps + virt platform IRQs; no userspace exec yet) — Phase 4
 - [ ] Harvey aarch64 userland boots to `/bin/rc` shell on r9 kernel under qemu virt — Phase 5
+- [ ] Note-delivery timing race (smokenote `note-timeout` flake, ~1/3 virtmulti runs; reproduces on pre-fix base b4f858a — pre-existing, not from the review fixes) — debug candidate before Phase 5 hardening; 04-REVIEW-FIX.md
 - [ ] Re-test the Phase 1 9k-amd64 embedded-root `bad magic` pool panic against the LP64-fixed 6c (same signature as the pswt.c bug fixed in Phase 2) — deferred-items.md #8
 - [ ] Upstream raspi3b-on-qemu-11.1.2 boot defect (FAR 0xfe215004 — rpi4 MMIO base on the raspi3b machine) — pre-existing, A/B-proven not-a-regression, accepted 2026-11-01; phase-03 deferred-items.md #1
 
@@ -94,6 +96,11 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 | Committed DTB artifact (virt-gicv2.dts/.dtb) + ELF-x0=0 → fixed-PA 0x40000000 fallback at both DTB consumers | Phase 3 (P1/P11) — qemu 11.1.2 loads no DTB for ELF kernels without `-dtb`; regeneration procedure documented in the .dts header | ✓ Good |
 | Acceptance harness in r9 (`cargo xtask boot-test`, zero-dep unix-socket, marker-only assertions); canonical evidence consolidated in Harvey phase dir | Phase 3 (D-11/D-13) — converts SCs from hand-run observations into a repeatable gate; verifier reproduced both logs byte-for-byte | ✓ Good |
 | Accept A/B no-regression evidence for the pre-existing raspi3b/qemu-11.1.2 defect instead of fixing it in 03-03 | User decision 2026-11-01 (decision A) — defect predates the phase; virt never exercises raspi's early-uart path | ✓ Good (scoped; defect tracked as Active follow-up) |
+| initrd delivery = qemu generic `-device loader` + host fdtput-patched DTB (D-01 amended) | Phase 4, user decision A 2026-11-02 — Wave-0 spike falsified A3: qemu 11.1.2 never delivers `-initrd` for ELF kernels (hw/arm/boot.c is_linux=0); loader+patched-DTB preserves DTB-mediated delivery with the ELF boot (D-05) intact | ✓ Good (proven end-to-end; kernel /chosen discovery unchanged) |
+| Publish TrapFrame≡Ureg as a cross-repo one-way contract (D-05/D-07 confirmed at the publication gate) | Phase 4 — offsets frozen in `aarch64/ABI.md` + pinned by const asserts and xtask ureg-check; an ABI mismatch is a build failure, never a runtime mystery (SC#1) | ✓ Good (negative control fires; live on every boot-test) |
+| Tracer-first falsification spikes before machinery (04-01) | Phase 4 — the spike caught the A3 delivery falsification before any kernel capability depended on it; gate splitting (compile-verified machinery 04-04 vs runtime gate 04-05) caught the trap-entry x0 clobber | ✓ Good |
+| Implement only the measured syscall set (D-14 trace: pwrite/open/pread/close/exits + named core; loud-unimplemented default) | Phase 4 — no handler without a traced or SC#4-named caller; the first real SVC was pwrite(51), exactly as measured | ✓ Good |
+| Exercise IRQ-from-EL0 + return-to-different-process this phase (D-13); invariant `PSTATE.I=0 ⟺ EL0 or stateless sched wfi` | Phase 4 — preemption proven via `sched: switch` markers; exec_bootstrap IRQ-masked after the miniz-inflate heisenbug (contained, root cause deferred #4) | ✓ Good (containment; race follow-up tracked Active) |
 
 ## Evolution
 
@@ -113,4 +120,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-02 after Phase 3*
+*Last updated: 2026-11-02 after Phase 4*
