@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: r9 Userspace-Exec + Harvey↔r9 ABI
 status: executing
-stopped_at: Completed 04-05-PLAN.md
-last_updated: "2026-11-02T14:00:22.176Z"
+stopped_at: Completed 04-06-PLAN.md
+last_updated: "2026-11-02T14:37:34.029Z"
 last_activity: 2026-11-01
 last_activity_desc: Phase 04 execution started
-state_head: b8972aad687bbb551721d6542f8e0dd2a5d7027e
+state_head: a8ab10cec529a02392b7b9ea295917d471d9ba26
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 25
-  completed_plans: 22
+  completed_plans: 23
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 04 (r9 Userspace-Exec + Harvey↔r9 ABI) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Ready to execute
 Last activity: 2026-11-01 — Phase 04 execution started
 
@@ -80,6 +80,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P03 | 8m | 3 tasks | 7 files |
 | Phase 04 P04 | 17min | 2 tasks | 10 files |
 | Phase 04 P05 | 31min | 2 tasks | 16 files |
+| Phase 04 P06 | 27min | 2 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -134,6 +135,10 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-05: trap-entry stack switch removed (9front no-switch shape) — the old entry poisoned every frame's x0 with the interrupt-stack address; EL0 entry only via trap_return
 - [Phase 04]: 04-05: staged-init supply chain landed — stage-build.sh (lima 7c/7l) → build/aarch64/out/ → cargo xtask initrd (mkpaqfs) → target/bootfs.paq; initrd path in config is workspace-relative (dtb emission base)
 - [Phase 04]: 04-05: WR-01 closed — TTBR0 identity map torn down at first exec with the console-liveness proof print; D-12 experiments deleted; tick print cfg(not(dev_exec))-gated (Pitfall 3)
+- [Phase 04]: 04-06: syscall dispatch landed — implemented set is exactly the 04-01 trace {pwrite(51), open(14), pread(50), close(4), exits(8)} ∪ {exec(7)}; no brk_/segbrk (trace-settled); loud-unimplemented + -1 for everything else; per-access user-VA validation (T-04-11)
+- [Phase 04]: 04-06: SC#2 SATISFIED — committed hello.7.out (sha256 1c89e099…) exec'd by staged init on r9/qemu-virt prints via the real EL0 svc path; evidence 04-06-sc2-boot.log at r9 HEAD 230fc74 (D-13 ordering)
+- [Phase 04]: 04-06: Rule-1 fix — demand-pager file reads clamped to the exact segment content end (unclamped reads bled paqfs syms bytes into bss tails; poisoned exits()'s onex[i].f into an indirect call to 'tas.s')
+- [Phase 04]: 04-06: dat.rs Mode bitflags replaced with frozen Plan 9 open-mode constants (deferred #1 resolved); DEV_ROOT/DEV_CONS chan.dev routing until the devtab era; pagealloc gains deallocate_physpage; proc records kstack PAs for the EXITS free
 
 ### Pending Todos
 
@@ -158,6 +163,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T14:00:22.121Z
-Stopped at: Completed 04-05-PLAN.md
+Last session: 2026-11-02T14:37:33.964Z
+Stopped at: Completed 04-06-PLAN.md
 Resume file: None
