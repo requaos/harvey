@@ -31,7 +31,7 @@ actuals:
 # Commit ledger (#3968) — cross-repo plan: harvey base from the persisted ledger;
 # the r9 leg is c74fcb1..1cc5127 (3 commits). commits: 4 = 3 r9 + 1 harvey docs commit.
 plan_head_before: b59400e41bb30822bfedea0ed9d697d0662d51ec
-plan_head_after: PLAN_HEAD_AFTER_PLACEHOLDER
+plan_head_after: 421ec457f
 
 tech-stack:
   added: []
