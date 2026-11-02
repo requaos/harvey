@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 7
+open_count: 8
 waived_count: 1
 fixed_count: 1
-total_count: 9
-last_updated: 2026-11-02T13:58:40.990Z
+total_count: 10
+last_updated: 2026-11-02T18:41:05.291Z
 ---
 
 # Broken Windows Ledger
@@ -24,6 +24,7 @@ last_updated: 2026-11-02T13:58:40.990Z
 | 7 | 03 | unrun-verify | r9/aarch64/src/trap.rs |  | 03-06: trap.rs sync dump path gained 'kernel halted' + wfi park on ALL platforms; verified live on virt (virtpanic evidence) but compile-only on raspi — raspi boot verification is blocked by the known upstream raspi-on-qemu-11.1.2 defect (03-03/03-04 deferred, WINDOWS #5). Behavior change is dump-path-only. (File ref is r9-repo-relative: ../r9) | open |  | 2026-11-02T00:33:39.701Z |  |
 | 8 | 04 | deviation | .planning/phases/04-r9-userspace-exec-harvey-r9-abi/04-05-PLAN.md |  | 04-05: plan's Task-2 raw-qemu verify leg written against the pre-amendment -initrd mechanism (falsified 04-01, D-01 AMENDED); executed with the amended loader+patched-DTB delivery, grep chain unchanged | fixed |  | 2026-11-02T13:58:26.801Z | 2026-11-02T13:58:40.779Z |
 | 9 | 04 | deviation | .planning/phases/04-r9-userspace-exec-harvey-r9-abi/04-05-PLAN.md |  | test-shape-probe | waived | Accidental probe entry appended while checking the windows CLI output shape (executor error, no content); the real entry is #8. | 2026-11-02T13:58:30.416Z | 2026-11-02T13:58:40.990Z |
+| 10 | 04 | deviation | .planning/phases/04-r9-userspace-exec-harvey-r9-abi/deferred-items.md |  | 04-07: exec_bootstrap IRQ-masked until first EL0 entry (heisenbug exposure closed by construction; root cause = deferred-items #4) | open |  | 2026-11-02T18:41:05.291Z |  |
 
 ````json
 [
@@ -142,6 +143,19 @@ last_updated: 2026-11-02T13:58:40.990Z
     "reason": "Accidental probe entry appended while checking the windows CLI output shape (executor error, no content); the real entry is #8.",
     "recorded_at": "2026-11-02T13:58:30.416Z",
     "resolved_at": "2026-11-02T13:58:40.990Z",
+    "milestone": null
+  },
+  {
+    "id": 10,
+    "kind": "deviation",
+    "phase": "04",
+    "file": ".planning/phases/04-r9-userspace-exec-harvey-r9-abi/deferred-items.md",
+    "line": null,
+    "description": "04-07: exec_bootstrap IRQ-masked until first EL0 entry (heisenbug exposure closed by construction; root cause = deferred-items #4)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-02T18:41:05.291Z",
+    "resolved_at": null,
     "milestone": null
   }
 ]

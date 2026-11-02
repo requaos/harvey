@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: r9 Userspace-Exec + Harvey↔r9 ABI
 status: executing
-stopped_at: Completed 04-06-PLAN.md
-last_updated: "2026-11-02T14:37:34.029Z"
+stopped_at: Completed 04-07-PLAN.md
+last_updated: "2026-11-02T18:41:17.330Z"
 last_activity: 2026-11-01
 last_activity_desc: Phase 04 execution started
-state_head: a8ab10cec529a02392b7b9ea295917d471d9ba26
+state_head: ab13d0d2b271b016a5f0142df4c43b754f660f6d
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 25
-  completed_plans: 23
+  completed_plans: 24
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 04 (r9 Userspace-Exec + Harvey↔r9 ABI) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-11-01 — Phase 04 execution started
 
@@ -81,6 +81,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P04 | 17min | 2 tasks | 10 files |
 | Phase 04 P05 | 31min | 2 tasks | 16 files |
 | Phase 04 P06 | 27min | 2 tasks | 18 files |
+| Phase 04 P07 | 240min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,10 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-06: SC#2 SATISFIED — committed hello.7.out (sha256 1c89e099…) exec'd by staged init on r9/qemu-virt prints via the real EL0 svc path; evidence 04-06-sc2-boot.log at r9 HEAD 230fc74 (D-13 ordering)
 - [Phase 04]: 04-06: Rule-1 fix — demand-pager file reads clamped to the exact segment content end (unclamped reads bled paqfs syms bytes into bss tails; poisoned exits()'s onex[i].f into an indirect call to 'tas.s')
 - [Phase 04]: 04-06: dat.rs Mode bitflags replaced with frozen Plan 9 open-mode constants (deferred #1 resolved); DEV_ROOT/DEV_CONS chan.dev routing until the devtab era; pagealloc gains deallocate_physpage; proc records kstack PAs for the EXITS free
+- [Phase 04]: 04-07: return-side CURKSTACK load enforces the per-process entry-stack invariant (an entry-side switch is impossible on aarch64 without the 04-05 x0-clobber)
+- [Phase 04]: 04-07: swtch.S rewritten symmetric — the imported sequence could never round-trip (latent, never called on aarch64)
+- [Phase 04]: 04-07: 1 ms tick slice + init's calibrated spin (preemption evidence needs a CPU-bound EL0 window with live peers); syscall int-width args masked to 32 bits (donor va_arg semantics)
+- [Phase 04]: 04-07: exec_bootstrap IRQ-masked until first EL0 entry — boot orchestration is a non-preemptible critical section; invariant: PSTATE.I=0 only at EL0 or the stateless sched wfi (heisenbug exposure closed by construction, root cause = deferred-items #4)
 
 ### Pending Todos
 
@@ -163,6 +168,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T14:37:33.964Z
-Stopped at: Completed 04-06-PLAN.md
+Last session: 2026-11-02T18:41:17.270Z
+Stopped at: Completed 04-07-PLAN.md
 Resume file: None

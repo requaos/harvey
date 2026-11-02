@@ -24,7 +24,7 @@
 ### r9 Kernel (sibling repo `../r9`)
 
 - [x] **R9-01**: r9 gains a qemu `-M virt` aarch64 platform (alongside raspi3b/4b): kernel entry contract (ELF `-kernel` boot, DTB at 0x40000000, `-cpu cortex-a72`), memory map, GICv2, PL011 console, generic timer — proven by kernel log output in qemu
-- [ ] **R9-02**: r9 process model + `svc` syscall dispatch sufficient for userland (EL0 entry/return, trap frame matching Plan 9 ureg conventions)
+- [x] **R9-02**: r9 process model + `svc` syscall dispatch sufficient for userland (EL0 entry/return, trap frame matching Plan 9 ureg conventions)
 - [x] **R9-03**: r9 first-process path loads and runs a Harvey aarch64 `init` (embedded root-fs or equivalent delivery), faulting in user pages
 - [x] **R9-04**: Harvey↔r9 syscall ABI contract documented and enforced by static checks (Harvey's Ar0/va_list systab ABI vs r9's Rust trap frame — cross-repo layout match verified at build time)
 - [x] **R9-05**: r9 repo carries its own `flake.nix` managing its build environment (pinned rust toolchain + `llvm-tools` for `llvm-objcopy`, qemu, cargo xtask) — devshell + apps mirroring this repo's conventions, so r9 builds reproducibly standalone
@@ -66,7 +66,7 @@
 | TC-04 | Phase 2 | Complete |
 | TC-05 | Phase 2 | Complete |
 | R9-01 | Phase 3 | Complete |
-| R9-02 | Phase 4 | Pending |
+| R9-02 | Phase 4 | Complete |
 | R9-03 | Phase 4 | Complete |
 | R9-04 | Phase 4 | Complete |
 | R9-05 | Phase 3 | Complete |

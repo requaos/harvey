@@ -115,7 +115,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. r9's first-process path loads a Harvey aarch64 `init` from an embedded root-fs or equivalent delivery, faulting in user text and growing the user stack (with icache maintenance after text load)
   4. A syscall smoke suite (rfork, notes, basic fd ops) runs from EL0 without kernel panic — exercised before the full shell is attempted
 
-**Plans**: 6/8 plans executed (7 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-7 are strictly sequential because each layer of the exec path is exercised by the next)
+**Plans**: 7/8 plans executed (7 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-7 are strictly sequential because each layer of the exec path is exercised by the next)
 
 **Wave 1**
 - [x] 04-01-PLAN.md — Falsification spikes (TRACER): qemu -initrd → DTB /chosen probe end-to-end + mkpaqfs host producer + committed paqfs fixture + D-14 donor syscall-trace artifact (R9-02/R9-03 substrate)
@@ -134,7 +134,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 04-06-PLAN.md — R9-02 dispatch: syscall table (measured set) + devcons fd ops (PREAD/PWRITE/OPEN/CLOSE/EXITS) + EXEC → SC#2 gate: committed hello.7.out prints on r9
 
 **Wave 6** *(blocked on Wave 5)*
-- [ ] 04-07-PLAN.md — per-process kernel stacks + tick round-robin scheduler (D-13) + RFORK/AWAIT/wait records + rfork/fd-ops smoke under preemption
+- [x] 04-07-PLAN.md — per-process kernel stacks + tick round-robin scheduler (D-13) + RFORK/AWAIT/wait records + rfork/fd-ops smoke under preemption
 
 **Wave 7** *(blocked on Wave 6 — notes ride the blocking-syscall machinery)*
 - [ ] 04-08-PLAN.md — notes end-to-end (D-16): devproc-lite /proc/N/note + NOTIFY/NOTED + boundary delivery → SC#4 gate + 04-EVIDENCE.md consolidation (r9 SHA pin)
@@ -165,5 +165,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Build-Tail Green (9k amd64) | 4/4 | Complete    | 2026-10-31 |
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
 | 3. r9 qemu-virt Platform Bring-up | 6/6 | Complete    | 2026-11-01 |
-| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 6/8 | In Progress|  |
+| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 7/8 | In Progress|  |
 | 5. Shell Boot + One-Command Integration | 0/TBD | Not started | - |
