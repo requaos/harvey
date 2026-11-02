@@ -8,14 +8,17 @@
 
 | Repo | SHA | Role |
 |------|-----|------|
-| r9 (`requaos/r9`, branch `main`) | **`dac3b33923fba47107bfea10101d224283ee018b`** | the phase's final r9 HEAD — docs-only on top of the gate-tested code commits |
+| r9 (`requaos/r9`, branch `main`) | **`b4f858abe015a66f403290580970c94a5e57a835`** | the phase's final r9 HEAD — a whitespace-only style fix on top of the docs commit |
+| r9 | `dac3b33923fba47107bfea10101d224283ee018b` | 04-08 Task 3: HowItWorks notes tour + README profile rows (docs-only) |
 | r9 | `c464ea2ebc08fee3ba65e95bbcb74c862da50946` | 04-08 Task 1: devproc-lite + NOTIFY/NOTED + boundary delivery |
 | r9 | `fae19fc2c5c1ccedec810dbf8b0bbb86eabf0cd2` | 04-08 Task 2: virtnotes profile (the SC#4 gate ran on this exact tree) |
 | harvey | `c72d0631419b80a30b4a990245ab2e60f2192d82` | 04-08 Task 2: smokenote + init's final job + the SC#4 evidence log |
 
 The SC#4 gate log (`04-08-sc4-boot.log`) was produced by the r9 tree at
-`c464ea2` + `fae19fc` (the docs commit `dac3b33` changes no compiled code —
-same kernel image, matching 04-06's docs-on-top precedent).  Evidence-run
+`c464ea2` + `fae19fc` (the docs commit `dac3b33` and the whitespace-only
+style fix `b4f858a` change no compiled code — same kernel image, matching
+04-06's docs-on-top precedent; the gate was re-run green at the final
+HEAD).  Evidence-run
 bootfs.paq sha256: `c04421d2ae4f924c6671f8736f7a696e430a712ba7ba2581653c827b65cd286c`
 (per-bake digest — mkpaqfs embeds a time field).
 

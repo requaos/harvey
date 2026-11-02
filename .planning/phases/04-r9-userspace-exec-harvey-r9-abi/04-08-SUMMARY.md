@@ -25,11 +25,11 @@ affects:
 actuals:
   tokens: 33563
   tasks: 3
-  commits: 5
-  commits_r9: 3
+  commits: 6
+  commits_r9: 4
   commits_harvey: 2
   plan_head_before_r9: fdac9fe1cbff0a06090f6928ce7216c04050124e
-  plan_head_after_r9: dac3b33923fba47107bfea10101d224283ee018b
+  plan_head_after_r9: b4f858abe015a66f403290580970c94a5e57a835
   plan_head_before_harvey: e867e1a1e67704ec6ba0943bb9a58df14334e2b2
   sc4_evidence: "04-08-sc4-boot.log — 7 sched: switch lines, full D-16 marker set, zero panic/Unhandled/note-timeout/unimplemented-syscall lines; 3/3 consecutive virtnotes PASS at the gate commit"
 
@@ -99,7 +99,7 @@ coverage:
     requirement: "R9-02"
     verification:
       - kind: integration
-        ref: "verify legs PASS at dac3b33: 04-EVIDENCE.md carries the live r9 HEAD SHA (grep match) + SC#1/SC#2/SC#3/SC#4 rows + hello sha256 1c89e099… + ctr_el0; HowItWorks.md carries ABI.md + userspace/demand tour text; README.md carries virtnotes; both docs tracked (git ls-files --error-unmatch); commit order demonstrates r9-first (c464ea2 → fae19fc → dac3b33, then Harvey 6f3c04a36 recording dac3b33)"
+        ref: "verify legs PASS at the final HEAD (b4f858a): 04-EVIDENCE.md carries the live r9 HEAD SHA (grep match) + SC#1/SC#2/SC#3/SC#4 rows + hello sha256 1c89e099… + ctr_el0; HowItWorks.md carries ABI.md + userspace/demand tour text; README.md carries virtnotes; both docs tracked (git ls-files --error-unmatch); commit order demonstrates r9-first (c464ea2 → fae19fc → dac3b33 → b4f858a, then Harvey 6f3c04a36 recording the final SHA)"
       status: pass
     human_judgment: false
 
@@ -110,20 +110,20 @@ status: complete
 
 # Phase 04 Plan 08: Notes + devproc-lite + the SC#4 Phase Gate Summary
 
-**SC#4 is satisfied with execution evidence, closing the phase: r9 now implements Plan 9 notes end-to-end — devproc-lite serving exactly `/proc/N/note` (libc `postnote(PNPROC, pid, msg)` works unmodified through open/write/close), NOTIFY/NOTED joining the dispatch table (with the donor's no-writeback special return), and note delivery at the return-to-EL0 boundary with the donor's stack construction verbatim — proven by the full D-16 smoke narrative under tick preemption: init rforks hello + smokefork + smokenote, posts `smoke` to the spinning child, the kernel delivers at the child's tick-return boundary (pc redirected to the notify handler, the saved 280-byte Ureg + the note string on the user stack), the handler prints and `noted(NCONT)` resumes the spin, the child exits `note-ok`, and init reaps all three — zero panic lines, 7 preemption switches, across three consecutive gate runs. The phase's canonical evidence is consolidated in 04-EVIDENCE.md pinned to r9 HEAD `dac3b339…` (D-13 ordering: all r9 commits landed first).**
+**SC#4 is satisfied with execution evidence, closing the phase: r9 now implements Plan 9 notes end-to-end — devproc-lite serving exactly `/proc/N/note` (libc `postnote(PNPROC, pid, msg)` works unmodified through open/write/close), NOTIFY/NOTED joining the dispatch table (with the donor's no-writeback special return), and note delivery at the return-to-EL0 boundary with the donor's stack construction verbatim — proven by the full D-16 smoke narrative under tick preemption: init rforks hello + smokefork + smokenote, posts `smoke` to the spinning child, the kernel delivers at the child's tick-return boundary (pc redirected to the notify handler, the saved 280-byte Ureg + the note string on the user stack), the handler prints and `noted(NCONT)` resumes the spin, the child exits `note-ok`, and init reaps all three — zero panic lines, 7 preemption switches, across three consecutive gate runs. The phase's canonical evidence is consolidated in 04-EVIDENCE.md pinned to r9 HEAD `b4f858abe…` (D-13 ordering: all r9 commits landed first).**
 
 ## Performance
 
 - **Duration:** 40min (started 2026-11-02T18:43:15Z)
 - **Tasks:** 3/3
-- **Commits:** 3 r9 (`c464ea2` Task 1, `fae19fc` Task 2, `dac3b33` Task-3 docs) + 2 Harvey (`c72d06314` Task 2, `6f3c04a36` Task-3 evidence) + the metadata commit carrying this file
+- **Commits:** 4 r9 (`c464ea2` Task 1, `fae19fc` Task 2, `dac3b33` Task-3 docs, `b4f858a` style fix) + 2 Harvey (`c72d06314` Task 2, `6f3c04a36` Task-3 evidence) + the metadata commits carrying this file
 - **Verification runs:** 4 build configs + clippy (two states), boot-test virtnotes ×4 (3 at the gate commit + 1 at final HEAD), virtmulti ×2, virtexec ×3, virt ×2, virtpanic ×2, ~8 debugging gate runs (below)
 
 ## Accomplishments
 
 - **Task 1 (r9 `c464ea2`) — the notes machinery, no-regression-green.** devproc-lite (`port/src/devproc.rs`): attach → the /proc root, walk a numeric pid component then the literal `note` name (everything else a loud walk error), write-only open on a note chan, write decodes the pid from the qid and posts ERRMAX-bounded NUL-terminated bytes through the arch-registered hook (`proc::post_note` — the Console::set_uart-style inversion, since port can't see PROC_TABLE). The comment-wording constraint is honored: the file never names the omitted devproc file set anywhere (code or comments), so the scope guard stays truthful under any scan widening. NOTIFY(28) validates the handler VA 4-aligned and inside the proc's own text segment (T-04-17); NOTED(29) implements NCONT/NRSTR (restore the delivered frozen 280-byte Ureg over the live frame, resume pc/sp validated pre-copy), NDFLT (exit with the note message via the factored `exit_tail`), NSAVE (loud-unimplemented + -1) — with dispatch's NOTED no-writeback special return. `deliver_notes` runs on BOTH return-to-EL0 boundaries; the IRQ path resolves CURFRAME (`proc::current_frame()`) so a mid-trap preemption delivers to the proc actually about to run EL0. The delivery construction is the donor's notify() verbatim (256 preserve, the frozen 280-byte copy, the msg slot, the SP+8/SP+16 arg homes, pc→handler, LR=0), guarded by validate-then-write + forced residency (T-04-16). Gate: four profiles + two raspi builds + clippy all green (pure no-regression).
 - **Task 2 (r9 `fae19fc`; Harvey `c72d06314`) — SC#4 GATE GREEN.** smokenote (notify + bounded spin + loud note-timeout ceiling), init's final staged job (rfork A/B/C; the postnote ordered after C's exec+notify by a CPU-bound spin that doubles as the D-13 preemption window; await ×3), and the virtnotes profile (name-selected, kernel cfg byte-identical to virtexec/virtmulti; marker set = multi ∪ {smokenote: got note, smokenote: resumed}; negative scan + note-timeout/unimplemented legs). The evidence log (committed as 04-08-sc4-boot.log) shows the textbook narrative: delivery at a tick boundary with the interrupted pc inside main's spin, the handler's print, the noted restore back into the spin, `smokenote: resumed`, `note-ok`, all reaped, all-exited — 7 `sched: switch` lines, zero panic/Unhandled/note-timeout/unimplemented lines. 3/3 consecutive PASS at the gate commit, re-PASSed at the final HEAD.
-- **Task 3 (r9 `dac3b33`; Harvey `6f3c04a36`) — the phase gate.** 04-EVIDENCE.md maps SC#1 (two-layer ABI gate + negative control) / SC#2 (hello chain + sha256 1c89e099…) / SC#3 (demand paging + ctr_el0 0x8444c004 + the ttbr0 teardown proof) / SC#4 (the quoted smoke chain + 7 switches) to evidence, carries the D-14 measured set + coverage table, the Wave-0 falsification results, and the full regression matrix — pinned to the live r9 HEAD (grep-verified). HowItWorks.md gained the notes + devproc-lite tour (file-header mandate); README.md lists all five boot-test profiles.
+- **Task 3 (r9 `dac3b33` + style fix `b4f858a`; Harvey `6f3c04a36`) — the phase gate.** 04-EVIDENCE.md maps SC#1 (two-layer ABI gate + negative control) / SC#2 (hello chain + sha256 1c89e099…) / SC#3 (demand paging + ctr_el0 0x8444c004 + the ttbr0 teardown proof) / SC#4 (the quoted smoke chain + 7 switches) to evidence, carries the D-14 measured set + coverage table, the Wave-0 falsification results, and the full regression matrix — pinned to the live r9 HEAD (grep-verified). HowItWorks.md gained the notes + devproc-lite tour (file-header mandate); README.md lists all five boot-test profiles.
 - **The gate caught two real bugs** (see Deviations): the /proc route's off-by-one (the smoke's postnote failed loudly), and 7c's register caching of the spin flag (the resumed loop never observed the handler's store).
 
 ## Task Commits
@@ -134,10 +134,11 @@ status: complete
 | 2 | r9 | `fae19fc` | xtask/src/main.rs, aarch64/lib/config_virtnotes.toml (new), aarch64/src/syscall.rs (the off-by-one fix) |
 | 2 | harvey | `c72d06314` | build/aarch64/smokenote.c (new), init.c, stage-build.sh, 04-08-sc4-boot.log (new) |
 | 3 | r9 | `dac3b33` | HowItWorks.md, README.md |
+| 1 (style) | r9 | `b4f858a` | aarch64/src/proc.rs (post_wait_record line-join fix — whitespace only) |
 | 3 | harvey | `6f3c04a36` | 04-EVIDENCE.md (new) |
-| metadata | harvey | (final commit) | .planning SUMMARY/STATE/ROADMAP/REQUIREMENTS |
+| metadata | harvey | (final commits) | .planning SUMMARY/STATE/ROADMAP/REQUIREMENTS |
 
-**r9 HEAD at evidence time (D-13 ordering — all r9 commits landed first):** `dac3b33923fba47107bfea10101d224283ee018b` (docs-only on top of the gate-tested `fae19fc` + `c464ea2`; the gate ran on the exact committed tree and was re-run green at `dac3b33`).
+**r9 HEAD at evidence time (D-13 ordering — all r9 commits landed first):** `b4f858abe015a66f403290580970c94a5e57a835` (whitespace-only style fix atop docs-only `dac3b33` atop the gate-tested `fae19fc` + `c464ea2`; the gate ran on the exact committed tree and was re-run green at the final HEAD).
 **Evidence-run bootfs.paq sha256:** `c04421d2ae4f924c6671f8736f7a696e430a712ba7ba2581653c827b65cd286c` (per-bake digest — mkpaqfs embeds a time field).
 
 ## Files Created/Modified
@@ -201,7 +202,7 @@ None.
 
 - Key files exist: r9 `port/src/devproc.rs` ✓ `aarch64/lib/config_virtnotes.toml` ✓; Harvey `build/aarch64/smokenote.c` ✓ `init.c` ✓ `stage-build.sh` ✓; `.planning/phases/04-r9-userspace-exec-harvey-r9-abi/04-EVIDENCE.md` ✓ + `04-08-sc4-boot.log` ✓ (committed, 515 lines).
 - Commits: r9 `git log --grep="04-08"` → `c464ea2` (Task 1) + `fae19fc` (Task 2) + `dac3b33` (Task-3 docs) ✓; Harvey → `c72d06314` (Task 2) + `6f3c04a36` (Task 3) ✓ (plus the metadata commit carrying this file).
-- 04-EVIDENCE.md's recorded r9 SHA == the live r9 HEAD (`dac3b33923fba47107bfea10101d224283ee018b`) ✓ (grep-verified).
+- 04-EVIDENCE.md's recorded r9 SHA == the live r9 HEAD (`b4f858abe015a66f403290580970c94a5e57a835`) ✓ (grep-verified).
 - Acceptance criteria re-run at final HEADs: Task 1 (4-config builds + clippy green; grep chain PASS incl. the scope guard; four profiles PASS) ✓; Task 2 (stage-build PASS + per-binary R_MAGIC; initrd bake; virtnotes PASS ×3 at the gate commit + ×1 at final HEAD; all explicit log grep legs PASS; regression fan virtmulti/virtexec/virt/virtpanic + raspi3b/raspi4b + clippy green; sys/src/libc untouched) ✓; Task 3 (SHA pin + SC rows + hello sha256 + ctr_el0 greps PASS; docs greps PASS; commit order r9-first) ✓.
 - Plan-level verification at final HEADs: SC#4 gate satisfied (full D-16 marker set + preemption evidence + empty negative scans); regression fan green; evidence SHA pin == live HEAD; docs tour landed in the final r9 commit.
 
