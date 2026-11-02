@@ -115,10 +115,10 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. r9's first-process path loads a Harvey aarch64 `init` from an embedded root-fs or equivalent delivery, faulting in user text and growing the user stack (with icache maintenance after text load)
   4. A syscall smoke suite (rfork, notes, basic fd ops) runs from EL0 without kernel panic — exercised before the full shell is attempted
 
-**Plans**: 0/8 plans executed (7 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-7 are strictly sequential because each layer of the exec path is exercised by the next)
+**Plans**: 1/8 plans executed (7 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-7 are strictly sequential because each layer of the exec path is exercised by the next)
 
 **Wave 1**
-- [ ] 04-01-PLAN.md — Falsification spikes (TRACER): qemu -initrd → DTB /chosen probe end-to-end + mkpaqfs host producer + committed paqfs fixture + D-14 donor syscall-trace artifact (R9-02/R9-03 substrate)
+- [x] 04-01-PLAN.md — Falsification spikes (TRACER): qemu -initrd → DTB /chosen probe end-to-end + mkpaqfs host producer + committed paqfs fixture + D-14 donor syscall-trace artifact (R9-02/R9-03 substrate)
 
 **Wave 2** *(blocked on Wave 1 — fixture + xtask file serialization)*
 - [ ] 04-02-PLAN.md — paqfs no_std reader (miniz_oxide/adler2, audit-approved) + host fixture tests + boot-time initrd root-walk serial proof (D-02)
@@ -165,5 +165,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Build-Tail Green (9k amd64) | 4/4 | Complete    | 2026-10-31 |
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
 | 3. r9 qemu-virt Platform Bring-up | 6/6 | Complete    | 2026-11-01 |
-| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 0/8 | Planned    |  |
+| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 1/8 | In Progress|  |
 | 5. Shell Boot + One-Command Integration | 0/TBD | Not started | - |

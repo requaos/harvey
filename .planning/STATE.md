@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 4
+current_phase: 04
 current_phase_name: r9 Userspace-Exec + Harvey↔r9 ABI
 status: executing
-stopped_at: Phase 4 context gathered
-last_updated: "2026-11-02T03:55:46.089Z"
+stopped_at: Completed 04-01-PLAN.md
+last_updated: "2026-11-02T12:34:58.872Z"
 last_activity: 2026-11-01
-last_activity_desc: Phase 03 complete, transitioned to Phase 4
-state_head: bb510618a0c949730f1f92f263dcee9cf9319374
+last_activity_desc: Phase 04 execution started
+state_head: cb1784a7f9e1b0b0b1100fe1d4580fe3d6db54f8
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 25
-  completed_plans: 17
+  completed_plans: 18
   percent: 60
 ---
 
@@ -23,14 +23,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-02)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 4 — r9 Userspace-Exec + Harvey↔r9 ABI
+**Current focus:** Phase 04 — r9 Userspace-Exec + Harvey↔r9 ABI
 
 ## Current Position
 
-Phase: 4 (r9 Userspace-Exec + Harvey↔r9 ABI) — READY TO EXECUTE
-Plan: Not started
+Phase: 04 (r9 Userspace-Exec + Harvey↔r9 ABI) — EXECUTING
+Plan: 2 of 8
 Status: Ready to execute
-Last activity: 2026-11-01 — Phase 03 complete, transitioned to Phase 4
+Last activity: 2026-11-01 — Phase 04 execution started
 
 Progress: [██████░░░░] 60%
 
@@ -75,6 +75,7 @@ Progress: [██████░░░░] 60%
 | Phase 03 P04 | 26 min | 2 tasks | 12 files |
 | Phase 03 P05 | 10 min | 3 tasks | 8 files |
 | Phase 03 P06 | 18 min | 2 tasks | 9 files |
+| Phase 04 P01 | 33min (continuation; prior segment reached the A3 decision checkpoint) | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -113,6 +114,8 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-06: D-12 delivered as --config virtpanic (virt-specific name; mechanism/trigger/dump as decided) — brk #0 hook before trap::unmask_irq() runs the real sync trap path; TrapFrame Debug uses bare x29/x30 names so dump rows are machine-countable (the plan's >=30-row gate was unsatisfiable with annotated names)
 - [Phase 03]: 03-06: RustupState tolerates rustup-absent hosts (nix devshell) — cargo xtask check/test degrade to bins/lib legs via existing Option handling instead of panicking; pre-existing panic proven on the clean tree
 - [Phase 03]: 03-06: evidence commit ordering (D-13/T-03-09) — r9 commits land first, EVIDENCE.md records that exact HEAD SHA (55ca7c4), harvey evidence commit second; the verify gate requires the recorded SHA to match the live checkout
+- [Phase 04]: D-01 AMENDED (04-01, user decision A): qemu 11.1.2 never delivers -initrd for ELF kernels (hw/arm/boot.c: ELF => not-linux), falsifying assumption A3. Root-fs/initrd delivery is now qemu generic loader at a TOML-data PA + xtask-produced fdtput-patched DTB copy carrying /chosen linux,initrd-start/end (two 32-bit BE cells, hi first — dtc has no 8-byte type). Kernel /chosen discovery/validation/reservation unchanged; ELF boot preserved per D-05. — D-01's locked mechanism (qemu -initrd + DTB /chosen) was written against the assumption that qemu loads -initrd for ELF kernels; source inspection + serial evidence falsified it. The loader+patched-DTB replacement keeps every downstream consumer (kernel /chosen parse, validation, pagealloc reservation) identical — only the host-side delivery and DTB handoff change.
+- [Phase 04]: D-14 measured hello-path syscall set (04-01, donor pin 350266104f, primary startsyscall+/proc/N/syscall method): 51 pwrite, 14 open (#c/pid), 50 pread, 4 close, 8 exits — fmt/pool pulls no brk_/segbrk on this path. 04-06/07/08 implement exactly this set plus D-14's named core. — Measured, not guessed (D-14). The open/pread/close triplet is the exits path resolving its own pid via #c/pid; the absence of brk_/segbrk settles the fmt/pool watch item by evidence.
 
 ### Pending Todos
 
@@ -137,6 +140,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T02:54:11.754Z
-Stopped at: Phase 4 context gathered
-Resume file: .planning/phases/04-r9-userspace-exec-harvey-r9-abi/04-CONTEXT.md
+Last session: 2026-11-02T12:34:53.637Z
+Stopped at: Completed 04-01-PLAN.md
+Resume file: None
