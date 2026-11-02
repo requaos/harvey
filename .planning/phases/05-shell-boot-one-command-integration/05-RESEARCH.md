@@ -643,7 +643,14 @@ This is a brownfield OS project, not an ecosystem-library domain — the "state 
 | A5 | `readparts()` (partinit) fails soft when no `#S` disks exist, or is neutralized by seeded `readparts=0` | Pattern 5 step 6 | Medium-low — parts.c not fully read this session; boot.c gates it on `getenv("readparts")` being nil-or-nonzero [VERIFIED: boot.c:84-93], so the seeded env controls it. Executor verifies behavior on first boot. |
 | A6 | qemu `-nographic` stdio serial works with expect's spawn on both host OSes (legacy build.bash proves it for i386; aarch64 virt PL011 over stdio is the same mechanism) | Pattern 6 | Low — Phase 3/4 r9 boot-test uses a unix socket instead; stdio is the expect-natural path but the planner may choose the socket shape if stdio interleaves with qemu monitor. |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+> **Resolution (planning revision 1, 2026-11-02):** all four questions are settled in the phase plans.
+>
+> 1. **What execs as pid 1 / argv** → 05-04 Task 1 (transitional argv hint + `cfg(dev_bootchain)` entry selection; kernel execs `/boot/boot` via the two-component devroot walk) and 05-05 (the locked answer: kernel seeds the root devenv group — `cputype=aarch64`, `nobootprompt=embed` — before the first exec; argv reduced to `[b"boot"]`, the transitional hint removed).
+> 2. **r9 boot-test initrd after the D-10 inversion** → 05-10 Task 2, which cites this question by name and takes the lowest-risk recommendation verbatim: r9 keeps its own bake against the unchanged staged-init supply chain (`build/aarch64/stage-build.sh`), with the Harvey dir explicit via required `R9_HARVEY_DIR`.
+> 3. **devtab dispatch shape** → 05-04, which cites this question by name in its must_haves: a hand-built `#`-char → attach-fn registry (no generated devtab, no trait conformance this phase), retiring the sys_open prefix routing.
+> 4. **Scoped termrc/namespace source-of-truth location** → 05-02 Task 2: the `build/aarch64/root-tree/` committed skeleton, staged by `mkimage.sh` at bake time; `rc/lib/rcmain` ships verbatim (copied from the stock source at bake time, never edited).
 
 1. **What exactly execs as pid 1 and with what argv?** (the agent's discretion)
    - What we know: Phase 4's `exec_bootstrap` walks devroot for `"init"` and execs with argv `[b"init"]` [VERIFIED: ../r9/aarch64/src/main.rs:420-436]; Phase 5 execs `/boot/boot` (a subdirectory walk — devroot walks single components fine). Method selection via seeded env (Pattern 3 recommendation) or argv.
