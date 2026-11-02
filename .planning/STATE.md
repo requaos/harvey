@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: r9 Userspace-Exec + Harvey↔r9 ABI
 status: executing
-stopped_at: Completed 04-01-PLAN.md
-last_updated: "2026-11-02T12:34:58.872Z"
+stopped_at: Completed 04-02-PLAN.md
+last_updated: "2026-11-02T12:51:51.806Z"
 last_activity: 2026-11-01
 last_activity_desc: Phase 04 execution started
-state_head: cb1784a7f9e1b0b0b1100fe1d4580fe3d6db54f8
+state_head: 54fa423fa0f11379ffa66f879d80c2250da4f101
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 25
-  completed_plans: 18
+  completed_plans: 19
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 04 (r9 Userspace-Exec + Harvey↔r9 ABI) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-11-01 — Phase 04 execution started
 
@@ -76,6 +76,7 @@ Progress: [██████░░░░] 60%
 | Phase 03 P05 | 10 min | 3 tasks | 8 files |
 | Phase 03 P06 | 18 min | 2 tasks | 9 files |
 | Phase 04 P01 | 33min (continuation; prior segment reached the A3 decision checkpoint) | 3 tasks | 14 files |
+| Phase 04 P02 | 15min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,10 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-06: evidence commit ordering (D-13/T-03-09) — r9 commits land first, EVIDENCE.md records that exact HEAD SHA (55ca7c4), harvey evidence commit second; the verify gate requires the recorded SHA to match the live checkout
 - [Phase 04]: D-01 AMENDED (04-01, user decision A): qemu 11.1.2 never delivers -initrd for ELF kernels (hw/arm/boot.c: ELF => not-linux), falsifying assumption A3. Root-fs/initrd delivery is now qemu generic loader at a TOML-data PA + xtask-produced fdtput-patched DTB copy carrying /chosen linux,initrd-start/end (two 32-bit BE cells, hi first — dtc has no 8-byte type). Kernel /chosen discovery/validation/reservation unchanged; ELF boot preserved per D-05. — D-01's locked mechanism (qemu -initrd + DTB /chosen) was written against the assumption that qemu loads -initrd for ELF kernels; source inspection + serial evidence falsified it. The loader+patched-DTB replacement keeps every downstream consumer (kernel /chosen parse, validation, pagealloc reservation) identical — only the host-side delivery and DTB handoff change.
 - [Phase 04]: D-14 measured hello-path syscall set (04-01, donor pin 350266104f, primary startsyscall+/proc/N/syscall method): 51 pwrite, 14 open (#c/pid), 50 pread, 4 close, 8 exits — fmt/pool pulls no brk_/segbrk on this path. 04-06/07/08 implement exactly this set plus D-14's named core. — Measured, not guessed (D-14). The open/pread/close triplet is the exits path resolving its own pid via #c/pid; the absence of brk_/segbrk settles the fmt/pool watch item by evidence.
+- [Phase 04]: Harvey libflate adler32 is the seed-0 variant (mkpaqfs writes adler32(0,...)); r9's paqfs reader reproduces it via adler2::Adler32::from_checksum(0) — proven against fixture block headers (root block 0x479d0ee0) — RFC 1950 seeds s1=1; Harvey seeds s1=0. Fixture bytes proved the mismatch (seed-1 yields 0x579d0ee1). from_checksum(0) keeps the plan-mandated adler2 crate instead of a hand-rolled checksum.
+- [Phase 04]: r9 has no full-RAM kernel map: runtime access to a physical range (initrd) maps it explicitly via kernel_pagetable().map_phys_range with VaMapping::Offset(KZERO) — vminit's DTB convention, reused post-boot — 04-02 plan assumed an existing KZERO+PA physical-map convention that does not exist (vminit maps only DTB+kernel sections). 04-04's fault handler reads the initrd through the same mapping.
+- [Phase 04]: paqfs reader API grew root_dir()/read_dir() beyond the plan sketch — directory listing is required by the boot root-walk and 04-05 devroot; stateless-per-call invariant preserved — The 4-method sketch (open_image/read_block/walk/read_at) cannot express listing a directory's entries.
+- [Phase 04]: Boot serial evidence emits banner FIRST, then initrd marker, then paqfs root-entry lines — the 04-01 marker block moved below the banner print — 04-02 acceptance pins emission order (banner first); 04-01's greps were order-insensitive and remain satisfied.
 
 ### Pending Todos
 
@@ -140,6 +145,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T12:34:53.637Z
-Stopped at: Completed 04-01-PLAN.md
+Last session: 2026-11-02T12:51:51.741Z
+Stopped at: Completed 04-02-PLAN.md
 Resume file: None
