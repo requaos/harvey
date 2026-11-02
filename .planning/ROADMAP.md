@@ -153,7 +153,41 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. From clean checkouts of both repos, the documented commands reproduce the boot with pinned toolchains/qemu — honoring Phase 1's KERNDATE/reproducibility policy
   5. Harvey's `flake.nix` consumes r9 as a flake input (pinned git rev) — the integration glue lives in the flakes, not in `../r9` relative paths or git submodules (INT-04)
 
-**Plans**: TBD
+**Plans**: 13 plans (11 waves; D-14's debug-first Wave 0 precedes the phase tracer at 05-04, and the measure-first donor trace (05-03) precedes all dispatch growth per carried-forward policy)
+**Wave 1**
+- [ ] 05-01-PLAN.md — r9 hygiene: D-14 note-race root-cause + fix (40/40 gate), D-16 boot-test qemu/log cleanup, D-15 stacksmoke staged gate
+- [ ] 05-02-PLAN.md — Harvey aarch64 boot(8)/init/paqfs/stacksmoke builds (additive mkfile.aarch64 + hand-written bootr9.c bootconf) + paqfs image root-tree skeleton + mkimage.sh bake + run-r9.sh dev launcher
+
+**Wave 2** *(blocked on Wave 1 — the trace measures our real binaries)*
+- [ ] 05-03-PLAN.md — measure-first: donor-kernel syscall trace of the real boot chain → 05-03-trace.txt measured-set artifact
+
+**Wave 3** *(blocked on 05-01/02/03 — image, fixed notes, and the measured set)*
+- [ ] 05-04-PLAN.md — TRACER (/boot/boot execs on r9 to the BIND wall) + D-03 namespace core (namec/pgrp/union/registry, BIND/CHDIR) + stat family + device attaches → boot reaches paqfs... + PIPE wall
+
+**Wave 4**
+- [ ] 05-05-PLAN.md — devenv per-pgrp + kernel-seeded root group (D-07, Pitfall 1) + devroot /rootfs.img raw node + env-driven method pick (argv hint removed)
+
+**Wave 5**
+- [ ] 05-06-PLAN.md — devpipe (Arc-shared queue) + devdup + devsrv + PIPE/DUP/CREATE + fd-group semantics + sizing → connectembed completes to the FVERSION wall
+
+**Wave 6**
+- [ ] 05-07-PLAN.md — devmnt 9P client (mntchk bounds) + FVERSION/MOUNT → HINGE GATE: boot completes, init → newns → rc -i → the %  prompt prints
+
+**Wave 7**
+- [ ] 05-08-PLAN.md — devcons read path + cooked + consctl + DEL→interrupt note (D-06) + SLEEP/ALARM → INTERACTIVE GATE via drive-r9.expect (echo answers, DEL safe, exit restarts rc)
+
+**Wave 8** *(parallel: disjoint files, same-repo precedent 04-02∥04-03)*
+- [ ] 05-09-PLAN.md — devproc completion (dir reads, status ≥12 fields, args, ctl) + trace-settled leftover syscalls → full D-09 sweep green on darwin
+- [ ] 05-10-PLAN.md — r9 flake packages.kernel-virt (D-11) + xtask inversion: R9_HARVEY_DIR required, no sibling-checkout defaults (D-10)
+
+**Wave 9** *(the pin must capture ALL r9-side phase work)*
+- [ ] 05-11-PLAN.md — Harvey inputs.r9 + flake.lock pin (INT-04) + nix/boot-r9.sh compose app → COMPOSE GATE: nix run .#boot-r9 to the prompt on darwin (INT-01)
+
+**Wave 10**
+- [ ] 05-12-PLAN.md — the expect smoke packaged as nix run .#boot-r9-smoke (INT-02, D-12): full sweep, D-16 hygiene, two-consecutive-run gate + human-review evidence (05-12-smoke.log)
+
+**Wave 11**
+- [ ] 05-13-PLAN.md — GH Actions linux CI leg (D-13) + darwin clean-clone reproduction + REPRODUCIBILITY.md INT-03 + 05-EVIDENCE.md with the r9 SHA pin + r9 docs tour
 
 ## Progress
 
