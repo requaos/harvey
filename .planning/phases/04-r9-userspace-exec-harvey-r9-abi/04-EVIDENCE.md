@@ -8,7 +8,8 @@
 
 | Repo | SHA | Role |
 |------|-----|------|
-| r9 (`requaos/r9`, branch `main`) | **`b4f858abe015a66f403290580970c94a5e57a835`** | the phase's final r9 HEAD — a whitespace-only style fix on top of the docs commit |
+| r9 (`requaos/r9`, branch `main`) | **`54e8c1079933aa8be7d3b1571702a408169e1950`** | the phase's final r9 HEAD — WR-08 fix (the last of 9 code-review fix commits; see 04-REVIEW-FIX.md) |
+| r9 | `b4f858abe015a66f403290580970c94a5e57a835` | pre-fix phase HEAD (04-08 close-out); superseded by the 04-REVIEW fix pass above |
 | r9 | `dac3b33923fba47107bfea10101d224283ee018b` | 04-08 Task 3: HowItWorks notes tour + README profile rows (docs-only) |
 | r9 | `c464ea2ebc08fee3ba65e95bbcb74c862da50946` | 04-08 Task 1: devproc-lite + NOTIFY/NOTED + boundary delivery |
 | r9 | `fae19fc2c5c1ccedec810dbf8b0bbb86eabf0cd2` | 04-08 Task 2: virtnotes profile (the SC#4 gate ran on this exact tree) |
@@ -18,7 +19,11 @@ The SC#4 gate log (`04-08-sc4-boot.log`) was produced by the r9 tree at
 `c464ea2` + `fae19fc` (the docs commit `dac3b33` and the whitespace-only
 style fix `b4f858a` change no compiled code — same kernel image, matching
 04-06's docs-on-top precedent; the gate was re-run green at the final
-HEAD).  Evidence-run
+HEAD). After consolidation, the `/gsd-code-review 4 --fix` pass (9/9
+findings fixed; 04-REVIEW-FIX.md) moved r9 HEAD to `54e8c10`; every gate
+was re-run green at the fix HEAD (port 26/26 + xtask 19/19 host tests,
+ureg-check 35/35, and all five boot profiles — virtexec, virtmulti,
+virtnotes, virt, virtpanic). Evidence-run
 bootfs.paq sha256: `c04421d2ae4f924c6671f8736f7a696e430a712ba7ba2581653c827b65cd286c`
 (per-bake digest — mkpaqfs embeds a time field).
 
