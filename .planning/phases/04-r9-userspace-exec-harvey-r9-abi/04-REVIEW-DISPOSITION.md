@@ -5,39 +5,39 @@ titles: json
 findings:
   - id: CR-01
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "Demand pager silently corrupts data when bss faults precede data on the shared last data page"
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`map_to` error path abandons the recursive slot-511 restore"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "rfork_clone / new_user_proc error paths leave a runnable null-frame child and leak pages"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "RFNOWAIT child exit corrupts the parent's AWAIT pivot forever"
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "NOTED's NCONT/NRSTR restores `psr` from user-writable memory without sanitizing to EL0t"
   - id: WR-05
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "deliver_notes has no in-handler guard — a second note overwrites `note_ureg` mid-handler"
   - id: WR-06
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "fault-kill paths bypass the 04-07 lifecycle — parent AWAIT hangs, kernel wedges with IRQs masked"
   - id: WR-07
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "exec_replace's \"seed can no longer fail\" invariant is false — post-free failure strands the proc"
   - id: WR-08
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "user fault on a top-half VA panics the kernel (user-reachable DoS)"
   - id: IN-01
     severity: info
@@ -71,24 +71,24 @@ findings:
     severity: info
     disposition: open
     title: "sha256 fallback only covers spawn failure, not tool failure"
-open: 17
+open: 8
 total: 17
-recorded: 2026-11-02T19:36:19.320Z
+recorded: 2026-11-02T20:10:18.530Z
 ---
 
 # Phase 04: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | open | - |
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
-| WR-05 | warning | open | - |
-| WR-06 | warning | open | - |
-| WR-07 | warning | open | - |
-| WR-08 | warning | open | - |
+| CR-01 | critical | fixed | 04-REVIEW-FIX.md |
+| WR-01 | warning | fixed | 04-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 04-REVIEW-FIX.md |
+| WR-03 | warning | fixed | 04-REVIEW-FIX.md |
+| WR-04 | warning | fixed | 04-REVIEW-FIX.md |
+| WR-05 | warning | fixed | 04-REVIEW-FIX.md |
+| WR-06 | warning | fixed | 04-REVIEW-FIX.md |
+| WR-07 | warning | fixed | 04-REVIEW-FIX.md |
+| WR-08 | warning | fixed | 04-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
