@@ -23,7 +23,8 @@ covered_files:
   - .planning/phases/03-r9-qemu-virt-platform-bring-up/evidence/virt-boot.log
   - .planning/phases/03-r9-qemu-virt-platform-bring-up/evidence/virtpanic-boot.log
   - .planning/phases/03-r9-qemu-virt-platform-bring-up/evidence/EVIDENCE.md
-covered_digest: "v4:sha256:9843fc31b8516ee89dcb097b61962fc728513a98f0b0d033c90ce552bea6a9dd"
+
+covered_digest: "v2:sha256:11e959ee508fc496a82a49e44aa677d16d0a45b2b132be11f7bf3e10fab8106d"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
