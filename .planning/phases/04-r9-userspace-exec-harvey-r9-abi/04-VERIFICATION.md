@@ -1,7 +1,7 @@
 ---
 phase: 04-r9-userspace-exec-harvey-r9-abi
 verified: 2026-11-02T19:44:43Z
-status: human_needed
+status: passed
 score: 16/17 must-haves verified
 covered_files:
   - .planning/phases/04-r9-userspace-exec-harvey-r9-abi/04-01-PLAN.md
@@ -246,3 +246,11 @@ Honest carry-forwards for Phase 5 planning (tracked elsewhere, not verification 
 
 _Verified: 2026-11-02T19:44:43Z_
 _Verifier: the agent (gsd-verifier)_
+
+## Acknowledged Gaps
+
+Acknowledged at UAT close (2026-11-02, user-confirmed proceed) — deferred-items.md, non-blocking:
+
+- **#2 (open)** — Orphaned qemu processes / stale serial-log rerun hazard in the smoke harnesses; hygiene cleanup candidate.
+- **#3 (open)** — `validate_user_range` is segment-membership only; cold in-segment syscall pointers abort loudly (never silently). Nested demand-paging from syscall context is Phase-5+ territory.
+- **#4 (open)** — virtmulti heisenbug not root-caused; exposure eliminated by construction (exec_bootstrap IRQ-masked). Revisit first if a future phase adds an unmasked-EL1h window with live computation.
