@@ -6,8 +6,8 @@
 # /aarch64/lib), rsync the results back to the gitignored
 # build/aarch64/out/, and copy the committed hello.7.out in verbatim
 # (the ABI bisect binary rides the initrd from 04-06 on).  r9's
-# `cargo xtask initrd` then bakes out/{init,hello,smokefork} into
-# target/bootfs.paq via mkpaqfs.  Every staged binary is R_MAGIC
+# `cargo xtask initrd` then bakes out/{init,hello,smokefork,smokenote}
+# into target/bootfs.paq via mkpaqfs.  Every staged binary is R_MAGIC
 # (0x8C47, BE) verified here before the rsync-back is trusted.
 #
 # Mirrors subset-build.sh's lima/rsync flow (vm-run.sh exclusion set,
@@ -25,7 +25,7 @@ LOG="${STAGE_BUILD_LOG:-$HARVEY/.build/stage-build.log}"
 OUT="$HARVEY/build/aarch64/out"
 
 # The C sources this script stages: NAME.c -> out/NAME (7c/7l).
-STAGE_SRCS="init smokefork"
+STAGE_SRCS="init smokefork smokenote"
 
 err() { echo "error: $*" >&2; exit 1; }
 
@@ -68,7 +68,7 @@ set -e
 
 fail() { echo "STAGE-BUILD-FAIL: $1" >&2; exit 1; }
 
-STAGE_SRCS="init smokefork"
+STAGE_SRCS="init smokefork smokenote"
 STAGE="$HARVEY/build/aarch64/out"
 
 echo "== stage build provenance (Harvey's vendored toolchain):"
