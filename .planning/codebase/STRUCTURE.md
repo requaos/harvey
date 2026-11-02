@@ -1,10 +1,10 @@
 ---
-last_mapped_commit: bf084ee78de58b5f05b98235bb6e6887fde6e8c4
-last_mapped_at: 2026-10-30
+last_mapped_commit: 8d99c117b284e53cd6b8eb3cc369accd135eedec
+last_mapped_at: 2026-11-01
 ---
 # Codebase Structure
 
-**Analysis Date:** 2026-10-30
+**Analysis Date:** 2026-11-01
 
 ## Directory Layout
 
@@ -31,10 +31,11 @@ harvey/
 │   ├── doc/                # System documentation
 │   ├── log/                # Log dirs per service (dns, httpd, auth, fossil…)
 │   └── games/              # Installed game data (lib/)
-├── 386/  amd64/  arm/  mips/  mips64/  power/  power64/  riscv/  riscv64/
-│   │   sparc/  spim/  spim64/   # Per-architecture install roots
+├── 386/  amd64/  aarch64/  arm/  mips/  mips64/  power/  power64/  riscv/
+│   │   riscv64/  sparc/  spim/  spim64/   # Per-architecture install roots
 │   │                           #   <arch>/include/{u.h,ureg.h,ape/}, <arch>/mkfile,
 │   │                           #   <arch>/bin (installed binaries; only some populated)
+│   │                           #   aarch64/ also carries ABI.md (frozen syscall contract)
 ├── acme/                   # Acme user data: bin/, mail/, news/, wiki/, acid/
 ├── adm/                    # Admin data: users, timezone, keys.who, netkeys.who, cache
 ├── cfg/                    # Host configs: example/, pxe/
@@ -45,8 +46,13 @@ harvey/
 ├── rc/                     # rc shell resources: bin/ (scripts incl. termrc/cpurc), lib/rcmain
 ├── usr/                    # User home dirs (glenda — the Plan 9 mascot default user)
 ├── unix/                   # Unix-compat headers/mkfile (u.h)
-└── build/                  # Harvey host-build harness (bash+QEMU): build.bash, scripts/,
-                            #   Dockerfile, BUILD_IN_DOCKER, RUNCOREBOOT, mkdirs, bind
+├── build/                  # Harvey host-build harness (bash+QEMU): build.bash, scripts/,
+│                           #   Dockerfile, BUILD_IN_DOCKER, RUNCOREBOOT, mkdirs, bind
+├── flake.nix               # Nix dev environment: devshell + setup/toolchain/build/iso apps
+├── flake.lock              # Pins nixpkgs (nixos-unstable)
+├── nix/                    # Scripts backing the flake apps: setup.sh, toolchain.sh,
+│                           #   build.sh, vm-build.sh, iso.sh, lima-harvey.yaml, minimega.nix
+└── AGENTS.md               # Agent-facing project contract (GSD-managed sections)
 ```
 
 ## Directory Purposes
@@ -85,10 +91,15 @@ harvey/
 - Purpose: Build the Harvey ISO from Linux/macOS by booting a Plan 9 VM (9legacy.iso) under QEMU with the source as a tarball disk; scripts inside the VM run the native mk build.
 - Key files: `build/build.bash` (main driver, downloads 9legacy.iso, QEMU+expect automation), `build/scripts/` (`build`, `repl`, `iso`, `main`, `funcs`, `linux-build`, `usb`), `build/mkdirs`, `build/bind`, `build/Dockerfile` + `BUILD_IN_DOCKER`, `build/RUNCOREBOOT`, `build/README` (requires host 9P server on port 5640).
 
-**Architecture install roots (`386/`, `amd64/`, `arm/`, …):**
+**Architecture install roots (`386/`, `amd64/`, `aarch64/`, `arm/`, …):**
 - Purpose: Per-`$objtype` install targets: headers and (after build) binaries.
 - Contains: `<arch>/include/u.h`, `<arch>/include/ureg.h`, `<arch>/include/ape/`, `<arch>/mkfile` (arch mk parameters: CC/AS/LD, `O` suffix), `<arch>/bin/` (populated by `mk install`; e.g. `386/bin`, `386/bbin`).
-- Only `386/` and `arm/` ship populated `bin/` in-tree; `amd64/` currently ships headers+mkfile only.
+- Only `386/`, `arm/`, and `aarch64/` ship populated `bin/` in-tree; `amd64/` currently ships headers+mkfile only.
+- **`aarch64/` specifics (Phase 2 port tree):** `aarch64/ABI.md` — the frozen Harvey↔r9 user-side syscall wire contract (number in R0, args at SP+8, `SVC`, result in R0); `aarch64/include/u.h` — LP64 base types, 8-byte-slot `va_list`, `jmp_buf[2]`; `aarch64/include/ureg.h` — frozen trap frame (`r0`..`r28`/`sb`, `r29`, `r30`/`link`, `sp`, `pc`, `psr`, `type`); `aarch64/mkfile` — toolchain selection `CC=7c LD=7l AS=7a O=7`; `aarch64/bin/` — populated with the `7a`/`7c`/`7l` toolchain plus core commands (`cat`, `cp`, `date`, `echo`, `grep`, `ls`, `mkdir`, `mv`, `ps`, `rc`, `rm`, `sed`, `test`, `wc`); `aarch64/lib/` — built archives (`libc.a`, `lib9p.a`, `libbio.a`, `libsec.a`, `libmp.a`, `libthread.a`, `libauth*.a`, `libip.a`, `libndb.a`, `libregexp.a`, `libString.a`); `aarch64/bbin/` — boot binaries dir (currently empty).
+
+**Nix layer (`flake.nix`, `flake.lock`, `nix/`):**
+- Purpose: Reproducible host dev environment and build entry points (supersedes manual plan9port install and the Docker path for day-to-day work).
+- Contains: `flake.nix` — apps `setup`/`toolchain`/`build`/`iso` (wrappers around `nix/*.sh` via `writeShellApplication`), `devShells.default`, Linux-only `minimega` package; `flake.lock` — single nixpkgs pin (`nixos-unstable`, rev `31ecbaca1bdefa45dffc409f0250bd8039ea0010`); `nix/setup.sh` (populate `.build/hostbin-<os>-<arch>/bin`), `nix/toolchain.sh` (cross-compiler build with `-static`-stripping `9l` shim), `nix/build.sh` (Linux namespace build, host-`nm` shim), `nix/vm-build.sh` (darwin: rsync→lima VM→rsync-back), `nix/iso.sh` (qemu+expect ISO path), `nix/lima-harvey.yaml` (Ubuntu 24.04 VM, 4 CPU/8 GiB), `nix/minimega.nix` (v3.3.0 KVM VM orchestrator, Linux only).
 
 **Root data directories (installed at `/`):**
 - `lib/` — system databases: `ndb/` (network database), `namespace` + variants (default namespace templates), `font/`, `dict/`, `vgadb`, `pci`, `rfc/`, `unicode`, `keyboard`, `units`, `sky/`, `map/`…
@@ -103,9 +114,15 @@ harvey/
 - `sys/src/boot/efi/efi.c`: EFI bootloader main; ISO9660 walker in `sys/src/boot/efi/iso.c`.
 - `sys/src/9k/boot/boot.c`: First user process (pid 1 bootstrap).
 - `sys/src/9k/root/rcmain`, `rc/bin/termrc`, `rc/bin/cpurc`: System/session init scripts.
-- `build/build.bash`: Host-side build entry.
+- `build/build.bash`: Legacy host-side build entry (still used by `nix/iso.sh`).
+- `flake.nix` apps (`nix run .#setup` → `.#toolchain` → `.#build` / `.#iso`): Current host build entry; `nix develop` for the devshell.
 
 **Configuration:**
+- `flake.nix`, `flake.lock`: Host dev environment and pinned nixpkgs; apps are the supported host entry points.
+- `nix/lima-harvey.yaml`: lima VM definition for darwin kernel builds (Linux mount namespaces required).
+- `AGENTS.md`: Agent-facing project contract; GSD-managed `<!-- GSD:* -->` sections are regenerated, not hand-edited.
+- `aarch64/ABI.md`: **Frozen** aarch64 user-side syscall ABI (Harvey↔r9) — do not edit without re-freezing both repos.
+- `aarch64/mkfile`: aarch64 toolchain selection (`CC=7c LD=7l AS=7a O=7`).
 - `sys/src/9k/k10/k10cpu` (+`k10cpuf`, `k10aoe`, `k10root`): Kernel configuration — device list, drivers, links, boot program, root contents. Compiled by `sys/src/9k/mk/parse`.
 - `sys/src/mkfile.proto`: Global mk parameters (`CPUS=amd64 arm 386 riscv riscv64 power mips`, `CFLAGS=-FTVw`).
 - `<arch>/mkfile` (e.g., `amd64/mkfile`): Per-arch toolchain selection (CC=8c, AS=8a, LD=8l, O=8).
@@ -141,9 +158,9 @@ harvey/
 - Manual pages: `sys/man/<section>/<name>`.
 
 **Directories:**
-- Arch dirs are short cpu names: `386`, `amd64`, `arm`, `riscv64`, `power64`, `mips64`, `spim` (big-endian MIPS for simulator).
+- Arch dirs are short cpu names: `386`, `amd64`, `aarch64`, `arm`, `riscv64`, `power64`, `mips64`, `spim` (big-endian MIPS for simulator). This project spells the 64-bit ARM architecture `aarch64` (never `arm64`) in tooling and docs.
 - Library dirs all carry the `lib` prefix; everything else in `sys/src/` is a subsystem (`cmd`, `boot`, `9k`, `ape`, `nboot`).
-- Plan 9 toolchain naming: `<n>c`/`<n>a`/`<n>l` = compiler/assembler/linker for arch n (8=amd64, 6=386, 5=arm, 9=power64, 4/0 variants…) — sources in `sys/src/cmd/{4,5,6,8,9}{a,c,l}/`.
+- Plan 9 toolchain naming: `<n>c`/`<n>a`/`<n>l` = compiler/assembler/linker for arch n (8=amd64, 6=386, 5=arm, 7=aarch64, 9=power64, 4/0 variants…) — sources in `sys/src/cmd/{4,5,6,7,8,9}{a,c,l}/`.
 
 **Code identifiers (for reference when editing):**
 - Kernel C: short lowercase functions (`namec`, `cclose`, `sysopen`, `waserror`), structs `CamelCase` typedef'd (`Chan`, `Dev`, `Proc`, `Segment`, `Qid`).
@@ -166,6 +183,13 @@ harvey/
 - Kernel handler: `sys<name>()` in `sys/src/9k/port/sysfile.c` or `sysproc.c` (Harvey signature `sysname(Ar0* ar0, va_list list)`), registered in the syscall table via the config/mk pipeline.
 - User wrapper: `sys/src/libc/9sys/<name>.c`.
 - Precedent: Harvey's `nmount` — commit `80deb8e34`, handler `sysnmount` at `sysfile.c:1212`.
+
+**New architecture port (precedent: `aarch64/`):**
+- Install root: top-level `<arch>/` dir with `include/u.h` (base types, `va_list`, `jmp_buf`), `include/ureg.h` (trap frame), `mkfile` (`</sys/src/mkfile.proto` include + `CC/LD/AS/O` letters), `bin/`, `bbin/`, `lib/`.
+- libc arch dir: `sys/src/libc/<arch>/` (asm primitives: `memcpy.s`, `setjmp.s`, `tas.s`, `main9.s`, `_seek.c` wrapper as needed).
+- Syscall stubs: add a `case <arch>` block to `sys/src/libc/9syscall/mkfile`'s stub generator (aarch64's is the `arm64` donor verbatim with the label renamed).
+- Toolchain: Plan 9 compiler suite sources under `sys/src/cmd/<n>{a,c,l}/` (aarch64 reuses the 9front-derived `7a`/`7c`/`7l`).
+- ABI: if the port targets a non-9k kernel (e.g. r9), write and freeze the wire contract first — see `aarch64/ABI.md` (D-15/D-16/D-17). The `ureg.h` trap frame is part of the freeze.
 
 **New user command:**
 - Single file: `sys/src/cmd/<name>.c` — but prefer a directory `sys/src/cmd/<name>/` with its own `mkfile` if more than one file; include `</$objtype/mkfile>` pattern like neighbors.
@@ -191,6 +215,10 @@ harvey/
 - Purpose: GSD planning artifacts (this analysis, phase plans).
 - Generated: Yes (tooling). Committed: Yes (per project convention).
 
+**`.build/hostbin-<os>-<arch>/`:**
+- Purpose: Per-host bootstrap toolchain bin dir populated by `nix run .#setup` (`pcc`, host tools); referenced as `$HARVEY_LINUX_BIN`. Per-OS/arch so a checkout shared with the lima build VM never clobbers host binaries.
+- Generated: Yes. Committed: No.
+
 **`build/` outputs:**
 - `harvey.tgz`, `9legacy.iso*`, final `plan9-new.iso.bz2` — build artifacts at repo root / build dir.
 - Generated: Yes. Committed: No (`.gitignore` covers them).
@@ -203,10 +231,10 @@ harvey/
 - Purpose: Per-service log directories (`auth`, `dns`, `httpd`, `fossil`, `ipboot`…) — empty scaffolding in repo, filled at runtime.
 - Generated: partially (runtime). Committed: structure only.
 
-**Per-arch `bin/` (`386/bin`, `arm/bin`, `386/bbin`):**
+**Per-arch `bin/` (`386/bin`, `arm/bin`, `aarch64/bin`, `386/bbin`):**
 - Purpose: Install targets for `mk install` — binaries land here, named without extension.
-- Generated: Yes (build output). Committed: some legacy binaries are in-tree.
+- Generated: Yes (build output). Committed: some legacy binaries are in-tree; `aarch64/bin` holds the Phase 2 aarch64 toolchain (`7a`/`7c`/`7l`) and core command builds, `aarch64/lib` the built archives.
 
 ---
 
-*Structure analysis: 2026-10-30*
+*Structure analysis: 2026-11-01*

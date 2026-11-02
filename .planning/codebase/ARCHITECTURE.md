@@ -1,12 +1,12 @@
 ---
-last_mapped_commit: bf084ee78de58b5f05b98235bb6e6887fde6e8c4
-last_mapped_at: 2026-10-30
+last_mapped_commit: 8d99c117b284e53cd6b8eb3cc369accd135eedec
+last_mapped_at: 2026-11-01
 ---
-<!-- refreshed: 2026-10-30 -->
+<!-- refreshed: 2026-11-01 -->
 
 # Architecture
 
-**Analysis Date:** 2026-10-30
+**Analysis Date:** 2026-11-01
 
 ## System Overview
 
@@ -76,6 +76,9 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 | APE | ANSI/POSIX Environment (ports of Unix software) | `sys/src/ape/` |
 | Legacy kernel | Original Plan 9 kernel tree (multi-arch: pc, bcm, omap, teg2…) | `sys/src/9/` |
 | Host build harness | Builds Harvey ISO by booting Plan 9 under QEMU | `build/` |
+| aarch64 port tree | Per-arch install root + frozen user-side syscall ABI contract for the Harvey↔r9 kernel pairing | `aarch64/` (`ABI.md`, `include/u.h`, `include/ureg.h`, `mkfile`) |
+| Nix dev environment | Reproducible host toolchain: devshell + `setup`/`toolchain`/`build`/`iso` apps; lima VM path on darwin | `flake.nix`, `flake.lock`, `nix/` |
+| Agent instructions | Repo-facing agent/project contract (project, stack, conventions, GSD workflow) | `AGENTS.md` |
 
 ## Pattern Overview
 
@@ -129,6 +132,13 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 - `sys/src/boot/efi/` — EFI application: walks ISO/FAT filesystems, loads kernel + `plan9.ini` from ESP, sets up framebuffer, jumps to kernel entry. `iso.c` contains the ISO9660 walker (`isowalk`).
 - `sys/src/nboot/` — newer boot loader tree (efi, pc).
 - `sys/src/9k/boot/` — the `boot` user program embedded in/loaded with the kernel: performs authentication (`bootauth.c`, `doauthenticate.c`), finds the root (`local.c`, `bootip.c`), then execs init.
+
+**Host tooling layer (Nix):**
+- Purpose: Reproducible host environment on darwin-aarch64, linux-aarch64, linux/x86_64 — replaces manual plan9port/qemu/expect installation.
+- Location: `flake.nix` (single input: `nixpkgs/nixos-unstable`, pinned in `flake.lock`), scripts in `nix/`.
+- Structure: `flake.nix` exposes four `apps` built with `writeShellApplication`, each wrapping a `nix/*.sh` script with a controlled `PATH` and `PLAN9` export: `setup` (`nix/setup.sh` — populates per-host `$HARVEY/.build/hostbin-<os>-<arch>/bin` with bootstrap `pcc`/host tools), `toolchain` (`nix/toolchain.sh` — builds the Plan 9 cross compilers 6a/6c/6l, 8a/8c/8l + vendored 9cc), `build` (`nix/build.sh` on Linux — full kernel build in a private mount namespace via `unshare`; `nix/vm-build.sh` on darwin — rsyncs the checkout into a lima VM (`nix/lima-harvey.yaml`, Ubuntu 24.04) because the namespace build needs Linux bind mounts and virtiofs subdir mounts silently yield empty trees), and `iso` (`nix/iso.sh` — the legacy qemu+expect `build/build.bash` path).
+- Key invariants enforced by the wrappers: `$PLAN9/bin` is appended LAST on `PATH` (per `BUILD_ON_UNIX` — plan9port ships a 9p `mount` that must not shadow util-linux `mount`); `HARVEY_LINUX_BIN` is per-OS/arch so a checkout shared with the lima guest never clobbers host binaries; shims strip `-static` from `9l` (modern Apple ld and nix glibc can't link static) and shadow Harvey's ken-format `nm` during host-ELF autolib.
+- Also provides: `devShells.default` (plan9port, qemu, expect, gnused…; exports `HARVEY`, `PLAN9`, `HARVEY_LINUX_BIN`, `objtype=amd64`, `FORCERCFORMK=1`) and, Linux-only, a `minimega` package (`nix/minimega.nix`, v3.3.0 via `buildGoModule`) for KVM test-VM orchestration — amd64 guests only, no upstream aarch64 guest support.
 
 ## Data Flow
 
@@ -222,6 +232,11 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 - Location: `sys/src/9k/k10/mkfile` — targets like `9k` build `9k10cpu` (mk var `p=9`, `CONF=k10cpu`).
 - Triggers: `mk 9k` in `sys/src/9k/k10/`. Uses Plan 9 toolchain `8c/8a/8l` (`objtype=amd64`, line 5).
 
+**Host build (Nix — current path):**
+- Location: `flake.nix` apps → `nix/setup.sh`, `nix/toolchain.sh`, `nix/build.sh` (Linux), `nix/vm-build.sh` (darwin→lima), `nix/iso.sh`.
+- Triggers: `nix run .#setup` → `nix run .#toolchain` → `nix run .#build` (or `.#iso` for the legacy qemu path); `nix develop` drops into the devshell.
+- Responsibilities: Replaces manual plan9port/Docker setup; darwin builds rsync the checkout to a lima guest (guest-local disk — virtiofs bind-mount subtrees don't work) and rsync artifacts (`amd64/`, `386/`, `aarch64/`) back.
+
 ## Architectural Constraints
 
 - **Threading:** Kernel is a single-stack-per-CPU cooperative/preemptive hybrid: processes are kernel coroutines scheduled by `proc.c`; per-CPU `Mach` state, `taslock.c` test-and-set spinlocks + `qlock.c` queueing locks; `Rendez` sleep/wakeup (`sleep`/`wakeup`). User space: `libthread` coroutines + channels, or raw `rfork(RFPROC)` procs. No pthreads in native code (APE has its own).
@@ -231,6 +246,9 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 - **Cross-arch includes:** per-arch headers resolved via `/$objtype/include` (e.g., `amd64/include/u.h`, `ureg.h`) — code references them as absolute `/amd64/include/...` paths inside the Plan 9 namespace.
 - **Circular imports:** Kernel `port/` ↔ machine dirs interdepend by design (`port/lib.h` included from machine code; machine provides `fns.h`/`dat.h`/`mem.h` consumed by port). The mk layer resolves ordering; do not add new reverse deps beyond the established header triad (`dat.h`/`fns.h`/`mem.h` per arch).
 - **Two kernels coexist:** `sys/src/9/` (legacy, full multi-arch) vs `sys/src/9k/` (Harvey, amd64/386 focus). New work targets `9k`. Shared libs (libc etc.) serve both.
+- **Two repos, one ABI:** the aarch64 user side runs on the sibling **r9** Rust kernel (`../r9`). The user↔kernel wire contract is frozen in-repo (`aarch64/ABI.md` + `aarch64/include/ureg.h`); see Cross-Cutting Concerns → Syscall ABI. Do not edit either file without re-freezing both repos.
+- **aarch64 toolchain letter is 7:** `aarch64/mkfile` sets `CC=7c LD=7l AS=7a O=7` (the 9front arm64 toolchain letters, adopted verbatim). Object files for aarch64 are `*.7`.
+- **Host builds are Nix-mediated:** the supported host entry points are the `flake.nix` apps (`setup`→`toolchain`→`build`/`iso`), not raw `build/build.bash` or Docker. PATH ordering is contractual: `$HARVEY_LINUX_BIN` FIRST, `$PLAN9/bin` LAST. The kernel build requires Linux mount namespaces — on darwin it runs inside the lima VM defined by `nix/lima-harvey.yaml`.
 
 ## Anti-Patterns
 
@@ -270,6 +288,13 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 
 **Authentication:** Centralized in `factotum` (user-space key agent, `sys/src/cmd/auth/factotum/`) speaking 9P; kernel support via `devcap.c` (capability device) and `sysauth.c`; wire crypto in `libsec` (TLS in kernel `devtls.c` + user `libsec`), auth server code in `sys/src/cmd/auth/` + `libauthsrv`/`libauth`. Network identity via `ndb` (`sys/src/ndb`, `libndb`).
 
+**Syscall ABI (aarch64 — FROZEN):** The Harvey↔r9 user-side syscall wire contract for `objtype=aarch64` is frozen (decisions D-15/D-16/D-17) and lives in two in-repo files that must change together — changing either after Phase 4 means re-freezing both this repo and `../r9`:
+- `aarch64/ABI.md` — the canonical prose contract. Wire format: syscall number in register `R0`; arguments in 8-byte slots at user `SP+8` upward (`SP+0` is the reserved link-register slot; the stub's `MOV R0, 0(FP)` materializes arg0 into its stack slot, so the first kernel-visible argument is at `SP+8`); trap via `SVC`; result returned in `R0`. Kernel read side computes `(Sargs*)(ureg->sp+BY2WD)` with `BY2WD=8` (per 9front arm64 `trap.c:196`/`mem.h:92` at pin `350266104f1fed81c78c3d05fa44f523bec0ae4d`). Syscall table is Harvey's `sys/src/libc/9syscall/sys.h` 0–54 verbatim: 0–52 wire-identical to 9front arm64 (including `SYSR1=0` and the 48–49 gap), 53 `NSEC` is zero-arg register-return, 54 `NMOUNT` is Harvey-only (six-arg; r9 may leave it unimplemented until called).
+- `aarch64/include/ureg.h` — the frozen trap frame, field-for-field: `r0`..`r28` (`r28` = `sb`), `r29`, `r30`/`link` union, `sp`, `pc` (interrupted address), `psr`, `type` (exception class). r9's Rust trap frame is checked against this at build time.
+- User-side stubs are generated per syscall by the `case aarch64` block of `sys/src/libc/9syscall/mkfile` (`TEXT name(SB), 1, $0` / `MOV R0, 0(FP)` / `MOV $NN, R0` / `SVC` / `RETURN`; `seek`→`_seek` and `exits`→`_exits` quirks preserved).
+- Explicitly **not** part of the contract (D-17): kernel-side dispatch style. Harvey 9k's `void sysxxx(Ar0*, va_list)` and 9front's `void sysxxx(Ar0)` are both internal; r9 matches only the wire contract above.
+- Base types for the port are in `aarch64/include/u.h` (LP64: `long`=64-bit assumption avoided — `vlong`/`uvlong`, `uintptr`, `usize`, `jmp_buf[2]` with `JMPBUFSP`/`JMPBUFPC`, 8-byte-slot `va_list`).
+
 ---
 
-*Architecture analysis: 2026-10-30*
+*Architecture analysis: 2026-11-01*

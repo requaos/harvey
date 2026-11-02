@@ -1,16 +1,18 @@
 ---
-last_mapped_commit: bf084ee78de58b5f05b98235bb6e6887fde6e8c4
-last_mapped_at: 2026-10-30
+last_mapped_commit: 8d99c117b284e53cd6b8eb3cc369accd135eedec
+last_mapped_at: 2026-11-01
 ---
 # Technology Stack
 
-**Analysis Date:** 2026-10-30
+**Analysis Date:** 2026-11-01
 
 ## Project Identity
 
 This is **Harvey OS** — a community fork / re-release of **Plan 9 from Bell Labs, 4th Edition** (originally Lucent, 2002). It is a complete operating system source tree: kernel, compilers, libraries, userspace commands, file servers, authentication services, and documentation. It is **not** a typical application — there is no `package.json`, no npm/cargo/go modules, and no conventional package manager. The build is driven by Plan 9's own `mk(1)` tool and a small set of bash/rc scripts.
 
-See `README` for the project's own description, and `BUILD_ON_UNIX` + `build/README` for build entry points.
+This repo is the **maintained fork** (upstream dormant since 2022-03-30). The active project — described in `AGENTS.md` — is **build revival + aarch64 port**: modernizing the dev environment with Nix, porting userspace to aarch64, and ultimately adopting **r9** (sibling repo `../r9`, a Rust `no_std` reimplementation of the Plan 9 kernel, built with cargo xtask) as Harvey's kernel, including adding/completing aarch64 support in r9 for qemu `-M virt`. Core target: Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt, reproducible from clean checkouts on macOS or Linux.
+
+See `README` for the project's own description, `AGENTS.md` for project constraints, and `BUILD_ON_UNIX` + `build/README` for legacy build entry points.
 
 ## Languages
 
@@ -19,24 +21,32 @@ See `README` for the project's own description, and `BUILD_ON_UNIX` + `build/REA
 - **Rc shell** — Plan 9's shell. Used for system startup (`cfg/example/cpurc`, `cfg/example/termrc`), build scripts (`sys/src/cmd/go/fetchrepos.rc`, most `BUILD` files), and runtime services. The `rc/` directory at repo root holds rc libraries.
 
 **Secondary:**
-- **Assembly** — per-architecture kernel and runtime code (`*.s` files inside `sys/src/9/{pc,port,...}/`, `sys/src/9k/`, `sys/src/libc/{386,amd64,arm,...}/`). Assembled with the matching Plan 9 assembler (e.g. `6a` for amd64).
+- **Assembly** — per-architecture kernel and runtime code (`*.s` files inside `sys/src/9/{pc,port,...}/`, `sys/src/9k/`, `sys/src/libc/{386,amd64,arm,...}/`). Assembled with the matching Plan 9 assembler (e.g. `6a` for amd64, `7a` for aarch64).
 - **Yacc / Lex** — grammars in `sys/src/cmd/bc.y`, `sys/src/cmd/units.y`, `sys/src/cmd/upas/smtp/smtpd.y`, `sys/src/cmd/upas/smtp/rfc822.y`, `sys/src/cmd/cc/cc.y`. Generated via Plan 9 `yacc(1)` / `lex(1)`.
-- **Bash / sh** — host-side build orchestration only: `build/build.bash`, `build/build-usb.bash`, `build/build-go.sh`, `build/BUILD_IN_DOCKER`, `sys/src/BUILD`, `sys/src/BUILDTOOLCHAIN`, `sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE`. Not used at runtime on the target.
+- **Bash / sh** — host-side build orchestration only: `build/build.bash`, `build/build-usb.bash`, `build/build-go.sh`, `build/BUILD_IN_DOCKER`, `sys/src/BUILD`, `sys/src/BUILDTOOLCHAIN`, `sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE`, and the Nix app scripts referenced by `flake.nix` (`./nix/iso.sh`, `./nix/setup.sh`, `./nix/toolchain.sh`, `./nix/build.sh`, `./nix/vm-build.sh` — embedded via `builtins.readFile`). Not used at runtime on the target.
+- **Nix expression language** — host-side dev environment: `flake.nix` (devshell, apps, packages) and `./nix/minimega.nix`. Pinned by `flake.lock`.
 - **Go** — *not* used to build Harvey itself. The tree pulls Go programs in at image-build time (see `sys/src/cmd/go/`) to ship them inside the Harvey ISO. See "Key Dependencies" below.
+- **Rust (out-of-tree)** — the future kernel, **r9**, lives in sibling repo `../r9` (`no_std`, cargo xtask). Per `AGENTS.md`, phases will work across both repos; r9 follows its own `rustfmt.toml`. No Rust source lives in this repo.
 
 ## Runtime
 
-**Target environment:** Bare metal or QEMU. Harvey boots on PC hardware (i386 / amd64) and several embedded/legacy architectures. There is no userspace "runtime" in the Java/Python sense — the C library is statically linked into every binary.
+**Target environment:** Bare metal or QEMU. Harvey boots on PC hardware (i386 / amd64) and several embedded/legacy architectures; the aarch64 port targets qemu `-M virt` under the r9 kernel. There is no userspace "runtime" in the Java/Python sense — the C library is statically linked into every binary.
 
-**Host build environment (for cross-building from Linux/macOS):**
-- **plan9port** (`https://github.com/9fans/plan9port`) — provides `mk`, `rc`, `9c`/`pcc`, `sed`, `yacc`, `lex`, `awk` on the host. Must be installed and on `PATH` (`$PLAN9/bin`). Referenced by `BUILD_ON_UNIX` and `build/Dockerfile`.
-- **QEMU** (`qemu-system-i386`, plus `qemu-utils` and `expect` on the host) — used by `build/build.bash` and `.github/workflows/harvey.yml` to boot a 9legacy ISO and run the in-OS build.
+**Host build environment (Nix — the modern entry point, `flake.nix`):**
+- **Nix flake** (`flake.nix`, pinned by `flake.lock` → `github:NixOS/nixpkgs/nixos-unstable` rev `31ecbaca1bdefa45dffc409f0250bd8039ea0010`) — supports `x86_64-linux`, `aarch64-linux`, `aarch64-darwin`, `x86_64-darwin`.
+  - **Devshell** (`nix develop`): provides `plan9port git gnumake bashInteractive coreutils gnused findutils qemu expect curl bzip2 gnutar`; Linux adds `util-linux binutils minimega`; darwin adds `lima`.
+  - **Apps** (`nix run .#<app>`): `setup` (`./nix/setup.sh`), `toolchain` (`./nix/toolchain.sh` — builds the vendored 9cc toolchain with host cc), `build` (`./nix/build.sh` on Linux via `sudo unshare`; `./nix/vm-build.sh` on darwin via a **lima** VM `./nix/lima-harvey.yaml`), `iso` (`./nix/iso.sh`). Default app is `setup`.
+  - **Packages**: `minimega` (Linux-only, `./nix/minimega.nix`) — VM orchestration for Harvey/r9 amd64 test VMs on KVM hosts; aarch64 guests not supported upstream.
+  - All script apps export `PLAN9=${pkgs.plan9port}/plan9` and append `$PLAN9/bin` **LAST** in `PATH` (per `BUILD_ON_UNIX` — plan9port's 9p `mount` must not shadow util-linux `mount` in the namespace build). The darwin build app exports `LIMA_YAML`; the Linux build app exports `GNU_SED` (absolute path, because `$HARVEY_LINUX_BIN` shadows `sed` with plan9 sed which lacks `-i`).
+- **plan9port** (`https://github.com/9fans/plan9port`) — provides `mk`, `rc`, `9c`/`pcc`, `sed`, `yacc`, `lex`, `awk` on the host. In the Nix flow it comes from nixpkgs; outside Nix it must be installed manually on `PATH` (`$PLAN9/bin`, typically `/usr/local/plan9`). Referenced by `BUILD_ON_UNIX` and `build/Dockerfile`.
+- **QEMU** (`qemu-system-i386` for the legacy amd64 build harness; qemu `-M virt` for the aarch64/r9 target) — used by `build/build.bash`, `.github/workflows/harvey.yml`, and `./nix/iso.sh`.
+- **lima** (darwin only) — runs the Linux mount-namespace build inside a VM on macOS (`./nix/vm-build.sh`, `./nix/lima-harvey.yaml`); the Harvey namespace build requires Linux mount namespaces.
 - **Go toolchain** (host) — `go get harvey-os.org/cmd/ufs` is run in CI to install the `ufs` 9P file server, which serves the Harvey tree to the build VM.
-- **Docker** (optional) — `build/Dockerfile` builds an Ubuntu 21.10 image that pre-installs plan9port + the `9-cc` archiver.
+- **Docker** (optional, legacy path) — `build/Dockerfile` builds an Ubuntu 21.10 image that pre-installs plan9port + the `9-cc` archiver.
 
-**Package manager:** None. There is no dependency resolution or package manager; the entire system source is vendored in-tree. Third-party tools needed at build time (plan9port, 9-cc, Go repos) are fetched explicitly by scripts.
+**Package manager:** Nix (host dev environment only, via `flake.nix`). There is no target-side dependency resolution; the entire system source is vendored in-tree. Third-party tools needed at legacy build time (plan9port, 9-cc, Go repos) are fetched explicitly by scripts.
 
-**Lockfile:** Not applicable.
+**Lockfile:** `flake.lock` (pins nixpkgs `nixos-unstable`; narHash `sha256-dhoW6VgFWlaodSY5jrBn+CF2FLmaUvDVgM7+C7T2+NM=`).
 
 ## Compiler Toolchain (Plan 9 native)
 
@@ -46,13 +56,28 @@ Harvey uses the classic Plan 9 toolchain — one compiler/assembler/linker tripl
 |------|-----------|----------|--------|------------|
 | x86 (32-bit) | `8a` | `8c` | `8l` | `sys/src/cmd/8a`, `sys/src/cmd/8c`, `sys/src/cmd/8l` |
 | amd64 | `6a` | `6c` | `6l` | `sys/src/cmd/6a`, `sys/src/cmd/6c`, `sys/src/cmd/6l` |
-| ARM | `5a` | `5c` | `5l` | `sys/src/cmd/5a`, `sys/src/cmd/5c`, `sys/src/cmd/5l` |
+| ARM (32-bit) | `5a` | `5c` | `5l` | `sys/src/cmd/5a`, `sys/src/cmd/5c`, `sys/src/cmd/5l` |
+| **aarch64** | `7a` | `7c` | `7l` | triple defined by `aarch64/mkfile` (`CC=7c LD=7l AS=7a O=7`); prebuilt binaries in `aarch64/bin/{7a,7c,7l}`; user-side ABI derived from 9front arm64 (see `aarch64/ABI.md`) |
 | MIPS | `4a`/`va` | `4c`/`vc` | `4l`/`vl` | `sys/src/cmd/4a` … `sys/src/cmd/vl` |
 | PowerPC | `9a`/`qa` | `9c`/`qc` | `9l`/`ql` | `sys/src/cmd/9a` … `sys/src/cmd/ql` |
 
-The shared compiler frontend (common code generator) lives in `sys/src/cmd/cc/` (`cc.h`, `cc.y`, `com.c`, `com64.c`, `compat`). `sys/src/cmd/cpp/` is the C preprocessor. The bootstrap script `sys/src/BUILDTOOLCHAIN` builds `6a/6c/6l`, `8a/8c/8l`, `cpp`, and supporting tools.
+The shared compiler frontend (common code generator) lives in `sys/src/cmd/cc/` (`cc.h`, `cc.y`, `com.c`, `com64.c`, `compat`). `sys/src/cmd/cpp/` is the C preprocessor. The bootstrap script `sys/src/BUILDTOOLCHAIN` builds `6a/6c/6l`, `8a/8c/8l`, `cpp`, and supporting tools; the Nix `toolchain` app (`./nix/toolchain.sh`) is the modern equivalent entry point.
 
-An `iar` (Plan 9 `ar` port for the host) is built from the external `Harvey-OS/9-cc` repo and installed into `$HARVEY/linux_amd64/bin/ar` — see `BUILD_ON_UNIX` lines 7–16 and `build/Dockerfile` lines 49–81.
+An `iar` (Plan 9 `ar` port for the host) is built from the external `Harvey-OS/9-cc` repo and installed into `$HARVEY/linux_amd64/bin/ar` (legacy layout) or `$HARVEY/.build/hostbin-$os-$arch/bin/` (Nix devshell layout) — see `BUILD_ON_UNIX` lines 7–16, `build/Dockerfile` lines 49–81, and `flake.nix` shellHook.
+
+## aarch64 Port Artifacts (Phase 2 tree)
+
+The `aarch64/` directory at repo root is the aarch64 port tree:
+
+- `aarch64/mkfile` — arch mk fragment: `CC=7c LD=7l AS=7a O=7`, includes `</sys/src/mkfile.proto`. Selected when `objtype=aarch64`.
+- `aarch64/include/u.h` — per-arch LP64 type header: `nil`, `ushort/uchar/ulong/uint/vlong/uvlong`, `intptr`/`uintptr`/`usize` (64-bit), `Rune`, `mpdigit`, fixed-width `u8int`…`u64int`, FPCR/FPSR floating-point bits, `FPdbleword` union (little-endian), and the aarch64 `va_list`/`va_arg` macros (8-byte slot model).
+- `aarch64/include/ureg.h` — **frozen** kernel-visible trap frame `Ureg`: `r0`..`r28` (`r28` = `sb`), `r29`, `r30`/`link` union, `sp`, `pc` (interrupted address), `psr`, `type` (exception class). r9's Rust trap frame is build-time-checked against this header (Phase 4).
+- `aarch64/ABI.md` — **frozen** Harvey↔r9 user-side syscall wire contract for `objtype=aarch64` (decisions D-15/D-16/D-17): syscall number in `R0`, args in 8-byte slots at user `SP+8` upward, trap via `SVC`, result in `R0`. Syscall table = `sys/src/libc/9syscall/sys.h` 0–54 verbatim (53 `NSEC` zero-arg register-return; 54 `NMOUNT` Harvey-only). Stubs generated by the `case aarch64` block of `sys/src/libc/9syscall/mkfile`. Changing this document or `ureg.h` after Phase 4 means re-freezing both repos.
+- `aarch64/bin/` — built aarch64 toolchain (`7a`, `7c`, `7l`) and userspace binaries (`cat`, `cp`, `date`, `echo`, `grep`, `ls`, `mkdir`, `mv`, `ps`, `rc`, `rm`, `sed`, `test`, `wc`) plus per-subsystem dirs (`auth/`, `ip/`, `ndb/`, `upas/`, …).
+- `aarch64/lib/` — built aarch64 archives: `libc.a`, `lib9p.a`, `libString.a`, `libauth.a`, `libauthsrv.a`, `libbio.a`, `libip.a`, `libmp.a`, `libndb.a`, `libregexp.a`, `libsec.a`, `libthread.a`, plus `ape/`.
+- `aarch64/bbin/` — boot binaries dir (currently empty).
+
+**Naming constraint (from `AGENTS.md`):** the 64-bit ARM architecture is spelled `aarch64` (not `arm64`) in this project's tooling and docs.
 
 ## Frameworks
 
@@ -95,7 +120,13 @@ There are no "frameworks" in the web/app sense. The closest equivalents are the 
   - `sys/src/cmd/mklib` — build a library archive
   - `sys/src/cmd/mksyslib` — build a system library
   - `sys/src/mkfile.proto`, `sys/src/mkfile` — top-level drivers
-- **`build/`** — host-side orchestration:
+- **Nix flake** (`flake.nix`) — the modern host-side entry point:
+  - `nix run .#setup` → `./nix/setup.sh` (plan9port + coreutils)
+  - `nix run .#toolchain` → `./nix/toolchain.sh` (builds vendored 9cc toolchain with host `stdenv.cc`; Linux adds `binutils` for `nm`/`ar` — plan9port's darwin build ships its own `nm`, and GNU `nm` can't read Mach-O objects)
+  - `nix run .#build` → Linux: `./nix/build.sh` via `sudo unshare` (host `/usr/bin/sudo` — a store sudo lacks setuid); darwin: `./nix/vm-build.sh` inside a lima VM (`lima`, `openssh`, `rsync`)
+  - `nix run .#iso` → `./nix/iso.sh` (`expect qemu curl bzip2 gnutar git`)
+  - `nix develop` → devshell with all of the above
+- **`build/`** — legacy host-side orchestration:
   - `build/build.bash` — top-level Linux build (downloads `9legacy.iso`, boots QEMU, runs `rc build && rc repl && rc iso` inside the VM).
   - `build/Dockerfile` — Ubuntu 21.10 + plan9port + 9-cc image for reproducible builds.
   - `build/BUILD_IN_DOCKER` — entrypoint used inside the Docker image.
@@ -112,7 +143,10 @@ There are no "frameworks" in the web/app sense. The closest equivalents are the 
 **Vendored / in-tree (no external fetch needed to compile):**
 - All kernels, libraries, and commands listed above. The repository is self-contained C source.
 
-**Fetched at build/image time:**
+**Pinned by Nix (`flake.lock`):**
+- **nixpkgs** (`github:NixOS/nixpkgs/nixos-unstable`, rev `31ecbaca1bdefa45dffc409f0250bd8039ea0010`) — sole flake input; supplies plan9port, qemu, lima, expect, binutils, util-linux, stdenv.cc, and the `minimega` package build (`./nix/minimega.nix`).
+
+**Fetched at build/image time (legacy path):**
 - **plan9port** (`9fans/plan9port`) — required on the host to provide `mk`, `rc`, host-side `9c/pcc`, `sed`, `yacc`, `lex`, `awk`, `date`. See `BUILD_ON_UNIX` and `build/Dockerfile` lines 29–42.
 - **Harvey-OS/9-cc** (`0intro/9-cc`, patched by `build/9-cc.patch`) — provides `iar` used as the host `ar` for Plan 9-format archives. Cloned by `build/Dockerfile` (lines 49–54) and referenced in `BUILD_ON_UNIX`.
 - **9legacy ISO** — `https://github.com/Harvey-OS/harvey/releases/download/9legacy/9legacy.iso.bz2`, downloaded by `build/build.bash` line 6 to bootstrap the build VM.
@@ -124,17 +158,24 @@ There are no "frameworks" in the web/app sense. The closest equivalents are the 
   - `muscle`, `musclefs`, `mus3` — `github.com/nicolagi/muscle`
 - **`harvey-os.org/cmd/ufs`** — Go-based 9P file server, fetched by CI (`go get harvey-os.org/cmd/ufs` in `harvey.yml`) to serve the Harvey tree to the build VM.
 
-**Host tools (CI/Docker):** `git`, `curl`, `expect`, `qemu-system-i386`, `qemu-utils`, `tar`, `bzip2`, `bash`, `sudo`, `unshare` (from `util-linux`).
+**Cross-repo:**
+- **r9** (sibling repo `../r9`) — Rust `no_std` Plan 9 kernel reimplementation (cargo xtask). Not fetched by any script here; checked out alongside this repo. Harvey's `aarch64/ABI.md` + `aarch64/include/ureg.h` are the frozen wire/trap-frame contract r9's `svc` dispatch is built against (Phase 4 enforces at build time in r9).
+
+**Host tools (Nix devshell / CI / Docker):** `git`, `curl`, `expect`, `qemu`, `qemu-utils`, `tar`, `bzip2`, `bash`, `sudo` (host `/usr/bin/sudo` only — needed for `unshare`), `unshare` (from `util-linux`), `gnused`, `binutils` (Linux), `lima` + `openssh` + `rsync` (darwin), `gnumake`.
 
 ## Configuration
 
-**Build-time environment variables** (set by scripts, not by `.env` files — no `.env` file exists in this repo):
-- `HARVEY` — absolute path of the repo root. Used throughout `BUILD_ON_UNIX`, `build/Dockerfile`, `sys/src/BUILD`.
-- `HARVEY_LINUX_BIN` — `$HARVEY/linux_amd64/bin` on a Linux host; location for the host-side `ar`, `pcc`, etc. (`build/Dockerfile` line 22).
-- `PLAN9` — path to plan9port installation (typically `/usr/local/plan9`). See `BUILD_ON_UNIX` line 2.
-- `objtype` — target architecture (`amd64`, `386`, `arm`, …). Drives which `$objtype/mkfile` is included.
+**Build-time environment variables** (set by scripts or the devshell, not by `.env` files — no `.env` file exists in this repo):
+- `HARVEY` — absolute path of the repo root. Used throughout `BUILD_ON_UNIX`, `build/Dockerfile`, `sys/src/BUILD`. The devshell derives it from `git rev-parse --show-toplevel` with `$PWD` fallback.
+- `HARVEY_LINUX_BIN` — host toolchain bin dir. Legacy default: `$HARVEY/linux_amd64/bin` (`build/Dockerfile` line 22). Nix devshell default: `$HARVEY/.build/hostbin-$_hb_os-$_hb_arch/bin` where `arm64` is normalized to `aarch64` (`flake.nix` shellHook).
+- `PLAN9` — path to plan9port installation. Nix apps/devshell set it to `${pkgs.plan9port}/plan9`; legacy default `/usr/local/plan9` (`BUILD_ON_UNIX` line 2). **`$PLAN9/bin` goes LAST in `PATH`** (plan9port ships a 9p `mount` that must not shadow util-linux `mount`).
+- `objtype` — target architecture (`amd64`, `386`, `arm`, `aarch64`, …). Drives which `$objtype/mkfile` is included. Devshell exports `objtype=amd64`.
+- `cputype` — devshell exports `cputype=unix`.
 - `ARCH`, `OS` — used by CI / build scripts to pick the right toolchain (`harvey.yml` lines 26–27).
-- `FORCERCFORMK` — set by `sys/src/BUILD` to force mk to use `rc` for recipe execution.
+- `FORCERCFORMK` — force mk to run recipes via rc (set in `sys/src/BUILD`; devshell exports `FORCERCFORMK=1`).
+- `CGO_ENABLED=0` — exported by the devshell (host Go builds must not drag in cgo).
+- `GNU_SED` — absolute path to GNU sed, exported by the Linux `harvey-build` app (`$HARVEY_LINUX_BIN` shadows `sed` with plan9 sed, which lacks `-i`).
+- `LIMA_YAML` — path to `./nix/lima-harvey.yaml`, exported by the darwin `harvey-build` app.
 
 **System configuration files (target-side, in-tree templates):**
 - `cfg/example/termrc` — terminal startup rc script
@@ -146,30 +187,36 @@ There are no "frameworks" in the web/app sense. The closest equivalents are the 
 - `lib/namespace`, `lib/namespace.ftp`, `lib/namespace.httpd` — namespace templates for services
 
 **Build configs:**
+- `flake.nix`, `flake.lock` — Nix dev environment (devshell, apps, minimega package)
+- `nix/` — flake support files referenced by `flake.nix`: `setup.sh`, `toolchain.sh`, `build.sh`, `vm-build.sh`, `iso.sh`, `minimega.nix`, `lima-harvey.yaml`
 - `sys/src/mkfile`, `sys/src/mkfile.proto`
-- Per-arch mk fragments included as `</$objtype/mkfile`
+- Per-arch mk fragments included as `</$objtype/mkfile` (e.g. `aarch64/mkfile`)
 - `build/scripts/` — rc build stages
 - `build/Dockerfile`, `build/BUILD_IN_DOCKER`
 
 ## Platform Requirements
 
 **Development (host):**
-- Linux (primary; CI uses `ubuntu-latest`, Dockerfile uses `ubuntu:21.10`) or macOS with plan9port
-- `qemu-system-i386`, `expect`, `go`, `git`, `curl`, `gcc`/`build-essential`
-- plan9port compiled and on `PATH`
-- ~4 GB RAM for the build VM (`build/build.bash` passes `-m 4096`)
-- KVM recommended on Linux (`build/build.bash` adds `-accel kvm` when `uname -s` is Linux)
+- Primary dev machine: **darwin-aarch64**; also supported: linux aarch64/x86_64 (`AGENTS.md`). Nix flake systems: `x86_64-linux`, `aarch64-linux`, `aarch64-darwin`, `x86_64-darwin`.
+- Nix with flakes enabled (modern path) **or** manual plan9port install (legacy path per `BUILD_ON_UNIX`).
+- The Harvey namespace build requires **Linux mount namespaces**: native `sudo unshare -m` on Linux; a **lima** VM on macOS (`nix run .#build` handles both).
+- `qemu`, `expect`, `go`, `git`, `curl`, `gcc`/`build-essential` (all supplied by the devshell)
+- plan9port compiled and on `PATH` (supplied by nixpkgs in the devshell)
+- ~4 GB RAM for the legacy build VM (`build/build.bash` passes `-m 4096`)
+- KVM recommended on Linux (`build/build.bash` adds `-accel kvm`; `minimega` requires KVM hosts)
+- r9 builds anywhere cargo + qemu run (`AGENTS.md`)
 
 **Target (what Harvey runs on):**
-- Architectures with in-tree kernel support: `386/`, `amd64/`, `arm/`, `mips/`, `mips64/`, `power/`, `power64/`, `riscv/`, `riscv64/`, `sparc/`, `spim/`, `spim64/` (each contains per-arch `include/` and `mkfile`).
+- Architectures with in-tree kernel support: `386/`, `amd64/`, `arm/`, `mips/`, `mips64/`, `power/`, `power64/`, `riscv/`, `riscv64/`, `sparc/`, `spim/`, `spim64/` (each contains per-arch `include/` and `mkfile`), plus **`aarch64/`** (Phase 2 userspace port tree: `aarch64/mkfile`, `aarch64/include/`, `aarch64/ABI.md`).
 - Kernel ports live in `sys/src/9/` and `sys/src/9k/`:
   - `sys/src/9/pc` — x86 PC (i386/amd64)
   - `sys/src/9k/k10` — newer amd64 kernel
   - `sys/src/9/{bcm,omap,teg2,kw,mtx,rb,vt4,vt5}` — ARM/embedded ports (Raspberry Pi, OMAP, Tegra2, Kirkwood, etc.)
   - `sys/src/9/{loongson,loongson64}` — MIPS
   - `sys/src/9k/386`, `sys/src/9k/boot`, `sys/src/9k/mk` — additional ports
+- The aarch64 kernel is **r9** (sibling repo `../r9`), targeted at qemu `-M virt` (beyond r9's current raspi3b/4b focus); Harvey userspace (this repo, `aarch64/` tree) runs on it against the frozen ABI in `aarch64/ABI.md`.
 - Boot images: ISO produced by `rc iso` (see `build/build.bash` line 70) and PXE-boot support in `cfg/pxe/` and `sys/src/9/boot/`.
 
 ---
 
-*Stack analysis: 2026-10-30*
+*Stack analysis: 2026-11-01*

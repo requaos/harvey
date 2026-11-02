@@ -1,32 +1,44 @@
 ---
-last_mapped_commit: bf084ee78de58b5f05b98235bb6e6887fde6e8c4
-last_mapped_at: 2026-10-30
+last_mapped_commit: 8d99c117b284e53cd6b8eb3cc369accd135eedec
+last_mapped_at: 2026-11-01
 ---
 # Codebase Concerns
 
-**Analysis Date:** 2026-10-30
+**Analysis Date:** 2026-11-01
 
 ## Project Vitality
 
-**Upstream dormant/archived:**
-- Issue: Last commit is 2022-03-30 (`git log` — "Updating commands doc to use https instead of git"). The upstream Harvey-OS organization archived its repositories; this fork (`requaos/harvey`) has had no activity in ~4.5 years. No security patches, no CI verification on modern toolchains, no community review.
-- Files: entire tree; `build/build.bash`, `build/Dockerfile`
-- Impact: Any build/toolchain drift (gcc/clang versions, qemu, expect, Ubuntu base image) is unlikely to be fixed upstream. Security issues in TLS/IP stack (below) have no upstream remediation path.
-- Fix approach: Treat repo as a self-maintained fork. Budget for local toolchain pinning (Docker) and own any security work.
+**Upstream dormant/archived; this fork is now the maintained line:**
+- Issue: Upstream Harvey-OS ended 2022-03-30 (`git log` — "Updating commands doc to use https instead of git"); the Harvey-OS organization archived its repositories. This checkout is no longer dormant: Phase 1 (Nix dev environment) and Phase 2 (aarch64 userspace port) landed Oct–Nov 2026 (e.g. `a1735e67f` nix flake, `a7945d8b5` aarch64 arch dir). AGENTS.md declares this repo the maintained fork.
+- Files: entire tree; `flake.nix`, `aarch64/`, `build/build.bash`, `build/Dockerfile`
+- Impact: No upstream remediation path for anything — security issues in the TLS/IP stack (below), toolchain drift, and the vendored 9front compiler (`sys/src/cmd/7a|7c|7l`) are all owned locally. The vendored 7a/7c/7l pin (`350266104f1fed81c78c3d05fa44f523bec0ae4d`) has no update watch.
+- Fix approach: Continue treating the repo as self-maintained; budget for owning security work and vendored-pin refreshes.
 
 ## Tech Debt
 
+**`aarch64/include/u.h` FPdbleword uses 64-bit halves — breaks all float math introspection on aarch64:** *(new, HIGH)*
+- Issue: `aarch64/include/u.h:54-61` defines `union FPdbleword { double x; struct { ulong lo; ulong hi; }; }` where `ulong` is 64-bit on aarch64 (`unsigned long`, line 5). The union is 16 bytes; `hi` sits at byte offset 8 — outside the 8-byte `double`. Harvey's portable libc expects 32-bit halves: `sys/src/libc/port/frexp.c` (`e = (x.hi >> SHIFT) & MASK`, `SHIFT=20`), `sys/src/libc/port/nan.c` (`isNaN`/`isInf`/`Inf`/`NaN` read and write `a.hi`/`a.lo`), and `sys/src/libc/fmt/fltfmt.c:94` (`frexp(f, &e)` — the `%e`/`%f`/`%g` path). The working 64-bit reference, `amd64/include/u.h:49-56`, uses `uint lo; uint hi;`. On aarch64: `frexp` reads the exponent from out-of-union stack bytes, `Inf()`/`NaN()` write bytes that don't overlap `x` and return an uninitialized double, and all float formatting is garbage. Every other arch header (386, arm) pairs `ulong lo/hi` with a 32-bit `ulong`, so the pattern is correct only on 32-bit arches; `riscv64/include/u.h` carries the same latent bug but that port is skeletal.
+- Files: `aarch64/include/u.h:54-61`, `amd64/include/u.h:49-56` (correct reference), `sys/src/libc/port/frexp.c`, `sys/src/libc/port/nan.c`, `sys/src/libc/fmt/fltfmt.c`, `riscv64/include/u.h`
+- Impact: Silent miscompilation of all FP introspection in every aarch64 binary linked against `aarch64/lib/libc.a`; float printf output and NaN/Inf checks are wrong. The committed port-compiled binaries in `aarch64/bin/` were built with this header.
+- Fix approach: Change `aarch64/include/u.h` FPdbleword to `uint lo; uint hi;` (match amd64), rebuild libc + fmt, add a smoke test printing a float on aarch64. Apply the same fix to `riscv64/include/u.h` when that port revives.
+
+**Build script mutates tracked source files at build time:** *(new)*
+- Issue: `nix/build.sh:64-68` runs `$GNU_SED -i` on tracked files (`sys/src/9/port/portmkfile`, `sys/src/9k/mk/portmkfile`, `sys/src/9/port/mkroot`, `sys/src/9/port/mkrootall`, `sys/src/9k/mk/mkroot`, `sys/src/9k/mk/mkrootall`) to rewrite `aux/mklatinkbd`→`mklatinkbd` and `aux/data2s`→`data2s` on every build. The edits are idempotent but leave the tree dirty and contradict AGENTS.md's "in-tree fixes are preferred over external patch stacks" — these are in-tree fixes applied at build time instead of being committed.
+- Files: `nix/build.sh:61-68`, the six mkfiles above
+- Impact: `git status` noise after every build; interrupted/racing builds edit sources under the reader; the fixup rationale lives only in a script comment.
+- Fix approach: Commit the six one-line edits and delete the sed block from `nix/build.sh`.
+
 **Two parallel kernel trees (9 vs 9k):**
-- Issue: The tree carries both the legacy Plan 9 kernel ports (`sys/src/9/`: bcm, kw, loongson, loongson64, mtx, omap, pc, pcboot, ppc, rb, teg2, vt4, vt5) and the Harvey 64-bit kernel (`sys/src/9k/`: port, k10, 386, ip, boot). Fixes landed in one tree are not propagated to the other (e.g. `sys/src/9/ip/tcp.c` and `sys/src/9k/ip/tcp.c` both contain the same unfixed "sloppy treatment of overflow cases" TODO at line 2049).
+- Issue: The tree carries both the legacy Plan 9 kernel ports (`sys/src/9/`: bcm, kw, loongson, loongson64, mtx, omap, pc, pcboot, ppc, rb, teg2, vt4, vt5) and the Harvey 64-bit kernel (`sys/src/9k/`: port, k10, 386, ip, boot). Fixes landed in one tree are not propagated to the other (e.g. `sys/src/9/ip/tcp.c` and `sys/src/9k/ip/tcp.c` both contain the same unfixed "sloppy treatment of overflow cases" TODO at line 2049). The nix build still patches both trees' mkfiles (`nix/build.sh:64-68`).
 - Files: `sys/src/9/`, `sys/src/9k/`
 - Impact: Double maintenance surface; bugs fixed in `9k` remain in `9` and vice versa; contributors can't tell which tree is canonical.
 - Fix approach: Declare `sys/src/9k/` canonical for amd64 work; either delete or clearly quarantine `sys/src/9/` legacy ports.
 
 **Half-finished architecture ports:**
-- Issue: Several arch directories are skeletal. `riscv64/` contains only `include/` and an `mkfile` (no kernel at all). `amd64/` is only `include/` + `mkfile`. `arm/`, `mips/`, `power/`, `sparc/`, `spim/` are header-and-fragments only. Kernel ports like `sys/src/9/kw/cga.c` have stubbed-out hardware access (`#define inb(x) 0 /* TODO */`, `#define outb(x, y) /* TODO */` at lines 36–37).
+- Issue: Several arch directories are skeletal. `riscv64/` contains only `include/` and an `mkfile` (no kernel at all). `amd64/` ships headers + `mkfile` only in git (its `bin/`/`lib/` are build outputs). `arm/`, `mips/`, `power/`, `sparc/`, `spim/` are header-and-fragments only. Kernel ports like `sys/src/9/kw/cga.c` have stubbed-out hardware access (`#define inb(x) 0 /* TODO */`, `#define outb(x, y) /* TODO */` at lines 36–37). Note: `aarch64/` is NOT in this category anymore — it has real headers, mkfile, and a building userland subset (Phase 2); see its own entries below.
 - Files: `riscv64/`, `amd64/`, `arm/`, `mips/`, `mips64/`, `power/`, `power64/`, `sparc/`, `spim/`, `spim64/`, `sys/src/9/kw/cga.c`
 - Impact: Dead code that still gets grep'd, tarred into build archives (`build/build.bash` tars the whole repo into `harvey.tgz`), and confuses navigation.
-- Fix approach: Prune abandoned ports to a `attic/` directory or drop them; keep only amd64 (9k/k10) and any port with an active maintainer.
+- Fix approach: Prune abandoned ports to a `attic/` directory or drop them; keep amd64 (9k/k10), aarch64 (active), and any port with an active maintainer.
 
 **Kernel memory allocator FIXME:**
 - Issue: `sys/src/9k/port/qmalloc.c:249` carries a commented-out `/* FIXME: (ignore for now)` guard — the `nbytes == 0` check is inside a comment block that's partially disabled, so zero-size allocation behavior depends on the exact comment state. This is the core kernel allocator.
@@ -43,20 +55,32 @@ last_mapped_at: 2026-10-30
 **Third-party code frozen in tree:**
 - Issue: Ghostscript (AFPL-licensed, pre-GPL-era, `sys/src/cmd/gs/`), libpng with MMX assembler paths (`pnggccrd.c`, `pngvcrd.c`), antiword, apeg (`sys/src/ape/`) are vendored snapshots from ~2002 with dozens of upstream `HACK`/`FIXME` markers (85 FIXME hits, most HACK hits live under `sys/src/cmd/gs/`). The largest C files in the repo are all vendored code (`sys/src/cmd/gs/icclib/icc.c` at 12,776 lines, `gdevupd.c` at 7,642 lines).
 - Files: `sys/src/cmd/gs/`, `sys/src/cmd/aux/antiword/`, `sys/src/ape/`
-- Impact: Known CVE-era code with no update path; the gs jpeg/pdf drivers have documented temporary hacks (`gxclrect.c:540`, `gdevpdfi.c:407`).
+- Impact: Known CVE-era code with no update path; the gs jpeg/pdf drivers have documented temporary hacks (`gxclrect.c:540`, `gdevpdfi.c:407`). libpng's x86 MMX asm also blocks clean aarch64 userland builds if `gs` is ever enabled for `objtype=aarch64`.
 - Fix approach: Quarantine as "contrib, unmaintained"; don't ship in default builds; document that security bugs here are WONTFIX.
 
-**Fragile bootstrap build:**
-- Issue: `build/build.bash` and `build/build-usb.bash` build Harvey by downloading a `9legacy.iso` from a GitHub release URL, booting it in `qemu-system-i386` under an `expect` script that pattern-matches boot prompts (`expect -exact "Selection:"`, sleeps, hard-coded vga answers like `1280x1024x32`). `build/BUILDTOOLCHAIN` and `BUILD_ON_UNIX` describe a manual plan9port + custom `9-cc` toolchain assembled by hand with `ln -s` tricks.
-- Files: `build/build.bash`, `build/build-usb.bash`, `build/BUILD_IN_DOCKER`, `BUILD_ON_UNIX`, `sys/src/BUILDTOOLCHAIN`, `sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE`
-- Impact: Build breaks if the ISO URL moves, qemu prompt text changes, or `expect` timing shifts (explicit `expect -timeout 600`). Host-build instructions reference paths that don't exist in this repo layout (`harvey/harvey/linux_amd64/bin`).
-- Fix approach: Prefer the Docker path (`build/Dockerfile`, `build/BUILD_IN_DOCKER`) as the only supported build; pin toolchain versions; replace the expect script with a serial-console automated install.
+**Legacy qemu+expect bootstrap build retained for ISO production:**
+- Issue: `build/build.bash` and `build/build-usb.bash` build Harvey by downloading a `9legacy.iso` from a GitHub release URL, booting it in `qemu-system-i386` under an `expect` script that pattern-matches boot prompts (`expect -exact "Selection:"`, sleeps, hard-coded vga answers like `1280x1024x32`). This path is now wrapped as `nix run .#iso` (`nix/iso.sh` execs `build/build.bash`) — it is no longer the dev build path (that is `.#setup` → `.#toolchain` → `.#build`, a native namespace build needing no qemu bootstrap), but it remains the only ISO producer.
+- Files: `build/build.bash`, `build/build-usb.bash`, `nix/iso.sh`, `build/BUILD_IN_DOCKER`, `BUILD_ON_UNIX`
+- Impact: ISO generation breaks if the ISO URL moves, qemu prompt text changes, or `expect` timing shifts (explicit `expect -timeout 600`).
+- Fix approach: Replace the expect script with a serial-console automated install; long-term, produce the ISO from the namespace build artifacts directly.
 
 **Deprecated license/notice files kept at root:**
 - Issue: `LICENSE.old` (Lucent Public License 1.02) and `NOTICE.old` (© 2002 Lucent Technologies) remain at repo root alongside `LICENSE`/`NOTICE`. The README explains rights transferred to the Plan 9 Foundation, but three additional license files (`LICENSE.afpl`, `LICENSE.gpl`, `LICENSE.lucida`) carve out exceptions for ghostscript and fonts.
 - Files: `LICENSE.old`, `NOTICE.old`, `LICENSE.afpl`, `LICENSE.gpl`, `LICENSE.lucida`
 - Impact: License audit ambiguity — distributors must read 6 license files to determine what's redistributable (Lucida fonts are NOT redistributable outside Plan 9 per `LICENSE.old`).
 - Fix approach: Move historical licenses to `adm/legal/` and add a single `LEGAL.md` summarizing current status.
+
+**Stale comment/header drift in the nix layer:** *(new, minor)*
+- Issue: `nix/toolchain.sh:1` header says "Build the Plan 9 cross toolchain (6a/6c/6l, 8a/8c/8l, cpp, aux) and pcc" but `sys/src/BUILDTOOLCHAIN:10-12` now also builds `7a`/`7c`/`7l` (the vendored aarch64 toolchain) — the comment predates Phase 2. `nix/lima-harvey.yaml` header references artifact dir `linux_amd64/bin`, superseded by `.build/hostbin-<os>-<arch>/bin` (`nix/setup.sh:14`).
+- Files: `nix/toolchain.sh:1`, `nix/lima-harvey.yaml`
+- Impact: Cosmetic; misleads readers about what the toolchain app produces.
+- Fix approach: Update both comments.
+
+**Documentation drift: AGENTS.md's embedded stack snapshot predates the Nix/aarch64 era:** *(new)*
+- Issue: AGENTS.md embeds `.planning/codebase/STACK.md`, which has no mention of `flake.nix`, the `nix/` app layer (`setup`/`toolchain`/`build`/`iso` — the primary dev path since Phase 1), or the `aarch64/` port tree and vendored 7a/7c/7l (Phase 2). STRUCTURE.md is current (covers all of the above at lines 34–120), but STRUCTURE.md is not embedded in AGENTS.md — agents reading only AGENTS.md get a stack picture describing the legacy bash/Docker build as the only path.
+- Files: `AGENTS.md` (GSD:stack section), `.planning/codebase/STACK.md`
+- Impact: Planning/execution agents guided by AGENTS.md may drive the deprecated Docker/qemu build instead of the flake apps.
+- Fix approach: Refresh STACK.md from the tree (nix layer, vendored 9front toolchain, aarch64 arch dir); regenerate AGENTS.md.
 
 ## Known Bugs
 
@@ -110,11 +134,17 @@ last_mapped_at: 2026-10-30
 - Current mitigation: Partial — `kstrcpy` exists but adoption is spotty.
 - Recommendations: Audit each unbounded call; standardize on `kstrcpy`/`snprint`; enable compiler warnings for `strcpy`.
 
-**Boot trust & build provenance:**
-- Risk: Build downloads `9legacy.iso.bz2` over HTTPS from a GitHub release with no checksum/signature verification (`build/build.bash:6-10`, `build/build-usb.bash`). QEMU is spawned with host networking and KVM where available.
-- Files: `build/build.bash`, `build/build-usb.bash`
-- Current mitigation: HTTPS transport only.
-- Recommendations: Pin and verify a SHA-256 of the ISO; document threat model of the bootstrap environment.
+**Build provenance: unverified downloads across both build paths:**
+- Risk: The legacy ISO path downloads `9legacy.iso.bz2` over HTTPS from a GitHub release with no checksum/signature verification (`build/build.bash:6-10`). The nix/lima path provisions the guest VM by piping an unpinned installer (`curl ... https://install.determinate.systems/nix | sh`) and pulls an Ubuntu 24.04 cloud image whose `digest:` field is empty (`nix/lima-harvey.yaml` — comment says "fill after first run if desired; cloud images roll"). QEMU is spawned with host networking and KVM where available.
+- Files: `build/build.bash`, `build/build-usb.bash`, `nix/lima-harvey.yaml`
+- Current mitigation: HTTPS transport only; nixpkgs itself is properly pinned (`flake.lock` rev `31ecbaca1bdefa45dffc409f0250bd8039ea0010` + narHash).
+- Recommendations: Pin and verify a SHA-256 of the 9legacy ISO; pin the lima image digest after first run; pin the Determinate installer version or install nix via the distribution.
+
+**Host-system mutation by the kernel build (Linux):** *(new)*
+- Risk: `nix/build.sh:95-102` sudo-copies build tools into the host's `/bin` (`cpp`, `bind`, `rc`, `6a`/`6c`/`6l`/`8a`/`8c`/`8l`) because pcc/rc hardcode `/bin` paths. There is no cleanup/uninstall, and `/bin/cpp` on distributions that ship one (Ubuntu: symlink into gcc) gets overwritten with Harvey's cpp.
+- Files: `nix/build.sh:91-102`
+- Current mitigation: Uses the setuid system sudo deliberately (comment at line 92); copies only when present.
+- Recommendations: Track installed files and offer an uninstall; prefer bind-mounts inside the private namespace over persistent `/bin` writes; at minimum refuse to overwrite a pre-existing `/bin/cpp`.
 
 ## Performance Bottlenecks
 
@@ -137,6 +167,12 @@ last_mapped_at: 2026-10-30
 - Improvement path: Report real link state; add 64-bit DMA descriptors per-driver.
 
 ## Fragile Areas
+
+**Frozen aarch64 ABI has no in-tree enforcement:** *(new, HIGH)*
+- Files: `aarch64/ABI.md`, `aarch64/include/ureg.h`, `aarch64/include/u.h`, `sys/src/libc/9syscall/sys.h`, `sys/src/libc/9syscall/mkfile` (`case aarch64`, lines 96–103; the `exits`→`_exits` rename at line 9 and `seek`→`_seek` at line 98 are ABI-referenced)
+- Why fragile: ABI.md declares the syscall wire contract (number in R0, args at SP+8, `SVC`, result in R0) and the `ureg.h` trap frame frozen (D-15/D-16/D-17) — but the enforcement lives entirely in Phase 4 on the r9 side (`../r9`). Nothing in this repo compiles against, diffs, or even greps the frozen artifacts; an innocent edit to `ureg.h` field order, the stub generator, or sys.h numbering would silently break the Harvey↔r9 contract. Verified consistent as of this audit (sys.h 0–54 with the 48–49 gap, SYSR1=0, MOUNT=46, NSEC=53, NMOUNT=54; stub shape matches ABI.md verbatim; ureg.h field-for-field; vendored 7a/7c/7l and libc/aarch64 all cite the same 9front pin `350266104f1fed81c78c3d05fa44f523bec0ae4d`).
+- Safe modification: Treat all five files as LOCKED; any change requires re-freezing both repos per ABI.md. Do not touch the `case aarch64` block when editing neighboring arch cases.
+- Test coverage: None on the Harvey side by design (until Phase 4) — that is precisely the exposure.
 
 **k10 low-level asm/entry code:**
 - Files: `sys/src/9k/k10/l32p.s`, `sys/src/9k/k10/l64v.s`, `sys/src/9k/k10/l64syscall.s`, `sys/src/9k/k10/l64idt.s`, `sys/src/9k/k10/l64sipi.s`, `sys/src/9k/k10/trap.c`, `sys/src/9k/k10/mmu.c`
@@ -162,6 +198,12 @@ last_mapped_at: 2026-10-30
 - Safe modification: Always test against a scratch fossil partition (`fossil.tar.gz` test artifact referenced in `sys/src/cmd/fossil/mkfile:126`); never change on-disk format code without a dump/restore round-trip.
 - Test coverage: Only ad-hoc tester binaries (`sys/src/cmd/fossil` mkfile targets, `sys/src/cmd/upas/fs/tester.c`-style harnesses elsewhere).
 
+**darwin build path depends on rsync/lima choreography:** *(new, low)*
+- Files: `nix/vm-build.sh`, `nix/lima-harvey.yaml`
+- Why fragile: The macOS build rsyncs the checkout to a lima guest (excluding `.git`, `.build`, `.planning`), builds there, then pulls `amd64/`, `386/`, `aarch64/` back *without* `--delete` (`nix/vm-build.sh:64-67`) — artifacts deleted guest-side persist on the host. Guest build failure propagation was fixed in `d663bab7b`/`566677c94`; KERNDATE is correctly computed host-side (guest has no `.git`). The virtiofs bind-mount caveat (empty tree) that forced the rsync design is documented in the script header.
+- Safe modification: Keep the push/pull asymmetry in mind; add `--delete` to pull-back only after confirming no host-side build outputs would be reaped.
+- Test coverage: Exercised manually on darwin-aarch64; no automation.
+
 ## Scaling Limits
 
 **Network stack:**
@@ -176,15 +218,25 @@ last_mapped_at: 2026-10-30
 
 ## Dependencies at Risk
 
-**Ubuntu 21.10 Docker base:**
-- Risk: `build/Dockerfile:15` — `FROM ubuntu:21.10` (Impish) went EOL July 2022; apt mirrors moved to old-releases, so `apt-get -y update` will fail on fresh builds.
-- Impact: The only reproducible build path bit-rots; new contributors can't build the image without editing the Dockerfile.
-- Migration plan: Rebase to `ubuntu:22.04`/`24.04` LTS or `debian:stable`; pin apt packages.
+**nixpkgs tracks `nixos-unstable` (rolling):** *(new)*
+- Risk: `flake.nix:4` inputs `github:NixOS/nixpkgs/nixos-unstable`. The lock (`flake.lock`) is pinned and hashed (rev `31ecbaca1bdefa45dffc409f0250bd8039ea0010`, lastModified 2026-10-27 — fresh), so builds are reproducible today; but any `nix flake update` jumps to arbitrary new unstable, and plan9port/qemu/expect bumps there can break the namespace build or the expect-driven ISO path. No update cadence or rollback policy is documented, and no CI evaluates the flake (`.github/workflows/harvey.yml` runs only the legacy qemu build), so a rotten lock is discovered by developers, not automation.
+- Impact: Dev-environment breakage surfaces unpredictably; the project's "reproducible from clean checkouts" core value depends on this one lock.
+- Migration plan: Pin `nixos-25.11`-style stable branches with scheduled bumps, or add a CI job that runs `nix flake check`/`nix run .#setup` on lock changes.
 
-**9legacy bootstrap ISO:**
-- Risk: `build/build.bash` depends on `https://github.com/Harvey-OS/harvey/releases/download/9legacy/9legacy.iso.bz2` — a release artifact on an archived org; if GitHub releases are pruned or the repo is removed, the build stops.
-- Impact: No bootstrap → no build, since the Harvey toolchain (6a/6c/6l) must be built inside a Plan 9 environment.
-- Migration plan: Mirror the ISO into this repo's releases or a checksum-pinned artifact store; long-term, finish the Unix-hosted build (`BUILD_ON_UNIX`, `sys/src/BUILDTOOLCHAIN`) so Plan 9 bootstrap isn't needed.
+**Ubuntu 21.10 Docker base (superseded but still present):**
+- Risk: `build/Dockerfile:15` — `FROM ubuntu:21.10` (Impish) went EOL July 2022; apt mirrors moved to old-releases, so `apt-get -y update` will fail on fresh builds. The flake devshell/apps are now the supported path, making the Dockerfile legacy.
+- Impact: Anyone following `build/BUILD_IN_DOCKER` hits a wall; the lima guest uses Ubuntu 24.04 (`nix/lima-harvey.yaml`), so the two container-ish paths disagree by three LTS cycles.
+- Migration plan: Rebase to `ubuntu:24.04` (matching the lima guest) or delete the Docker path in favor of the flake.
+
+**9legacy bootstrap ISO (ISO path only):**
+- Risk: `build/build.bash` depends on `https://github.com/Harvey-OS/harvey/releases/download/9legacy/9legacy.iso.bz2` — a release artifact on an archived org; if GitHub releases are pruned or the repo is removed, `nix run .#iso` stops working. The kernel/userland dev build no longer needs it (namespace build via `nix/build.sh`).
+- Impact: No 9legacy → no ISO production, since the Harvey toolchain (6a/6c/6l) must be built inside a Plan 9 environment on that path.
+- Migration plan: Mirror the ISO into this repo's releases or a checksum-pinned artifact store; long-term, emit the ISO from namespace-build artifacts.
+
+**Vendored 9front toolchain pin (7a/7c/7l, libc/aarch64):** *(new)*
+- Risk: `sys/src/cmd/7a/`, `sys/src/cmd/7c/`, `sys/src/cmd/7l/`, and `sys/src/libc/aarch64/` are vendored wholesale from 9front at pin `350266104f1fed81c78c3d05fa44f523bec0ae4d` (branch `front`, pinned 2026-10-31 — see each dir's README). Compiler bugs fixed upstream after the pin won't flow in; local shims (D-13: e.g. `7c/math.h`, `7a/a.h` BUFSIZ) must be reapplied on any re-vendor.
+- Impact: aarch64 compiler correctness is frozen at the pin; re-vendoring is a manual, shim-reapplying exercise.
+- Migration plan: Documented as a temporary bridge to the r9 kernel (Phase 2 READMEs); revisit after r9 adoption.
 
 **Vendored Ghostscript/libpng/jpeg:**
 - Risk: AFPL-era ghostscript + ancient libpng with x86 MMX asm (`pnggccrd.c`, `pngvcrd.c`) — won't build for non-x86 and carry years of known CVEs.
@@ -205,11 +257,31 @@ last_mapped_at: 2026-10-30
 - Problem: `riscv64/` has headers and `mkfile` referencing `jc/jl/ja` compilers but no kernel sources at all; RISC-V support is aspirational.
 - Blocks: Any RISC-V bring-up.
 
+**Full aarch64 userland (subset only today):** *(new)*
+- Problem: `aarch64/bin/` contains the toolchain (`7a`/`7c`/`7l`) plus only 18 core commands (`cat`, `cp`, `date`, `echo`, `grep`, `ls`, `mkdir`, `mv`, `ps`, `rc`, `rm`, `sed`, `test`, `wc`, …), `auth/factotum`, and `ip/ipconfig`; the `ape/`, `aux/`, `dial/`, `disk/`, `fossil/`, `fs/`, `ndb/`, `replica/`, `upas/`, `usb/`, `venti/`, `ip/httpd/` subdirs exist but are empty, and `aarch64/bbin/` is empty. Most of `sys/src/cmd/` (~266 commands) is not yet built for `objtype=aarch64`. (In-progress per roadmap Phase 2; the dual-arch default build landed in `280460eee`.)
+- Blocks: Booting a useful Harvey userland on aarch64 with r9; any aarch64 storage/network tooling.
+
+**aarch64 guest orchestration for testing:** *(new)*
+- Problem: The nix-packaged minimega (`nix/minimega.nix`, v3.3.0 tag-pinned) is Linux/KVM-only and upstream does not support aarch64 guests (`flake.nix:32`, `nix/minimega.nix:55` comments). There is no nix-provided harness for booting aarch64 guests (`qemu -M virt`), which is the project's core-value target.
+- Blocks: Automated end-to-end aarch64 boot testing from the dev environment.
+
 **Automated testing:**
-- Problem: No test runner, no CI config in tree, no unit-test framework for kernel or libc. Existing "tests" are standalone binaries (`sys/src/cmd/aquarela/test*.c`, `sys/src/cmd/wikifs/testwrite.c`, `sys/src/libsec/port/*test.c`) that must be built and run by hand inside a running Harvey system.
+- Problem: No test runner, no CI config in tree, no unit-test framework for kernel or libc. Existing "tests" are standalone binaries (`sys/src/cmd/aquarela/test*.c`, `sys/src/cmd/wikifs/testwrite.c`, `sys/src/libsec/port/*test.c`) that must be built and run by hand inside a running Harvey system. The nix layer adds build automation but no test execution.
 - Blocks: Regression detection for any change; CI.
 
 ## Test Coverage Gaps
+
+**aarch64 port tree (new code, zero tests):** *(new, HIGH)*
+- What's not tested: The frozen ABI artifacts (`aarch64/ABI.md`, `aarch64/include/ureg.h`), the generated syscall stubs (`sys/src/libc/9syscall/mkfile` `case aarch64`), the vendored 7a/7c/7l compile chain end-to-end, and the FP bug above (`aarch64/include/u.h`) — which a single "print a float" smoke test would have caught. Enforcement of the ABI freeze is deferred to Phase 4 (r9 side); nothing on the Harvey side guards it.
+- Files: `aarch64/`, `sys/src/cmd/7a/`, `sys/src/cmd/7c/`, `sys/src/cmd/7l/`, `sys/src/libc/aarch64/`, `sys/src/libc/9syscall/mkfile`
+- Risk: Silent ABI drift between the two repos; broken float math shipping in `aarch64/lib/libc.a`.
+- Priority: High
+
+**Nix build/dev layer:**
+- What's not tested: `flake.nix` apps and `nix/*.sh` (`setup`, `toolchain`, `build`, `iso`, `vm-build`) — shellcareful (set -e, shims documented) but exercised only by hand; `.github/workflows/harvey.yml` runs the legacy qemu path and never evaluates the flake.
+- Files: `flake.nix`, `flake.lock`, `nix/`
+- Risk: Lock rot or script regressions (e.g. the failure-propagation bugs fixed in `d663bab7b`, `566677c94`) found only when a developer's build breaks.
+- Priority: High
 
 **Kernel (entire `sys/src/9k/`):**
 - What's not tested: Everything — allocators (`qmalloc.c`), channel/refcount logic (`chan.c`), IP stack, TLS device, trap/syscall entry.
@@ -237,4 +309,4 @@ last_mapped_at: 2026-10-30
 
 ---
 
-*Concerns audit: 2026-10-30*
+*Concerns audit: 2026-11-01*
