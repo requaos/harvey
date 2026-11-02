@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: r9 Userspace-Exec + Harvey↔r9 ABI
-status: executing
-stopped_at: Completed 04-07-PLAN.md
-last_updated: "2026-11-02T18:41:17.330Z"
+status: verifying
+stopped_at: Completed 04-08-PLAN.md
+last_updated: "2026-11-02T19:24:43.981Z"
 last_activity: 2026-11-01
 last_activity_desc: Phase 04 execution started
-state_head: ab13d0d2b271b016a5f0142df4c43b754f660f6d
+state_head: 6f3c04a36a263074e063120e1ce9dd2e6357fe40
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 25
-  completed_plans: 24
+  completed_plans: 25
   percent: 60
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 
 Phase: 04 (r9 Userspace-Exec + Harvey↔r9 ABI) — EXECUTING
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-01 — Phase 04 execution started
 
 Progress: [██████░░░░] 60%
@@ -82,6 +82,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P05 | 31min | 2 tasks | 16 files |
 | Phase 04 P06 | 27min | 2 tasks | 18 files |
 | Phase 04 P07 | 240min | 2 tasks | 12 files |
+| Phase 04 P08 | 40min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -144,6 +145,9 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-07: swtch.S rewritten symmetric — the imported sequence could never round-trip (latent, never called on aarch64)
 - [Phase 04]: 04-07: 1 ms tick slice + init's calibrated spin (preemption evidence needs a CPU-bound EL0 window with live peers); syscall int-width args masked to 32 bits (donor va_arg semantics)
 - [Phase 04]: 04-07: exec_bootstrap IRQ-masked until first EL0 entry — boot orchestration is a non-preemptible critical section; invariant: PSTATE.I=0 only at EL0 or the stateless sched wfi (heisenbug exposure closed by construction, root cause = deferred-items #4)
+- [Phase 04]: 04-08: note delivery resolves CURFRAME on the IRQ boundary (preemption-safe — deliver to the proc actually returning to EL0); delivery write window validated user-writable THEN forced resident (never a kernel write to a bad/unmapped user VA)
+- [Phase 04]: 04-08: NOTED takes dispatch's no-writeback special return on success (donor dosyscall case); sys_noted validates resume pc/sp BEFORE the 280-byte restore; exec clears note machinery, rfork inherits the handler (donor semantics)
+- [Phase 04]: 04-08: 7c caches a plain static load in a register across a spin loop (volatile included) — a note-handler-set flag must be read through a real C call or the store is never observed (caught by the SC#4 gate)
 
 ### Pending Todos
 
@@ -168,6 +172,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T18:41:17.270Z
-Stopped at: Completed 04-07-PLAN.md
+Last session: 2026-11-02T19:24:43.921Z
+Stopped at: Completed 04-08-PLAN.md
 Resume file: None
