@@ -115,14 +115,14 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. r9's first-process path loads a Harvey aarch64 `init` from an embedded root-fs or equivalent delivery, faulting in user text and growing the user stack (with icache maintenance after text load)
   4. A syscall smoke suite (rfork, notes, basic fd ops) runs from EL0 without kernel panic — exercised before the full shell is attempted
 
-**Plans**: 2/8 plans executed (7 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-7 are strictly sequential because each layer of the exec path is exercised by the next)
+**Plans**: 3/8 plans executed (7 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-7 are strictly sequential because each layer of the exec path is exercised by the next)
 
 **Wave 1**
 - [x] 04-01-PLAN.md — Falsification spikes (TRACER): qemu -initrd → DTB /chosen probe end-to-end + mkpaqfs host producer + committed paqfs fixture + D-14 donor syscall-trace artifact (R9-02/R9-03 substrate)
 
 **Wave 2** *(blocked on Wave 1 — fixture + xtask file serialization)*
 - [x] 04-02-PLAN.md — paqfs no_std reader (miniz_oxide/adler2, audit-approved) + host fixture tests + boot-time initrd root-walk serial proof (D-02)
-- [ ] 04-03-PLAN.md — R9-04/SC#1: TrapFrame≡Ureg reshape (D-05/D-08, per-origin SP capture, conditional SP_EL0 restore) + two-layer static checks (D-06) + ABI.md kernel-side appendix (D-07); D-05/D-07 reversibility decision gate
+- [x] 04-03-PLAN.md — R9-04/SC#1: TrapFrame≡Ureg reshape (D-05/D-08, per-origin SP capture, conditional SP_EL0 restore) + two-layer static checks (D-06) + ABI.md kernel-side appendix (D-07); D-05/D-07 reversibility decision gate
 
 **Wave 3** *(blocked on Wave 2 — exec seeds the pinned frame, faults read the paqfs image)*
 - [ ] 04-04-PLAN.md — R9-03 exec machinery: Proc scaffolding + per-proc root tables + a.out loader + demand-fault handler with CTR_EL0 icache (D-09/D-11) + trap EC split — compile-verified on all configs (checker revision 1: split from the runtime gate)
@@ -165,5 +165,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Build-Tail Green (9k amd64) | 4/4 | Complete    | 2026-10-31 |
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
 | 3. r9 qemu-virt Platform Bring-up | 6/6 | Complete    | 2026-11-01 |
-| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 2/8 | In Progress|  |
+| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 3/8 | In Progress|  |
 | 5. Shell Boot + One-Command Integration | 0/TBD | Not started | - |

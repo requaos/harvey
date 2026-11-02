@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: r9 Userspace-Exec + Harvey↔r9 ABI
 status: executing
-stopped_at: Completed 04-02-PLAN.md
-last_updated: "2026-11-02T12:51:51.806Z"
+stopped_at: Completed 04-03-PLAN.md
+last_updated: "2026-11-02T13:07:35.263Z"
 last_activity: 2026-11-01
 last_activity_desc: Phase 04 execution started
-state_head: 54fa423fa0f11379ffa66f879d80c2250da4f101
+state_head: 90fa3749361e77b112898ba6775e4477642fab15
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 25
-  completed_plans: 19
+  completed_plans: 20
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 04 (r9 Userspace-Exec + Harvey↔r9 ABI) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-11-01 — Phase 04 execution started
 
@@ -77,6 +77,7 @@ Progress: [██████░░░░] 60%
 | Phase 03 P06 | 18 min | 2 tasks | 9 files |
 | Phase 04 P01 | 33min (continuation; prior segment reached the A3 decision checkpoint) | 3 tasks | 14 files |
 | Phase 04 P02 | 15min | 2 tasks | 9 files |
+| Phase 04 P03 | 8m | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -121,6 +122,9 @@ Recent decisions affecting current work:
 - [Phase 04]: r9 has no full-RAM kernel map: runtime access to a physical range (initrd) maps it explicitly via kernel_pagetable().map_phys_range with VaMapping::Offset(KZERO) — vminit's DTB convention, reused post-boot — 04-02 plan assumed an existing KZERO+PA physical-map convention that does not exist (vminit maps only DTB+kernel sections). 04-04's fault handler reads the initrd through the same mapping.
 - [Phase 04]: paqfs reader API grew root_dir()/read_dir() beyond the plan sketch — directory listing is required by the boot root-walk and 04-05 devroot; stateless-per-call invariant preserved — The 4-method sketch (open_image/read_block/walk/read_at) cannot express listing a directory's entries.
 - [Phase 04]: Boot serial evidence emits banner FIRST, then initrd marker, then paqfs root-entry lines — the 04-01 marker block moved below the banner print — 04-02 acceptance pins emission order (banner first); 04-01's greps were order-insensitive and remain satisfied.
+- [Phase 04]: 04-03 publication gate resolved: user selected 'publish' — D-05/D-07 kernel-side ABI contract published as locked (35-field frame, sp@248/pc@256/psr@264/type@272, size 280 stride 288; OQ-3 type-field = kernel-side informational)
+- [Phase 04]: 04-03: ESR_EL1/FAR_EL1 are never frame fields — read live at trap() entry, passed as dispatcher args (04-04 fault handler signature fault::user_fault(frame, esr, far))
+- [Phase 04]: 04-03: ureg-check missing-Harvey policy — skip+continue for bare builds (layer-1 const asserts guard), FAIL boot-test runs; R9_HARVEY_DIR env override, default ../harvey
 
 ### Pending Todos
 
@@ -145,6 +149,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T12:51:51.741Z
-Stopped at: Completed 04-02-PLAN.md
+Last session: 2026-11-02T13:07:35.205Z
+Stopped at: Completed 04-03-PLAN.md
 Resume file: None
