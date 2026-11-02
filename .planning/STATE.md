@@ -1,43 +1,43 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 03
-current_phase_name: r9 qemu-virt Platform Bring-up
-status: verifying
-stopped_at: Completed 03-06-PLAN.md
-last_updated: "2026-11-02T00:33:04.219Z"
+current_phase: 4
+current_phase_name: r9 Userspace-Exec + Harvey↔r9 ABI
+status: planning
+stopped_at: Phase 03 complete, ready to plan Phase 4
+last_updated: "2026-11-02T01:53:50.360Z"
 last_activity: 2026-11-01
-last_activity_desc: Phase 03 execution started
-state_head: 1edf2b9d032fa62d12f50d0f6a0c38131bf1f3da
+last_activity_desc: Phase 03 complete, transitioned to Phase 4
+state_head: 85416505ab8794e1a1a9e5e55984083d00eb8566
 progress:
   total_phases: 5
-  completed_phases: 2
+  completed_phases: 3
   total_plans: 17
   completed_plans: 17
-  percent: 40
+  percent: 60
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-01)
+See: .planning/PROJECT.md (updated 2026-11-02)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 03 — r9 qemu-virt Platform Bring-up
+**Current focus:** Phase 4 — r9 Userspace-Exec + Harvey↔r9 ABI
 
 ## Current Position
 
-Phase: 03 (r9 qemu-virt Platform Bring-up) — EXECUTING
-Plan: 6 of 6
-Status: Phase complete — ready for verification
-Last activity: 2026-11-01 — Phase 03 execution started
+Phase: 4 — r9 Userspace-Exec + Harvey↔r9 ABI
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-01 — Phase 03 complete, transitioned to Phase 4
 
-Progress: [████░░░░░░] 40%
+Progress: [██████░░░░] 60%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 17
 - Average duration: —
 - Total execution time: —
 
@@ -47,6 +47,7 @@ Progress: [████░░░░░░] 40%
 |-------|-------|-------|----------|
 | 01 | 4 | - | - |
 | 02 | 7 | - | - |
+| 03 | 6 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: —
@@ -119,12 +120,12 @@ None yet.
 
 ### Blockers/Concerns
 
-- Phase 3: `../r9` never audited (adoption decision post-dates research) — map r9 workspace before planning Phase 3
 - Phase 4: Harvey↔r9 syscall ABI kernel side greenfield (user side frozen in Phase 2: `aarch64/ABI.md`, execution-validated) — highest-risk phase; consider a spike
 - Phase 4: root-fs delivery mechanism to r9 undecided (initrd / embedded blob / virtio-9p escape hatch in v1.x)
+- Phase 4: WR-01 — the virt TTBR0 identity map (0–1 GiB Normal/RW/executable, covering GIC+PL011 MMIO) is never torn down post-boot; raspi's user-table switch is cfg'd out on virt — consider explicitly in Phase 4 planning (03-REVIEW-DISPOSITION.md)
 - ~~KERNDATE bit-reproducibility policy must be decided in Phase 1 (BUILD-04)~~ RESOLVED by 01-03: pinned git-derived policy documented at build/REPRODUCIBILITY.md and demonstrated bit-identical — Phase 5 reproducibility claims unblocked
 - 9k-amd64 post-banner `bad magic` pool panic — same signature as the pswt.c LP64 bug fixed in Phase 2; re-test with the fixed 6c (deferred-items.md #8) before relying on the harness for deeper smoke signals
-- Hygiene debt: Phase 1 review items (01-REVIEW-DISPOSITION.md: boot-9k10cpu.sh shebang, KERNDATE fallback, preflight hatch, socat race, checkall cascade) + Phase 2's 13 open Info findings (02-REVIEW-DISPOSITION.md) + WR-04 prompt-proof end-to-end confirmation on the next live TCG gate run; none goal-blocking
+- Hygiene debt: Phase 1 review items (01-REVIEW-DISPOSITION.md) + Phase 2's 13 open Info findings (02-REVIEW-DISPOSITION.md) + Phase 3's 5 open warnings / 10 open Info (03-REVIEW-DISPOSITION.md; WR-02 boot-test platform guard, WR-03 raspi uartpl011 gpiosetpull MMIO window, WR-04 map_phys_range swallowed mid-range failure, WR-05 timer INTID DTB-mismatch warn-only) + upstream raspi3b-on-qemu-11.1.2 defect (phase-03 deferred-items.md #1, human-accepted A/B evidence); none goal-blocking
 
 ## Deferred Items
 
@@ -136,6 +137,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T00:33:03.965Z
-Stopped at: Completed 03-06-PLAN.md
+Last session: 2026-11-02T01:53:50.306Z
+Stopped at: Phase 03 complete, ready to plan Phase 4
 Resume file: None

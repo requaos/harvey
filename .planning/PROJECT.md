@@ -21,13 +21,15 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 - ✓ Same-path bit-reproducible kernels: KERNDATE pinned from git commit (env-overridable), bit-identical demo + negative control — Phase 1 (`build/REPRODUCIBILITY.md`; conffile absolute-path exception documented)
 - ✓ 9k10cpu boots under minimega/qemu with `Plan 9` banner captured over serial (TCG mode, human-accepted) — Phase 1 (`build/mm/`)
 - ✓ aarch64 userspace toolchain in-repo: vendored 9front 7a/7c/7l (pinned `350266104f`, Harvey shims), libmach arm64 (Alpha excised from letter 7), libc/aarch64 + frozen syscall ABI (`aarch64/ABI.md`), `objtype=aarch64` wiring — Phase 2 (TC-01…TC-05; proven by execution: hello.7.out + 16-binary shell subset run on the 9front donor kernel under qemu TCG)
+- ✓ r9 aarch64 boots on qemu `-M virt,gic-version=2`: platform tree (`platform/{raspi3b,raspi4b,virt}`), ELF `-kernel` + committed DTB at `0x40000000`, GICv2 + generic timer ticks, PL011 IRQ echo, `cargo xtask boot-test` harness, `virtpanic` debug gate — Phase 3 (SC#1–5; evidence bundle byte-identically reproducible, `03-VERIFICATION.md` 22/22)
+- ✓ r9 carries its own `flake.nix` (rust-overlay honoring `rust-toolchain.toml`, qemu + dtc, `apps.build`) — Phase 3 (R9-05; darwin + linux legs both passed)
 
 ### Active
 
-- [ ] r9 aarch64 bring-up on qemu `-M virt` (r9's aarch64 is currently raspi3b/4b-only, DTB-driven) — kernel entry, memory map, GIC, PL011 console
-- [ ] r9 maturity work needed to host Harvey userland: process model / syscalls / first-process (`initcode`) boot path (r9 has VM/console/allocator/traps; no userspace exec yet)
-- [ ] Harvey aarch64 userland boots to `/bin/rc` shell on r9 kernel under qemu virt
+- [ ] r9 maturity work needed to host Harvey userland: process model / syscalls / first-process (`initcode`) boot path (r9 has VM/console/allocator/traps + virt platform IRQs; no userspace exec yet) — Phase 4
+- [ ] Harvey aarch64 userland boots to `/bin/rc` shell on r9 kernel under qemu virt — Phase 5
 - [ ] Re-test the Phase 1 9k-amd64 embedded-root `bad magic` pool panic against the LP64-fixed 6c (same signature as the pswt.c bug fixed in Phase 2) — deferred-items.md #8
+- [ ] Upstream raspi3b-on-qemu-11.1.2 boot defect (FAR 0xfe215004 — rpi4 MMIO base on the raspi3b machine) — pre-existing, A/B-proven not-a-regression, accepted 2026-11-01; phase-03 deferred-items.md #1
 
 ### Out of Scope
 
@@ -41,7 +43,7 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 
 ## Context
 
-- **Kernel future is r9**: sibling repo `../r9` (Rust reimplementation of the Plan 9 kernel; cargo workspace: `port/` portable code + per-arch crates `x86_64/`, `riscv64/`, `aarch64/`; xtask build/qemu runners). r9's aarch64 currently targets raspi3b/raspi4b (DTB-driven, PL011, pre-MMU page tables); has VM/console/allocator/traps but no userspace exec path yet. Harvey supplies the userspace, libc, toolchain, and dist machinery; r9 supplies the kernel.
+- **Kernel future is r9**: sibling repo `../r9` (Rust reimplementation of the Plan 9 kernel; cargo workspace: `port/` portable code + per-arch crates `x86_64/`, `riscv64/`, `aarch64/`; xtask build/qemu/boot-test runners). r9's aarch64 now targets raspi3b/raspi4b AND qemu `-M virt` (Phase 3: cfg-gated platform tree, committed virt-gicv2 DTB, GICv2 + generic timer + PL011 IRQ echo, `cargo xtask boot-test` acceptance harness, `virtpanic` debug config); still no userspace exec path — that is Phase 4. Harvey supplies the userspace, libc, toolchain, and dist machinery; r9 supplies the kernel. r9 has its own flake (R9-05) — commits land on `main` of the `requaos/r9` fork.
 - **Upstream dormant**: Harvey-OS/harvey last commit 2022-03-30; CI was a fragile expect+qemu bootstrap on EOL Ubuntu 21.10 (`.planning/codebase/CONCERNS.md`)
 - **Build system**: mk + mkfiles; host tools built by `sys/src/cmd/*/BUILD` scripts; kernel build runs in a Linux mount namespace emulating Plan 9's root layout (`sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE` → `BUILD_SETUP_NAMESPACE` → `BUILD` → `build/scripts/linux-build`)
 - **Nix scaffolding**: `flake.nix` + `nix/*.sh`; on darwin the namespace build runs in a lima VM (virtiofs subdir binds yield empty trees, so the VM build rsyncs to guest-local disk and pulls `amd64/`+`386/` back)
@@ -72,7 +74,7 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 | plan9port `$PLAN9/bin` LAST in PATH | plan9port ships a 9p `mount` that shadows util-linux mount; BUILD_ON_UNIX mandates last | ✓ Good |
 | aarch64 (not arm64) naming | User decision 2026-10-30 | ✓ Good |
 | Adopt r9 (Rust Plan 9 kernel) as kernel future instead of porting 9k/C to aarch64 | User decision 2026-10-30 — r9 exists (../r9), is the modern path; avoids investing in a C kernel port that would be discarded | ✓ Good |
-| r9 gets its own flake; Harvey consumes r9 via flake input | User decision 2026-10-30 — flakes compose via git URLs; relative paths/submodules are fragile glue | — Pending |
+| r9 gets its own flake; Harvey consumes r9 via flake input | User decision 2026-10-30 — flakes compose via git URLs; relative paths/submodules are fragile glue | ✓ Good (Phase 3: r9 flake.nix landed, R9-05; Harvey-side consumption lands in Phase 5) |
 | minimega for VM orchestration, fetched+built by nix (`nix/minimega.nix`, no submodule) | User decision 2026-10-30 — single-binary KVM VM manager with scriptable `.mm` files; upstream is x86/KVM-centric so it covers amd64 test VMs only; aarch64/r9 boots stay on plain qemu | ✓ Good |
 | Host-built generators normalize on the awk idiom (`objtype=$cputype mk <tool>.$cputype`) | Phase 1 — deriving tool names from `$cputype`/`$c^c` produced nonexistent `oc`/`ol`; awk's recursion is the proven in-tree pattern | ✓ Good |
 | KERNDATE pinned from git commit timestamp, derived host-side, env-overridable | Phase 1 (BUILD-04) — guest rsync excludes `.git`; same-path bit-reproducibility + documented conffile exception | ✓ Good |
@@ -86,7 +88,12 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 | qemu-11.1.2 donor drift accommodated harness-side only (GIC wake poke, console=0, virtio-non-transitional, ECAM/DTB loader) | Phase 2 (D-12) — donor tree stays pristine; vendor fidelity outranks convenience | ✓ Good |
 | libmp `mpvecdigmulsub` split (retire the 2021 PORT rename); member/symbol 1:1 | Phase 2 (02-07) — archive member lookup needs name equality on aarch64 | ✓ Good |
 | Default build is dual-arch: `arch=(amd64 aarch64)` with subset-scoped `build_aarch64` | Phase 2 (02-07) — TC-05 acceptance + regression coverage in one `nix run .#build` | ✓ Good |
-| Kernel bring-up on qemu `-M virt` shell | Smallest provable target; r9's raspi focus needs a virt platform anyway | — Pending |
+| Kernel bring-up on qemu `-M virt` shell | Smallest provable target; r9's raspi focus needs a virt platform anyway | ✓ Good (Phase 3: banner + ticks + IRQ echo + panic gate all proven; shell itself is Phase 5) |
+| r9 platform tree (riscv64-style `platform/{raspi3b,raspi4b,virt}`, raspi3b default) + trap init/unmask split | Phase 3 (D-01/P5) — virt lands alongside raspi without if/else rot; no IRQ can arrive before a platform arms its handlers | ✓ Good |
+| Virt platform as TOML data (xtask `[qemu]` cpu/smp/memory/accel + `[dist]` format; ELF dist skips objcopy/gzip; accel override chain ends at tcg — never hvf default, HVF rejects GICv2 on qemu 11.1.2) | Phase 3 (D-05/D-06/D-07, research P2/P7) — new platforms become data, not Rust edits | ✓ Good |
+| Committed DTB artifact (virt-gicv2.dts/.dtb) + ELF-x0=0 → fixed-PA 0x40000000 fallback at both DTB consumers | Phase 3 (P1/P11) — qemu 11.1.2 loads no DTB for ELF kernels without `-dtb`; regeneration procedure documented in the .dts header | ✓ Good |
+| Acceptance harness in r9 (`cargo xtask boot-test`, zero-dep unix-socket, marker-only assertions); canonical evidence consolidated in Harvey phase dir | Phase 3 (D-11/D-13) — converts SCs from hand-run observations into a repeatable gate; verifier reproduced both logs byte-for-byte | ✓ Good |
+| Accept A/B no-regression evidence for the pre-existing raspi3b/qemu-11.1.2 defect instead of fixing it in 03-03 | User decision 2026-11-01 (decision A) — defect predates the phase; virt never exercises raspi's early-uart path | ✓ Good (scoped; defect tracked as Active follow-up) |
 
 ## Evolution
 
@@ -106,4 +113,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-01 after Phase 2*
+*Last updated: 2026-11-02 after Phase 3*
