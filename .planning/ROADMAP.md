@@ -14,7 +14,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Build-Tail Green (9k amd64)** - Fix cmd-chain aborts so `nix run .#build` produces k10cpu + k10cpuf + k10f from a clean checkout; quarantine `arm64` vestiges; pin reproducibility policy (completed 2026-10-31)
 - [x] **Phase 2: aarch64 Toolchain + libc (9front donor)** - Vendor 7a/7c/7l + libmach arm64 + libc/aarch64; 7l-linked hello-world gate before any arch scaffolding; shell-subset userland builds for aarch64 (completed 2026-11-01)
-- [ ] **Phase 3: r9 qemu-virt Platform Bring-up** - *(cross-repo: `../r9`)* r9 aarch64 boots on qemu `-M virt`: kernel entry, memory map, GICv2, PL011 console, generic timer
+- [x] **Phase 3: r9 qemu-virt Platform Bring-up** - *(cross-repo: `../r9`)* r9 aarch64 boots on qemu `-M virt`: kernel entry, memory map, GICv2, PL011 console, generic timer (completed 2026-11-01)
 - [ ] **Phase 4: r9 Userspace-Exec + Harvey↔r9 ABI** - *(cross-repo: `../r9`)* EL0 entry/exit, `svc` syscall dispatch matching Harvey's frozen user-side ABI, first-process loading, trap-frame static checks
 - [ ] **Phase 5: Shell Boot + One-Command Integration** - One command boots r9 + Harvey aarch64 userland to `/bin/rc`; expect smoke test green on darwin-aarch64 and linux; clean-checkout reproducibility verified
 
@@ -83,7 +83,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. PL011 console (`0x09000000`) runs polled-then-IRQ: typed input is received interrupt-driven and visible in the kernel log
   5. A deliberate kernel panic prints registers/stack on the console and halts cleanly (no silent wedge) — the debug path for Phase 4 exists
 
-**Plans**: 6/6 plans executed (6 waves; tracer-first — the virt boot-to-banner slice in 03-04 precedes IRQ/harness expansion; 03-02→03-03 is a declared sequential edge, not same-wave parallel)
+**Plans**: 6/6 plans complete (6 waves; tracer-first — the virt boot-to-banner slice in 03-04 precedes IRQ/harness expansion; 03-02→03-03 is a declared sequential edge, not same-wave parallel)
 **Wave 1**
 - [x] 03-01-PLAN.md — r9 flake.nix (R9-05, D-08/D-09): devShell via rust-overlay on rust-toolchain.toml + apps.build; darwin proof automated, linux leg by hand (D-10)
 
@@ -115,7 +115,26 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. r9's first-process path loads a Harvey aarch64 `init` from an embedded root-fs or equivalent delivery, faulting in user text and growing the user stack (with icache maintenance after text load)
   4. A syscall smoke suite (rfork, notes, basic fd ops) runs from EL0 without kernel panic — exercised before the full shell is attempted
 
-**Plans**: TBD
+**Plans**: 0/7 plans (6 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-6 are strictly sequential because each layer of the exec path is exercised by the next)
+
+**Wave 1**
+- [ ] 04-01-PLAN.md — Falsification spikes (TRACER): qemu -initrd → DTB /chosen probe end-to-end + mkpaqfs host producer + committed paqfs fixture + D-14 donor syscall-trace artifact (R9-02/R9-03 substrate)
+
+**Wave 2** *(blocked on Wave 1 — fixture + xtask file serialization)*
+- [ ] 04-02-PLAN.md — paqfs no_std reader (miniz_oxide/adler2, audit-approved) + host fixture tests + boot-time initrd root-walk serial proof (D-02)
+- [ ] 04-03-PLAN.md — R9-04/SC#1: TrapFrame≡Ureg reshape (D-05/D-08, per-origin SP capture, conditional SP_EL0 restore) + two-layer static checks (D-06) + ABI.md kernel-side appendix (D-07); D-05/D-07 reversibility decision gate
+
+**Wave 3** *(blocked on Wave 2 — exec seeds the pinned frame, faults read the paqfs image)*
+- [ ] 04-04-PLAN.md — R9-03 exec spine: Proc scaffolding + per-proc root tables + a.out loader + demand-fault handler with icache (D-09/D-10/D-11) + devroot + staged init → first-SVC boot proof; D-12 experiment removal; WR-01 closed
+
+**Wave 4** *(blocked on Wave 3 — dispatch needs a running process)*
+- [ ] 04-05-PLAN.md — R9-02 dispatch: syscall table (measured set) + devcons fd ops (PREAD/PWRITE/OPEN/CLOSE/EXITS) + EXEC → SC#2 gate: committed hello.7.out prints on r9
+
+**Wave 5** *(blocked on Wave 4)*
+- [ ] 04-06-PLAN.md — per-process kernel stacks + tick round-robin scheduler (D-13) + RFORK/AWAIT/wait records + rfork/fd-ops smoke under preemption
+
+**Wave 6** *(blocked on Wave 5 — notes ride the blocking-syscall machinery)*
+- [ ] 04-07-PLAN.md — notes end-to-end (D-16): devproc-lite /proc/N/note + NOTIFY/NOTED + boundary delivery → SC#4 gate + 04-EVIDENCE.md consolidation (r9 SHA pin)
 
 **Pre-planning flag**: Highest-risk phase (greenfield design — no donor transfers directly). Root-fs delivery mechanism to r9 is undecided (qemu `-initrd`? cargo-embedded blob?); consider a spike before full planning. virtio-9p is the documented v1.x escape hatch.
 
@@ -142,6 +161,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Build-Tail Green (9k amd64) | 4/4 | Complete    | 2026-10-31 |
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
-| 3. r9 qemu-virt Platform Bring-up | 6/6 | In Progress|  |
-| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 0/TBD | Not started | - |
+| 3. r9 qemu-virt Platform Bring-up | 6/6 | Complete    | 2026-11-01 |
+| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 0/7 | Planned | - |
 | 5. Shell Boot + One-Command Integration | 0/TBD | Not started | - |
