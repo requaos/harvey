@@ -115,7 +115,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. r9's first-process path loads a Harvey aarch64 `init` from an embedded root-fs or equivalent delivery, faulting in user text and growing the user stack (with icache maintenance after text load)
   4. A syscall smoke suite (rfork, notes, basic fd ops) runs from EL0 without kernel panic — exercised before the full shell is attempted
 
-**Plans**: 0/7 plans (6 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-6 are strictly sequential because each layer of the exec path is exercised by the next)
+**Plans**: 0/8 plans (7 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-7 are strictly sequential because each layer of the exec path is exercised by the next)
 
 **Wave 1**
 - [ ] 04-01-PLAN.md — Falsification spikes (TRACER): qemu -initrd → DTB /chosen probe end-to-end + mkpaqfs host producer + committed paqfs fixture + D-14 donor syscall-trace artifact (R9-02/R9-03 substrate)
@@ -125,16 +125,19 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [ ] 04-03-PLAN.md — R9-04/SC#1: TrapFrame≡Ureg reshape (D-05/D-08, per-origin SP capture, conditional SP_EL0 restore) + two-layer static checks (D-06) + ABI.md kernel-side appendix (D-07); D-05/D-07 reversibility decision gate
 
 **Wave 3** *(blocked on Wave 2 — exec seeds the pinned frame, faults read the paqfs image)*
-- [ ] 04-04-PLAN.md — R9-03 exec spine: Proc scaffolding + per-proc root tables + a.out loader + demand-fault handler with icache (D-09/D-10/D-11) + devroot + staged init → first-SVC boot proof; D-12 experiment removal; WR-01 closed
+- [ ] 04-04-PLAN.md — R9-03 exec machinery: Proc scaffolding + per-proc root tables + a.out loader + demand-fault handler with CTR_EL0 icache (D-09/D-11) + trap EC split — compile-verified on all configs (checker revision 1: split from the runtime gate)
 
-**Wave 4** *(blocked on Wave 3 — dispatch needs a running process)*
-- [ ] 04-05-PLAN.md — R9-02 dispatch: syscall table (measured set) + devcons fd ops (PREAD/PWRITE/OPEN/CLOSE/EXITS) + EXEC → SC#2 gate: committed hello.7.out prints on r9
+**Wave 4** *(blocked on Wave 3 — the gate consumes the compile-verified machinery)*
+- [ ] 04-05-PLAN.md — R9-03 runtime gate: staged-init pipeline (init.c/stage-build.sh/xtask initrd) + devroot + trap_return + main9 exec orchestration → first-SVC boot proof; D-10 teardown (WR-01 closed) + D-12 experiment removal
 
-**Wave 5** *(blocked on Wave 4)*
-- [ ] 04-06-PLAN.md — per-process kernel stacks + tick round-robin scheduler (D-13) + RFORK/AWAIT/wait records + rfork/fd-ops smoke under preemption
+**Wave 5** *(blocked on Wave 4 — dispatch needs a running process)*
+- [ ] 04-06-PLAN.md — R9-02 dispatch: syscall table (measured set) + devcons fd ops (PREAD/PWRITE/OPEN/CLOSE/EXITS) + EXEC → SC#2 gate: committed hello.7.out prints on r9
 
-**Wave 6** *(blocked on Wave 5 — notes ride the blocking-syscall machinery)*
-- [ ] 04-07-PLAN.md — notes end-to-end (D-16): devproc-lite /proc/N/note + NOTIFY/NOTED + boundary delivery → SC#4 gate + 04-EVIDENCE.md consolidation (r9 SHA pin)
+**Wave 6** *(blocked on Wave 5)*
+- [ ] 04-07-PLAN.md — per-process kernel stacks + tick round-robin scheduler (D-13) + RFORK/AWAIT/wait records + rfork/fd-ops smoke under preemption
+
+**Wave 7** *(blocked on Wave 6 — notes ride the blocking-syscall machinery)*
+- [ ] 04-08-PLAN.md — notes end-to-end (D-16): devproc-lite /proc/N/note + NOTIFY/NOTED + boundary delivery → SC#4 gate + 04-EVIDENCE.md consolidation (r9 SHA pin)
 
 **Pre-planning flag**: Highest-risk phase (greenfield design — no donor transfers directly). Root-fs delivery mechanism to r9 is undecided (qemu `-initrd`? cargo-embedded blob?); consider a spike before full planning. virtio-9p is the documented v1.x escape hatch.
 

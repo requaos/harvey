@@ -778,27 +778,34 @@ let end   = dt.property(&chosen, "linux,initrd-end")  .and_then(|p| dt.property_
 | A7 | qemu virt places the initrd inside the RAM range reported by the DTB memory node (0x40000000..) | Pitfall 9 | pagealloc reservation math wrong → probe output (Pitfall 8) reveals the actual addresses |
 | A8 | 9front's `Sargs`/bulk-arg-copy details are NOT needed — r9 reads arg slots individually with per-handler arity | Pattern 2 | None for the ABI; donor's `validaddr(sizeof(Sargs))` bulk check is replaced by per-access validation |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+Resolved at plan time (checker revision 1, 2026-11-02) — per-question citations inline below; the plans named are the resolution of record.
 
 1. **Does the `-dtb`-supplied DTB receive `/chosen` initrd properties on the ELF boot path?**
    - What we know: CONTEXT carries "qemu places the image in RAM and writes linux,initrd-start/end into /chosen" as a verified carryover for the pinned qemu (11.1.2), marked for re-verification only if the version changes. It hasn't changed.
    - What's unclear: the *combination* ELF-kernel + explicit `-dtb` + `-initrd` hasn't been run in this repo (Phase 3's DTB work was about qemu loading NO dtb for ELF boots; the committed `virt-gicv2.dtb` is a workaround whose `/chosen` contents under `-initrd` are unprobed).
    - Recommendation: Wave-0 spike — one boot-test-style run printing `/chosen` properties; converts carryover to evidence (Pitfall 8).
+   - **Resolution:** 04-01 (Wave-0 tracer) runs exactly this probe — qemu `-kernel` ELF + `-dtb` + `-initrd`, printing `/chosen` properties as the phase's first gate before any consumer depends on the mechanism.
 2. **Does the smoke/staged-init set need `#c/pid` (getpid) or `fd2path`?**
    - What we know: Harvey `getpid()` opens `#c/pid` (devcons file); `postnote` needs only `/proc/N/note`.
    - What's unclear: the final smoke binaries' libc closure.
    - Recommendation: D-14 trace settles; if `#c/pid` appears, devcons-lite gains one static file.
+   - **Resolution:** carried as an explicit watch item in 04-08's objective — the planned smoke set never calls getpid (rfork returns the pid to the parent directly); if any smoke binary's runtime behavior demands `#c/pid`, the loud open-failure names it and devcons gains one static `pid` file.
 3. **What does the D-07 appendix say `ureg->type` CONTAINS on r9?**
    - What we know: the field is pinned (offset 272); 9front stores `(exception_class << 32) | ESR_EL1` there; r9's current frame stores its small vector index (0–15).
    - What's unclear: whether the appendix should pin r9's value semantics or leave them kernel-internal. The smoke/libc never reads `type` (notejmp reads r0/pc/sp only [VERIFIED: notejmp.c this session]).
    - Recommendation: appendix documents r9's encoding as kernel-side informational (wire contract only pins the field slot). Flag for the user at the plan checkpoint if they want donor-compatible `type` values instead.
+   - **Resolution:** 04-03 implements the recommendation — the ABI.md appendix pins the `type@272` slot and documents r9's encoding as kernel-side informational; the two-layer static gate enforces the layout.
 4. **boot-test marker coupling when the tick stops printing.**
    - What we know: current virt boot-test asserts ≥3 `tick` lines; Pitfall 3 requires the tick to stop printing once syscalls can print.
    - What's unclear: whether the Phase-3 virt profile (ticks+echo) must stay green IN ADDITION to new smoke profiles, or whether the exec profile supersedes it.
    - Recommendation: planner adds new per-smoke profiles (D-13 marker model) and keeps the Phase-3 profile pinned to a no-processes boot (tick printing intact there) OR migrates assertions; decide with the phase-03 evidence requirements in view.
+   - **Resolution:** 04-06 Task 1 step 5 — the tick println becomes `cfg(not(dev_exec))`-gated; the Phase-3 virt profile (no `dev` list, no processes) keeps its tick+echo assertions intact, and the exec-era profiles (virtexec/virtmulti/virtnotes) assert markers only, never tick lines.
 5. **Where staged-`init`/smoke sources live in Harvey's tree.**
    - What we know: D-03 pins an output dir consumed by r9's xtask; Phase 2's wiring (`aarch64/mkfile` CC=7c) exists.
    - Recommendation: planner picks (discretion) — e.g. a `build/aarch64/` subdir or `sys/src/cmd/` targets; keep them OUT of the donor-bootdir staging area to avoid confusion with gate binaries.
+   - **Resolution:** sources live in `build/aarch64/` (`init.c` in 04-05, `smokefork.c` in 04-07, `smokenote.c` in 04-08) with `stage-build.sh` driving the lima-guest compile into the gitignored `build/aarch64/out/`; the donor-bootdir staging area is untouched.
 
 ## Environment Availability
 
