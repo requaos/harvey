@@ -79,3 +79,65 @@ contract: Harvey 9k's generated `systab[]` handlers are
 mimics neither — it matches this document's wire contract (number in
 R0, args at SP+8, `SVC`, result in R0) plus the frozen
 `aarch64/include/ureg.h` trap frame, and nothing else.
+
+## Kernel-side enforcement (Phase 4 appendix)
+
+This appendix is the kernel side of the contract: how r9's trap frame
+matches the frozen `aarch64/include/ureg.h`, and the build-time checks
+that make any drift a build failure, not a runtime mystery (Phase 4
+success criterion SC#1). It documents enforcement only — the frozen
+wire contract above is unchanged.
+
+### Pinned trap-frame offsets
+
+r9's `TrapFrame` (`aarch64/src/trap.rs` in the r9 repo) IS the `Ureg`
+of `aarch64/include/ureg.h`, field-for-field. Pinned byte offsets
+(field index × 8):
+
+- r0@0 … r28@224
+- r29@232
+- r30/link@240 (the union occupies one slot)
+- sp@248
+- pc@256
+- psr@264
+- type@272
+
+`sizeof(Ureg)` = 280. r9's frame is `align(16)`, giving a frame stride
+of 288 with the Ureg at the frame base; the stride is r9-internal —
+only the field offsets above are the contract.
+
+Register sources on r9: `sp`@248 is `SP_EL0` for EL0-origin traps and
+the live entry-`sp` for EL1-origin traps; `pc`@256 is `ELR_EL1`;
+`psr`@264 is `SPSR_EL1`. `ESR_EL1`/`FAR_EL1` are not frame fields — r9
+reads them live at trap entry and passes them to dispatchers as
+arguments.
+
+### Kernel-side argument read
+
+The kernel reads arguments at `(Sargs*)(ureg->sp + 8)` — 8-byte slots
+upward from the user stack pointer captured in the frame. `SP+0` is
+the reserved link-register slot the stub's `MOV R0, 0(FP)`
+materializes, so the first kernel-visible argument sits at `SP+8`.
+(This restates the wire contract's stub-shape paragraph as the
+kernel-side read rule.)
+
+### The two-layer check
+
+1. **In-crate const asserts** (r9 `aarch64/src/trap.rs`): one
+   `core::mem::offset_of!` assertion per pinned offset plus
+   `core::mem::size_of::<TrapFrame>() == 288`. Always on — any layout
+   drift fails `cargo build`, with no Harvey checkout needed.
+2. **Cross-repo header check**: `cargo xtask ureg-check` (r9 repo)
+   parses this repo's `aarch64/include/ureg.h` — located via the
+   `R9_HARVEY_DIR` environment variable, default `../harvey` — and
+   fails with a named-field diff when the field names, order, or count
+   drift from the pinned table above. It runs standalone and as a
+   boot-test precondition, so drift fails every boot-test profile.
+
+### `type` field semantics (kernel-side informational)
+
+The wire contract pins the `type` **slot** (type@272), not its value
+semantics. r9 stores its small exception-vector index (0–15) there;
+9front stores `(ec << 32) | esr`. Nothing in libc reads `type` — the
+note path reads `r0`/`pc`/`sp` only — so the encoding remains a
+kernel-internal choice.
