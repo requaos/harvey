@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 03
 current_phase_name: r9 qemu-virt Platform Bring-up
-status: executing
-stopped_at: Completed 03-05-PLAN.md
-last_updated: "2026-11-02T00:00:35.203Z"
+status: verifying
+stopped_at: Completed 03-06-PLAN.md
+last_updated: "2026-11-02T00:33:04.219Z"
 last_activity: 2026-11-01
 last_activity_desc: Phase 03 execution started
-state_head: b59400e41bb30822bfedea0ed9d697d0662d51ec
+state_head: 1edf2b9d032fa62d12f50d0f6a0c38131bf1f3da
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 17
-  completed_plans: 16
+  completed_plans: 17
   percent: 40
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-01)
 
 Phase: 03 (r9 qemu-virt Platform Bring-up) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-01 — Phase 03 execution started
 
 Progress: [████░░░░░░] 40%
@@ -73,6 +73,7 @@ Progress: [████░░░░░░] 40%
 | Phase 03 P03 | 30 min (incl. human-decision checkpoint) | 2 tasks | 2 files |
 | Phase 03 P04 | 26 min | 2 tasks | 12 files |
 | Phase 03 P05 | 10 min | 3 tasks | 8 files |
+| Phase 03 P06 | 18 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -108,6 +109,9 @@ Recent decisions affecting current work:
 - [Phase 03]: 03-03: superseded apply_to_qemu_step free function removed outright instead of kept as a delegating shim — xtask-internal API with a single call site; a compat wrapper would be dead code
 - [Phase 03]: 03-03: written raspi3b boot-smoke gate satisfied by substituted A/B evidence (human decision A, 2026-11-01) — identical pre-existing raspi3b-on-qemu-11.1.2 guest abort at FAR 0xfe215004 pre-plan (6a309ae/ae4cd08) and post-plan with byte-identical raspi argv proves NO REGRESSION; upstream defect (rpi4 AUX_ENABLES MMIO on raspi3b machine; suspect init_early_uart_rpi4) deferred
 - [Phase 03]: 03-03: darwin qemu smoke isolation — setsid absent on macOS; backgrounded subshell + pkill -f with bracket-fixed pattern ([q]emu-system-aarch64.*raspi3b) so pkill cannot self-match the harness shell argv
+- [Phase 03]: 03-06: D-12 delivered as --config virtpanic (virt-specific name; mechanism/trigger/dump as decided) — brk #0 hook before trap::unmask_irq() runs the real sync trap path; TrapFrame Debug uses bare x29/x30 names so dump rows are machine-countable (the plan's >=30-row gate was unsatisfiable with annotated names)
+- [Phase 03]: 03-06: RustupState tolerates rustup-absent hosts (nix devshell) — cargo xtask check/test degrade to bins/lib legs via existing Option handling instead of panicking; pre-existing panic proven on the clean tree
+- [Phase 03]: 03-06: evidence commit ordering (D-13/T-03-09) — r9 commits land first, EVIDENCE.md records that exact HEAD SHA (55ca7c4), harvey evidence commit second; the verify gate requires the recorded SHA to match the live checkout
 
 ### Pending Todos
 
@@ -132,6 +136,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T00:00:35.146Z
-Stopped at: Completed 03-05-PLAN.md
+Last session: 2026-11-02T00:33:03.965Z
+Stopped at: Completed 03-06-PLAN.md
 Resume file: None
