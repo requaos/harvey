@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: r9 Userspace-Exec + Harvey↔r9 ABI
 status: executing
-stopped_at: Completed 04-03-PLAN.md
-last_updated: "2026-11-02T13:07:35.263Z"
+stopped_at: Completed 04-04-PLAN.md
+last_updated: "2026-11-02T13:26:06.561Z"
 last_activity: 2026-11-01
 last_activity_desc: Phase 04 execution started
-state_head: 90fa3749361e77b112898ba6775e4477642fab15
+state_head: 4ddd608994b02ac424dcde01d5902e8390e52b86
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 25
-  completed_plans: 20
+  completed_plans: 21
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 04 (r9 Userspace-Exec + Harvey↔r9 ABI) — EXECUTING
-Plan: 4 of 8
+Plan: 5 of 8
 Status: Ready to execute
 Last activity: 2026-11-01 — Phase 04 execution started
 
@@ -78,6 +78,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P01 | 33min (continuation; prior segment reached the A3 decision checkpoint) | 3 tasks | 14 files |
 | Phase 04 P02 | 15min | 2 tasks | 9 files |
 | Phase 04 P03 | 8m | 3 tasks | 7 files |
+| Phase 04 P04 | 17min | 2 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -125,6 +126,10 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-03 publication gate resolved: user selected 'publish' — D-05/D-07 kernel-side ABI contract published as locked (35-field frame, sp@248/pc@256/psr@264/type@272, size 280 stride 288; OQ-3 type-field = kernel-side informational)
 - [Phase 04]: 04-03: ESR_EL1/FAR_EL1 are never frame fields — read live at trap() entry, passed as dispatcher args (04-04 fault handler signature fault::user_fault(frame, esr, far))
 - [Phase 04]: 04-03: ureg-check missing-Harvey policy — skip+continue for bare builds (layer-1 const asserts guard), FAIL boot-test runs; R9_HARVEY_DIR env override, default ../harvey
+- [Phase 04]: 04-04: kernel-stack VA allocation rides vm::next_free_device_page4k (the kernel-VA bump allocator) — 4 contiguous VA pages per proc, each a fresh pagealloc page, contiguity asserted loudly
+- [Phase 04]: 04-04: exec maps the two seed pages into the proc's INACTIVE root table via map_to's temp-recursive dance and writes contents via KZERO+PA aliases; the fault handler maps demand pages into the ACTIVE user table and writes through the user VA — two edit paths, split by table liveness
+- [Phase 04]: 04-04: fault handler kills on already-mapped-page faults (mapping_log lookup, the donor fault() existence check) — remapping a live page would silently zero its contents
+- [Phase 04]: 04-04: r9 user address-space policy constants landed (D-11): USTACKTOP=0x0000_8000_0000_0000, USTKSIZE=16 MiB, USTOP=USTACKTOP-16MiB in exec.rs
 
 ### Pending Todos
 
@@ -149,6 +154,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T13:07:35.205Z
-Stopped at: Completed 04-03-PLAN.md
+Last session: 2026-11-02T13:26:05.636Z
+Stopped at: Completed 04-04-PLAN.md
 Resume file: None
