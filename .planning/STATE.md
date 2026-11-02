@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 04
 current_phase_name: r9 Userspace-Exec + Harvey↔r9 ABI
 status: executing
-stopped_at: Completed 04-04-PLAN.md
-last_updated: "2026-11-02T13:26:06.561Z"
+stopped_at: Completed 04-05-PLAN.md
+last_updated: "2026-11-02T14:00:22.176Z"
 last_activity: 2026-11-01
 last_activity_desc: Phase 04 execution started
-state_head: 4ddd608994b02ac424dcde01d5902e8390e52b86
+state_head: b8972aad687bbb551721d6542f8e0dd2a5d7027e
 progress:
   total_phases: 5
   completed_phases: 3
   total_plans: 25
-  completed_plans: 21
+  completed_plans: 22
   percent: 60
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 04 (r9 Userspace-Exec + Harvey↔r9 ABI) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-11-01 — Phase 04 execution started
 
@@ -79,6 +79,7 @@ Progress: [██████░░░░] 60%
 | Phase 04 P02 | 15min | 2 tasks | 9 files |
 | Phase 04 P03 | 8m | 3 tasks | 7 files |
 | Phase 04 P04 | 17min | 2 tasks | 10 files |
+| Phase 04 P05 | 31min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -130,6 +131,9 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-04: exec maps the two seed pages into the proc's INACTIVE root table via map_to's temp-recursive dance and writes contents via KZERO+PA aliases; the fault handler maps demand pages into the ACTIVE user table and writes through the user VA — two edit paths, split by table liveness
 - [Phase 04]: 04-04: fault handler kills on already-mapped-page faults (mapping_log lookup, the donor fault() existence check) — remapping a live page would silently zero its contents
 - [Phase 04]: 04-04: r9 user address-space policy constants landed (D-11): USTACKTOP=0x0000_8000_0000_0000, USTKSIZE=16 MiB, USTOP=USTACKTOP-16MiB in exec.rs
+- [Phase 04]: 04-05: trap-entry stack switch removed (9front no-switch shape) — the old entry poisoned every frame's x0 with the interrupt-stack address; EL0 entry only via trap_return
+- [Phase 04]: 04-05: staged-init supply chain landed — stage-build.sh (lima 7c/7l) → build/aarch64/out/ → cargo xtask initrd (mkpaqfs) → target/bootfs.paq; initrd path in config is workspace-relative (dtb emission base)
+- [Phase 04]: 04-05: WR-01 closed — TTBR0 identity map torn down at first exec with the console-liveness proof print; D-12 experiments deleted; tick print cfg(not(dev_exec))-gated (Pitfall 3)
 
 ### Pending Todos
 
@@ -154,6 +158,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T13:26:05.636Z
-Stopped at: Completed 04-04-PLAN.md
+Last session: 2026-11-02T14:00:22.121Z
+Stopped at: Completed 04-05-PLAN.md
 Resume file: None

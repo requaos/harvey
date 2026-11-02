@@ -115,7 +115,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. r9's first-process path loads a Harvey aarch64 `init` from an embedded root-fs or equivalent delivery, faulting in user text and growing the user stack (with icache maintenance after text load)
   4. A syscall smoke suite (rfork, notes, basic fd ops) runs from EL0 without kernel panic — exercised before the full shell is attempted
 
-**Plans**: 4/8 plans executed (7 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-7 are strictly sequential because each layer of the exec path is exercised by the next)
+**Plans**: 5/8 plans executed (7 waves; tracer-first — the 04-01 qemu -initrd /chosen probe is the end-to-end tracer; waves 3-7 are strictly sequential because each layer of the exec path is exercised by the next)
 
 **Wave 1**
 - [x] 04-01-PLAN.md — Falsification spikes (TRACER): qemu -initrd → DTB /chosen probe end-to-end + mkpaqfs host producer + committed paqfs fixture + D-14 donor syscall-trace artifact (R9-02/R9-03 substrate)
@@ -128,7 +128,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 04-04-PLAN.md — R9-03 exec machinery: Proc scaffolding + per-proc root tables + a.out loader + demand-fault handler with CTR_EL0 icache (D-09/D-11) + trap EC split — compile-verified on all configs (checker revision 1: split from the runtime gate)
 
 **Wave 4** *(blocked on Wave 3 — the gate consumes the compile-verified machinery)*
-- [ ] 04-05-PLAN.md — R9-03 runtime gate: staged-init pipeline (init.c/stage-build.sh/xtask initrd) + devroot + trap_return + main9 exec orchestration → first-SVC boot proof; D-10 teardown (WR-01 closed) + D-12 experiment removal
+- [x] 04-05-PLAN.md — R9-03 runtime gate: staged-init pipeline (init.c/stage-build.sh/xtask initrd) + devroot + trap_return + main9 exec orchestration → first-SVC boot proof; D-10 teardown (WR-01 closed) + D-12 experiment removal
 
 **Wave 5** *(blocked on Wave 4 — dispatch needs a running process)*
 - [ ] 04-06-PLAN.md — R9-02 dispatch: syscall table (measured set) + devcons fd ops (PREAD/PWRITE/OPEN/CLOSE/EXITS) + EXEC → SC#2 gate: committed hello.7.out prints on r9
@@ -165,5 +165,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Build-Tail Green (9k amd64) | 4/4 | Complete    | 2026-10-31 |
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
 | 3. r9 qemu-virt Platform Bring-up | 6/6 | Complete    | 2026-11-01 |
-| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 4/8 | In Progress|  |
+| 4. r9 Userspace-Exec + Harvey↔r9 ABI | 5/8 | In Progress|  |
 | 5. Shell Boot + One-Command Integration | 0/TBD | Not started | - |
