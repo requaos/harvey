@@ -1126,6 +1126,35 @@ fn boot_and_trace(cfg: &Cfg, tmpd: &Path) -> Result<Vec<u8>, String> {
         };
         eprintln!("== tracehello launched: pid {}", pid);
 
+        // the pid marker is NOT a prompt — the shell may still be printing
+        // its prompt when the trace command starts; an interleaved echo
+        // ("rterm% c /boot/trace.rc 196") breaks the parse's contiguous
+        // start-marker search. Wait for the anchored prompt first (the
+        // shell idle proof), THEN send. (The .py raced here and won by TCG
+        // timing luck; the gate hit it on the first Rust run.)
+        let prompt_re = crate::console::prompt_re();
+        let pbase = log.len();
+        let wdeadline = Instant::now() + Duration::from_secs(60);
+        loop {
+            if Instant::now() >= wdeadline {
+                crate::console::fail(
+                    &log,
+                    "trace-syscalls",
+                    "no prompt after the pid probe",
+                    &mut err,
+                );
+                return Err("no prompt after the pid probe".into());
+            }
+            if panic_re.is_match(&log.tail(8192)) {
+                crate::console::fail(&log, "trace-syscalls", "kernel fault at trace launch", &mut err);
+                return Err("kernel fault at trace launch".into());
+            }
+            if log.search_from(&prompt_re, pbase) {
+                break;
+            }
+            std::thread::sleep(Duration::from_millis(500));
+        }
+
         // run the trace loop (RESEARCH recipe, staged as /boot/trace.rc)
         let done_re = crate::regex::Regex::new("^__GSD_TRACE_LOOP_DONE__\r?$").unwrap();
         let base = log.len();
