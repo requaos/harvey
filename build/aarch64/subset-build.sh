@@ -53,6 +53,15 @@
 # Wrapper/env provides: limactl + openssh + rsync on PATH (nix
 # devshell on darwin), same as vm-run.sh.
 #
+# Platforms (05-11, D-10 — the compose app invokes this one driver on
+# both hosts): darwin drives the lima guest as above; linux runs the
+# SAME generated guest script natively under nsrun.sh's sudo-unshare
+# namespace entry — no lima, no rsync (the namespace bind-mounts the
+# real checkout, so artifacts land in place and the rsync-back steps
+# are skipped).  The native leg bootstraps the host toolchain
+# (.build/hostbin-linux-*) via nix run .#setup / .#toolchain when the
+# 7c/ar sentinels are missing (vm-run.sh's guest-side equivalent).
+#
 # usage: sh build/aarch64/subset-build.sh   (from the repo root,
 # inside the nix devshell)
 
@@ -70,13 +79,39 @@ err() { echo "error: $*" >&2; exit 1; }
 [ -f "$HARVEY/sys/src/libsec/aarch64/mkfile" ] || err "sys/src/libsec/aarch64/mkfile missing (plan 02-07 Task 1 stub)"
 [ -d "$HARVEY/aarch64" ] || err "aarch64/ arch dir missing — plan 02-06 wiring is a precondition"
 
-command -v limactl >/dev/null 2>&1 || err "limactl not found — run inside the nix devshell"
-if ! limactl list -q 2>/dev/null | /usr/bin/grep -qx "$VM"; then
-	err "lima VM '$VM' does not exist"
+# Platform split (05-11, D-10): linux runs natively (sudo unshare via
+# nsrun.sh); darwin drives the lima guest.  The guest script below and
+# the host-side asserts are shared by both legs.
+NATIVE_LINUX=
+if [ "$(uname -s)" = "Linux" ]; then
+	NATIVE_LINUX=1
 fi
-status=$(limactl list --format '{{.Status}}' "$VM" 2>/dev/null || echo unknown)
-if [ "$status" != "Running" ]; then
-	limactl start "$VM"
+
+if [ -n "$NATIVE_LINUX" ]; then
+	# host toolchain for the namespace build (the vm-run.sh guest-side
+	# ensure, host-side).  HARVEY must be EXPORTED here: nsrun.sh's
+	# --wrap captures `export` output and re-sources it inside the
+	# namespace, and the guest script addresses "$HARVEY"/... paths.
+	export HARVEY
+	_hb_arch=$(uname -m); [ "$_hb_arch" = "arm64" ] && _hb_arch=aarch64
+	HARVEY_LINUX_BIN="${HARVEY_LINUX_BIN:-$HARVEY/.build/hostbin-linux-$_hb_arch/bin}"
+	export HARVEY_LINUX_BIN
+	if [ ! -x "$HARVEY_LINUX_BIN/7c" ] || [ ! -x "$HARVEY_LINUX_BIN/ar" ]; then
+		echo "== host toolchain missing — bootstrapping (nix run .#setup && nix run .#toolchain)"
+		(cd "$HARVEY" && nix run .#setup && nix run .#toolchain) || err "host toolchain bootstrap failed"
+	fi
+	# the devshell-env vars the guest script's mk invocations expect
+	# (the lima guest gets these from nix develop's shellHook)
+	export FORCERCFORMK=1 CGO_ENABLED=0 objtype=amd64 cputype=unix
+else
+	command -v limactl >/dev/null 2>&1 || err "limactl not found — run inside the nix devshell"
+	if ! limactl list -q 2>/dev/null | /usr/bin/grep -qx "$VM"; then
+		err "lima VM '$VM' does not exist"
+	fi
+	status=$(limactl list --format '{{.Status}}' "$VM" 2>/dev/null || echo unknown)
+	if [ "$status" != "Running" ]; then
+		limactl start "$VM"
+	fi
 fi
 
 SSH_CFG="$HOME/.lima/$VM/ssh.config"
@@ -189,13 +224,21 @@ ls /aarch64/bin/auth
 echo "SUBSET-BUILD-OK"
 GUEST_EOF
 
-echo "== pushing the guest subset-build script"
-rsync -a -e "$RSYNC_RSH" "$TMPD/subset-build-guest.sh" "$GUEST:/tmp/gsd-subset-build-guest.sh"
-
 mkdir -p "$HARVEY/.build"
-echo "== running the subset build in the guest namespace (log: $LOG)"
 set +e
-sh "$HARVEY/build/aarch64/vm-run.sh" 'bash /tmp/gsd-subset-build-guest.sh' > "$LOG" 2>&1
+if [ -n "$NATIVE_LINUX" ]; then
+	echo "== running the subset build natively (sudo unshare namespace; log: $LOG)"
+	# hostbin FIRST so the namespace's mk/7a/7c/7l/ar resolve (the
+	# devshell's PATH shape); nsrun.sh's su line appends /rc/bin:.
+	# itself.
+	export PATH="$HARVEY_LINUX_BIN:$PATH"
+	bash "$HARVEY/build/aarch64/nsrun.sh" --wrap "bash $TMPD/subset-build-guest.sh" > "$LOG" 2>&1
+else
+	echo "== pushing the guest subset-build script"
+	rsync -a -e "$RSYNC_RSH" "$TMPD/subset-build-guest.sh" "$GUEST:/tmp/gsd-subset-build-guest.sh"
+	echo "== running the subset build in the guest namespace (log: $LOG)"
+	sh "$HARVEY/build/aarch64/vm-run.sh" 'bash /tmp/gsd-subset-build-guest.sh' > "$LOG" 2>&1
+fi
 RC=$?
 set -e
 cat "$LOG"
@@ -206,26 +249,32 @@ if [ $RC -ne 0 ]; then
 fi
 /usr/bin/grep -q 'SUBSET-BUILD-OK' "$LOG" || err "guest build log lacks SUBSET-BUILD-OK"
 
-# rsync the resulting /aarch64/bin tree back to the host checkout
-# (gitignored: /aarch64/*bin)
-echo "== pulling the subset tree back to host aarch64/bin"
-mkdir -p "$HARVEY/aarch64/bin"
-rsync -a --delete -e "$RSYNC_RSH" \
-	"$GUEST:$GUEST_DIR/aarch64/bin/" "$HARVEY/aarch64/bin/"
+if [ -z "$NATIVE_LINUX" ]; then
+	# rsync the resulting /aarch64/bin tree back to the host checkout
+	# (gitignored: /aarch64/*bin)
+	echo "== pulling the subset tree back to host aarch64/bin"
+	mkdir -p "$HARVEY/aarch64/bin"
+	rsync -a --delete -e "$RSYNC_RSH" \
+		"$GUEST:$GUEST_DIR/aarch64/bin/" "$HARVEY/aarch64/bin/"
 
-# 05-02: pull the boot-chain binaries back to the host's gitignored
-# build/aarch64/out/.  Individual-file sync (no --delete):
-# stage-build.sh owns out/ wholesale for the staged-init supply chain
-# (--delete there) — last writer wins; mkimage.sh's manifest assert
-# names subset-build.sh as the fix when its inputs are absent.
-echo "== pulling the boot-chain binaries back to host build/aarch64/out"
-mkdir -p "$HARVEY/build/aarch64/out"
-rsync -a -e "$RSYNC_RSH" \
-	"$GUEST:$GUEST_DIR/build/aarch64/out/boot" \
-	"$GUEST:$GUEST_DIR/build/aarch64/out/init" \
-	"$GUEST:$GUEST_DIR/build/aarch64/out/paqfs" \
-	"$GUEST:$GUEST_DIR/build/aarch64/out/stacksmoke" \
-	"$HARVEY/build/aarch64/out/"
+	# 05-02: pull the boot-chain binaries back to the host's gitignored
+	# build/aarch64/out/.  Individual-file sync (no --delete):
+	# stage-build.sh owns out/ wholesale for the staged-init supply chain
+	# (--delete there) — last writer wins; mkimage.sh's manifest assert
+	# names subset-build.sh as the fix when its inputs are absent.
+	echo "== pulling the boot-chain binaries back to host build/aarch64/out"
+	mkdir -p "$HARVEY/build/aarch64/out"
+	rsync -a -e "$RSYNC_RSH" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/boot" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/init" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/paqfs" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/stacksmoke" \
+		"$HARVEY/build/aarch64/out/"
+else
+	# native linux: the namespace bound the real checkout — the subset
+	# tree and out/ binaries are already in place.
+	echo "== native build: artifacts already in place (no rsync-back)"
+fi
 
 # assert the sixteen expected binaries on the host side
 for f in rc grep cat cp date echo ls mkdir mv ps rm sed test wc; do
