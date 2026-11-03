@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Shell Boot + One-Command Integration
 status: executing
-stopped_at: Completed 05-03-PLAN.md
-last_updated: "2026-11-03T04:58:16.271Z"
+stopped_at: Completed 05-04-PLAN.md
+last_updated: "2026-11-03T05:59:24.104Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 05 execution started
-state_head: a624fc1816010193c3c8332b1d78556f05ce7ad5
+state_head: 2a53066a26eb93ef89d269c108920e3da69bc237
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 38
-  completed_plans: 28
-  percent: 74
+  completed_plans: 29
+  percent: 76
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
-Plan: 4 of 13
+Plan: 5 of 13
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 05 execution started
 
-Progress: [███████░░░] 74%
+Progress: [████████░░] 76%
 
 ## Performance Metrics
 
@@ -87,6 +87,7 @@ Progress: [███████░░░] 74%
 | Phase 05 P01 | 64 min | 3 tasks | 11 files |
 | Phase 05 P02 | 15 min | 3 tasks | 9 files |
 | Phase 05 P03 | 225 min | 2 tasks | 7 files |
+| Phase 05 P04 | 55 min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -162,6 +163,12 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-03: the real-chain donor trace is the measure-first gate for the kernel stream — 26 syscalls measured (16 NEW vs Phase 4: bind, chdir, dup, alarm, fauth, sleep, pipe, create, fd2path, brk_, unmount, seek, fversion, stat, fstat, mount); 05-04..05-09 implement exactly this set — Measured on the 9front donor with the 05-03 rig (born-traced arming + tagged fragments); opencons provably captured; REMOVE/WSTAT never fired (loud-unimplemented stays)
 - [Phase 05]: 05-03: donor trace accommodations that do NOT carry to r9: devcons /dev/cons reads Egreg by design on the donor (kbdfs-served consoles) so the sweep was sourced not typed; r9's devcons serves reads (D-06) and 05-09 drives the console for real — opencons's bind #c MBEFORE pins the kernel cons into the chain's fd 0 on the donor; the donor's devcons refuses Qcons reads (Egreg) — the trace termrc sources the sweep instead
 - [Phase 05]: 05-03 finding for 05-08: the image's scoped /lib/namespace needs the k10root-style re-mount (mount -a #s/boot /root; bind -a /root /) BEFORE its /root-prefixed bin binds — newns's RFCNAMEG wipe discards boot's mount table — proven empirically on the donor: the trace namespace file with exactly that shape let init's newns resolve /bin/rc; without it the replay fails soft and init's exec stalls
+- [Phase 05]: exec maps data+bss eagerly (05-04): phase-04 deferred #3 lands — real binaries pass cold syscall-arg pages; T-05-06 no-nested-paging holds; D-09 pinned wording (text fault-in + stack growth) untouched
+- [Phase 05]: rfork namespace semantics follow fork(2)/9k sysrfork (05-04 plan-text inversion corrected): RFPROC+neither shares Arc<Lock<Pgrp>>, RFNAMEG deep-copies, RFCNAMEG wipes; non-RFPROC split re-groups the caller
+- [Phase 05]: staged init binds #p at /proc itself (donor shape) — the namespace era retired the routing scaffold; xtask initrd tree ships empty proc/ (Pitfall-8)
+- [Phase 05]: /rootfs.img synthesized by devroot pulled forward from 05-05 Task 2 (the 05-04 gate needs dirstat(paqfile)); real image entry always wins; 05-05 hardens
+- [Phase 05]: sys_brk_ landed in 05-04 per the dispatch-note mandate (brk_ ×28); boot dirstat mallocs are gate-load-bearing; brk_ = bss-break set with USTOP cap
+- [Phase 05]: multi-config verify ordering: all aarch64 configs share target/.../debug/aarch64 — the config under gate must build LAST (the raspi4b leg otherwise overwrites the virtshell ELF)
 
 ### Pending Todos
 
@@ -189,6 +196,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T04:58:16.206Z
-Stopped at: Completed 05-03-PLAN.md
+Last session: 2026-11-03T05:59:07.391Z
+Stopped at: Completed 05-04-PLAN.md
 Resume file: None

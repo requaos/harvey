@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 8
+open_count: 11
 waived_count: 1
 fixed_count: 1
-total_count: 10
-last_updated: 2026-11-02T18:41:05.291Z
+total_count: 13
+last_updated: 2026-11-03T05:59:51.532Z
 ---
 
 # Broken Windows Ledger
@@ -25,6 +25,9 @@ last_updated: 2026-11-02T18:41:05.291Z
 | 8 | 04 | deviation | .planning/phases/04-r9-userspace-exec-harvey-r9-abi/04-05-PLAN.md |  | 04-05: plan's Task-2 raw-qemu verify leg written against the pre-amendment -initrd mechanism (falsified 04-01, D-01 AMENDED); executed with the amended loader+patched-DTB delivery, grep chain unchanged | fixed |  | 2026-11-02T13:58:26.801Z | 2026-11-02T13:58:40.779Z |
 | 9 | 04 | deviation | .planning/phases/04-r9-userspace-exec-harvey-r9-abi/04-05-PLAN.md |  | test-shape-probe | waived | Accidental probe entry appended while checking the windows CLI output shape (executor error, no content); the real entry is #8. | 2026-11-02T13:58:30.416Z | 2026-11-02T13:58:40.990Z |
 | 10 | 04 | deviation | .planning/phases/04-r9-userspace-exec-harvey-r9-abi/deferred-items.md |  | 04-07: exec_bootstrap IRQ-masked until first EL0 entry (heisenbug exposure closed by construction; root cause = deferred-items #4) | open |  | 2026-11-02T18:41:05.291Z |  |
+| 11 | 05 | stub | r9:port/src/devcons.rs |  | cons reads return loud -1 until 05-08 wires the PL011 RX ring through the device (plan-mandated; open succeeds) | open |  | 2026-11-03T05:59:51.093Z |  |
+| 12 | 05 | stub | r9:port/src/devproc.rs |  | devproc directory reads + status/args absent this plan; 05-08/05-09 grow them (ps needs /proc/*/status) | open |  | 2026-11-03T05:59:51.314Z |  |
+| 13 | 05 | deviation | r9:aarch64/src/exec.rs |  | exec maps data+bss eagerly (cold syscall-arg residency) — D-09-letter adjustment, T-05-06 honored; phase-04 deferred #3 closed for the argument class | open |  | 2026-11-03T05:59:51.532Z |  |
 
 ````json
 [
@@ -155,6 +158,45 @@ last_updated: 2026-11-02T18:41:05.291Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-02T18:41:05.291Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 11,
+    "kind": "stub",
+    "phase": "05",
+    "file": "r9:port/src/devcons.rs",
+    "line": null,
+    "description": "cons reads return loud -1 until 05-08 wires the PL011 RX ring through the device (plan-mandated; open succeeds)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T05:59:51.093Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 12,
+    "kind": "stub",
+    "phase": "05",
+    "file": "r9:port/src/devproc.rs",
+    "line": null,
+    "description": "devproc directory reads + status/args absent this plan; 05-08/05-09 grow them (ps needs /proc/*/status)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T05:59:51.314Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 13,
+    "kind": "deviation",
+    "phase": "05",
+    "file": "r9:aarch64/src/exec.rs",
+    "line": null,
+    "description": "exec maps data+bss eagerly (cold syscall-arg residency) — D-09-letter adjustment, T-05-06 honored; phase-04 deferred #3 closed for the argument class",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T05:59:51.532Z",
     "resolved_at": null,
     "milestone": null
   }
