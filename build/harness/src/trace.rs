@@ -1106,7 +1106,7 @@ fn boot_and_trace(cfg: &Cfg, tmpd: &Path) -> Result<Vec<u8>, String> {
         let base = log.len();
         crate::console::paced_send(&s, b"/boot/tracehello &; echo __GSD_PID__$apid\r");
         let pdeadline = Instant::now() + Duration::from_secs(60);
-        let pid: u32 = loop {
+        let (pid, pid_marker_end): (u32, usize) = loop {
             if Instant::now() >= pdeadline {
                 crate::console::fail(&log, "trace-syscalls", "no pid probe output", &mut err);
                 return Err("no pid probe output".into());
@@ -1117,23 +1117,23 @@ fn boot_and_trace(cfg: &Cfg, tmpd: &Path) -> Result<Vec<u8>, String> {
             }
             if let Some(m) = log.find_from(&pid_re, base) {
                 let buf = log.snapshot();
-                break m
-                    .group_str(1, &buf)
-                    .and_then(|g| g.parse().ok())
-                    .unwrap_or(0);
+                let p: u32 = m.group_str(1, &buf).and_then(|g| g.parse().ok()).unwrap_or(0);
+                break (p, m.span.end);
             }
             std::thread::sleep(Duration::from_millis(500));
         };
         eprintln!("== tracehello launched: pid {}", pid);
 
-        // the pid marker is NOT a prompt — the shell may still be printing
-        // its prompt when the trace command starts; an interleaved echo
-        // ("rterm% c /boot/trace.rc 196") breaks the parse's contiguous
-        // start-marker search. Wait for the anchored prompt first (the
-        // shell idle proof), THEN send. (The .py raced here and won by TCG
-        // timing luck; the gate hit it on the first Rust run.)
-        let prompt_re = crate::console::prompt_re();
-        let pbase = log.len();
+        // the pid marker is NOT a prompt — rc may still be printing 'term% '
+        // when the trace command starts; an interleaved echo ("rterm% c
+        // /boot/trace.rc 196") breaks the parse's contiguous start-marker
+        // search. Wait for the fresh prompt to appear (its print is a single
+        // flushed write — presence means rc is idle), then send immediately:
+        // tracehello's ~15s pure-compute spin (calibrated, see
+        // tracehello.c) leaves a wide quiet window before its first print.
+        // (The .py raced here and won by TCG timing luck; the gate hit it on
+        // the first Rust run.)
+        let prompt_substr = crate::regex::Regex::new("term% ").unwrap();
         let wdeadline = Instant::now() + Duration::from_secs(60);
         loop {
             if Instant::now() >= wdeadline {
@@ -1149,10 +1149,12 @@ fn boot_and_trace(cfg: &Cfg, tmpd: &Path) -> Result<Vec<u8>, String> {
                 crate::console::fail(&log, "trace-syscalls", "kernel fault at trace launch", &mut err);
                 return Err("kernel fault at trace launch".into());
             }
-            if log.search_from(&prompt_re, pbase) {
+            // search after the pid marker (its span end — the buffer is
+            // append-only under the 256MiB window, so the span stays valid)
+            if log.find_from(&prompt_substr, pid_marker_end).is_some() {
                 break;
             }
-            std::thread::sleep(Duration::from_millis(500));
+            std::thread::sleep(Duration::from_millis(100));
         }
 
         // run the trace loop (RESEARCH recipe, staged as /boot/trace.rc)
