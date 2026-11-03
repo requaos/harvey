@@ -23,8 +23,11 @@
 //! Rerror "read only".
 
 use std::collections::HashMap;
+use std::fs;
 use std::io::{Read, Write};
 use std::net::{TcpListener, TcpStream};
+use std::os::unix::ffi::OsStrExt;
+use std::os::unix::fs::MetadataExt;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex};
 use std::thread;
@@ -110,41 +113,636 @@ pub fn realpath(p: &Path) -> PathBuf {
 }
 
 /// Serve connections on `listener` forever (one thread per connection).
-/// RED-phase stub: accepts and Rerrors everything until GREEN lands.
-pub fn serve(listener: TcpListener, _root: &Path, _writable: &[String]) -> std::io::Result<()> {
+pub fn serve(listener: TcpListener, root: &Path, writable: &[String]) -> std::io::Result<()> {
+    let srv = Arc::new(Shared::new(root, writable));
     for conn in listener.incoming() {
         match conn {
             Ok(c) => {
-                thread::spawn(move || loop {
-                    // read the 4-byte size, then the rest of the frame
-                    let mut hdr = [0u8; 4];
-                    if (&c).read_exact(&mut hdr).is_err() {
-                        break;
-                    }
-                    let size = u32::from_le_bytes(hdr) as usize;
-                    if size < 7 || size > MAXMSIZE as usize + 24 {
-                        break; // T-GIQ-01 frame guard (kept in the stub)
-                    }
-                    let mut rest = vec![0u8; size - 4];
-                    if (&c).read_exact(&mut rest).is_err() {
-                        break;
-                    }
-                    let tag = u16::from_le_bytes([rest[1], rest[2]]);
-                    let mut out = Vec::new();
-                    let payload = pstr(b"srv9: unimplemented (RED stub)");
-                    out.extend_from_slice(&p32(4 + 1 + 2 + payload.len() as u32));
-                    out.push(RERROR);
-                    out.extend_from_slice(&p16(tag));
-                    out.extend_from_slice(&payload);
-                    if (&c).write_all(&out).is_err() {
-                        break;
-                    }
-                });
+                let srv = srv.clone();
+                thread::spawn(move || serveconn(srv, c));
             }
             Err(_) => continue,
         }
     }
     Ok(())
+}
+
+struct Shared {
+    root: PathBuf,      // canonicalized served root
+    wr: Vec<PathBuf>,   // canonicalized writable prefixes (host-side)
+    vmap: Mutex<HashMap<PathBuf, u32>>, // realpath -> qid version (bumps on mutation)
+}
+
+impl Shared {
+    fn new(root: &Path, writable: &[String]) -> Shared {
+        let root = realpath(root);
+        let wr = writable
+            .iter()
+            .map(|p| realpath(&root.join(p.trim_start_matches('/'))))
+            .collect();
+        Shared {
+            root,
+            wr,
+            vmap: Mutex::new(HashMap::new()),
+        }
+    }
+
+    fn writable(&self, path: &Path) -> bool {
+        let real = realpath(path);
+        self.wr.iter().any(|p| real == *p || real.starts_with(p))
+    }
+
+    fn bump(&self, path: &Path) {
+        let real = realpath(path);
+        let mut vmap = self.vmap.lock().unwrap();
+        *vmap.entry(real).or_insert(0) += 1;
+    }
+
+    fn qidfor(&self, path: &Path) -> Qid {
+        let real = realpath(path);
+        let vers = self.vmap.lock().unwrap().get(&real).copied().unwrap_or(0);
+        match fs::metadata(path) {
+            Ok(md) => {
+                let mut ino = md.ino();
+                if ino == 0 {
+                    ino = hash_path(path);
+                }
+                Qid {
+                    qtype: if md.is_dir() { QTDIR } else { 0 },
+                    vers,
+                    path: ino,
+                }
+            }
+            Err(_) => Qid {
+                qtype: 0,
+                vers,
+                path: hash_path(path),
+            },
+        }
+    }
+
+    /// stat(5) bytes for `path` (with the stat's own u16 size prefix).
+    /// Writable paths report honest 0777/0666 modes (dirstat honesty so a
+    /// -C cached mount sees reality); read-only paths report 0555.
+    fn statbytes(&self, path: &Path, name: Option<&str>) -> Result<Vec<u8>, P9Error> {
+        let st = fs::symlink_metadata(path).map_err(|_| P9Error("file does not exist".into()))?;
+        let name = match name {
+            Some(n) => n.to_string(),
+            None => path
+                .file_name()
+                .map(|n| n.to_string_lossy().into_owned())
+                .unwrap_or_else(|| "/".to_string()),
+        };
+        let isdir = st.is_dir();
+        let q = self.qidfor(path);
+        let mode = if self.writable(path) {
+            if isdir {
+                DMDIR | 0o777
+            } else {
+                0o666
+            }
+        } else {
+            if isdir {
+                DMDIR | 0o555
+            } else {
+                0o555
+            }
+        };
+        let length = if isdir { 0 } else { st.len() };
+        let mtime = st.mtime() as u32;
+        let mut body = Vec::new();
+        body.extend_from_slice(&p16(0)); // type (dev type — unused)
+        body.extend_from_slice(&p32(0)); // dev
+        body.extend_from_slice(&q.encode());
+        body.extend_from_slice(&p32(mode));
+        body.extend_from_slice(&p32(mtime)); // atime
+        body.extend_from_slice(&p32(mtime)); // mtime
+        body.extend_from_slice(&p64(length));
+        body.extend_from_slice(&pstr(name.as_bytes()));
+        body.extend_from_slice(&pstr(b"glenda")); // uid
+        body.extend_from_slice(&pstr(b"glenda")); // gid
+        body.extend_from_slice(&pstr(b"glenda")); // muid
+        let mut out = Vec::with_capacity(2 + body.len());
+        out.extend_from_slice(&p16(body.len() as u16));
+        out.extend_from_slice(&body);
+        Ok(out)
+    }
+}
+
+/// FNV-1a fallback qid path when st_ino is unavailable (mirrors the .py's
+/// abs(hash(path)) fallback — stable within a process run).
+fn hash_path(p: &Path) -> u64 {
+    let mut h: u64 = 0xcbf2_9ce4_8422_2325;
+    for &b in p.as_os_str().as_bytes() {
+        h ^= b as u64;
+        h = h.wrapping_mul(0x100_0000_01b3);
+    }
+    h
+}
+
+pub struct Qid {
+    pub qtype: u8,
+    pub vers: u32,
+    pub path: u64,
+}
+
+impl Qid {
+    pub fn encode(&self) -> [u8; 13] {
+        let mut out = [0u8; 13];
+        out[0] = self.qtype;
+        out[1..5].copy_from_slice(&self.vers.to_le_bytes());
+        out[5..13].copy_from_slice(&self.path.to_le_bytes());
+        out
+    }
+}
+
+struct Fid {
+    path: PathBuf,
+    #[allow(dead_code)]
+    open: bool,
+    dirbuf: Option<Vec<u8>>,
+    dirents: Option<Vec<usize>>,
+}
+
+impl Fid {
+    fn new(path: PathBuf) -> Fid {
+        Fid {
+            path,
+            open: false,
+            dirbuf: None,
+            dirents: None,
+        }
+    }
+}
+
+struct P9Error(String);
+
+/// Bounds-checked little-endian payload reader (T-GIQ-01: no panic paths on
+/// malformed frames — short reads become Rerror).
+struct Rd<'a> {
+    b: &'a [u8],
+    off: usize,
+}
+
+impl<'a> Rd<'a> {
+    fn new(b: &'a [u8]) -> Rd<'a> {
+        Rd { b, off: 0 }
+    }
+    fn g16(&mut self) -> Result<u16, P9Error> {
+        if self.off + 2 > self.b.len() {
+            return Err(P9Error("malformed message".into()));
+        }
+        let v = u16::from_le_bytes([self.b[self.off], self.b[self.off + 1]]);
+        self.off += 2;
+        Ok(v)
+    }
+    fn g32(&mut self) -> Result<u32, P9Error> {
+        if self.off + 4 > self.b.len() {
+            return Err(P9Error("malformed message".into()));
+        }
+        let v = u32::from_le_bytes([
+            self.b[self.off],
+            self.b[self.off + 1],
+            self.b[self.off + 2],
+            self.b[self.off + 3],
+        ]);
+        self.off += 4;
+        Ok(v)
+    }
+    fn g64(&mut self) -> Result<u64, P9Error> {
+        let lo = self.g32()? as u64;
+        let hi = self.g32()? as u64;
+        Ok(lo | (hi << 32))
+    }
+    fn gstr(&mut self) -> Result<String, P9Error> {
+        let n = self.g16()? as usize;
+        if self.off + n > self.b.len() {
+            return Err(P9Error("malformed message".into()));
+        }
+        let s = String::from_utf8_lossy(&self.b[self.off..self.off + n]).into_owned();
+        self.off += n;
+        Ok(s)
+    }
+    fn rest(&self, n: usize) -> &'a [u8] {
+        // clamp like the .py's slice semantics (short frames yield short data)
+        let avail = self.b.len().saturating_sub(self.off);
+        &self.b[self.off..self.off + n.min(avail)]
+    }
+}
+
+/// Materialize the fid's directory listing (sorted, dotfiles skipped) and
+/// remember the whole-entry end offsets.
+fn dirlisting(srv: &Shared, f: &mut Fid) {
+    if f.dirbuf.is_some() {
+        return;
+    }
+    let mut ents = Vec::new();
+    let mut ends = Vec::new();
+    let mut off = 0usize;
+    let names: Vec<String> = match fs::read_dir(&f.path) {
+        Ok(rd) => {
+            let mut v: Vec<String> = rd
+                .filter_map(|e| e.ok())
+                .map(|e| e.file_name().to_string_lossy().into_owned())
+                .collect();
+            v.sort();
+            v
+        }
+        Err(_) => Vec::new(),
+    };
+    for n in names {
+        if n.starts_with('.') {
+            continue;
+        }
+        if let Ok(b) = srv.statbytes(&f.path.join(&n), Some(&n)) {
+            off += b.len();
+            ents.extend_from_slice(&b);
+            ends.push(off);
+        }
+    }
+    f.dirbuf = Some(ents);
+    f.dirents = Some(ends);
+}
+
+fn resolve(fids: &HashMap<u32, Fid>, fid: u32) -> Result<&Fid, P9Error> {
+    fids.get(&fid).ok_or_else(|| P9Error("unknown fid".into()))
+}
+
+fn resolve_mut(fids: &mut HashMap<u32, Fid>, fid: u32) -> Result<&mut Fid, P9Error> {
+    fids.get_mut(&fid).ok_or_else(|| P9Error("unknown fid".into()))
+}
+
+fn dropdircache(fids: &mut HashMap<u32, Fid>) {
+    // a mutation invalidated cached directory listings on every fid of this
+    // connection (the .py cleared a shared table; per-conn here, IN-04)
+    for f in fids.values_mut() {
+        f.dirbuf = None;
+        f.dirents = None;
+    }
+}
+
+fn handle(
+    srv: &Shared,
+    fids: &mut HashMap<u32, Fid>,
+    ctype: u8,
+    p: &[u8],
+) -> Result<(u8, Vec<u8>), P9Error> {
+    match ctype {
+        TVERSION => {
+            let mut r = Rd::new(p);
+            let msize = r.g32()?;
+            // version string follows; we speak 9P2000 only
+            fids.clear();
+            let mut out = Vec::new();
+            out.extend_from_slice(&p32(msize.min(MAXMSIZE)));
+            out.extend_from_slice(&pstr(VERSION));
+            Ok((RVERSION, out))
+        }
+        TAUTH => Err(P9Error("authentication not required".into())),
+        TFLUSH => Ok((RFLUSH, Vec::new())),
+        TATTACH => {
+            let mut r = Rd::new(p);
+            let fid = r.g32()?;
+            let _afid = r.g32()?;
+            // uname/aname strings after; we serve the root regardless
+            fids.insert(fid, Fid::new(srv.root.clone()));
+            Ok((RATTACH, srv.qidfor(&srv.root).encode().to_vec()))
+        }
+        TWALK => {
+            let mut r = Rd::new(p);
+            let fid = r.g32()?;
+            let newfid = r.g32()?;
+            let nw = r.g16()? as usize;
+            let mut names = Vec::with_capacity(nw);
+            for _ in 0..nw {
+                names.push(r.gstr()?);
+            }
+            let mut cur = resolve(fids, fid)?.path.clone();
+            let mut qids: Vec<u8> = Vec::new();
+            let mut ok = true;
+            for n in &names {
+                if n == "." {
+                    // no-op
+                } else if n == ".." {
+                    // clamped at the served root: '..' at root stays at root
+                    if cur != srv.root {
+                        if let Some(parent) = cur.parent() {
+                            if parent == srv.root || parent.starts_with(&srv.root) {
+                                cur = parent.to_path_buf();
+                            }
+                        }
+                    }
+                } else {
+                    let nxt = cur.join(n);
+                    let real = realpath(&nxt);
+                    if !(real == srv.root || real.starts_with(&srv.root)) {
+                        ok = false;
+                        break;
+                    }
+                    if !nxt.exists() {
+                        ok = false;
+                        break;
+                    }
+                    cur = nxt;
+                }
+                qids.extend_from_slice(&srv.qidfor(&cur).encode());
+            }
+            let mut out = Vec::new();
+            if !ok && qids.is_empty() {
+                return Err(P9Error("file does not exist".into()));
+            }
+            let nq = qids.len() / 13;
+            out.extend_from_slice(&p16(nq as u16));
+            out.extend_from_slice(&qids);
+            if ok {
+                fids.insert(newfid, Fid::new(cur));
+            }
+            Ok((RWALK, out))
+        }
+        TOPEN => {
+            let mut r = Rd::new(p);
+            let fid = r.g32()?;
+            let f = resolve_mut(fids, fid)?;
+            if !f.path.exists() {
+                return Err(P9Error("file does not exist".into()));
+            }
+            f.open = true;
+            f.dirbuf = None;
+            let mut out = srv.qidfor(&f.path).encode().to_vec();
+            out.extend_from_slice(&p32(0)); // iounit
+            Ok((ROPEN, out))
+        }
+        TREAD => {
+            let mut r = Rd::new(p);
+            let fid = r.g32()?;
+            let offset = r.g64()?;
+            let count = r.g32()?;
+            let f = resolve_mut(fids, fid)?;
+            if f.path.is_dir() {
+                dirlisting(srv, f);
+                let buf = f.dirbuf.as_ref().unwrap();
+                let ends = f.dirents.as_ref().unwrap();
+                let offset = offset as usize;
+                let mut out = Vec::new();
+                if offset >= buf.len() {
+                    out.extend_from_slice(&p32(0));
+                    return Ok((RREAD, out));
+                }
+                // whole entries only: the largest set of entries in
+                // [offset, offset+count)
+                let end = offset + count as usize;
+                let mut n = 0usize;
+                for &e in ends {
+                    if e <= offset {
+                        continue;
+                    }
+                    if e > end {
+                        break;
+                    }
+                    n = e;
+                }
+                if n == 0 {
+                    // a single entry larger than count cannot happen with a
+                    // sane msize; return empty (client retries/EOF)
+                    out.extend_from_slice(&p32(0));
+                    return Ok((RREAD, out));
+                }
+                out.extend_from_slice(&p32((n - offset) as u32));
+                out.extend_from_slice(&buf[offset..n]);
+                return Ok((RREAD, out));
+            }
+            let data = (|| -> Result<Vec<u8>, P9Error> {
+                use std::io::{Read, Seek, SeekFrom};
+                let mut fp = fs::File::open(&f.path).map_err(|_| P9Error("i/o error".into()))?;
+                fp.seek(SeekFrom::Start(offset))
+                    .map_err(|_| P9Error("i/o error".into()))?;
+                let mut buf = vec![0u8; count as usize];
+                let n = fp.read(&mut buf).map_err(|_| P9Error("i/o error".into()))?;
+                buf.truncate(n);
+                Ok(buf)
+            })()?;
+            let mut out = Vec::new();
+            out.extend_from_slice(&p32(data.len() as u32));
+            out.extend_from_slice(&data);
+            Ok((RREAD, out))
+        }
+        TSTAT => {
+            let mut r = Rd::new(p);
+            let fid = r.g32()?;
+            let f = resolve(fids, fid)?;
+            if !f.path.exists() {
+                return Err(P9Error("file does not exist".into()));
+            }
+            let sb = srv.statbytes(&f.path, None)?;
+            let mut out = Vec::new();
+            out.extend_from_slice(&p16(sb.len() as u16));
+            out.extend_from_slice(&sb);
+            Ok((RSTAT, out))
+        }
+        TCLUNK => {
+            let mut r = Rd::new(p);
+            let fid = r.g32()?;
+            fids.remove(&fid);
+            Ok((RCLUNK, Vec::new()))
+        }
+        TCREATE => {
+            let mut r = Rd::new(p);
+            let fid = r.g32()?;
+            let name = r.gstr()?;
+            let perm = r.g32()?;
+            // (mode byte follows; unused, as in the .py)
+            if !srv.writable(&resolve(fids, fid)?.path) {
+                return Err(P9Error("read only".into()));
+            }
+            {
+                let f = resolve(fids, fid)?;
+                if !f.path.is_dir() {
+                    return Err(P9Error("not a directory".into()));
+                }
+            }
+            if name.is_empty() || name == "." || name == ".." || name.contains('/') {
+                return Err(P9Error("bad name in create".into()));
+            }
+            let npath = resolve(fids, fid)?.path.join(&name);
+            if perm & DMDIR != 0 {
+                fs::create_dir(&npath).map_err(|e| {
+                    if e.kind() == std::io::ErrorKind::AlreadyExists {
+                        P9Error("file exists".into())
+                    } else {
+                        P9Error("i/o error".into())
+                    }
+                })?;
+            } else {
+                use std::os::unix::fs::OpenOptionsExt;
+                let r = fs::OpenOptions::new()
+                    .write(true)
+                    .create_new(true)
+                    .mode(0o666)
+                    .open(&npath);
+                match r {
+                    Ok(_) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::AlreadyExists => {
+                        return Err(P9Error("file exists".into()))
+                    }
+                    Err(_) => return Err(P9Error("i/o error".into())),
+                }
+            }
+            srv.bump(&resolve(fids, fid)?.path); // parent dir listing changed
+            srv.bump(&npath);
+            dropdircache(fids);
+            {
+                let f = resolve_mut(fids, fid)?;
+                f.path = npath.clone();
+                f.open = true;
+                f.dirbuf = None;
+                f.dirents = None;
+            }
+            let mut out = srv.qidfor(&npath).encode().to_vec();
+            out.extend_from_slice(&p32(0));
+            Ok((RCREATE, out))
+        }
+        TWRITE => {
+            let mut r = Rd::new(p);
+            let fid = r.g32()?;
+            let offset = r.g64()?;
+            let count = r.g32()? as usize;
+            let data = r.rest(count).to_vec();
+            let f = resolve(fids, fid)?;
+            if !srv.writable(&f.path) {
+                return Err(P9Error("read only".into()));
+            }
+            (|| -> Result<(), P9Error> {
+                use std::io::{Seek, SeekFrom, Write};
+                let mut fp = fs::OpenOptions::new()
+                    .read(true)
+                    .write(true)
+                    .open(&f.path)
+                    .map_err(|_| P9Error("i/o error".into()))?;
+                fp.seek(SeekFrom::Start(offset))
+                    .map_err(|_| P9Error("i/o error".into()))?;
+                fp.write_all(&data).map_err(|_| P9Error("i/o error".into()))
+            })()?;
+            srv.bump(&f.path);
+            let mut out = Vec::new();
+            out.extend_from_slice(&p32(data.len() as u32));
+            Ok((RWRITE, out))
+        }
+        TREMOVE => {
+            let mut r = Rd::new(p);
+            let fid = r.g32()?;
+            let f = resolve(fids, fid)?;
+            if !srv.writable(&f.path) {
+                return Err(P9Error("read only".into()));
+            }
+            let path = f.path.clone();
+            let parent = path.parent().map(|p| p.to_path_buf());
+            let r = if path.is_dir() {
+                fs::remove_dir(&path)
+            } else {
+                fs::remove_file(&path)
+            };
+            r.map_err(|_| P9Error("i/o error".into()))?;
+            if let Some(par) = parent {
+                srv.bump(&par);
+            }
+            dropdircache(fids);
+            fids.remove(&fid);
+            Ok((RREMOVE, Vec::new()))
+        }
+        TWSTAT => {
+            // mv(1) renames via dirwstat with only the name field set
+            // (nulldir + null.name); apply exactly that and no-op the rest.
+            // Payload: fid(4) size(2) stat-body — name begins at 4+2+39=45.
+            let mut r = Rd::new(p);
+            let fid = r.g32()?;
+            {
+                let f = resolve(fids, fid)?;
+                if !srv.writable(&f.path) {
+                    return Err(P9Error("read only".into()));
+                }
+            }
+            let name = if p.len() >= 45 + 2 {
+                let nlen = u16::from_le_bytes([p[45], p[46]]) as usize;
+                if 47 + nlen <= p.len() {
+                    String::from_utf8_lossy(&p[47..47 + nlen]).into_owned()
+                } else {
+                    String::new()
+                }
+            } else {
+                String::new()
+            };
+            if !name.is_empty() && name != "." && name != ".." && !name.contains('/') {
+                let (parent, npath) = {
+                    let f = resolve(fids, fid)?;
+                    let parent = f
+                        .path
+                        .parent()
+                        .map(|p| p.to_path_buf())
+                        .unwrap_or_else(|| srv.root.clone());
+                    let npath = parent.join(&name);
+                    (parent, npath)
+                };
+                if !srv.writable(&npath) {
+                    return Err(P9Error("read only".into()));
+                }
+                // IN-05 (preserved): rename over an EXISTING target deletes
+                // the target first — harness semantics the subset gate may
+                // rely on. Do not "fix" silently.
+                {
+                    let f = resolve(fids, fid)?;
+                    if npath.exists() {
+                        let r = if npath.is_dir() {
+                            fs::remove_dir(&npath)
+                        } else {
+                            fs::remove_file(&npath)
+                        };
+                        r.map_err(|_| P9Error("i/o error".into()))?;
+                    }
+                    fs::rename(&f.path, &npath).map_err(|_| P9Error("i/o error".into()))?;
+                }
+                resolve_mut(fids, fid)?.path = npath.clone();
+                srv.bump(&parent);
+                srv.bump(&npath);
+                dropdircache(fids);
+            }
+            Ok((RWSTAT, Vec::new()))
+        }
+        other => Err(P9Error(format!("unknown message type {}", other))),
+    }
+}
+
+fn serveconn(srv: Arc<Shared>, conn: TcpStream) {
+    let mut fids: HashMap<u32, Fid> = HashMap::new(); // per-connection (IN-04)
+    loop {
+        let mut hdr = [0u8; 4];
+        if (&conn).read_exact(&mut hdr).is_err() {
+            break;
+        }
+        let size = u32::from_le_bytes(hdr) as usize;
+        if size < 7 || size > MAXMSIZE as usize + 24 {
+            break; // T-GIQ-01 frame guard
+        }
+        let mut rest = vec![0u8; size - 4];
+        if (&conn).read_exact(&mut rest).is_err() {
+            break;
+        }
+        let ctype = rest[0];
+        let tag = u16::from_le_bytes([rest[1], rest[2]]);
+        let payload = &rest[3..];
+        let (rtype, rpayload) = match handle(&srv, &mut fids, ctype, payload) {
+            Ok(x) => x,
+            Err(e) => (RERROR, pstr(e.0.as_bytes())),
+        };
+        let mut out = Vec::with_capacity(7 + rpayload.len());
+        out.extend_from_slice(&p32(4 + 1 + 2 + rpayload.len() as u32));
+        out.push(rtype);
+        out.extend_from_slice(&p16(tag));
+        out.extend_from_slice(&rpayload);
+        if (&conn).write_all(&out).is_err() {
+            break;
+        }
+    }
+    // fids drop with the connection
 }
 
 pub fn run(args: &[String]) -> i32 {
@@ -226,31 +824,6 @@ pub fn run(args: &[String]) -> i32 {
         }
     }
 }
-
-// keep the imports honest in the RED stub (GREEN uses them for real)
-#[allow(unused_imports)]
-use std::fs;
-
-#[allow(dead_code)]
-struct Shared {
-    root: PathBuf,
-    wr: Vec<PathBuf>,
-    vmap: Mutex<HashMap<PathBuf, u32>>,
-}
-
-#[allow(dead_code)]
-struct Fid {
-    path: PathBuf,
-    open: bool,
-    dirbuf: Option<Vec<u8>>,
-    dirents: Option<Vec<usize>>,
-}
-
-#[allow(dead_code)]
-fn serveconn_stub(_srv: Arc<Shared>, _conn: TcpStream) {}
-
-#[allow(dead_code)]
-fn spawn_stub(_t: thread::JoinHandle<()>) {}
 
 #[cfg(test)]
 mod tests {
