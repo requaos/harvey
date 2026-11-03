@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Shell Boot + One-Command Integration
 status: executing
-stopped_at: Completed 05-06-PLAN.md
-last_updated: "2026-11-03T08:30:58.946Z"
+stopped_at: Completed 05-07-PLAN.md
+last_updated: "2026-11-03T10:23:28.913Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 05 execution started
-state_head: 8e354658330a59cd2b08aeda8b24d9895cd544ed
+state_head: 71fcf94aef3e1197c627e0cd8bd54ba210f58949
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 38
-  completed_plans: 31
+  completed_plans: 32
   percent: 80
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
-Plan: 7 of 13
+Plan: 8 of 13
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 05 execution started
 
@@ -90,6 +90,7 @@ Progress: [████████░░] 80%
 | Phase 05 P04 | 55 min | 3 tasks | 18 files |
 | Phase 05 P05 | 26 min | 2 tasks | 14 files |
 | Phase 05 P06 | 110 min | 3 tasks | 19 files |
+| Phase 05 P07 | 106 min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -176,6 +177,11 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05] 05-06: FdGroup slots are heap-backed (Vec) — an inline [Option<Chan>; 32] (~5.7 KB) in Proc::new overflowed the 16 KiB kstack into the proc's root-table page (the rfork chain's construction); no giant stack temporaries in proc construction is now a pattern rule
 - [Phase 05]: [Phase 05] 05-06: fault::ensure_user_resident closes the cold-syscall-buffer class (phase-04 deferred #3's post-exec half): paqfs's emalloc'd heap buffers are brk_-grown demand pages whose first touch was the kernel's pread write — explicit zero-page-in before deref (04-08's T-04-16 pattern generalized); never a nested fault, so T-05-06 holds. Wired into pread/pwrite/errstr/await/fd2path/pipe's buffer paths
 - [Phase 05]: [Phase 05] 05-06: sys_seek (SEEK 39, measured ×72) landed via the gate's iterate-discipline + RFNOTEG accepted as a no-op (per-pid notes have no group to split; paqfs's rfork requires it); devsrv/devdup live boot-chain exercise is 05-07's (boot.c:141 fversion precedes :144 srvcreate — the plan's gate prose inverted that order; semantics host-pinned)
+- [Phase 05]: [Phase 05]: 05-07: the 9P session rides the chan (the donor's c->mux) — fversion parks the Arc<Mnt> on the pipe fd's chan and Chan::dup clones it, so devsrv's posted clone carries the session to settime's/newns's second mounts of #s/boot (a fresh Tattach fid per mount; the session is shared)
+- [Phase 05]: [Phase 05]: 05-07: one outstanding RPC per devmnt session via an AtomicBool (an MCS lock across the blocking recv would spin-deadlock an IRQ-masked contender; contention errors loudly, never wedges); the pgrp-lock-across-blocking-walk hazard is documented + deferred (the namec chain-snapshot fix lands with the first measured concurrent caller — the staged-init wedge proved the shape)
+- [Phase 05]: [Phase 05]: 05-07: per-RPC read counts clamp to 4072 (devpipe's 4096 atomic-write bound minus IOHDRSZ) even at negotiated msize 8192 — the pipe write is whole-message-or-fail; the donor's iounit clamp with the era's transport binding
+- [Phase 05]: [Phase 05]: 05-07: exec through the mount stages the WHOLE binary eagerly (proc.rs ByteBacking::Mnt, Arc-shared, 16 MiB loud cap) — the trap-context pager must never RPC; syscall context is where blocking belongs. sys_exec resolves via namec now (the Phase-4 devroot-only prefix scaffold retired — D-03)
+- [Phase 05]: [Phase 05]: 05-07: mkimage.sh asserts out/init is the REAL init at bake time (rodata markers) — the 05-02 'last writer wins' out/ ownership means r9's boot-test bake (stage-build.sh) re-pollutes; the bake fails loudly instead of booting the staged chain. The aarch64 seek ABI is the generated _seek stub's FOUR args (rv ptr, fd, offset, base) with the result written through *rv (the donor sysfile.c sysseek comment is the authority; 05-06's slot-0-as-fd reading was wrong)
 
 ### Pending Todos
 
@@ -203,6 +209,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T08:30:38.099Z
-Stopped at: Completed 05-06-PLAN.md
+Last session: 2026-11-03T10:23:28.846Z
+Stopped at: Completed 05-07-PLAN.md
 Resume file: None

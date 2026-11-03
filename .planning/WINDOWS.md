@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 14
+open_count: 16
 waived_count: 1
 fixed_count: 2
-total_count: 17
-last_updated: 2026-11-03T08:27:38.460Z
+total_count: 19
+last_updated: 2026-11-03T10:19:29.077Z
 ---
 
 # Broken Windows Ledger
@@ -32,6 +32,8 @@ last_updated: 2026-11-03T08:27:38.460Z
 | 15 | 05 | deviation | r9:aarch64/src/proc.rs |  | 05-05: plan's RFENVG/RFCENVG bullet inverted vs fork(2)+9k sysproc.c — donor governs (neither=share, RFENVG=copy, RFCENVG=empty); the 05-04 RFNAMEG/RFCNAMEG precedent; pinned by devenv_test.rs + the env-driven boot gate | open |  | 2026-11-03T06:32:58.375Z |  |
 | 16 | 05 | deviation | r9:aarch64/src/proc.rs |  | 05-06: plan's fd-group bullet inverts RFFDG vs default vs fork(2)+9k sysproc.c (neither=SHARE, RFFDG=COPY, RFCFDG=empty) — the phase's third flag inversion; donor governs (libc fork()=RFFDG=COPY is what connectembed's dup/close needs); pinned by fdgroup_test.rs | open |  | 2026-11-03T08:27:38.289Z |  |
 | 17 | 05 | deviation | r9:aarch64/src/fault.rs |  | 05-06: cold-syscall-buffer class fixed at the gate (EL1h DataAbort on paqfs's emalloc'd brk_-grown buffer — the kernel's pread made the first touch) — fault::ensure_user_resident generalizes 04-08's explicit page-in to any writable user buffer before deref; T-05-06 holds (never a nested fault); phase-04 deferred #3 closed for the growth class | open |  | 2026-11-03T08:27:38.460Z |  |
+| 18 | 05 | todo | r9:port/src/namec.rs |  | 05-07: pgrp lock held across namec walks incl. devmnt's blocking Twalk RPCs — a pgrp-SHARING contender (fork shares the pgrp) spins IRQ-masked = wedge once the first concurrent namespace caller exists (rc pipelines/backgrounded cmds); the gate never contends (strictly sequential chain). Fix: snapshot the union chain under a brief lock, walk unlocked (phase deferred-items.md) | open |  | 2026-11-03T10:19:28.856Z |  |
+| 19 | 05 | todo | r9:port/src/devcons.rs |  | 05-07: #c/pid absent — getpid() fails, init's pri-10 write names #p/0/ctl (the designed warning fires either way; the gate is unaffected). 05-09's devproc ctl is the first real consumer — add devcons's Qpid file (donor devcons.c) via a current-pid hook before it lands | open |  | 2026-11-03T10:19:29.077Z |  |
 
 ````json
 [
@@ -253,6 +255,32 @@ last_updated: 2026-11-03T08:27:38.460Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-03T08:27:38.460Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 18,
+    "kind": "todo",
+    "phase": "05",
+    "file": "r9:port/src/namec.rs",
+    "line": null,
+    "description": "05-07: pgrp lock held across namec walks incl. devmnt's blocking Twalk RPCs — a pgrp-SHARING contender (fork shares the pgrp) spins IRQ-masked = wedge once the first concurrent namespace caller exists (rc pipelines/backgrounded cmds); the gate never contends (strictly sequential chain). Fix: snapshot the union chain under a brief lock, walk unlocked (phase deferred-items.md)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T10:19:28.856Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 19,
+    "kind": "todo",
+    "phase": "05",
+    "file": "r9:port/src/devcons.rs",
+    "line": null,
+    "description": "05-07: #c/pid absent — getpid() fails, init's pri-10 write names #p/0/ctl (the designed warning fires either way; the gate is unaffected). 05-09's devproc ctl is the first real consumer — add devcons's Qpid file (donor devcons.c) via a current-pid hook before it lands",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T10:19:29.077Z",
     "resolved_at": null,
     "milestone": null
   }

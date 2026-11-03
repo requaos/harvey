@@ -153,7 +153,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. From clean checkouts of both repos, the documented commands reproduce the boot with pinned toolchains/qemu — honoring Phase 1's KERNDATE/reproducibility policy
   5. Harvey's `flake.nix` consumes r9 as a flake input (pinned git rev) — the integration glue lives in the flakes, not in `../r9` relative paths or git submodules (INT-04)
 
-**Plans**: 6/13 plans executed (12 waves; D-14's debug-first Wave 0 precedes the phase tracer at 05-04, and the measure-first donor trace (05-03) precedes all dispatch growth per carried-forward policy)
+**Plans**: 7/13 plans executed (12 waves; D-14's debug-first Wave 0 precedes the phase tracer at 05-04, and the measure-first donor trace (05-03) precedes all dispatch growth per carried-forward policy)
 **Wave 1**
 - [x] 05-01-PLAN.md — r9 hygiene: D-14 note-race root-cause + fix (40/40 gate), D-16 boot-test qemu/log cleanup, D-15 stacksmoke staged gate
 
@@ -173,7 +173,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] 05-06-PLAN.md — devpipe (Arc-shared queue) + devdup + devsrv + PIPE/DUP/CREATE + fd-group semantics + sizing → connectembed completes to the FVERSION wall
 
 **Wave 7**
-- [ ] 05-07-PLAN.md — devmnt 9P client (mntchk bounds) + FVERSION/MOUNT → HINGE GATE: boot completes, init → newns → rc -i → the %  prompt prints
+- [x] 05-07-PLAN.md — devmnt 9P client (mntchk bounds) + FVERSION/MOUNT → HINGE GATE: boot completes, init → newns → rc -i → the %  prompt prints
 
 **Wave 8**
 - [ ] 05-08-PLAN.md — devcons read path + cooked + consctl + DEL→interrupt note (D-06) + SLEEP/ALARM → INTERACTIVE GATE via drive-r9.expect (echo answers, DEL safe, exit restarts rc)
@@ -202,4 +202,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
 | 3. r9 qemu-virt Platform Bring-up | 6/6 | Complete    | 2026-11-01 |
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | 8/8 | Complete    | 2026-11-02 |
-| 5. Shell Boot + One-Command Integration | 6/13 | In Progress|  |
+| 5. Shell Boot + One-Command Integration | 7/13 | In Progress|  |
