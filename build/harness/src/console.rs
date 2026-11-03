@@ -65,3 +65,76 @@ pub fn qmp_cont(_path: &Path) -> std::io::Result<()> {
 }
 
 pub fn paced_send(_s: &UnixStream, _cmd: &[u8]) {}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    struct TempDir(std::path::PathBuf);
+    impl TempDir {
+        fn new(tag: &str) -> TempDir {
+            let mut p = std::env::temp_dir();
+            p.push(format!(
+                "consoletest.{}.{}.{}",
+                std::process::id(),
+                tag,
+                std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .unwrap()
+                    .as_nanos()
+            ));
+            std::fs::create_dir_all(&p).unwrap();
+            TempDir(p)
+        }
+    }
+    impl Drop for TempDir {
+        fn drop(&mut self) {
+            let _ = std::fs::remove_dir_all(&self.0);
+        }
+    }
+
+    #[test]
+    fn log_writes_to_file_and_searches_ring() {
+        let td = TempDir::new("log");
+        let path = td.0.join("cap.log");
+        let log = Log::new(&path, 512 * 1024, 256 * 1024).unwrap();
+        log.write(b"line one\r\n");
+        log.write(b"term% echo hi\r\n");
+        assert_eq!(log.len(), 25);
+        let rx = crate::regex::Regex::new("^term% ").unwrap();
+        assert!(log.search(&rx));
+        let tail = log.tail(9);
+        assert_eq!(tail, b"echo hi\r\n");
+        // the file has every byte even before any trim
+        assert_eq!(std::fs::read(&path).unwrap(), b"line one\r\nterm% echo hi\r\n");
+    }
+
+    #[test]
+    fn log_trims_ring_but_not_file() {
+        let td = TempDir::new("trim");
+        let path = td.0.join("cap.log");
+        let log = Log::new(&path, 1024, 512).unwrap(); // tiny window for the test
+        log.write(&vec![b'a'; 700]);
+        log.write(&vec![b'b'; 700]); // crosses the 1024 window → trim to 512
+        assert_eq!(log.len(), 512, "ring trimmed to the trim size");
+        let tail = log.tail(4);
+        assert_eq!(tail, b"bbbb");
+        let rx = crate::regex::Regex::new("aaaa").unwrap();
+        assert!(!log.search(&rx), "old bytes fell out of the ring");
+        assert_eq!(std::fs::read(&path).unwrap().len(), 1400, "file keeps everything");
+    }
+
+    #[test]
+    fn log_search_from_and_find_from_respect_base() {
+        let td = TempDir::new("base");
+        let path = td.0.join("cap.log");
+        let log = Log::new(&path, 512 * 1024, 256 * 1024).unwrap();
+        log.write(b"term% first\r\njunk\r\nterm% second\r\n");
+        let rx = crate::regex::Regex::new("^term% ").unwrap();
+        let base = 14; // after the first prompt line
+        assert!(log.search_from(&rx, base));
+        let m = log.find_from(&rx, base).unwrap();
+        assert_eq!(m.span.start, 19);
+        assert!(log.find_from(&rx, m.span.end).is_none());
+    }
+}
