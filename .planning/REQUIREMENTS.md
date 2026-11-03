@@ -31,10 +31,10 @@
 
 ### Integration
 
-- [ ] **INT-01**: One command (`nix run` app or `cargo xtask`) boots r9 + Harvey aarch64 userland to an interactive `/bin/rc` shell over PL011 console in qemu
+- [x] **INT-01**: One command (`nix run` app or `cargo xtask`) boots r9 + Harvey aarch64 userland to an interactive `/bin/rc` shell over PL011 console in qemu
 - [ ] **INT-02**: Expect-style smoke test asserts the shell prompt, runnable on darwin-aarch64 and linux hosts
 - [ ] **INT-03**: Reproducible-from-clean-checkout verified for both repos (documented commands, pinned toolchains)
-- [ ] **INT-04**: Harvey's flake consumes r9 as a proper **flake input** (git URL with pinned rev) — no relative-path (`../r9`) or git-submodule glue between the repos
+- [x] **INT-04**: Harvey's flake consumes r9 as a proper **flake input** (git URL with pinned rev) — no relative-path (`../r9`) or git-submodule glue between the repos
 
 ## v2 Requirements (deferred)
 
@@ -70,10 +70,10 @@
 | R9-03 | Phase 4 | Complete |
 | R9-04 | Phase 4 | Complete |
 | R9-05 | Phase 3 | Complete |
-| INT-01 | Phase 5 | Pending |
+| INT-01 | Phase 5 | Complete |
 | INT-02 | Phase 5 | Pending |
 | INT-03 | Phase 5 | Pending |
-| INT-04 | Phase 5 | Pending |
+| INT-04 | Phase 5 | Complete |
 | BUILD-05 | Phase 1 | Complete |
 
 ---
