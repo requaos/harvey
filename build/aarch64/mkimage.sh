@@ -116,6 +116,20 @@ for p in boot/boot boot/paqfs aarch64/init aarch64/bin/stacksmoke \
 	usr/glenda/lib/profile; do
 	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
 done
+
+# 5a. init identity (05-07's gate-wedge lesson): out/ is shared with the
+# staged-init supply chain — stage-build.sh owns it WHOLESALE (the 05-02
+# decision: "last writer wins"), and its init is the WRONG binary for the
+# real chain (the staged init's concurrent exec children never reach rc).
+# r9's boot-test bake re-runs stage-build.sh, so pollution can land
+# between a subset-build and a bake.  Prove the REAL init at bake time:
+# the real init carries "init: starting /bin/rc"; the staged one carries
+# "init: r9 EL0 alive" (grep on a.out binaries matches rodata strings;
+# /usr/bin/grep per the host-shell discipline — plan9 grep lacks -q).
+/usr/bin/grep -q "init: starting /bin/rc" "$OUT/init" \
+	|| err "out/init is not the real init (staged-supply-chain pollution — re-run sh build/aarch64/subset-build.sh)"
+/usr/bin/grep -q "init: r9 EL0 alive" "$OUT/init" \
+	&& err "out/init is the STAGED init (re-run sh build/aarch64/subset-build.sh)"
 for f in $SUBSET; do
 	[ -f "$STAGE/aarch64/bin/$f" ] || err "manifest: aarch64/bin/$f missing"
 done
