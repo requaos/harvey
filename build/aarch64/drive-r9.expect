@@ -1,0 +1,122 @@
+#!/usr/bin/expect -f
+# drive-r9.expect — the 05-08 INTERACTIVE GATE driver (INT-01's proof):
+# boots r9 + the real Harvey aarch64 boot chain on qemu virt and DRIVES
+# the shell — the staged boot assertions, an echo round-trip, DEL safety
+# (an interrupt note at the prompt must not kill rc), and exit → init's
+# for(;;) restart loop back to a fresh prompt (D-01).
+#
+# Lineage + discipline: the build/build.bash heredoc-expect precedent
+# (spawn/expect/send over stdio) grown into a committed file (05-12's
+# smoke grows from this); Phase-1 capture-before-start and marker-not-
+# order rules (D-13: presence assertions only, never interleaving order);
+# drive9.py's stage-named failures.  Spawned pipeline hygiene per D-16:
+# a fresh capture per run (rm first), and cleanup kills the spawned
+# run-r9.sh's process GROUP (qemu is in it on darwin, which lacks
+# setsid(1)) with the bracket-fixed pkill fallback (the pattern cannot
+# self-match the harness argv; it keys on this run's kernel path).
+#
+# Wire notes (why the markers are unambiguous): r9's devcons does NOT
+# echo typed input this era (05-08's documented delta), so the typed
+# command never appears on the wire — a "r9shell7" line can only be the
+# echo binary's OUTPUT.  Userland writes are byte-exact (bare \n);
+# kernel prints cook \n → \r\n — patterns are CRLF-tolerant substrings,
+# never anchored.
+#
+# Env: R9_KERNEL (the virtshell r9 ELF) and R9_DTB (the virt DTB) are
+# REQUIRED (run-r9.sh's contract — no implicit sibling-checkout paths);
+# R9_INITRD optional (run-r9.sh bakes it via mkimage.sh when absent).
+#
+# usage: R9_KERNEL=… R9_DTB=… expect build/aarch64/drive-r9.expect
+# exit 0 on all-pass; exit 1 names the failed stage on stderr.
+
+set timeout 600                    ;# TCG-sized (Pitfall 11)
+match_max 65536
+# NOTE: log_user stays ON — expect 5.45 (darwin /usr/bin/expect) writes
+# NOTHING to log_file when log_user is 0 (measured 05-08: the capture
+# file was created empty).  The wire echo on the driver's stdout is
+# harmless; the stage lines name progress on stderr.
+
+# --- required env (loud, before any spawn) -------------------------------
+foreach v {R9_KERNEL R9_DTB} {
+    if {![info exists env($v)]} {
+        puts stderr "drive-r9: \$$v unset — run-r9.sh requires it (no defaults by design)"
+        exit 2
+    }
+}
+
+# --- D-16 hygiene: a fresh capture per run (a stale log is dead evidence)
+set CAPTURE build/aarch64/boot-r9.log
+exec rm -f $CAPTURE
+
+# --- spawn the launcher in interactive (stdio) mode ----------------------
+spawn sh build/aarch64/run-r9.sh
+set spawn_pid [exp_pid]
+log_file $CAPTURE
+
+# --- teardown: kill the spawned pipeline's process group + pkill fallback
+proc cleanup {} {
+    global spawn_pid
+    # the pty session's process group (qemu shares it on darwin — no
+    # setsid there); catch: already-dead is fine
+    catch { exec kill -KILL -- -$spawn_pid 2>/dev/null }
+    # fallback for the setsid leg (linux): match this run's qemu by its
+    # kernel-path argv; the [q] bracket keeps pkill from self-matching
+    catch { exec pkill -f {[q]emu-system-aarch64.*aarch64-unknown-none-elf} 2>/dev/null }
+}
+
+# --- staged ordered assertions (each stage names its failure) ------------
+proc stage {name re} {
+    expect {
+        -re $re { puts stderr "drive-r9: stage ok — $name" }
+        timeout { puts stderr "drive-r9: TIMEOUT at stage: $name"; cleanup; exit 1 }
+        eof { puts stderr "drive-r9: qemu exited (EOF) at stage: $name"; cleanup; exit 1 }
+    }
+}
+
+# fast-fail on kernel panic markers anywhere in the boot (drive9.py's
+# PANIC_RE rule)
+expect_before {
+    -re {panic|Unhandled interrupt} {
+        puts stderr "drive-r9: kernel panic marker on the wire — aborting"
+        cleanup
+        exit 1
+    }
+}
+
+# 1. the staged boot sequence: banner → paqfs server → stacksmoke → prompt
+stage banner    {r9 from the Internet}
+stage paqfs     {paqfs\.\.\.}
+stage stacksmoke {stacksmoke: depth 64 ok}
+stage prompt    {% }
+
+# 2. the echo round-trip: typed input is READ, cooked, answered (the
+#    response is distinct from any typed echo — r9's cons does not echo
+#    input this era, so the marker can only be echo's output)
+send "echo r9shell7\r"
+stage echo-response {r9shell7}
+stage echo-prompt   {% }
+
+# 3. DEL safety (D-06/D-14 combined contract): a partial command with no
+#    newline sits in the line assembly; DEL (0x7f) posts the interrupt
+#    note to rc's note group, discards the partial, and fails rc's read
+#    "interrupted" — rc's Eintr path re-prompts.  rc MUST be alive.
+send "fnord"                       ;# partial, no newline (a non-command:
+                                   ;# a flush failure can never echo the
+                                   ;# stage marker through it)
+send "\x7f"                        ;# DEL
+stage del-reprompt {% }            ;# rc interrupted + re-prompted, not dead
+
+send "echo r9delok\r"
+stage del-answer  {r9delok}        ;# the partial did NOT corrupt the fresh command
+stage del-prompt  {% }
+
+# 4. exit → init's for(;;) restart (sleep(1000) — sys_sleep's gate
+#    evidence — then fexec re-runs rc): a fresh prompt proves D-01's
+#    restart loop end-to-end.
+send "exit\r"
+stage restart-print {init: starting /bin/rc}
+stage restart-prompt {% }
+
+puts stderr "drive-r9: ALL STAGES PASS — the prompt is a conversation"
+cleanup
+exit 0

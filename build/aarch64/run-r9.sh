@@ -123,10 +123,16 @@ fi
 # self-describing
 echo "== qemu argv: $*"
 
+# 05-08 (the interactive gate's Rule-3 fix): the explicit `<&0` is
+# LOAD-BEARING — a non-interactive sh (no job control) redirects a
+# backgrounded command's stdin from /dev/null (POSIX), which silently
+# starved qemu's stdio serial of typed input (measured: the guest never
+# saw console bytes; the tick fired but no RX IRQ ever pended).  The
+# explicit redirect is a stdin the shell must not replace.
 if command -v setsid >/dev/null 2>&1; then
-	setsid "$@" &
+	setsid "$@" <&0 &
 else
-	"$@" &
+	"$@" <&0 &
 fi
 QEMU_PID=$!
 
