@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 19
+open_count: 23
 waived_count: 3
 fixed_count: 2
-total_count: 24
-last_updated: 2026-11-03T15:09:56.309Z
+total_count: 28
+last_updated: 2026-11-03T18:24:07.120Z
 ---
 
 # Broken Windows Ledger
@@ -39,6 +39,10 @@ last_updated: 2026-11-03T15:09:56.309Z
 | 22 | 05 | deviation | build/aarch64/drive-r9.expect |  | interactive-driver input wedge flake: 2 of ~7 early sweep runs wedged at a prompt read (line never completes); 6 consecutive clean passes since; not reproducing under the cons watchdog; deferred as the top debug candidate for 05-12/05-13's CI leg | open |  | 2026-11-03T15:09:20.518Z |  |
 | 23 | 05 | stub | .planning/phases/05-shell-boot-one-command-integration/deferred-items.md |  | r9-side: stat records carry 3 strings no muid in devcons/devroot/devenv/devsrv/devdup listings - dirreadall statcheck walks FOUR and rejects them (devproc fixed 05-09) | waived | accidental duplicate of #21 (executor re-ran the append after a misleading tail display) | 2026-11-03T15:09:25.686Z | 2026-11-03T15:09:56.078Z |
 | 24 | 05 | deviation | build/aarch64/drive-r9.expect |  | interactive-driver input wedge flake: 2 of ~7 early sweep runs wedged at a prompt read; 6 consecutive clean passes since; top debug candidate for 05-12/05-13 CI | waived | accidental duplicate of #20 (executor re-ran the append after a misleading tail display) | 2026-11-03T15:09:25.913Z | 2026-11-03T15:09:56.309Z |
+| 25 | 261103-giq | deviation | build/harness/src/srv9.rs |  | Twstat name offset corrected to 47 (Dir wire shape is doubly size-prefixed); the .py's offset-45 rename was dead code — mv fell back to copy+delete | open |  | 2026-11-03T18:24:06.467Z |  |
+| 26 | 261103-giq | deviation | build/harness/src/trace.rs |  | trace-syscalls: prompt-substring wait after pid probe closes the .py's latent echo/prompt race | open |  | 2026-11-03T18:24:06.688Z |  |
+| 27 | 261103-giq | deviation | build/aarch64/vm-run.sh |  | rsync exclusion for build/harness/target added to the four vm-sync scripts | open |  | 2026-11-03T18:24:06.904Z |  |
+| 28 | 261103-giq | deviation | build/aarch64/subset-exec.sh |  | guest-scratch CONF=qemu bootdir reset to pristine (39 accumulated rows exceeded Nbootfiles=32; pre-existing guest state) | open |  | 2026-11-03T18:24:07.120Z |  |
 
 ````json
 [
@@ -352,6 +356,58 @@ last_updated: 2026-11-03T15:09:56.309Z
     "reason": "accidental duplicate of #20 (executor re-ran the append after a misleading tail display)",
     "recorded_at": "2026-11-03T15:09:25.913Z",
     "resolved_at": "2026-11-03T15:09:56.309Z",
+    "milestone": null
+  },
+  {
+    "id": 25,
+    "kind": "deviation",
+    "phase": "261103-giq",
+    "file": "build/harness/src/srv9.rs",
+    "line": null,
+    "description": "Twstat name offset corrected to 47 (Dir wire shape is doubly size-prefixed); the .py's offset-45 rename was dead code — mv fell back to copy+delete",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T18:24:06.467Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 26,
+    "kind": "deviation",
+    "phase": "261103-giq",
+    "file": "build/harness/src/trace.rs",
+    "line": null,
+    "description": "trace-syscalls: prompt-substring wait after pid probe closes the .py's latent echo/prompt race",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T18:24:06.688Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 27,
+    "kind": "deviation",
+    "phase": "261103-giq",
+    "file": "build/aarch64/vm-run.sh",
+    "line": null,
+    "description": "rsync exclusion for build/harness/target added to the four vm-sync scripts",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T18:24:06.904Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 28,
+    "kind": "deviation",
+    "phase": "261103-giq",
+    "file": "build/aarch64/subset-exec.sh",
+    "line": null,
+    "description": "guest-scratch CONF=qemu bootdir reset to pristine (39 accumulated rows exceeded Nbootfiles=32; pre-existing guest state)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T18:24:07.120Z",
+    "resolved_at": null,
     "milestone": null
   }
 ]
