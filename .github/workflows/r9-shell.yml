@@ -1,0 +1,40 @@
+# r9-shell.yml — Phase 5 D-13: the GH Actions linux leg of the
+# one-command boot.  A clean checkout of this repo reproduces the full
+# pipeline on ubuntu-latest: install nix → nix run .#boot-r9-smoke —
+# which builds the aarch64 userland (native `unshare` namespace build,
+# RESEARCH A3), bakes bootfs.paq with Harvey's own mkpaqfs, and boots
+# the flake.lock-pinned r9 kernel (inputs.r9 = github:requaos/r9) under
+# qemu TCG to the interactive /bin/rc prompt, asserting the whole D-09
+# command sweep (banner → paqfs… → stacksmoke → `% ` → echo/ls/ps/cat →
+# DEL safety → init restart) via build/aarch64/smoke-r9.expect.
+#
+# SC#3 amendment (05-CONTEXT D-13): CI-green means LINUX only — this
+# workflow is the whole CI story.  The darwin leg is documented-manual
+# (build/REPRODUCIBILITY.md's INT-03 section names the exact commands);
+# no darwin leg runs here.  Lands ALONGSIDE the legacy harvey.yml,
+# which is untouched.
+#
+# Supply chain (T-05-24): the nix-install action is pinned to a full
+# 40-char commit SHA, never a floating tag:
+#   v23 == 3138316df39ed29be04236d7ffc686fa525866aa
+# Permissions are the default checkout scope (contents: read) — the
+# pipeline builds and boots locally; no extra tokens or secrets.
+
+name: r9-shell
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+jobs:
+  boot-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90 # TCG scale; the smoke's own per-stage 600s timeouts localize failures
+    steps:
+      - uses: actions/checkout@v4
+      - name: install nix
+        # pinned SHA (see header): T-05-24 supply-chain rule
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: boot r9 + harvey aarch64 userland smoke
+        run: nix run .#boot-r9-smoke
