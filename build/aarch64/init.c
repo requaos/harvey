@@ -27,6 +27,20 @@ main(int, char*[])
 
 	print("init: r9 EL0 alive\n");
 
+	/*
+	 * 05-04 (D-03): the namespace era — /proc resolves through the
+	 * mount table now (the literal-path routing scaffold is retired),
+	 * so bind #p before the postnote, the real chain's connectembed
+	 * shape.  The staged initrd ships an empty /proc to bind onto
+	 * (Pitfall 8).  Fatal on failure: a gate that cannot reach
+	 * devproc proves nothing.  rfork(RFPROC) children SHARE this
+	 * namespace (fork(2): neither RFNAMEG nor RFCNAMEG).
+	 */
+	if(bind("#p", "/proc", MREPL) < 0){
+		print("init: bind #p failed: %r\n");
+		exits("bind-fail");
+	}
+
 	switch(rfork(RFPROC|RFMEM)){
 	case 0:
 		argv[0] = "/hello";
