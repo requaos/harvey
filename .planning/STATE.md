@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Shell Boot + One-Command Integration
 status: executing
-stopped_at: Completed 05-01-PLAN.md
-last_updated: "2026-11-03T00:50:46.390Z"
+stopped_at: Completed 05-02-PLAN.md
+last_updated: "2026-11-03T01:10:12.514Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 05 execution started
-state_head: a3bf8f71e69cf0b88c660008824bba056f6bedf7
+state_head: a783c938e37308c6a2984c7b0c5c795ca48da0d9
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 38
-  completed_plans: 26
-  percent: 68
+  completed_plans: 27
+  percent: 71
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
-Plan: 2 of 13
+Plan: 3 of 13
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 05 execution started
 
-Progress: [███████░░░] 68%
+Progress: [███████░░░] 71%
 
 ## Performance Metrics
 
@@ -85,6 +85,7 @@ Progress: [███████░░░] 68%
 | Phase 04 P07 | 240min | 2 tasks | 12 files |
 | Phase 04 P08 | 40min | 3 tasks | 18 files |
 | Phase 05 P01 | 64 min | 3 tasks | 11 files |
+| Phase 05 P02 | 15 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -153,6 +154,10 @@ Recent decisions affecting current work:
 - [Phase 05]: 05-01: note-timeout race root-caused to the trap_return tail's post-restore x9 clobber (psr re-read + CURKSTACK load); fixed by the uniform frame+288 final-sp step — every restored frame sits at entry-stack-top-288 by construction, so no post-pops scratch is needed. 20/20 virtnotes + 20/20 virtmulti clean, twice. r9 83cbbbe.
 - [Phase 05]: 05-01: long is 32-bit in Plan 9 C on every arch (7c SZ_LONG=4; only vlong is 64-bit); the donor kernel's va_arg(list,long) reads the slot's low half — pread/pwrite's n is now masked to 32 bits in r9 (61e6a70). stacksmoke's deep recursion exposed the deviation; Harvey libc stays donor-pristine.
 - [Phase 05]: 05-01: D-16 harness hygiene landed r9-side (c2f141e): fresh serial log per run + qemu spawned as process-group leader + group kill at teardown — phase-04 deferred #2 closed.
+- [Phase 05]: [Phase 05]: 05-02: bootr9.c hand-written bootconf supplies SIX symbols, not four — method[]/cpuflag/rootdir/bootdisk plus main()→boot() and cfs=0 — because the awk mkbootconf generator emits all six and the 7l link cannot resolve without them (boot.h's extern cfs; libc startup needs main)
+- [Phase 05]: [Phase 05]: 05-02: BOOTFILES trimmed to the real 7l closure by reference analysis — paq.7 is the lone trim (embed-only table never names it); bootcache.7 stays for statbuf (settime/local extern it), bootip.7 via local.c's configip, printstub.7 linked explicitly so its fmt stubs beat libc's fmtlock members
+- [Phase 05]: [Phase 05]: 05-02: build/aarch64/out/ ownership — subset-build.sh syncs its four boot-chain binaries per-file (no --delete); stage-build.sh keeps wholesale --delete for the staged-init supply chain (05-10's "unchanged" constraint); last writer wins, and mkimage.sh's manifest assert names the fix
+- [Phase 05]: [Phase 05]: 05-02: adm/timezone/local is copied into the staged tree at bake time from the repo's adm/timezone/local (not committed to root-tree/) — the action text's "copy at bake time" governs over the files_modified listing
 
 ### Pending Todos
 
@@ -180,6 +185,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T00:50:46.328Z
-Stopped at: Completed 05-01-PLAN.md
+Last session: 2026-11-03T01:09:34.713Z
+Stopped at: Completed 05-02-PLAN.md
 Resume file: None

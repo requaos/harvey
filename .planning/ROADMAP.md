@@ -153,12 +153,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. From clean checkouts of both repos, the documented commands reproduce the boot with pinned toolchains/qemu — honoring Phase 1's KERNDATE/reproducibility policy
   5. Harvey's `flake.nix` consumes r9 as a flake input (pinned git rev) — the integration glue lives in the flakes, not in `../r9` relative paths or git submodules (INT-04)
 
-**Plans**: 1/13 plans executed (12 waves; D-14's debug-first Wave 0 precedes the phase tracer at 05-04, and the measure-first donor trace (05-03) precedes all dispatch growth per carried-forward policy)
+**Plans**: 2/13 plans executed (12 waves; D-14's debug-first Wave 0 precedes the phase tracer at 05-04, and the measure-first donor trace (05-03) precedes all dispatch growth per carried-forward policy)
 **Wave 1**
 - [x] 05-01-PLAN.md — r9 hygiene: D-14 note-race root-cause + fix (40/40 gate), D-16 boot-test qemu/log cleanup, D-15 stacksmoke staged gate
 
 **Wave 2** *(blocked on 05-01 — 05-02 Task 2 compiles build/aarch64/stacksmoke.c and asserts out/stacksmoke, created by 05-01 Task 3; a non-file coupling the wave guard cannot see)*
-- [ ] 05-02-PLAN.md — Harvey aarch64 boot(8)/init/paqfs/stacksmoke builds (additive mkfile.aarch64 + hand-written bootr9.c bootconf) + paqfs image root-tree skeleton + mkimage.sh bake + run-r9.sh dev launcher
+- [x] 05-02-PLAN.md — Harvey aarch64 boot(8)/init/paqfs/stacksmoke builds (additive mkfile.aarch64 + hand-written bootr9.c bootconf) + paqfs image root-tree skeleton + mkimage.sh bake + run-r9.sh dev launcher
 
 **Wave 3** *(blocked on 05-02 — the trace measures our real binaries)*
 - [ ] 05-03-PLAN.md — measure-first: donor-kernel syscall trace of the real boot chain → 05-03-trace.txt measured-set artifact
@@ -202,4 +202,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
 | 3. r9 qemu-virt Platform Bring-up | 6/6 | Complete    | 2026-11-01 |
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | 8/8 | Complete    | 2026-11-02 |
-| 5. Shell Boot + One-Command Integration | 1/13 | In Progress|  |
+| 5. Shell Boot + One-Command Integration | 2/13 | In Progress|  |
