@@ -59,7 +59,7 @@ RSYNC_RSH="ssh -F $SSH_CFG"
 echo "== pushing checkout to guest ~/$GUEST_DIR"
 rsync -a --delete -e "$RSYNC_RSH" \
 	--exclude .git --exclude .build --exclude .planning --exclude graphify-out \
-	--exclude 'result*' --exclude '9legacy.iso*' --exclude '*.tgz' \
+	--exclude 'result*' --exclude '9legacy.iso*' --exclude '*.tgz' --exclude 'build/harness/target' \
 	"$HARVEY/" "$GUEST:$GUEST_DIR/"
 
 # ensure the guest toolchain: .#setup populates the guest hostbin
