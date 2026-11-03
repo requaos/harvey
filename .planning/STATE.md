@@ -2,17 +2,17 @@
 gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Shell Boot + One-Command Integration
-status: executing
-stopped_at: Completed 05-12-PLAN.md
-last_updated: "2026-11-03T16:03:00.717Z"
+status: verifying
+stopped_at: Completed 05-13-PLAN.md
+last_updated: "2026-11-03T16:17:13.264Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 05 execution started
-state_head: e97bc224501dbc5b5826c181116ee4d09357243b
+state_head: ffb7df8fa0ed4720db9bf08890459604a42ed389
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 38
-  completed_plans: 37
+  completed_plans: 38
   percent: 80
 ---
 
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 
 Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
 Plan: 13 of 13
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-02 — Phase 05 execution started
 
 Progress: [████████░░] 80%
@@ -96,6 +96,7 @@ Progress: [████████░░] 80%
 | Phase 05 P10 | 10 min | 2 tasks | 4 files |
 | Phase 05 P11 | 25 min | 3 tasks | 6 files |
 | Phase 05 P12 | 6 min | 2 tasks | 5 files |
+| Phase 05-shell-boot-one-command-integration P13 | 9 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -204,6 +205,9 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05]: 05-11: boot-r9 app gated by (builtins.hasAttr system r9.packages) — r9 ships no x86_64-darwin package (out of project scope) and an ungated reference broke whole-flake evaluation; x86_64-linux full program eval deferred to 05-13's native CI because r9's kernel-virt embeds genuine IFD (importCargoLock reads a Cargo.lock inside the built toolchain — foreign-system eval builds a foreign-system toolchain)
 - [Phase 05]: 05-12: the smoke spawns qemu directly from expect over -nographic stdio (the A6 pick) — the build.bash/drive-r9-proven shape; expect's spawn makes qemu a session/group leader on both hosts so one group-kill teardown works everywhere, the shell-side bracket-fixed pkill a pure fallback
 - [Phase 05]: 05-12: the retained smoke evidence is run TWO's capture — the hygiene-proving second pass (run 2 green after run 1's rm -f proves no stale-log/orphan assist); the two gate logs were byte-shaped-identical but genuinely independent (distinct mktemp DTB dirs in the diff)
+- [Phase 05-shell-boot-one-command-integration]: 05-13: GH-run leg substituted per the orchestrator's explicit no-push rule: the workflow was authored + locally validated, and the exact pipeline it encodes ran green natively on aarch64-linux from a pristine clone at dc8299575 — 05-EVIDENCE.md records the hosted run as PENDING FIRST PUSH (nothing fabricated)
+- [Phase 05-shell-boot-one-command-integration]: 05-13: DeterminateSystems nix-installer-action pinned to commit 3138316df39ed29be04236d7ffc686fa525866aa (v23 resolved via the GitHub API; T-05-24 supply-chain rule)
+- [Phase 05-shell-boot-one-command-integration]: 05-13: the flake.lock r9 pin stays at 9549cee (NOT re-pinned to cbbc8e4): the docs commit is docs-only (same kernel image), and re-pinning to an unpushed local commit would break the clean-checkout leg the pin exists to serve
 
 ### Pending Todos
 
@@ -231,6 +235,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T16:02:54.312Z
-Stopped at: Completed 05-12-PLAN.md
+Last session: 2026-11-03T16:16:59.654Z
+Stopped at: Completed 05-13-PLAN.md
 Resume file: None
