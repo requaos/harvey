@@ -4,12 +4,23 @@
 # namespace (objtype=aarch64, the committed 02-06 wiring: the vendored
 # 7c/7l carry thestring=aarch64, resolving /aarch64/include and
 # /aarch64/lib), rsync the results back to the gitignored
-# build/aarch64/out/, and copy the committed hello.7.out in verbatim
+# build/aarch64/smoke-out/, and copy the committed hello.7.out in verbatim
 # (the ABI bisect binary rides the initrd from 04-06 on).  r9's
-# `cargo xtask initrd` then bakes out/{init,hello,smokefork,smokenote,
+# `cargo xtask initrd` then bakes smoke-out/{init,hello,smokefork,smokenote,
 # stacksmoke} into target/bootfs.paq via mkpaqfs.  Every staged binary
 # is R_MAGIC (0x8C47, BE) verified here before the rsync-back is
 # trusted.
+#
+# 261103-p64 (the smoke/bootchain split): the smoke stage now owns
+# smoke-out/ EXCLUSIVELY — it previously wrote out/, where
+# subset-build.sh's boot chain lands the REAL init, and "last writer
+# wins" meant whichever build ran last decided out/init's identity.
+# That silently broke the exec-family boot-test gates (virtexec/
+# virtmulti/virtnotes need the smoke init's "init: r9 EL0 alive"
+# marker) whenever the virtshell chain ran last — and vice versa
+# (mkimage.sh asserts out/init is the REAL init).  Two gates, two
+# init binaries, one shared path — unworkable.  out/ is now the boot
+# chain's alone; smoke-out/ is the smoke stage's.
 #
 # Mirrors subset-build.sh's lima/rsync flow (vm-run.sh exclusion set,
 # guest script via /tmp, nsrun.sh namespace wrap).  Idempotent: the
@@ -23,9 +34,9 @@ HARVEY="${HARVEY:-$PWD}"
 VM="${HARVEY_VM:-harvey}"
 GUEST_DIR="${HARVEY_GUEST_DIR:-harvey-build}"
 LOG="${STAGE_BUILD_LOG:-$HARVEY/.build/stage-build.log}"
-OUT="$HARVEY/build/aarch64/out"
+OUT="$HARVEY/build/aarch64/smoke-out"
 
-# The C sources this script stages: NAME.c -> out/NAME (7c/7l).
+# The C sources this script stages: NAME.c -> smoke-out/NAME (7c/7l).
 STAGE_SRCS="init smokefork smokenote stacksmoke"
 
 err() { echo "error: $*" >&2; exit 1; }
@@ -70,7 +81,7 @@ set -e
 fail() { echo "STAGE-BUILD-FAIL: $1" >&2; exit 1; }
 
 STAGE_SRCS="init smokefork smokenote stacksmoke"
-STAGE="$HARVEY/build/aarch64/out"
+STAGE="$HARVEY/build/aarch64/smoke-out"
 
 echo "== stage build provenance (Harvey's vendored toolchain):"
 echo "   7c: $(command -v 7c)"
@@ -116,19 +127,19 @@ if [ $RC -ne 0 ]; then
 fi
 /usr/bin/grep -q 'STAGE-BUILD-OK' "$LOG" || err "guest build log lacks STAGE-BUILD-OK"
 
-# rsync the staged binaries back to the host checkout's gitignored out/
-echo "== pulling the staged binaries back to host build/aarch64/out"
+# rsync the staged binaries back to the host checkout's gitignored smoke-out/
+echo "== pulling the staged binaries back to host build/aarch64/smoke-out"
 mkdir -p "$OUT"
-rsync -a --delete -e "$RSYNC_RSH" "$GUEST:$GUEST_DIR/build/aarch64/out/" "$OUT/"
+rsync -a --delete -e "$RSYNC_RSH" "$GUEST:$GUEST_DIR/build/aarch64/smoke-out/" "$OUT/"
 
 # the committed ABI bisect binary rides along verbatim (04-06 consumes it)
 cp "$HARVEY/build/aarch64/hello.7.out" "$OUT/hello"
 
 # every staged binary must carry the arm64 a.out magic (R_MAGIC 0x8C47, BE)
 for f in $STAGE_SRCS hello; do
-	[ -s "$OUT/$f" ] || err "build/aarch64/out/$f missing after stage"
+	[ -s "$OUT/$f" ] || err "build/aarch64/smoke-out/$f missing after stage"
 	magic=$(od -An -tx1 -N4 "$OUT/$f" | tr -d ' \n')
-	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
+	[ "$magic" = "00008c47" ] || err "build/aarch64/smoke-out/$f: bad magic $magic (want 00008c47)"
 done
 
-echo "== PASS: staged $(ls "$OUT" | tr '\n' ' ')into build/aarch64/out (log: $LOG)"
+echo "== PASS: staged $(ls "$OUT" | tr '\n' ' ')into build/aarch64/smoke-out (log: $LOG)"

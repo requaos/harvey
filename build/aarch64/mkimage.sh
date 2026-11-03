@@ -117,12 +117,11 @@ for p in boot/boot boot/paqfs aarch64/init aarch64/bin/stacksmoke \
 	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
 done
 
-# 5a. init identity (05-07's gate-wedge lesson): out/ is shared with the
-# staged-init supply chain — stage-build.sh owns it WHOLESALE (the 05-02
-# decision: "last writer wins"), and its init is the WRONG binary for the
-# real chain (the staged init's concurrent exec children never reach rc).
-# r9's boot-test bake re-runs stage-build.sh, so pollution can land
-# between a subset-build and a bake.  Prove the REAL init at bake time:
+# 5a. init identity (05-07's gate-wedge lesson): out/ was shared with the
+# staged-init supply chain — 261103-p64 ended the sharing (the smoke stage
+# now owns build/aarch64/smoke-out/ exclusively; out/ is the boot chain's
+# alone), so the WRONG binary can never land here again.  The assertion
+# stays as the permanent guard.  Prove the REAL init at bake time:
 # the real init carries "init: starting /bin/rc"; the staged one carries
 # "init: r9 EL0 alive" (grep on a.out binaries matches rodata strings;
 # /usr/bin/grep per the host-shell discipline — plan9 grep lacks -q).
