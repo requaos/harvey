@@ -85,6 +85,16 @@
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
             ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
+          # 05-12 (INT-02, D-12): the expect-style smoke as a flake app —
+          # the SAME composed pipeline as boot-r9 (R9_KERNEL_PKG store
+          # path, build → bake → DTB patch) but launched under
+          # build/aarch64/smoke-r9.expect, which drives the full D-09
+          # sweep and exits 0/1 for CI.  boot-r9's behavior is untouched.
+          smokeR9Pkg = mkScriptApp pkgs "harvey-boot-r9-smoke" ./nix/smoke-r9.sh ''
+            export R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
+            ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -97,8 +107,7 @@
           # hasAttr gate keeps this attrset's evaluation lazy there.
         } // nixpkgs.lib.optionalAttrs (builtins.hasAttr system r9.packages) {
           boot-r9 = mkApp bootR9Pkg;
-          # 05-12 wiring point: boot-r9-smoke lands here (same pattern —
-          # mkScriptApp over the expect smoke script, INT-02/D-12).
+          boot-r9-smoke = mkApp smokeR9Pkg;
         });
 
       devShells = forAllSystems (system:

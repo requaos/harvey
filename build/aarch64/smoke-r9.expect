@@ -1,0 +1,209 @@
+#!/usr/bin/expect -f
+# smoke-r9.expect — 05-12's PACKAGED smoke driver (INT-02, D-12): the
+# expect-style smoke as a flake app, grown from 05-09's drive-r9.expect
+# (the interactive dev-harness gate).  Same assertions, packaged for
+# one-command/CI use — this script spawns qemu DIRECTLY with serial on
+# stdio (-nographic, the build/build.bash heredoc-expect precedent)
+# instead of driving a launcher script:
+#
+#   staged boot (banner → paqfs... → stacksmoke → %  prompt) →
+#   echo r9shell7 round-trip → ls /bin subset (rc ls cat echo ps) →
+#   ps live-process lines incl rc → cat /lib/namespace's known line →
+#   DEL safety (the interrupt note re-prompts, rc survives; r9delok
+#   proves the partial line did not corrupt the fresh command) →
+#   exit → init's for(;;) restart to a fresh prompt (D-01).
+#
+#   exit 0 only when EVERY stage passed; a failure exits 1 and names
+#   the failed stage on stderr (banner/paqfs/stacksmoke/prompt/echo/
+#   ls/ps/cat/DEL/restart) — never a bare hang-to-timeout with no
+#   localization.
+#
+# Hygiene (D-16, Pitfall 10): the caller (nix/smoke-r9.sh) rm -f's the
+# capture BEFORE launch and we rm -f + log_file it fresh below — the
+# file starts empty and only THIS run's boot writes it, so a pre-seeded
+# stale capture can never satisfy a marker wait.  Every exit path kills
+# qemu's process group (expect's spawn sets the child up as a
+# session/group leader on its pty, on darwin AND linux alike).
+#
+# Markers: PRESENCE assertions only, never interleaving order (D-13 —
+# preemption and TCG make arrival order meaningless).  Patterns are
+# CRLF-tolerant substrings, never end-of-line anchored (the kernel
+# console cooks \n → \r\n; userland writes are byte-exact).  r9's
+# devcons does not echo typed input this era (05-08's documented
+# delta), so a "r9shell7" line can only be the echo binary's OUTPUT.
+# Timeouts are TCG-sized (600s per stage — Pitfall 11; the legacy
+# harness used 600-2400s).
+#
+# Env (exported by nix/smoke-r9.sh — the flake app):
+#   R9_QEMU      default qemu-system-aarch64
+#   R9_KERNEL    REQUIRED — the r9 kernel-virt.elf (the flake input's
+#                store path; T-05-21)
+#   R9_DTB       REQUIRED — the fdtput-patched virt DTB copy (the
+#                caller's mktemp dir reclaims it after we exit)
+#   R9_INITRD    REQUIRED — build/aarch64/bootfs.paq (Harvey's bake)
+#   R9_SMOKE_LOG REQUIRED — the serial capture (fresh per run; the
+#                caller retains a passing one as phase evidence)
+#
+# usage: env R9_KERNEL=… R9_DTB=… R9_INITRD=… R9_SMOKE_LOG=… \
+#          expect build/aarch64/smoke-r9.expect
+# exit 0 on all-pass; exit 1 names the failed stage on stderr; exit 2
+# on a contract violation (missing env).
+
+set timeout 600                    ;# TCG-sized, PER STAGE (Pitfall 11)
+match_max 65536
+# NOTE: log_user stays ON — expect 5.45 writes NOTHING to log_file when
+# log_user is 0 (measured 05-08: the capture file was created empty).
+# The wire echo on the driver's stdout is the app's visible progress;
+# the stage lines name it on stderr.
+
+# --- required env (loud, before any spawn) -------------------------------
+foreach v {R9_KERNEL R9_DTB R9_INITRD R9_SMOKE_LOG} {
+    if {![info exists env($v)]} {
+        puts stderr "smoke-r9: \$$v unset — run via the flake app (nix run .#boot-r9-smoke)"
+        exit 2
+    }
+}
+set QEMU [expr {[info exists env(R9_QEMU)] ? $env(R9_QEMU) : "qemu-system-aarch64"}]
+
+# --- D-16 hygiene: a fresh capture per run ------------------------------
+# The caller already rm -f'd it; remove again here so the rule holds
+# however this script is invoked (a stale capture is dead evidence).
+exec rm -f $env(R9_SMOKE_LOG)
+
+# --- spawn qemu: the locked virt argv (values from r9's
+#     aarch64/lib/config_virtexec.toml [qemu], carried-forward locked
+#     shape; the caller already patched the DTB's /chosen cells) --------
+spawn $QEMU -M virt,gic-version=2 -cpu cortex-a72 -smp 1 -m 1024M \
+    -accel tcg \
+    -kernel $env(R9_KERNEL) \
+    -dtb $env(R9_DTB) \
+    -device loader,file=$env(R9_INITRD),addr=0x48000000 \
+    -nographic
+set spawn_pid [exp_pid]
+log_file $env(R9_SMOKE_LOG)
+
+# --- teardown: kill qemu's process group ------------------------------
+# The spawned qemu is a session/group leader on both hosts (expect's
+# pty setup), so the group IS the qemu subtree; catch: already-dead is
+# fine.  The lone-pid second form is the no-group fallback.
+proc cleanup {} {
+    global spawn_pid
+    catch { exec kill -KILL -- -$spawn_pid 2>/dev/null }
+    catch { exec kill -KILL $spawn_pid 2>/dev/null }
+}
+
+# --- staged ordered assertions (each stage names its failure) ---------
+# NOTE: expect_out must be global here — expect sets it in the CURRENT
+# scope, and the sweep stages read the captured buffer AFTER stage
+# returns.
+proc stage {name re} {
+    global expect_out
+    expect {
+        -re $re { puts stderr "smoke-r9: stage ok — $name" }
+        timeout { puts stderr "smoke-r9: TIMEOUT at stage: $name"; cleanup; exit 1 }
+        eof { puts stderr "smoke-r9: qemu exited (EOF) at stage: $name"; cleanup; exit 1 }
+    }
+}
+
+# fast-fail on kernel panic markers anywhere in the boot (drive9.py's
+# PANIC_RE rule)
+expect_before {
+    -re {panic|Unhandled interrupt} {
+        puts stderr "smoke-r9: kernel panic marker on the wire — aborting"
+        cleanup
+        exit 1
+    }
+}
+
+# 1. the staged boot sequence: banner → paqfs server → stacksmoke → prompt
+stage banner    {r9 from the Internet}
+stage paqfs     {paqfs\.\.\.}
+stage stacksmoke {stacksmoke: depth 64 ok}
+stage prompt    {% }
+
+# 2. the echo round-trip: typed input is READ, cooked, answered (the
+#    response is distinct from any typed echo — r9's cons does not echo
+#    input this era, so the marker can only be echo's output)
+send "echo r9shell7\r"
+stage echo-response {r9shell7}
+stage echo-prompt   {% }
+
+# 3. the D-09 command sweep — each command's output is captured up to
+#    the next prompt, then PRESENCE-asserted (D-13: never interleaving
+#    order).  The sweep rides the first rc generation; the state-
+#    resetting stages (DEL, exit) follow it.
+
+# 3a. ls /bin — the subset binaries are present (the /bin union resolves
+#     to the image's aarch64/bin through devmnt): five word-anchored
+#     presence assertions.
+send "ls /bin\r"
+stage ls-prompt {% }
+set lsout $expect_out(buffer)
+foreach name {rc ls cat echo ps} {
+    if {![regexp "\\m$name\\M" $lsout]} {
+        puts stderr "smoke-r9: ls /bin missing '$name'"
+        cleanup
+        exit 1
+    }
+}
+puts stderr "smoke-r9: stage ok — ls /bin subset (rc ls cat echo ps present)"
+
+# 3b. ps — one line per LIVE process (devproc's root listing + per-pid
+#     status/args): at least 3 lines matching the pid-and-name shape
+#     ("glenda <pid> … <name>"), one of them rc.
+send "ps\r"
+stage ps-prompt {% }
+set psout $expect_out(buffer)
+set pslines [regexp -all -inline {glenda +\d+[^\n]*} $psout]
+if {[llength $pslines] < 3} {
+    puts stderr "smoke-r9: ps printed [llength $pslines] process lines (< 3)"
+    cleanup
+    exit 1
+}
+set rcfound 0
+foreach l $pslines {
+    if {[regexp { rc$} [string trimright $l " \r"]]} { incr rcfound }
+}
+if {$rcfound < 1} {
+    puts stderr "smoke-r9: ps output has no rc line"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9: stage ok — ps ([llength $pslines] process lines, rc present)"
+
+# 3c. cat /lib/namespace — the shipped file's known line rides the
+#     mounted tree's read path verbatim.
+send "cat /lib/namespace\r"
+stage cat-prompt {% }
+set catout $expect_out(buffer)
+if {![string match "*bind -c #e /env*" $catout]} {
+    puts stderr "smoke-r9: cat /lib/namespace missing 'bind -c #e /env'"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9: stage ok — cat /lib/namespace (known line present)"
+
+# 4. DEL safety (D-06/D-14 combined contract): a partial command with no
+#    newline sits in the line assembly; DEL (0x7f) posts the interrupt
+#    note to rc's note group, discards the partial, and fails rc's read
+#    "interrupted" — rc's Eintr path re-prompts.  rc MUST be alive.
+send "fnord"                       ;# partial, no newline (a non-command:
+                                   ;# a flush failure can never echo the
+                                   ;# stage marker through it)
+send "\x7f"                        ;# DEL
+stage del-reprompt {% }            ;# rc interrupted + re-prompted, not dead
+
+send "echo r9delok\r"
+stage del-answer  {r9delok}        ;# the partial did NOT corrupt the fresh command
+stage del-prompt  {% }
+
+# 5. exit → init's for(;;) restart (sleep(1000) — sys_sleep's gate
+#    evidence — then fexec re-runs rc): a fresh prompt proves D-01's
+#    restart loop end-to-end.
+send "exit\r"
+stage restart-print {init: starting /bin/rc}
+stage restart-prompt {% }
+
+puts stderr "smoke-r9: ALL STAGES PASS — boot, echo, ls/ps/cat sweep, DEL safety, restart"
+cleanup
+exit 0
