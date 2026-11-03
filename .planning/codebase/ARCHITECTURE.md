@@ -1,12 +1,12 @@
 ---
-last_mapped_commit: 8d99c117b284e53cd6b8eb3cc369accd135eedec
-last_mapped_at: 2026-11-01
+last_mapped_commit: fa0ed761b9667411e8d93797bdbb79ba0598fa2f
+last_mapped_at: 2026-11-03
 ---
-<!-- refreshed: 2026-11-01 -->
+<!-- refreshed: 2026-11-03 -->
 
 # Architecture
 
-**Analysis Date:** 2026-11-01
+**Analysis Date:** 2026-11-03
 
 ## System Overview
 
@@ -75,9 +75,9 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 | Commands | ~266 user commands/daemons/file servers | `sys/src/cmd/` |
 | APE | ANSI/POSIX Environment (ports of Unix software) | `sys/src/ape/` |
 | Legacy kernel | Original Plan 9 kernel tree (multi-arch: pc, bcm, omap, teg2…) | `sys/src/9/` |
-| Host build harness | Builds Harvey ISO by booting Plan 9 under QEMU | `build/` |
+| Host build harness | Builds Harvey ISO by booting Plan 9 under QEMU; also hosts the aarch64 r9-boot supply chain (userland build → paqfs bake → DTB patch → qemu/expect) | `build/` (`build/aarch64/`) |
 | aarch64 port tree | Per-arch install root + frozen user-side syscall ABI contract for the Harvey↔r9 kernel pairing | `aarch64/` (`ABI.md`, `include/u.h`, `include/ureg.h`, `mkfile`) |
-| Nix dev environment | Reproducible host toolchain: devshell + `setup`/`toolchain`/`build`/`iso` apps; lima VM path on darwin | `flake.nix`, `flake.lock`, `nix/` |
+| Nix dev environment | Reproducible host toolchain: devshell + `setup`/`toolchain`/`build`/`iso`/`boot-r9`/`boot-r9-smoke` apps; owns the Harvey↔r9 composition via the pinned `inputs.r9` flake input; lima VM path on darwin | `flake.nix`, `flake.lock`, `nix/` |
 | Agent instructions | Repo-facing agent/project contract (project, stack, conventions, GSD workflow) | `AGENTS.md` |
 
 ## Pattern Overview
@@ -134,11 +134,18 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 - `sys/src/9k/boot/` — the `boot` user program embedded in/loaded with the kernel: performs authentication (`bootauth.c`, `doauthenticate.c`), finds the root (`local.c`, `bootip.c`), then execs init.
 
 **Host tooling layer (Nix):**
-- Purpose: Reproducible host environment on darwin-aarch64, linux-aarch64, linux/x86_64 — replaces manual plan9port/qemu/expect installation.
-- Location: `flake.nix` (single input: `nixpkgs/nixos-unstable`, pinned in `flake.lock`), scripts in `nix/`.
-- Structure: `flake.nix` exposes four `apps` built with `writeShellApplication`, each wrapping a `nix/*.sh` script with a controlled `PATH` and `PLAN9` export: `setup` (`nix/setup.sh` — populates per-host `$HARVEY/.build/hostbin-<os>-<arch>/bin` with bootstrap `pcc`/host tools), `toolchain` (`nix/toolchain.sh` — builds the Plan 9 cross compilers 6a/6c/6l, 8a/8c/8l + vendored 9cc), `build` (`nix/build.sh` on Linux — full kernel build in a private mount namespace via `unshare`; `nix/vm-build.sh` on darwin — rsyncs the checkout into a lima VM (`nix/lima-harvey.yaml`, Ubuntu 24.04) because the namespace build needs Linux bind mounts and virtiofs subdir mounts silently yield empty trees), and `iso` (`nix/iso.sh` — the legacy qemu+expect `build/build.bash` path).
-- Key invariants enforced by the wrappers: `$PLAN9/bin` is appended LAST on `PATH` (per `BUILD_ON_UNIX` — plan9port ships a 9p `mount` that must not shadow util-linux `mount`); `HARVEY_LINUX_BIN` is per-OS/arch so a checkout shared with the lima guest never clobbers host binaries; shims strip `-static` from `9l` (modern Apple ld and nix glibc can't link static) and shadow Harvey's ken-format `nm` during host-ELF autolib.
+- Purpose: Reproducible host environment on darwin-aarch64, linux-aarch64, linux/x86_64 — replaces manual plan9port/qemu/expect installation; also owns the Harvey↔r9 composition.
+- Location: `flake.nix` (two inputs: `nixpkgs/nixos-unstable` and `r9 = github:requaos/r9`, both pinned in `flake.lock` — r9 at rev `9549cee63d86a0c6d9b4d04ed8860b2efabcd3e6`, narHash `sha256-g9OBd1Mwll2bx5bNjzxkuREB0X3H7uTPTyQ62PGrzQc=`; the lock also captures r9's transitive nixpkgs/rust-overlay nodes), scripts in `nix/`.
+- Structure: `flake.nix` exposes six `apps` built with `writeShellApplication` (`mkScriptApp`), each wrapping a `nix/*.sh` script with a controlled `PATH` and `PLAN9` export: `setup` (`nix/setup.sh` — populates per-host `$HARVEY/.build/hostbin-<os>-<arch>/bin` with bootstrap `pcc`/host tools), `toolchain` (`nix/toolchain.sh` — builds the Plan 9 cross compilers 6a/6c/6l, 8a/8c/8l + vendored 9cc), `build` (`nix/build.sh` on Linux — full kernel build in a private mount namespace via `unshare`; `nix/vm-build.sh` on darwin — rsyncs the checkout into a lima VM (`nix/lima-harvey.yaml`, Ubuntu 24.04) because the namespace build needs Linux bind mounts and virtiofs subdir mounts silently yield empty trees), `iso` (`nix/iso.sh` — the legacy qemu+expect `build/build.bash` path), and the r9 composition pair `boot-r9` (`nix/boot-r9.sh` — build the aarch64 userland → bake `bootfs.paq` → fdtput-patch the r9 DTB → qemu to the interactive `%` prompt) and `boot-r9-smoke` (`nix/smoke-r9.sh` — the same pipeline launched under `build/aarch64/smoke-r9.expect`, exiting 0/1 for CI). Both r9 apps export `R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"` and are gated by `optionalAttrs (builtins.hasAttr system r9.packages)` so evaluation stays lazy where r9 ships no `kernel-virt` (x86_64-darwin).
+- Key invariants enforced by the wrappers: `$PLAN9/bin` is appended LAST on `PATH` (per `BUILD_ON_UNIX` — plan9port ships a 9p `mount` that must not shadow util-linux `mount`); `HARVEY_LINUX_BIN` is per-OS/arch so a checkout shared with the lima guest never clobbers host binaries; shims strip `-static` from `9l` (modern Apple ld and nix glibc can't link static) and shadow Harvey's ken-format `nm` during host-ELF autolib; the r9 kernel/DTB arrive ONLY as nix store paths from the flake input (T-05-21 — never a sibling-checkout path, INT-04).
 - Also provides: `devShells.default` (plan9port, qemu, expect, gnused…; exports `HARVEY`, `PLAN9`, `HARVEY_LINUX_BIN`, `objtype=amd64`, `FORCERCFORMK=1`) and, Linux-only, a `minimega` package (`nix/minimega.nix`, v3.3.0 via `buildGoModule`) for KVM test-VM orchestration — amd64 guests only, no upstream aarch64 guest support.
+
+**aarch64 r9-boot supply chain (`build/aarch64/`):**
+- Purpose: Host-side harness that produces, launches, and asserts the Harvey-aarch64-userland-on-r9-kernel boot: builds the userland subset in a Plan 9 mount namespace, bakes the paqfs root image with Harvey's own mkpaqfs, fdtput-patches the r9 DTB, and drives qemu (interactive or expect-asserted). Also retains the 9front donor-kernel bridge harness (proving the vendored 7a/7c/7l toolchain + frozen ABI against a reference kernel) and the 05-03 syscall trace rig.
+- Location: `build/aarch64/` (full file inventory in STRUCTURE.md → Directory Purposes).
+- Producers: `subset-build.sh` (the ONE userland build driver on both hosts — darwin: lima guest namespace via `vm-run.sh`/`nsrun.sh`; linux: the same generated guest script natively under `sudo unshare -m`; builds 13 libs + 16 commands + the boot chain `boot`/`init`/`paqfs`/`stacksmoke`, harvests to gitignored `aarch64/bin/` + `build/aarch64/out/`, R_MAGIC `0x8C47`-verified), `stage-build.sh` (the phase-04 staged-init supply chain — compiles `init.c`/`smokefork.c`/`smokenote.c`/`stacksmoke.c` for r9's own `cargo xtask initrd` bake; owns `out/` wholesale, "last writer wins"), `mkimage.sh` (stages the committed `root-tree/` skeleton + binaries + verbatim `rc/lib/rcmain`/`adm/timezone/local`, asserts the manifest including the D-02 `/boot/factotum` absence, bakes `bootfs.paq` via the host mkpaqfs from `mkpaqfs-host.sh`, verifies paqfs magics `529ab12b`/`6b46e688`).
+- Launchers: `run-r9.sh` (unpackaged dev launcher; `R9_KERNEL`/`R9_DTB` required env — no implicit sibling-checkout defaults; locked qemu argv `-M virt,gic-version=2 -cpu cortex-a72 -smp 1 -m 1024M -accel tcg`, initrd via `-device loader,addr=0x48000000`) and the flake apps `nix/boot-r9.sh`/`nix/smoke-r9.sh` (the packaged compose/smoke; kernel+DTB arrive only as the r9 flake input's store paths).
+- Drivers: `drive-r9.expect` (05-08 interactive gate — spawns `run-r9.sh`), `smoke-r9.expect` (05-12 packaged smoke — spawns qemu directly): staged presence-only marker assertions (banner → `paqfs...` → `stacksmoke: depth 64 ok` → `% ` prompt → echo round-trip → `ls`/`ps`/`cat` sweep → DEL safety → init restart), CRLF-tolerant, 600s TCG-sized per stage, qemu process-group kill on every exit path.
 
 ## Data Flow
 
@@ -164,6 +171,22 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 2. IP stack lives in kernel `sys/src/9k/ip/` (tcp.c, udp.c, ipifc.c, iproute.c, arp.c, icmp.c, ipv6.c…) exposed as `/net` files.
 3. User-space daemons in `sys/src/cmd/ip/` (dhcpd, tftpd, snoopy, 6in4, ppp…) manipulate `/net`; `libip` provides shared helpers.
 4. DNS/connection services run as user file servers: `sys/src/cmd/ndb/dns.c`, `cs.c` mounted at `/net`.
+
+### r9 Boot Pipeline (aarch64 compose — `nix run .#boot-r9[-smoke]`)
+
+1. **Kernel/DTB arrive as store paths:** `flake.nix` exports `R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"` into `nix/boot-r9.sh` / `nix/smoke-r9.sh`; the scripts resolve `kernel-virt.elf` + `aarch64/lib/virt-gicv2.dtb` under that read-only store path (with a `find` fallback for layout drift). No sibling-checkout path exists anywhere in the composition (INT-04).
+2. **KERNDATE derivation:** host-side `git log -1 --format=%ct` (override `KERNDATE=<epoch>`), exported into the build — the BUILD-04 pin; see `build/REPRODUCIBILITY.md`.
+3. **Userland build:** `build/aarch64/subset-build.sh` — the one driver on both hosts: darwin rsyncs the checkout into the lima guest and runs the generated guest script under `nsrun.sh --wrap` (Plan 9 mount namespace via `sudo unshare -m`: `/sys`←checkout sys, `/aarch64`←checkout aarch64); linux runs the same guest script natively under `sudo unshare`. Builds libc + 12 libs (`libbio libregexp libip libndb libmp libsec libString libthread lib9p libauth libauthsrv libflate`) + 16 commands + the boot chain (`boot(8)` via `sys/src/9k/boot/mkfile.aarch64`, `init` via cmd's per-target install, `paqfs`, `stacksmoke`) with `objtype=aarch64`; harvests to `aarch64/bin/` and `build/aarch64/out/`, every boot-chain binary R_MAGIC-verified (`00 00 8c 47` BE). Skip hatch: `R9_SKIP_BUILD=1` (dev iteration only, never the gate).
+4. **Image bake:** `build/aarch64/mkimage.sh` stages the committed `build/aarch64/root-tree/` skeleton (`lib/namespace`, `rc/bin/termrc`, `usr/glenda/lib/profile`) + empty mount-point dirs (`/root /env /proc /dev /srv /fd /bin /tmp /mnt`) + the built binaries + verbatim `rc/lib/rcmain` and `adm/timezone/local`; asserts the manifest (including `/boot/factotum` ABSENT — D-02 auth-stub-by-absence — and the real-init identity via rodata grep `"init: starting /bin/rc"`, guarding against `stage-build.sh`'s `out/` pollution), then bakes `build/aarch64/bootfs.paq` with the host mkpaqfs (`.build/bin/mkpaqfs`, built by `mkpaqfs-host.sh`) and verifies the paqfs header/trailer magics (`529ab12b` / `6b46e688`).
+5. **DTB patch:** a writable throwaway copy of the package's `virt-gicv2.dtb` gets `/chosen linux,initrd-start`/`linux,initrd-end` written by `fdtput` as two 32-bit BE cells each, high word first (r9's `property_value_as_u64` reads one 8-byte BE cell; dtc has no 8-byte property type) — mirrors r9's `xtask/src/config.rs` `prepare_initrd_dtb` (lines 385-434).
+6. **Launch:** locked qemu argv (values from r9's `aarch64/lib/config_virtexec.toml` `[qemu]`): `qemu-system-aarch64 -M virt,gic-version=2 -cpu cortex-a72 -smp 1 -m 1024M -accel tcg -kernel <r9 ELF> -dtb <patched copy> -device loader,file=<bootfs.paq>,addr=0x48000000 -nographic`. `boot-r9` runs qemu foreground on stdio (the terminal is the console; ctrl-a x quits); `build/aarch64/run-r9.sh` is the unpackaged equivalent (env contract: `R9_KERNEL`/`R9_DTB` required, no defaults; `--log FILE` gate mode).
+7. **Smoke (boot-r9-smoke only):** `build/aarch64/smoke-r9.expect` spawns qemu itself, captures serial to a fresh-per-run log (`R9_SMOKE_LOG`, rm'd before launch — a stale capture is dead evidence), and drives the staged assertion sweep: banner `r9 from the Internet` → `paqfs...` → `stacksmoke: depth 64 ok` → `% ` prompt → `echo r9shell7` round-trip → `ls /bin` subset presence (`rc ls cat echo ps`) → `ps` live-process lines incl rc → `cat /lib/namespace` known line (`bind -c #e /env`) → DEL (0x7f) interrupt safety + `r9delok` re-prompt → `exit` → init's `for(;;)` restart to a fresh prompt. Exit 0 only when every stage passed; each stage names its failure on stderr; markers are PRESENCE assertions only, never interleaving order; qemu's process group is killed on every exit path. `build/aarch64/drive-r9.expect` is the interactive-gate predecessor (spawns `run-r9.sh` instead of qemu directly). CI: `.github/workflows/r9-shell.yml` runs the clean-checkout smoke on `ubuntu-latest`.
+
+### Guest-side boot flow inside the image (what the smoke asserts)
+
+1. r9 kernel starts → banner, mounts the paqfs initrd, execs `/boot/boot` (the aarch64 boot(8) from `sys/src/9k/boot/mkfile.aarch64` + hand-written `bootr9.c` bootconf).
+2. `boot` runs the real chain: opencons → bindenvsrv → doauth (glenda path — `/boot/factotum` absent, D-02) → rfork(RFNAMEG) → connectembed (pipe + fork + exec `/boot/paqfs` — the `paqfs...` print) → fversion → mount `/root` → nsinit binds → execinit → `/aarch64/init`.
+3. `init` (the real one, from cmd's `init.install`) runs `newns` against the image's scoped `/lib/namespace` — the re-mount pair `mount -a #s/boot /root` + `bind -a /root /` comes FIRST (newns's RFCNAMEG wipe clears boot's mount table) — then `rc/lib/rcmain` → `/rc/bin/termrc` (runs `stacksmoke` first, D-15, then `exec rc -i`) → the interactive `% ` prompt as user glenda.
 
 **State Management:**
 - Kernel global singletons exist and are deliberate: `Sys* sys` (system structure, `k10/main.c:17`), `conf` (config), per-CPU `Mach*` (`m` macro), device state in each `dev*.c`. `extern Mach *m;` per-CPU pointer is the threading model.
@@ -237,6 +260,11 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 - Triggers: `nix run .#setup` → `nix run .#toolchain` → `nix run .#build` (or `.#iso` for the legacy qemu path); `nix develop` drops into the devshell.
 - Responsibilities: Replaces manual plan9port/Docker setup; darwin builds rsync the checkout to a lima guest (guest-local disk — virtiofs bind-mount subtrees don't work) and rsync artifacts (`amd64/`, `386/`, `aarch64/`) back.
 
+**r9 compose/smoke (aarch64 shell boot):**
+- Location: `flake.nix` apps → `nix/boot-r9.sh` (interactive), `nix/smoke-r9.sh` (CI smoke → `build/aarch64/smoke-r9.expect`); unpackaged dev launcher `build/aarch64/run-r9.sh` (+ `drive-r9.expect` interactive gate).
+- Triggers: `nix run .#boot-r9` (to the interactive `%` prompt), `nix run .#boot-r9-smoke` (self-asserting, exit 0/1 — the CI/clean-checkout proof); `nix run .#boot-r9 --override-input r9 git+file:///path/to/r9` for a local r9 checkout (D-13 dev flow, never the default).
+- Responsibilities: Compose the pinned r9 flake-input kernel (`r9.packages.<system>.kernel-virt` store paths) with the Harvey aarch64 userland — build (`build/aarch64/subset-build.sh`) → bake (`mkimage.sh` → `bootfs.paq`) → fdtput DTB patch → qemu `virt,gic-version=2` TCG launch; the smoke variant drives the D-09 assertion sweep over the serial wire.
+
 ## Architectural Constraints
 
 - **Threading:** Kernel is a single-stack-per-CPU cooperative/preemptive hybrid: processes are kernel coroutines scheduled by `proc.c`; per-CPU `Mach` state, `taslock.c` test-and-set spinlocks + `qlock.c` queueing locks; `Rendez` sleep/wakeup (`sleep`/`wakeup`). User space: `libthread` coroutines + channels, or raw `rfork(RFPROC)` procs. No pthreads in native code (APE has its own).
@@ -246,7 +274,7 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 - **Cross-arch includes:** per-arch headers resolved via `/$objtype/include` (e.g., `amd64/include/u.h`, `ureg.h`) — code references them as absolute `/amd64/include/...` paths inside the Plan 9 namespace.
 - **Circular imports:** Kernel `port/` ↔ machine dirs interdepend by design (`port/lib.h` included from machine code; machine provides `fns.h`/`dat.h`/`mem.h` consumed by port). The mk layer resolves ordering; do not add new reverse deps beyond the established header triad (`dat.h`/`fns.h`/`mem.h` per arch).
 - **Two kernels coexist:** `sys/src/9/` (legacy, full multi-arch) vs `sys/src/9k/` (Harvey, amd64/386 focus). New work targets `9k`. Shared libs (libc etc.) serve both.
-- **Two repos, one ABI:** the aarch64 user side runs on the sibling **r9** Rust kernel (`../r9`). The user↔kernel wire contract is frozen in-repo (`aarch64/ABI.md` + `aarch64/include/ureg.h`); see Cross-Cutting Concerns → Syscall ABI. Do not edit either file without re-freezing both repos.
+- **Two repos, one ABI:** the aarch64 user side runs on the **r9** Rust kernel, consumed as a pinned flake input (`inputs.r9 = github:requaos/r9`, rev+narHash in `flake.lock`; the compose apps see only `r9.packages.<system>.kernel-virt` store paths — never a sibling-checkout path, INT-04). The user↔kernel wire contract is frozen in-repo (`aarch64/ABI.md` + `aarch64/include/ureg.h`); see Cross-Cutting Concerns → Syscall ABI. Do not edit either file without re-freezing both repos. Dev flow against a local r9 checkout (D-13): `nix run .#boot-r9 --override-input r9 git+file:///path/to/r9` — dev-only, never the default, never what CI uses.
 - **aarch64 toolchain letter is 7:** `aarch64/mkfile` sets `CC=7c LD=7l AS=7a O=7` (the 9front arm64 toolchain letters, adopted verbatim). Object files for aarch64 are `*.7`.
 - **Host builds are Nix-mediated:** the supported host entry points are the `flake.nix` apps (`setup`→`toolchain`→`build`/`iso`), not raw `build/build.bash` or Docker. PATH ordering is contractual: `$HARVEY_LINUX_BIN` FIRST, `$PLAN9/bin` LAST. The kernel build requires Linux mount namespaces — on darwin it runs inside the lima VM defined by `nix/lima-harvey.yaml`.
 
@@ -289,7 +317,7 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 **Authentication:** Centralized in `factotum` (user-space key agent, `sys/src/cmd/auth/factotum/`) speaking 9P; kernel support via `devcap.c` (capability device) and `sysauth.c`; wire crypto in `libsec` (TLS in kernel `devtls.c` + user `libsec`), auth server code in `sys/src/cmd/auth/` + `libauthsrv`/`libauth`. Network identity via `ndb` (`sys/src/ndb`, `libndb`).
 
 **Syscall ABI (aarch64 — FROZEN):** The Harvey↔r9 user-side syscall wire contract for `objtype=aarch64` is frozen (decisions D-15/D-16/D-17) and lives in two in-repo files that must change together — changing either after Phase 4 means re-freezing both this repo and `../r9`:
-- `aarch64/ABI.md` — the canonical prose contract. Wire format: syscall number in register `R0`; arguments in 8-byte slots at user `SP+8` upward (`SP+0` is the reserved link-register slot; the stub's `MOV R0, 0(FP)` materializes arg0 into its stack slot, so the first kernel-visible argument is at `SP+8`); trap via `SVC`; result returned in `R0`. Kernel read side computes `(Sargs*)(ureg->sp+BY2WD)` with `BY2WD=8` (per 9front arm64 `trap.c:196`/`mem.h:92` at pin `350266104f1fed81c78c3d05fa44f523bec0ae4d`). Syscall table is Harvey's `sys/src/libc/9syscall/sys.h` 0–54 verbatim: 0–52 wire-identical to 9front arm64 (including `SYSR1=0` and the 48–49 gap), 53 `NSEC` is zero-arg register-return, 54 `NMOUNT` is Harvey-only (six-arg; r9 may leave it unimplemented until called).
+- `aarch64/ABI.md` — the canonical prose contract. Wire format: syscall number in register `R0`; arguments in 8-byte slots at user `SP+8` upward (`SP+0` is the reserved link-register slot; the stub's `MOV R0, 0(FP)` materializes arg0 into its stack slot, so the first kernel-visible argument is at `SP+8`); trap via `SVC`; result returned in `R0`. Kernel read side computes `(Sargs*)(ureg->sp+BY2WD)` with `BY2WD=8` (per 9front arm64 `trap.c:196`/`mem.h:92` at pin `350266104f1fed81c78c3d05fa44f523bec0ae4d`). Syscall table is Harvey's `sys/src/libc/9syscall/sys.h` 0–54 verbatim: 0–52 wire-identical to 9front arm64 (including `SYSR1=0` and the 48–49 gap), 53 `NSEC` is zero-arg register-return, 54 `NMOUNT` is Harvey-only (six-arg; r9 may leave it unimplemented until called). A Phase-4 appendix (kernel-side enforcement) pins r9's `TrapFrame` byte offsets against `ureg.h` (r0@0 … r28@224, r29@232, r30/link@240, sp@248, pc@256, psr@264, type@272; `sizeof(Ureg)`=280, r9 frame stride 288) and specifies the two-layer drift check: in-crate `core::mem::offset_of!` const asserts in r9's `aarch64/src/trap.rs` plus `cargo xtask ureg-check` (r9 repo) parsing this repo's `aarch64/include/ureg.h` — located via `R9_HARVEY_DIR`, default `../harvey` — failing every boot-test profile on drift.
 - `aarch64/include/ureg.h` — the frozen trap frame, field-for-field: `r0`..`r28` (`r28` = `sb`), `r29`, `r30`/`link` union, `sp`, `pc` (interrupted address), `psr`, `type` (exception class). r9's Rust trap frame is checked against this at build time.
 - User-side stubs are generated per syscall by the `case aarch64` block of `sys/src/libc/9syscall/mkfile` (`TEXT name(SB), 1, $0` / `MOV R0, 0(FP)` / `MOV $NN, R0` / `SVC` / `RETURN`; `seek`→`_seek` and `exits`→`_exits` quirks preserved).
 - Explicitly **not** part of the contract (D-17): kernel-side dispatch style. Harvey 9k's `void sysxxx(Ar0*, va_list)` and 9front's `void sysxxx(Ar0)` are both internal; r9 matches only the wire contract above.
@@ -297,4 +325,4 @@ Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell
 
 ---
 
-*Architecture analysis: 2026-11-01*
+*Architecture analysis: 2026-11-03*
