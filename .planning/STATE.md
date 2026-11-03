@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Shell Boot + One-Command Integration
 status: executing
-stopped_at: Completed 05-07-PLAN.md
-last_updated: "2026-11-03T10:23:28.913Z"
+stopped_at: Completed 05-08-PLAN.md
+last_updated: "2026-11-03T14:10:57.516Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 05 execution started
-state_head: 71fcf94aef3e1197c627e0cd8bd54ba210f58949
+state_head: a4d7162ae06bd20b2ee585c3affee01bcfdb2194
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 38
-  completed_plans: 32
+  completed_plans: 33
   percent: 80
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
-Plan: 8 of 13
+Plan: 9 of 13
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 05 execution started
 
@@ -91,6 +91,7 @@ Progress: [████████░░] 80%
 | Phase 05 P05 | 26 min | 2 tasks | 14 files |
 | Phase 05 P06 | 110 min | 3 tasks | 19 files |
 | Phase 05 P07 | 106 min | 3 tasks | 17 files |
+| Phase 05 P08 | 223 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -182,6 +183,9 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05]: 05-07: per-RPC read counts clamp to 4072 (devpipe's 4096 atomic-write bound minus IOHDRSZ) even at negotiated msize 8192 — the pipe write is whole-message-or-fail; the donor's iounit clamp with the era's transport binding
 - [Phase 05]: [Phase 05]: 05-07: exec through the mount stages the WHOLE binary eagerly (proc.rs ByteBacking::Mnt, Arc-shared, 16 MiB loud cap) — the trap-context pager must never RPC; syscall context is where blocking belongs. sys_exec resolves via namec now (the Phase-4 devroot-only prefix scaffold retired — D-03)
 - [Phase 05]: [Phase 05]: 05-07: mkimage.sh asserts out/init is the REAL init at bake time (rodata markers) — the 05-02 'last writer wins' out/ ownership means r9's boot-test bake (stage-build.sh) re-pollutes; the bake fails loudly instead of booting the staged chain. The aarch64 seek ABI is the generated _seek stub's FOUR args (rv ptr, fd, offset, base) with the result written through *rv (the donor sysfile.c sysseek comment is the authority; 05-06's slot-0-as-fd reading was wrong)
+- [Phase 05]: [Phase 05] 05-08: the console DEL posts "interrupt" to the note GROUPS of the console's readers (blocked waiters ∪ the current reader) — the plan's sanctioned foreground-group scoping for the notepg machinery; r9 grew real note-group ids for it (Proc.noteid: fresh per construction, rfork inherits unless RFNOTEG, non-RFPROC RFNOTEG re-groups the caller — 9k sysproc.c), so init's rfork(RFNOTEG)'d shell children are interrupted without init ever seeing the note.
+- [Phase 05]: [Phase 05] 05-08: DEL (0x7f) discards the in-assembly partial line and fails the reading syscall -1/"interrupted" (the donor's qread-under-a-note → rc's Eintr re-prompt); no input ECHO this era (documented devcons delta — typed bytes never re-write to the wire); sleep(0) yields via preempt(); a sleeper wakes only on expiry (the donor's note-interruptible tsleep is a documented era limit — no measured caller interrupts a sleep).
+- [Phase 05]: [Phase 05] 05-08: two gate-caught fixes — (1) launchers spawning qemu's stdio serial in the background MUST pass <&0 explicitly: a non-interactive sh redirects a backgrounded command's stdin from /dev/null (POSIX), silently starving console input (run-r9.sh); (2) pick_next no longer skips the current proc — a proc that blocks via sched() stays current while the sched loop runs, so a tick-readied waiter was unpickable (the cons-read deadlock); the scan still starts at cur+1 (the readied current is picked last — fairness kept).
 
 ### Pending Todos
 
@@ -209,6 +213,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T10:23:28.846Z
-Stopped at: Completed 05-07-PLAN.md
+Last session: 2026-11-03T14:10:57.447Z
+Stopped at: Completed 05-08-PLAN.md
 Resume file: None
