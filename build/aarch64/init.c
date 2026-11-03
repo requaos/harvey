@@ -6,10 +6,11 @@
  * minimal 7c-built binary that rides the initrd paqfs, goes through the
  * real a.out load/exec path, prints its alive-ness via write(2), then
  * rforks child A (exec /hello — the committed Phase-2 ABI bisect
- * binary), child B (exec /smokefork — the rfork/fd-ops smoke) and child
- * C (exec /smokenote — the notes smoke) through the real RFORK/EXEC
+ * binary), child B (exec /smokefork — the rfork/fd-ops smoke), child
+ * C (exec /smokenote — the notes smoke) and child D (exec /stacksmoke
+ * — 05-01's D-15 stack-growth smoke) through the real RFORK/EXEC
  * paths, posts the note to C via unmodified libc postnote (a write to
- * /proc/N/note on devproc-lite), and awaits all three exit records via
+ * /proc/N/note on devproc-lite), and awaits all four exit records via
  * AWAIT.  The early markers stay byte-identical to 04-06 ("init: r9 EL0
  * alive", the hello print) so the virtexec profile's assertions remain
  * satisfiable as a subset; 04-07's smoke markers likewise for virtmulti.
@@ -63,6 +64,25 @@ main(int, char*[])
 	}
 
 	/*
+	 * Child D (05-01, D-15): the stack-growth smoke.  Forked before the
+	 * ordering spin so it shares the preemption window with its
+	 * siblings; its own marker ("stacksmoke: depth 64 ok") is the only
+	 * evidence it prints.  Purely additive — the existing children and
+	 * their markers are untouched.
+	 */
+	switch(rfork(RFPROC|RFMEM)){
+	case 0:
+		argv[0] = "/stacksmoke";
+		argv[1] = nil;
+		exec("/stacksmoke", argv);
+		print("init: child D exec returned\n");
+		exits("exec-fail");
+	case -1:
+		print("init: rfork D failed: %r\n");
+		exits("rfork-fail");
+	}
+
+	/*
 	 * D-16 ordering: the child must have notify() installed BEFORE the
 	 * postnote lands — a note delivered to a handlerless process kills
 	 * it (the donor pexit shape), and exec clears the handler.  No
@@ -82,7 +102,7 @@ main(int, char*[])
 		exits("postnote-fail");
 	}
 
-	for(n = 0; n < 3; n++){
+	for(n = 0; n < 4; n++){
 		if(await(buf, sizeof buf - 1) < 0){
 			print("init: await failed: %r\n");
 			exits("await-fail");
