@@ -153,7 +153,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. From clean checkouts of both repos, the documented commands reproduce the boot with pinned toolchains/qemu — honoring Phase 1's KERNDATE/reproducibility policy
   5. Harvey's `flake.nix` consumes r9 as a flake input (pinned git rev) — the integration glue lives in the flakes, not in `../r9` relative paths or git submodules (INT-04)
 
-**Plans**: 9/13 plans executed (12 waves; D-14's debug-first Wave 0 precedes the phase tracer at 05-04, and the measure-first donor trace (05-03) precedes all dispatch growth per carried-forward policy)
+**Plans**: 10/13 plans executed (12 waves; D-14's debug-first Wave 0 precedes the phase tracer at 05-04, and the measure-first donor trace (05-03) precedes all dispatch growth per carried-forward policy)
 **Wave 1**
 - [x] 05-01-PLAN.md — r9 hygiene: D-14 note-race root-cause + fix (40/40 gate), D-16 boot-test qemu/log cleanup, D-15 stacksmoke staged gate
 
@@ -180,7 +180,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 **Wave 9** *(parallel: disjoint files, same-repo precedent 04-02∥04-03; landing order safe both ways — 05-09's boot-test/ureg-check verifies export R9_HARVEY_DIR explicitly against 05-10's inversion)*
 - [x] 05-09-PLAN.md — devproc completion (dir reads, status ≥12 fields, args, ctl) + trace-settled leftover syscalls → full D-09 sweep green on darwin
-- [ ] 05-10-PLAN.md — r9 flake packages.kernel-virt (D-11) + xtask inversion: R9_HARVEY_DIR required, no sibling-checkout defaults (D-10)
+- [x] 05-10-PLAN.md — r9 flake packages.kernel-virt (D-11) + xtask inversion: R9_HARVEY_DIR required, no sibling-checkout defaults (D-10)
 
 **Wave 10** *(the pin must capture ALL r9-side phase work)*
 - [ ] 05-11-PLAN.md — Harvey inputs.r9 + flake.lock pin (INT-04) + nix/boot-r9.sh compose app → COMPOSE GATE: nix run .#boot-r9 to the prompt on darwin (INT-01)
@@ -202,4 +202,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
 | 3. r9 qemu-virt Platform Bring-up | 6/6 | Complete    | 2026-11-01 |
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | 8/8 | Complete    | 2026-11-02 |
-| 5. Shell Boot + One-Command Integration | 9/13 | In Progress|  |
+| 5. Shell Boot + One-Command Integration | 10/13 | In Progress|  |

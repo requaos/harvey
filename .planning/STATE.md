@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Shell Boot + One-Command Integration
 status: executing
-stopped_at: Completed 05-09-PLAN.md
-last_updated: "2026-11-03T15:13:11.784Z"
+stopped_at: Completed 05-10-PLAN.md
+last_updated: "2026-11-03T15:26:29.338Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 05 execution started
-state_head: ca6fd79d31801a8290214a134e936662d3f39a51
+state_head: 956caeba8d20fe27f4fe8898fbdfce685d6f8869
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 38
-  completed_plans: 34
+  completed_plans: 35
   percent: 80
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
-Plan: 10 of 13
+Plan: 11 of 13
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 05 execution started
 
@@ -93,6 +93,7 @@ Progress: [████████░░] 80%
 | Phase 05 P07 | 106 min | 3 tasks | 17 files |
 | Phase 05 P08 | 223 min | 3 tasks | 14 files |
 | Phase 05 P09 | 54 min | 2 tasks | 14 files |
+| Phase 05 P10 | 10 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -193,6 +194,8 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05]: 05-09: stat(5) records carry FOUR strings (muid added) — dirreadall's statcheck walks four and rejects three (convM2D.c); devproc fixed, the same latent shape in devcons/devroot/devenv/devsrv/devdup deferred (no dirreadall consumer this era)
 - [Phase 05]: [Phase 05]: 05-09: dispatch table closed against the 05-03 measured set — REMOVE/WSTAT/FWSTAT/OSEEK never measured → loud-None; FAUTH loud-None per D-02; the kernel's syscall attack surface is exactly the measured set (T-05-18)
 - [Phase 05]: [Phase 05]: 05-09: the input-wedge flake (2/~7 early sweep runs wedged at a prompt read; 6 consecutive clean passes since; never reproduced under the cons watchdog) documented-not-fixed — this plan's diffs don't touch the cons/wake/note/sched/timer paths; top debug candidate for 05-12/05-13's CI leg
+- [Phase 05]: 05-10: r9 packages.kernel-virt builds the virtshell kernel in a sandboxed derivation — toolchain via toolchainFor/fromRustupToolchainFile (D-09), deps vendored from BOTH Cargo.lock and the rust-src library lockfile (the -Z build-std sysroot graph has its own crates.io members); layout: kernel-virt.elf + aarch64/lib/virt-gicv2.dtb (the 05-11 consumption contract); debug profile (the gate default — no release canonical exists) — D-11 pins a kernel-only package; the two-lockfile vendoring is the idiomatic nix-rust shape for -Z build-std in a sandbox (the plan's sanctioned executor latitude)
+- [Phase 05]: 05-10: D-10 inversion landed r9-side — uregcheck::harvey_dir returns Result; unset/empty R9_HARVEY_DIR is a named error (names the variable + required checkout contents); initrd/boot-test auto-bake/ureg-check all require it; set-but-headerless keeps the two-tier shape (standalone skip, boot-test fail); r9 CI untouched — 05-CONTEXT D-10's one-way inversion: r9 knows nothing about sibling checkouts by default; the explicit contract keeps the r9-side regression gates (D-12) working against the unchanged staged-init supply chain (RESEARCH OQ-2 lowest-risk answer)
 
 ### Pending Todos
 
@@ -220,6 +223,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T15:13:11.716Z
-Stopped at: Completed 05-09-PLAN.md
+Last session: 2026-11-03T15:26:22.435Z
+Stopped at: Completed 05-10-PLAN.md
 Resume file: None
