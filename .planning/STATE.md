@@ -1,19 +1,19 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 05
-current_phase_name: shell-boot-one-command-integration
+current_phase_name: Shell Boot + One-Command Integration
 status: executing
-stopped_at: Phase 5 context gathered
-last_updated: "2026-11-02T23:10:27.757Z"
+stopped_at: Completed 05-01-PLAN.md
+last_updated: "2026-11-03T00:50:46.390Z"
 last_activity: 2026-11-02
-last_activity_desc: Phase 04 complete, transitioned to Phase 5
-state_head: 036d1dae2138f1cff25c52dfd06dcb9f3ec1914a
+last_activity_desc: Phase 05 execution started
+state_head: a3bf8f71e69cf0b88c660008824bba056f6bedf7
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 38
-  completed_plans: 25
-  percent: 66
+  completed_plans: 26
+  percent: 68
 ---
 
 # Project State
@@ -23,16 +23,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-02)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 5 — Shell Boot + One-Command Integration
+**Current focus:** Phase 05 — Shell Boot + One-Command Integration
 
 ## Current Position
 
-Phase: 05 (shell-boot-one-command-integration) — READY TO EXECUTE
-Plan: Not started
+Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
+Plan: 2 of 13
 Status: Ready to execute
-Last activity: 2026-11-02 — Phase 04 complete, transitioned to Phase 5
+Last activity: 2026-11-02 — Phase 05 execution started
 
-Progress: [███████░░░] 66%
+Progress: [███████░░░] 68%
 
 ## Performance Metrics
 
@@ -84,6 +84,7 @@ Progress: [███████░░░] 66%
 | Phase 04 P06 | 27min | 2 tasks | 18 files |
 | Phase 04 P07 | 240min | 2 tasks | 12 files |
 | Phase 04 P08 | 40min | 3 tasks | 18 files |
+| Phase 05 P01 | 64 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -149,6 +150,9 @@ Recent decisions affecting current work:
 - [Phase 04]: 04-08: note delivery resolves CURFRAME on the IRQ boundary (preemption-safe — deliver to the proc actually returning to EL0); delivery write window validated user-writable THEN forced resident (never a kernel write to a bad/unmapped user VA)
 - [Phase 04]: 04-08: NOTED takes dispatch's no-writeback special return on success (donor dosyscall case); sys_noted validates resume pc/sp BEFORE the 280-byte restore; exec clears note machinery, rfork inherits the handler (donor semantics)
 - [Phase 04]: 04-08: 7c caches a plain static load in a register across a spin loop (volatile included) — a note-handler-set flag must be read through a real C call or the store is never observed (caught by the SC#4 gate)
+- [Phase 05]: 05-01: note-timeout race root-caused to the trap_return tail's post-restore x9 clobber (psr re-read + CURKSTACK load); fixed by the uniform frame+288 final-sp step — every restored frame sits at entry-stack-top-288 by construction, so no post-pops scratch is needed. 20/20 virtnotes + 20/20 virtmulti clean, twice. r9 83cbbbe.
+- [Phase 05]: 05-01: long is 32-bit in Plan 9 C on every arch (7c SZ_LONG=4; only vlong is 64-bit); the donor kernel's va_arg(list,long) reads the slot's low half — pread/pwrite's n is now masked to 32 bits in r9 (61e6a70). stacksmoke's deep recursion exposed the deviation; Harvey libc stays donor-pristine.
+- [Phase 05]: 05-01: D-16 harness hygiene landed r9-side (c2f141e): fresh serial log per run + qemu spawned as process-group leader + group kill at teardown — phase-04 deferred #2 closed.
 
 ### Pending Todos
 
@@ -176,6 +180,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-02T22:06:13.795Z
-Stopped at: Phase 5 context gathered
-Resume file: .planning/phases/05-shell-boot-one-command-integration/05-CONTEXT.md
+Last session: 2026-11-03T00:50:46.328Z
+Stopped at: Completed 05-01-PLAN.md
+Resume file: None
