@@ -2,8 +2,15 @@
   description = "Harvey OS dev environment — plan9port toolchain, devshell and build apps";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
+  # D-10/INT-04: Harvey's flake owns the composition — the r9 kernel arrives
+  # as a proper flake input (exact rev + narHash pinned in flake.lock), never
+  # a sibling-checkout path or submodule.  Consumed: r9.packages.<system>.kernel-virt
+  # (05-10's kernel-virt.elf + aarch64/lib/virt-gicv2.dtb store-path contract).
+  # Dev flow against a local r9 checkout (D-13): nix run .#boot-r9
+  # --override-input r9 git+file:///path/to/r9 — dev-only, never the default.
+  inputs.r9.url = "github:requaos/r9";
 
-  outputs = { self, nixpkgs }:
+  outputs = { self, nixpkgs, r9 }:
     let
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
