@@ -17,7 +17,9 @@
 //! preserved. IN-08: a bare `d` mode (strips to empty) falls back to copying
 //! the source mode instead of crashing.
 
+use std::fs;
 use std::io::Write;
+use std::path::{Path, PathBuf};
 
 pub const USAGE: &str = "usage: mkfs9 [-a] [-s oldroot] [-d dest] proto ...\n";
 
@@ -41,24 +43,266 @@ pub fn cleanname(p: &str) -> String {
     r
 }
 
+struct ProtoEntry {
+    depth: usize,
+    name: String,
+    mode: Option<String>,
+    src: Option<String>,
+}
+
+/// Parse one proto file (donor libdisk/proto.c grammar):
+/// indent (tab=8, space=1) tree; fields: name [mode uid gid source];
+/// `$env` name expansion; '#' comments; blank lines skipped.
+fn parse_proto(fname: &Path, err: &mut dyn Write) -> Result<Vec<ProtoEntry>, std::io::Error> {
+    let text = fs::read_to_string(fname)?;
+    let mut entries = Vec::new();
+    for line in text.lines() {
+        if line.is_empty() {
+            continue;
+        }
+        let mut depth = 0usize;
+        let bytes = line.as_bytes();
+        let mut i = 0usize;
+        while i < bytes.len() && (bytes[i] == b' ' || bytes[i] == b'\t') {
+            depth += if bytes[i] == b'\t' { 8 } else { 1 };
+            i += 1;
+        }
+        let body = &line[i..];
+        if body.is_empty() || body.starts_with('#') {
+            continue;
+        }
+        let fields: Vec<&str> = body.split_whitespace().collect();
+        let mut name = fields[0].to_string();
+        if let Some(var) = name.strip_prefix('$') {
+            match std::env::var(var) {
+                Ok(v) if !v.is_empty() => name = v,
+                _ => {
+                    let _ = writeln!(err, "mkfs9: {}: can't read environment variable", fname.display());
+                    continue;
+                }
+            }
+        }
+        let rest = &fields[1..];
+        let mut mode: Option<String> = None;
+        if let Some(first) = rest.first() {
+            if *first != "-" && first.chars().all(|c| "01234567dal".contains(c)) {
+                mode = Some(first.to_string());
+            }
+        }
+        // fields: mode uid gid [source]; source is the 5th field overall
+        let src = fields.get(4).map(|s| s.to_string());
+        entries.push(ProtoEntry {
+            depth,
+            name,
+            mode,
+            src,
+        });
+    }
+    Ok(entries)
+}
+
+/// Resolve an entry's source path: implicit (oldroot + proto path),
+/// oldroot-rooted absolute, or cwd-relative.
+fn sourcepath(oldroot: &str, cwd: &Path, pp: &str, src: Option<&str>) -> String {
+    match src {
+        None | Some("-") => cleanname(&format!("{}/{}", oldroot, pp)),
+        Some(s) if s.starts_with('/') => cleanname(&format!("{}{}", oldroot, s)),
+        Some(s) => cleanname(&cwd.join(s).to_string_lossy()),
+    }
+}
+
+/// chmod with a proto mode string (strip the d/a/l letters, parse octal);
+/// IN-08: a bare 'd' (or 'dal' letters only) strips to empty — fall back to
+/// copying the source mode instead of crashing.
+fn apply_mode(mode: &Option<String>, src: &Path, dest: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    match mode {
+        Some(m) => {
+            let digits: String = m.chars().filter(|c| *c != 'd' && *c != 'a' && *c != 'l').collect();
+            if digits.is_empty() {
+                copymode(src, dest)
+            } else {
+                let v = u32::from_str_radix(&digits, 8)
+                    .map_err(|e| std::io::Error::new(std::io::ErrorKind::InvalidInput, e))?;
+                fs::set_permissions(dest, fs::Permissions::from_mode(v))
+            }
+        }
+        None => copymode(src, dest),
+    }
+}
+
+fn copymode(src: &Path, dest: &Path) -> std::io::Result<()> {
+    use std::os::unix::fs::PermissionsExt;
+    let m = fs::metadata(src)?.permissions().mode() & 0o7777;
+    fs::set_permissions(dest, fs::Permissions::from_mode(m))
+}
+
+/// `+` recursion: copy the current entry's source dir contents, os.walk
+/// order (dirs and files of each level handled before descending; symlinked
+/// dirs are created but not descended, python followlinks=False).
+fn recurse_copy(
+    spath: &Path,
+    pp: &str,
+    dest: Option<&Path>,
+    listonly: bool,
+    out: &mut dyn Write,
+) {
+    fn rec(
+        sroot: &Path,
+        cur: &Path,
+        pp: &str,
+        dest: Option<&Path>,
+        listonly: bool,
+        out: &mut dyn Write,
+    ) {
+        let mut dirs: Vec<PathBuf> = Vec::new();
+        let mut files: Vec<PathBuf> = Vec::new();
+        if let Ok(rd) = fs::read_dir(cur) {
+            for e in rd.flatten() {
+                let p = e.path();
+                // is_dir follows symlinks, like python's scandir default
+                if p.is_dir() {
+                    dirs.push(p);
+                } else {
+                    files.push(p);
+                }
+            }
+        }
+        for d in &dirs {
+            if let Some(dest) = dest {
+                let rel = d.strip_prefix(sroot).unwrap();
+                let dd = dest.join(pp).join(rel);
+                let _ = fs::create_dir_all(&dd);
+                let _ = copymode(d, &dd);
+            }
+        }
+        for f in &files {
+            if listonly {
+                let _ = writeln!(out, "{}", cleanname(&f.to_string_lossy()));
+            } else if let Some(dest) = dest {
+                let rel = f.strip_prefix(sroot).unwrap();
+                let dd = dest.join(pp).join(rel);
+                if let Some(par) = dd.parent() {
+                    let _ = fs::create_dir_all(par);
+                }
+                let _ = fs::copy(f, &dd);
+                let _ = copymode(f, &dd);
+            }
+        }
+        for d in &dirs {
+            // followlinks=False: do not descend into symlinked dirs
+            if !d.is_symlink() {
+                rec(sroot, d, pp, dest, listonly, out);
+            }
+        }
+    }
+    rec(spath, spath, pp, dest, listonly, out);
+}
+
+/// Drive the proto entries; print sources (list mode) or materialize.
+fn walk(
+    protos: &[String],
+    oldroot: &str,
+    dest: Option<&Path>,
+    listonly: bool,
+    out: &mut dyn Write,
+    err: &mut dyn Write,
+) {
+    let cwd = std::env::current_dir().unwrap_or_else(|_| PathBuf::from("/"));
+    for pr in protos {
+        let prpath = Path::new(pr);
+        let entries = match parse_proto(prpath, err) {
+            Ok(e) => e,
+            Err(e) => {
+                let _ = writeln!(err, "mkfs9: {}: {}", pr, e);
+                continue;
+            }
+        };
+        // stack of (depth, proto_path, resolved_src, alive)
+        let mut stack: Vec<(usize, String, String, bool)> = Vec::new();
+        for e in entries {
+            while let Some(top) = stack.last() {
+                if top.0 >= e.depth {
+                    stack.pop();
+                } else {
+                    break;
+                }
+            }
+            if let Some(top) = stack.last() {
+                if !top.3 {
+                    continue; // inside a skipped subtree
+                }
+            }
+            if e.name == "+" {
+                // recurse: copy the current entry's source dir contents
+                let Some((_, pp, spath, _)) = stack.last().cloned() else {
+                    continue;
+                };
+                if !Path::new(&spath).is_dir() {
+                    let _ = writeln!(
+                        err,
+                        "mkfs9: {}: can't recurse {}: not a directory",
+                        pr, spath
+                    );
+                    continue;
+                }
+                recurse_copy(Path::new(&spath), &pp, dest, listonly, out);
+                continue;
+            }
+            let pp = match stack.last() {
+                Some(top) => format!("{}/{}", top.1, e.name),
+                None => e.name.clone(),
+            };
+            let spath = sourcepath(oldroot, &cwd, &pp, e.src.as_deref());
+            let sp = Path::new(&spath);
+            if sp.is_dir() {
+                if let Some(dest) = dest {
+                    let dd = dest.join(&pp);
+                    let _ = fs::create_dir_all(&dd);
+                    let _ = apply_mode(&e.mode, sp, &dd);
+                }
+                stack.push((e.depth, pp, spath, true));
+            } else if sp.exists() {
+                if listonly {
+                    let _ = writeln!(out, "{}", cleanname(&spath));
+                } else if let Some(dest) = dest {
+                    let dd = dest.join(&pp);
+                    if let Some(par) = dd.parent() {
+                        let _ = fs::create_dir_all(par);
+                    }
+                    let _ = fs::copy(sp, &dd);
+                    let _ = apply_mode(&e.mode, sp, &dd);
+                }
+                stack.push((e.depth, pp, spath, true));
+            } else {
+                let _ = writeln!(
+                    err,
+                    "mkfs9: {}: can't stat file {}: No such file or directory",
+                    pr, spath
+                );
+                stack.push((e.depth, pp, spath, false));
+            }
+        }
+    }
+}
+
 pub fn run(args: &[String]) -> i32 {
     let mut out = std::io::stdout();
     let mut err = std::io::stderr();
     run_io(args, &mut out, &mut err)
 }
 
-/// RED-phase stub: the arg/usage/exit-2 surface is real; the walk is not.
 pub fn run_io(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 {
     let mut listonly = false;
     let mut oldroot = "/".to_string();
     let mut dest: Option<String> = None;
     let mut protos: Vec<String> = Vec::new();
-    let _ = (&mut oldroot, &mut dest, out); // silence unused in the stub
     let mut i = 0;
     while i < args.len() {
         let a = &args[i];
         let bytes = a.as_bytes();
         if bytes.len() > 1 && bytes[0] == b'-' {
+            // ARGBEGIN-style flag clustering: -aos == -a -o -s
             for &c in &bytes[1..] {
                 match c {
                     b'a' => listonly = true,
@@ -98,8 +342,14 @@ pub fn run_io(args: &[String], out: &mut dyn Write, err: &mut dyn Write) -> i32 
         let _ = writeln!(err, "mkfs9: -d required in materialize mode");
         return 2;
     }
-    let _ = listonly;
-    0 // RED stub: claims success without walking
+    for pr in &protos {
+        let _ = writeln!(err, "processing {}", pr);
+    }
+    walk(&protos, &oldroot, dest.as_deref().map(Path::new), listonly, out, err);
+    if !listonly {
+        let _ = writeln!(err, "file system made");
+    }
+    0
 }
 
 #[cfg(test)]

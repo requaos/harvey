@@ -9,18 +9,85 @@
 //! bootargs prompt. The poke writes 0 to GICR0 WAKER through the guest's own
 //! kernel VA mapping (VIRTIO=0xFFFFFFFFB0000000 + 0xA0000 GICR + 0x14).
 //!
+//! Timing: watch the captured serial log for the bootargs prompt (the MMU
+//! map is long up by then), then — WITHOUT a halt request (qemu 11.1.2's
+//! gdbstub never answers a halt for a vCPU parked in WFI with its timer
+//! dead, the very state being fixed) — query state (?), write (M), detach
+//! (D). Any bootargs answer the driver already sent sits staged in the UART
+//! and is flushed by uartclock() on the first tick after the wake.
+//!
 //! usage: harness gdbpoke9 --sock PATH --watch-file LOG [--watch-str STR]
 //!        [--addr HEX] [--value HEX] [--bytes N] [--deadline SECS]
 //! exits 0 once the write lands, 1 on timeout/error, 2 on bad args.
 
-use std::io::Write;
+use std::io::{Read, Write};
+use std::os::unix::net::UnixStream;
+use std::time::{Duration, Instant};
 
 pub const DEFAULT_ADDR: u64 = 0xFFFFFFFF_B00A_0014; // VIRTIO + GICR0 + WAKER
 pub const DEFAULT_WATCH: &str = "bootargs is";
 
-/// RED-phase stub: parses args (the exit-2 surface is real), then reports
-/// success without doing anything — the GREEN commit implements the RSP
-/// client and the watch-file gating.
+fn pkt(data: &[u8]) -> Vec<u8> {
+    let sum: u32 = data.iter().map(|b| *b as u32).sum();
+    let mut out = vec![b'$'];
+    out.extend_from_slice(data);
+    out.push(b'#');
+    out.extend_from_slice(format!("{:02x}", sum & 0xFF).as_bytes());
+    out
+}
+
+/// Read one RSP packet: skip '+' keepalives; on '$' read to '#', eat the 2
+/// checksum bytes (the .py does not verify them — fidelity), ACK with '+',
+/// return the payload.
+fn recv_pkt(s: &UnixStream, deadline: Instant) -> Result<Vec<u8>, String> {
+    let remain = deadline.saturating_duration_since(Instant::now());
+    s.set_read_timeout(Some(remain.max(Duration::from_secs(1))))
+        .map_err(|e| e.to_string())?;
+    let mut ch = [0u8; 1];
+    loop {
+        match (&*s).read(&mut ch) {
+            Ok(0) => return Err("gdbstub closed".to_string()),
+            Ok(_) => {}
+            Err(e) => return Err(e.to_string()),
+        }
+        if ch[0] == b'+' {
+            continue;
+        }
+        if ch[0] == b'$' {
+            let mut payload = Vec::new();
+            loop {
+                match (&*s).read(&mut ch) {
+                    Ok(0) => return Err("gdbstub closed mid-packet".to_string()),
+                    Ok(_) => {}
+                    Err(e) => return Err(e.to_string()),
+                }
+                if ch[0] == b'#' {
+                    let mut cs = [0u8; 2];
+                    let _ = (&*s).read_exact(&mut cs);
+                    let _ = (&*s).write_all(b"+");
+                    return Ok(payload);
+                }
+                payload.push(ch[0]);
+            }
+        }
+    }
+}
+
+/// Python %r of a simple ASCII string: single-quoted.
+fn pyrepr(s: &str) -> String {
+    format!("'{}'", s)
+}
+
+/// Python %#x: 0x-prefixed lowercase hex.
+fn pyhex(v: u64) -> String {
+    format!("{:#x}", v)
+}
+
+/// Python repr of a bytes payload as seen in OSError messages: b'...'
+fn pybytes(b: &[u8]) -> String {
+    format!("b'{}'", String::from_utf8_lossy(b))
+}
+
 pub fn run(args: &[String]) -> i32 {
     let mut err = std::io::stderr();
     run_io(args, &mut err)
@@ -28,18 +95,71 @@ pub fn run(args: &[String]) -> i32 {
 
 pub fn run_io(args: &[String], err: &mut dyn Write) -> i32 {
     let mut sock: Option<String> = None;
+    let mut addr: Option<u64> = None;
+    let mut value: Option<u64> = None;
+    let mut nbytes: usize = 4;
     let mut watch_file: Option<String> = None;
+    let mut watch_str = DEFAULT_WATCH.to_string();
+    let mut deadline = Instant::now() + Duration::from_secs(120);
     let mut i = 0;
     while i < args.len() {
         let a = args[i].as_str();
         match a {
-            "--sock" | "--addr" | "--value" | "--bytes" | "--watch-file" | "--watch-str"
-            | "--deadline" => {
-                if a == "--sock" {
-                    sock = args.get(i + 1).cloned();
+            "--sock" => {
+                sock = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--addr" => {
+                match args.get(i + 1).and_then(|v| u64::from_str_radix(v, 16).ok()) {
+                    Some(v) => addr = Some(v),
+                    None => {
+                        let _ = writeln!(err, "gdbpoke9: --addr requires a hex value");
+                        return 2;
+                    }
                 }
-                if a == "--watch-file" {
-                    watch_file = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--value" => {
+                match args.get(i + 1).and_then(|v| u64::from_str_radix(v, 16).ok()) {
+                    Some(v) => value = Some(v),
+                    None => {
+                        let _ = writeln!(err, "gdbpoke9: --value requires a hex value");
+                        return 2;
+                    }
+                }
+                i += 2;
+            }
+            "--bytes" => {
+                nbytes = match args.get(i + 1).and_then(|v| v.parse().ok()) {
+                    Some(n) => n,
+                    None => {
+                        let _ = writeln!(err, "gdbpoke9: --bytes requires a numeric value");
+                        return 2;
+                    }
+                };
+                i += 2;
+            }
+            "--watch-file" => {
+                watch_file = args.get(i + 1).cloned();
+                i += 2;
+            }
+            "--watch-str" => {
+                watch_str = match args.get(i + 1) {
+                    Some(s) => s.clone(),
+                    None => {
+                        let _ = writeln!(err, "gdbpoke9: --watch-str requires a value");
+                        return 2;
+                    }
+                };
+                i += 2;
+            }
+            "--deadline" => {
+                match args.get(i + 1).and_then(|v| v.parse::<u64>().ok()) {
+                    Some(s) => deadline = Instant::now() + Duration::from_secs(s),
+                    None => {
+                        let _ = writeln!(err, "gdbpoke9: --deadline requires a numeric value");
+                        return 2;
+                    }
                 }
                 i += 2;
             }
@@ -49,11 +169,89 @@ pub fn run_io(args: &[String], err: &mut dyn Write) -> i32 {
             }
         }
     }
-    if sock.is_none() || watch_file.is_none() {
-        let _ = writeln!(err, "gdbpoke9: --sock and --watch-file are required");
-        return 2;
+    let (sock, watch_file) = match (sock, watch_file) {
+        (Some(s), Some(w)) => (s, w),
+        _ => {
+            let _ = writeln!(err, "gdbpoke9: --sock and --watch-file are required");
+            return 2;
+        }
+    };
+    let addr = addr.unwrap_or(DEFAULT_ADDR);
+    let value = value.unwrap_or(0);
+
+    // 1. wait for the watch string in the captured serial log (the boot
+    //    reached the bootargs prompt; MMU/kernel maps are live)
+    let mut seen = false;
+    while Instant::now() < deadline {
+        if let Ok(content) = std::fs::read(&watch_file) {
+            if content
+                .windows(watch_str.len())
+                .any(|w| w == watch_str.as_bytes())
+            {
+                seen = true;
+                break;
+            }
+        }
+        std::thread::sleep(Duration::from_millis(500));
     }
-    0 // RED stub: claims success without poking
+    if !seen {
+        let _ = writeln!(
+            err,
+            "gdbpoke9: watch string {} never appeared",
+            pyrepr(&watch_str)
+        );
+        return 1;
+    }
+
+    // 2. connect the stub, query state (?) — the guest parked at the prompt
+    //    reports stopped (T05) and memory writes are processed — then write.
+    //    Retry the whole connect+write on failure. NOTE: do NOT send
+    //    \x03/vCtrlC — qemu 11.1.2's gdbstub never answers a halt for a vCPU
+    //    parked in WFI with its timer interrupt dead (the very state we are
+    //    fixing).
+    let data: String = value
+        .to_le_bytes()
+        .iter()
+        .take(nbytes)
+        .map(|b| format!("{:02x}", b))
+        .collect();
+    let mut tries = 0u32;
+    while Instant::now() < deadline {
+        tries += 1;
+        let attempt = (|| -> Result<(), String> {
+            let s = UnixStream::connect(&sock).map_err(|e| e.to_string())?;
+            (&s).write_all(&pkt(b"?")).map_err(|e| e.to_string())?;
+            let r = recv_pkt(&s, deadline)?;
+            if !(r.starts_with(b"T") || r.starts_with(b"S")) {
+                return Err(format!("state query got {}", pybytes(&r)));
+            }
+            let m = format!("M{:x},{}:{}", addr, nbytes, data);
+            (&s).write_all(&pkt(m.as_bytes())).map_err(|e| e.to_string())?;
+            let r = recv_pkt(&s, deadline)?;
+            if r != b"OK" {
+                return Err(format!("memory write: {}", pybytes(&r)));
+            }
+            let _ = writeln!(
+                err,
+                "gdbpoke9: poked {}={} after {} attempt(s) (watch {} seen)",
+                pyhex(addr),
+                pyhex(value),
+                tries,
+                pyrepr(&watch_str)
+            );
+            let _ = (&s).write_all(&pkt(b"D")); // detach; guest keeps running
+            Ok(())
+        })();
+        match attempt {
+            Ok(()) => return 0,
+            Err(e) => {
+                let _ = writeln!(err, "gdbpoke9: attempt {}: {}", tries, e);
+            }
+        }
+        std::thread::sleep(Duration::from_secs(1));
+    }
+    let _ = writeln!(err, "gdbpoke9: poke never landed within deadline");
+    1
 }
 
 #[cfg(test)]
@@ -156,30 +354,25 @@ mod tests {
                         checksum(&payload),
                         "client checksum"
                     );
+                    // record BEFORE the ACK: the client fires D and closes
+                    // without waiting, so the '+' write may race the close
+                    let text = String::from_utf8_lossy(&payload).into_owned();
+                    rec.lock().unwrap().push(text);
                     if c.write_all(b"+").is_err() {
                         return;
                     }
-                    let text = String::from_utf8_lossy(&payload).into_owned();
                     match payload.first() {
                         Some(b'?') => {
-                            rec.lock().unwrap().push(text);
                             if c.write_all(&pkt(state_reply.as_bytes())).is_err() {
                                 return;
                             }
                         }
                         Some(b'M') => {
-                            rec.lock().unwrap().push(text);
                             if c.write_all(&pkt(b"OK")).is_err() {
                                 return;
                             }
                         }
-                        Some(b'D') => {
-                            rec.lock().unwrap().push(text);
-                            // detach: the client does not wait for a reply
-                        }
-                        _ => {
-                            rec.lock().unwrap().push(text);
-                        }
+                        _ => {}
                     }
                 });
             }
@@ -198,6 +391,24 @@ mod tests {
         v
     }
 
+    /// The client fires D and drops the socket without waiting for a reply
+    /// (as does the .py) — poll until the peer has drained it.
+    fn wait_received(peer: &Peer, n: usize) -> Vec<String> {
+        let deadline = std::time::Instant::now() + Duration::from_secs(3);
+        loop {
+            {
+                let got = peer.received.lock().unwrap();
+                if got.len() >= n {
+                    return got.clone();
+                }
+            }
+            if std::time::Instant::now() >= deadline {
+                return peer.received.lock().unwrap().clone();
+            }
+            std::thread::sleep(Duration::from_millis(25));
+        }
+    }
+
     #[test]
     fn happy_path_pokes_and_detaches() {
         let sock = TmpPath::new("s1");
@@ -213,7 +424,7 @@ mod tests {
             "stderr was: {}",
             err
         );
-        let got = peer.received.lock().unwrap().clone();
+        let got = wait_received(&peer, 3);
         assert_eq!(got, vec!["?", "Mffffffffb00a0014,4:00000000", "D"]);
     }
 
@@ -230,7 +441,7 @@ mod tests {
         assert!(err.contains("attempt 1:"), "stderr was: {}", err);
         assert!(err.contains("after 2 attempt(s)"), "stderr was: {}", err);
         // the second connection carried the full sequence
-        let got = peer.received.lock().unwrap().clone();
+        let got = wait_received(&peer, 3);
         assert_eq!(got, vec!["?", "Mffffffffb00a0014,4:00000000", "D"]);
     }
 
@@ -253,7 +464,7 @@ mod tests {
         );
         assert_eq!(rc, 0);
         // 2 bytes LE of 0xdeadbeef = ef be → hex 'efbe'
-        let got = peer.received.lock().unwrap().clone();
+        let got = wait_received(&peer, 3);
         assert_eq!(got, vec!["?", "M40000000,2:efbe", "D"]);
         let err = String::from_utf8(err).unwrap();
         assert!(err.contains("poked 0x40000000=0xdeadbeef"), "stderr: {}", err);
@@ -318,7 +529,7 @@ mod tests {
         assert_eq!(rc, 0);
         let err = String::from_utf8(err).unwrap();
         assert!(err.contains("(watch 'custom-marker' seen)"), "stderr: {}", err);
-        let got = peer.received.lock().unwrap().clone();
+        let got = wait_received(&peer, 3);
         assert_eq!(got.len(), 3);
     }
 }
