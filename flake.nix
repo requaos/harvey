@@ -34,10 +34,26 @@
     {
       packages = forAllSystems (system:
         let pkgs = pkgsFor system; in
+        # harness: the build/aarch64 host harness (srv9/drive9/gdbpoke9/mkfs9/
+        # trace-syscalls) as ONE std-only Rust binary (quick task 261103-giq,
+        # D-01/D-02). Pure-std: builds on all four systems, sandboxed build is
+        # network-free via the committed zero-dep Cargo.lock.
+        {
+          harness = pkgs.rustPlatform.buildRustPackage {
+            pname = "harness";
+            version = "0.1.0";
+            src = ./build/harness;
+            cargoLock.lockFile = ./build/harness/Cargo.lock;
+            # Tests run via `nix develop -c cargo test` (the plan's verify),
+            # not in the package build: a mid-TDD RED tree must still give a
+            # working devshell, and the sandboxed build stays minimal.
+            doCheck = false;
+          };
+        }
         # minimega VM orchestration, fetched+built by nix (no submodule glue).
         # Linux-only upstream (KVM, linux/fs.h); manages Harvey/r9 amd64 test
         # VMs on KVM hosts. aarch64 guests are NOT supported upstream.
-        nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
+        // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
           minimega = pkgs.callPackage ./nix/minimega.nix { };
         });
 
@@ -119,7 +135,11 @@
             packages = with pkgs; [
               plan9port git gnumake bashInteractive coreutils gnused findutils
               qemu expect curl bzip2 gnutar
-            ] ++ pkgs.lib.optionals isLinux [ util-linux binutils self.packages.${system}.minimega ]
+              # 261103-giq (D-06): stable nixpkgs Rust for the harness crate
+              # (NO rust-overlay, NO nightly) + the harness itself on PATH
+              cargo rustc
+            ] ++ [ self.packages.${system}.harness ]
+              ++ pkgs.lib.optionals isLinux [ util-linux binutils self.packages.${system}.minimega ]
               ++ pkgs.lib.optionals (!isLinux) [ lima ];
 
             shellHook = ''
@@ -134,9 +154,13 @@
               export CGO_ENABLED=0
               # $PLAN9/bin LAST per BUILD_ON_UNIX; harvey host bin FIRST
               export PATH="$HARVEY_LINUX_BIN:$PATH:$PLAN9/bin"
+              # 261103-giq (D-04): nix-store-first harness resolution for the
+              # build/aarch64 shell callers (they fall back to PATH)
+              export HARNESS_BIN="${self.packages.${system}.harness}/bin/harness"
 
               echo "harvey devshell: HARVEY=$HARVEY PLAN9=$PLAN9"
               echo "  host bin: $HARVEY_LINUX_BIN"
+              echo "  harness: $HARNESS_BIN"
               echo "apps: nix run .#setup -> .#toolchain -> .#build | .#iso"
               ${if isLinux then ''
                 echo "(. #build uses sudo unshare; run from the repo root)"

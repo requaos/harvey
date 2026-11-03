@@ -1,0 +1,15 @@
+[package]
+name = "harness"
+version = "0.1.0"
+edition = "2021"
+description = "Harvey build/aarch64 host harness: srv9, drive9, gdbpoke9, mkfs9, trace-syscalls as one std-only binary (quick task 261103-giq)"
+license = "MIT"
+
+# D-02: std-only. This section MUST stay empty — the sandboxed nix build is
+# network-free (cargoLock.lockFile = committed zero-dep Cargo.lock), and zero
+# external crates is the supply-chain mitigation (threat T-GIQ-SC).
+[dependencies]
+
+[[bin]]
+name = "harness"
+path = "src/main.rs"

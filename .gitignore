@@ -45,6 +45,8 @@ sys/go
 
 # harvey-on-unix build output
 /.build/
+# cargo build output of the build/harness crate (261103-giq)
+/build/harness/target/
 *.o
 y.tab.c
 y.tab.h
