@@ -1,0 +1,9 @@
+#!/bin/rc
+# trace termrc (05-03; guest scratch — staged as /boot/ourtermrc and
+# bound over /rc/bin/termrc by the trace namespace).  Identical to the
+# image's termrc except the final exec: the D-09 sweep is SOURCED from
+# /boot/oursweep.rc instead of typed at the console, because the donor's
+# devcons fails /dev/cons reads by design (Egreg — userland console
+# input on the donor is kbdfs-served; r9's devcons serves reads, D-06).
+stacksmoke
+exec rc -c '. /boot/oursweep.rc'

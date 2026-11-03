@@ -1,0 +1,32 @@
+# trace-namespace — 05-03 guest-scratch namespace replayed by init's
+# newns during the real-chain trace (staged into the donor bootdir as
+# data, bound over /lib/namespace by trace-boot.rc before launch).
+#
+# Base shape: the image's scoped /lib/namespace (05-02, D-08) + the two
+# replay prerequisites the RFCNAMEG wipe makes mandatory (newns does
+# rfork(RFENVG|RFCNAMEG) — a CLEAN namespace — so the paqfs root must be
+# re-mounted from #s/boot, which connectroot's srvcreate posted; this is
+# the k10root.namespace mechanism: mount $rootsrv /root, then bind -a /)
+# + the trace termrc override (the sweep is SOURCED, not typed: the
+# donor's devcons fails /dev/cons reads by design — console input on the
+# donor is kbdfs-served, and opencons's bind #c MBEFORE pins the kernel
+# cons into our chain's namespace; r9's devcons serves reads, D-06).
+
+# kernel devices
+bind #c /dev
+bind #d /fd
+bind -c #e /env
+bind #p /proc
+bind -c #s /srv
+
+# re-establish the root union (RFCNAMEG wiped the boot-time one)
+mount -a /srv/boot /root
+bind -a /root /
+bind /root/rc /rc
+
+# standard bin
+bind /root/$cputype/bin /bin
+bind -a /root/rc/bin /bin
+
+# trace accommodation (guest scratch, never in the image)
+bind /boot/ourtermrc /rc/bin/termrc

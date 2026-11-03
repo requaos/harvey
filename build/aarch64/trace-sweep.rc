@@ -1,0 +1,13 @@
+#!/bin/rc
+# oursweep.rc — the D-09 command sweep, SOURCED by the chain's rc
+# (05-03 trace; staged as /boot/oursweep.rc).  Each command is an
+# rfork/exec/await triplet in rc's traced stream; the commands
+# themselves run untraced (born-traced, resumed by the sweeper) and are
+# measured by the standalone sweep phase.  Ends with exit so the
+# watchdog tears the chain down (init's restart-loop sleep is captured
+# before the kill).
+echo __GSD_SWEEP_ECHO__
+ls /bin
+ps
+cat /rc/lib/rcmain
+exit
