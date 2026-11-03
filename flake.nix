@@ -70,12 +70,35 @@
             else mkScriptApp pkgs "harvey-build" ./nix/vm-build.sh ''
               export LIMA_YAML="${./nix/lima-harvey.yaml}"
             '' [ pkgs.lima pkgs.openssh pkgs.rsync ];
+          # 05-11 (INT-01, D-10/D-11): THE one command — build the aarch64
+          # userland (lima on darwin, native unshare on linux — the same
+          # mkScriptApp platform split), bake bootfs.paq with Harvey's own
+          # mkpaqfs, fdtput-patch a copy of the r9 package's DTB, and
+          # launch the flake-input kernel to the interactive % prompt.
+          # The kernel/DTB arrive ONLY as the r9 flake input's store
+          # paths (T-05-21) — never a sibling-checkout path (INT-04).
+          # qemu+dtc+git always (the launch, the DTB patch, the KERNDATE
+          # derivation); the build-transport inputs mirror the build
+          # app's platform split.
+          bootR9Pkg = mkScriptApp pkgs "harvey-boot-r9" ./nix/boot-r9.sh ''
+            export R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
+            ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
           build = mkApp buildPkg;
           iso = mkApp isoPkg;
           default = mkApp setupPkg;
+          # boot-r9 exists only where r9 ships packages.kernel-virt (its
+          # flake systems: aarch64-darwin, aarch64-linux, x86_64-linux —
+          # x86_64-darwin is out of project scope, PROJECT.md).  The
+          # hasAttr gate keeps this attrset's evaluation lazy there.
+        } // nixpkgs.lib.optionalAttrs (builtins.hasAttr system r9.packages) {
+          boot-r9 = mkApp bootR9Pkg;
+          # 05-12 wiring point: boot-r9-smoke lands here (same pattern —
+          # mkScriptApp over the expect smoke script, INT-02/D-12).
         });
 
       devShells = forAllSystems (system:
