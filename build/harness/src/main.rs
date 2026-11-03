@@ -40,3 +40,4 @@ fn main() {
     };
     std::process::exit(code);
 }
+mod wstat_repro;

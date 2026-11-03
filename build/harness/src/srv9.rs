@@ -652,7 +652,16 @@ fn handle(
         TWSTAT => {
             // mv(1) renames via dirwstat with only the name field set
             // (nulldir + null.name); apply exactly that and no-op the rest.
-            // Payload: fid(4) size(2) stat-body — name begins at 4+2+39=45.
+            // Payload: fid(4) stat[n](2) — and the stat buffer is itself
+            // size-prefixed (the Dir wire encoding leads with its own u16
+            // length) — so the fixed body starts at 4+2+2 and name begins
+            // at 4+2+2+39 = 47. (Verified against the donor's wire bytes:
+            // fid | n=54 | n-2=52 | 39×0xff | nlen | name | empty uid/gid/
+            // muid. The .py used 45 — off by the inner size field — and
+            // never actually parsed a name; its Rerror made mv fall back to
+            // copy+delete, which is how the 02-07 gate passed. This port
+            // parses the real offset, so the rename genuinely happens and
+            // IN-05's delete-target semantics are actually exercised.)
             let mut r = Rd::new(p);
             let fid = r.g32()?;
             {
@@ -661,16 +670,32 @@ fn handle(
                     return Err(P9Error("read only".into()));
                 }
             }
-            let name = if p.len() >= 45 + 2 {
-                let nlen = u16::from_le_bytes([p[45], p[46]]) as usize;
-                if 47 + nlen <= p.len() {
-                    String::from_utf8_lossy(&p[47..47 + nlen]).into_owned()
+            let name = if p.len() >= 47 + 2 {
+                let nlen = u16::from_le_bytes([p[47], p[48]]) as usize;
+                if 49 + nlen <= p.len() {
+                    String::from_utf8_lossy(&p[49..49 + nlen]).into_owned()
                 } else {
                     String::new()
                 }
             } else {
                 String::new()
             };
+            if std::env::var_os("SRV9_TRACE").is_some() {
+                eprintln!(
+                    "srv9: Twstat fid {} path {} parsed-name {:?} plen {}",
+                    fid,
+                    resolve(fids, fid)
+                        .map(|f| f.path.display().to_string())
+                        .unwrap_or_default(),
+                    name,
+                    p.len()
+                );
+                eprint!("srv9: Twstat payload hex:");
+                for b in p {
+                    eprint!(" {:02x}", b);
+                }
+                eprintln!();
+            }
             if !name.is_empty() && name != "." && name != ".." && !name.contains('/') {
                 let (parent, npath) = {
                     let f = resolve(fids, fid)?;
@@ -713,6 +738,7 @@ fn handle(
 
 fn serveconn(srv: Arc<Shared>, conn: TcpStream) {
     let mut fids: HashMap<u32, Fid> = HashMap::new(); // per-connection (IN-04)
+    let trace = std::env::var_os("SRV9_TRACE").is_some();
     loop {
         let mut hdr = [0u8; 4];
         if (&conn).read_exact(&mut hdr).is_err() {
@@ -729,9 +755,17 @@ fn serveconn(srv: Arc<Shared>, conn: TcpStream) {
         let ctype = rest[0];
         let tag = u16::from_le_bytes([rest[1], rest[2]]);
         let payload = &rest[3..];
+        if trace {
+            eprintln!("srv9: T{} tag {} ({} bytes)", ctype, tag, payload.len());
+        }
         let (rtype, rpayload) = match handle(&srv, &mut fids, ctype, payload) {
             Ok(x) => x,
-            Err(e) => (RERROR, pstr(e.0.as_bytes())),
+            Err(e) => {
+                if trace {
+                    eprintln!("srv9:   -> Rerror {}", e.0);
+                }
+                (RERROR, pstr(e.0.as_bytes()))
+            }
         };
         let mut out = Vec::with_capacity(7 + rpayload.len());
         out.extend_from_slice(&p32(4 + 1 + 2 + rpayload.len() as u32));
@@ -985,14 +1019,22 @@ mod tests {
             self.rpc(TREMOVE, &p32(fid))
         }
         fn wstat_rename(&mut self, fid: u32, newname: &str) -> (u8, Vec<u8>) {
-            // stat body: type(2) dev(4) qid(13) mode(4) atime(4) mtime(4)
-            // length(8) then pstr name — all-null except name (mv idiom)
-            let mut body = vec![0u8; 39];
-            body.extend_from_slice(&pstr(newname.as_bytes()));
+            // the real donor wire shape (mv's dirwstat): fid(4) then the
+            // stat buffer with its TWO size prefixes — stat[n] then the
+            // Dir's own u16 length — then the nulldir body (all ~0) with
+            // only the name set + empty uid/gid/muid strings
+            let mut dir = vec![0xFFu8; 39];
+            dir.extend_from_slice(&pstr(newname.as_bytes()));
+            dir.extend_from_slice(&pstr(b""));
+            dir.extend_from_slice(&pstr(b""));
+            dir.extend_from_slice(&pstr(b""));
+            let mut stat = Vec::new();
+            stat.extend_from_slice(&p16(dir.len() as u16));
+            stat.extend_from_slice(&dir);
             let mut p = Vec::new();
             p.extend_from_slice(&p32(fid));
-            p.extend_from_slice(&p16(body.len() as u16));
-            p.extend_from_slice(&body);
+            p.extend_from_slice(&p16(stat.len() as u16));
+            p.extend_from_slice(&stat);
             self.rpc(TWSTAT, &p)
         }
     }
