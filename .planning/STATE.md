@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Shell Boot + One-Command Integration
 status: executing
-stopped_at: Completed 05-08-PLAN.md
-last_updated: "2026-11-03T14:10:57.516Z"
+stopped_at: Completed 05-09-PLAN.md
+last_updated: "2026-11-03T15:13:11.784Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 05 execution started
-state_head: a4d7162ae06bd20b2ee585c3affee01bcfdb2194
+state_head: ca6fd79d31801a8290214a134e936662d3f39a51
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 38
-  completed_plans: 33
+  completed_plans: 34
   percent: 80
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
-Plan: 9 of 13
+Plan: 10 of 13
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 05 execution started
 
@@ -92,6 +92,7 @@ Progress: [████████░░] 80%
 | Phase 05 P06 | 110 min | 3 tasks | 19 files |
 | Phase 05 P07 | 106 min | 3 tasks | 17 files |
 | Phase 05 P08 | 223 min | 3 tasks | 14 files |
+| Phase 05 P09 | 54 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -186,6 +187,12 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05] 05-08: the console DEL posts "interrupt" to the note GROUPS of the console's readers (blocked waiters ∪ the current reader) — the plan's sanctioned foreground-group scoping for the notepg machinery; r9 grew real note-group ids for it (Proc.noteid: fresh per construction, rfork inherits unless RFNOTEG, non-RFPROC RFNOTEG re-groups the caller — 9k sysproc.c), so init's rfork(RFNOTEG)'d shell children are interrupted without init ever seeing the note.
 - [Phase 05]: [Phase 05] 05-08: DEL (0x7f) discards the in-assembly partial line and fails the reading syscall -1/"interrupted" (the donor's qread-under-a-note → rc's Eintr re-prompt); no input ECHO this era (documented devcons delta — typed bytes never re-write to the wire); sleep(0) yields via preempt(); a sleeper wakes only on expiry (the donor's note-interruptible tsleep is a documented era limit — no measured caller interrupts a sleep).
 - [Phase 05]: [Phase 05] 05-08: two gate-caught fixes — (1) launchers spawning qemu's stdio serial in the background MUST pass <&0 explicitly: a non-interactive sh redirects a backgrounded command's stdin from /dev/null (POSIX), silently starving console input (run-r9.sh); (2) pick_next no longer skips the current proc — a proc that blocks via sched() stays current while the sched loop runs, so a tick-readied waiter was unpickable (the cons-read deadlock); the scan still starts at cur+1 (the readied current is picked last — fairness kept).
+- [Phase 05]: [Phase 05]: 05-09: devproc qid re-encoded pid*8+slot (note 1, status 2, args 3, ctl 4) — transient internals, note path byte-identical (Pitfall 5); Proc.argv recorded at EVERY exec (install_image shared) with ARGV_CAP 256 + documented truncation; rfork inherits pri but NOT argv (truthful-args: pre-exec reads EMPTY)
+- [Phase 05]: [Phase 05]: 05-09: #c/pid landed via a devproc-style injected current-pid hook — getpid() resolves so init's pri-10 write names the real pid (the designed warning is gone); devproc ctl accepts+records "pri N" (Proc.pri — the plan's honest degradation, no scheduler priority this era), unknown verbs loud
+- [Phase 05]: [Phase 05]: 05-09: mount-table fid aliasing fix — namec's redirects fid-CLONE DEV_MNT heads (devmnt::clone_chan, the zero-name Twalk idiom) instead of bare-dup; a redirect's open+close must never Tclunk the table's server-side fid (the ls /bin → ps exec gate failure)
+- [Phase 05]: [Phase 05]: 05-09: stat(5) records carry FOUR strings (muid added) — dirreadall's statcheck walks four and rejects three (convM2D.c); devproc fixed, the same latent shape in devcons/devroot/devenv/devsrv/devdup deferred (no dirreadall consumer this era)
+- [Phase 05]: [Phase 05]: 05-09: dispatch table closed against the 05-03 measured set — REMOVE/WSTAT/FWSTAT/OSEEK never measured → loud-None; FAUTH loud-None per D-02; the kernel's syscall attack surface is exactly the measured set (T-05-18)
+- [Phase 05]: [Phase 05]: 05-09: the input-wedge flake (2/~7 early sweep runs wedged at a prompt read; 6 consecutive clean passes since; never reproduced under the cons watchdog) documented-not-fixed — this plan's diffs don't touch the cons/wake/note/sched/timer paths; top debug candidate for 05-12/05-13's CI leg
 
 ### Pending Todos
 
@@ -213,6 +220,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T14:10:57.447Z
-Stopped at: Completed 05-08-PLAN.md
+Last session: 2026-11-03T15:13:11.716Z
+Stopped at: Completed 05-09-PLAN.md
 Resume file: None

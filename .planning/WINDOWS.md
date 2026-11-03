@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 16
-waived_count: 1
+open_count: 19
+waived_count: 3
 fixed_count: 2
-total_count: 19
-last_updated: 2026-11-03T10:19:29.077Z
+total_count: 24
+last_updated: 2026-11-03T15:09:56.309Z
 ---
 
 # Broken Windows Ledger
@@ -34,6 +34,11 @@ last_updated: 2026-11-03T10:19:29.077Z
 | 17 | 05 | deviation | r9:aarch64/src/fault.rs |  | 05-06: cold-syscall-buffer class fixed at the gate (EL1h DataAbort on paqfs's emalloc'd brk_-grown buffer — the kernel's pread made the first touch) — fault::ensure_user_resident generalizes 04-08's explicit page-in to any writable user buffer before deref; T-05-06 holds (never a nested fault); phase-04 deferred #3 closed for the growth class | open |  | 2026-11-03T08:27:38.460Z |  |
 | 18 | 05 | todo | r9:port/src/namec.rs |  | 05-07: pgrp lock held across namec walks incl. devmnt's blocking Twalk RPCs — a pgrp-SHARING contender (fork shares the pgrp) spins IRQ-masked = wedge once the first concurrent namespace caller exists (rc pipelines/backgrounded cmds); the gate never contends (strictly sequential chain). Fix: snapshot the union chain under a brief lock, walk unlocked (phase deferred-items.md) | open |  | 2026-11-03T10:19:28.856Z |  |
 | 19 | 05 | todo | r9:port/src/devcons.rs |  | 05-07: #c/pid absent — getpid() fails, init's pri-10 write names #p/0/ctl (the designed warning fires either way; the gate is unaffected). 05-09's devproc ctl is the first real consumer — add devcons's Qpid file (donor devcons.c) via a current-pid hook before it lands | open |  | 2026-11-03T10:19:29.077Z |  |
+| 20 | 05 | deviation | build/aarch64/drive-r9.expect |  | interactive-driver input wedge flake: 2 of ~7 early sweep runs wedged at a prompt read (line never completes); 6 consecutive clean passes since; not reproducing under the cons watchdog; deferred as the top debug candidate for 05-12/05-13's CI leg | open |  | 2026-11-03T15:09:13.138Z |  |
+| 21 | 05 | stub | .planning/phases/05-shell-boot-one-command-integration/deferred-items.md |  | r9-side: stat(5) records carry 3 strings (no muid) in devcons/devroot/devenv/devsrv/devdup listings — dirreadall's statcheck walks FOUR and rejects them (devproc fixed 05-09; the rest latent, no dirreadall consumer this era) | open |  | 2026-11-03T15:09:20.285Z |  |
+| 22 | 05 | deviation | build/aarch64/drive-r9.expect |  | interactive-driver input wedge flake: 2 of ~7 early sweep runs wedged at a prompt read (line never completes); 6 consecutive clean passes since; not reproducing under the cons watchdog; deferred as the top debug candidate for 05-12/05-13's CI leg | open |  | 2026-11-03T15:09:20.518Z |  |
+| 23 | 05 | stub | .planning/phases/05-shell-boot-one-command-integration/deferred-items.md |  | r9-side: stat records carry 3 strings no muid in devcons/devroot/devenv/devsrv/devdup listings - dirreadall statcheck walks FOUR and rejects them (devproc fixed 05-09) | waived | accidental duplicate of #21 (executor re-ran the append after a misleading tail display) | 2026-11-03T15:09:25.686Z | 2026-11-03T15:09:56.078Z |
+| 24 | 05 | deviation | build/aarch64/drive-r9.expect |  | interactive-driver input wedge flake: 2 of ~7 early sweep runs wedged at a prompt read; 6 consecutive clean passes since; top debug candidate for 05-12/05-13 CI | waived | accidental duplicate of #20 (executor re-ran the append after a misleading tail display) | 2026-11-03T15:09:25.913Z | 2026-11-03T15:09:56.309Z |
 
 ````json
 [
@@ -282,6 +287,71 @@ last_updated: 2026-11-03T10:19:29.077Z
     "reason": "",
     "recorded_at": "2026-11-03T10:19:29.077Z",
     "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 20,
+    "kind": "deviation",
+    "phase": "05",
+    "file": "build/aarch64/drive-r9.expect",
+    "line": null,
+    "description": "interactive-driver input wedge flake: 2 of ~7 early sweep runs wedged at a prompt read (line never completes); 6 consecutive clean passes since; not reproducing under the cons watchdog; deferred as the top debug candidate for 05-12/05-13's CI leg",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T15:09:13.138Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 21,
+    "kind": "stub",
+    "phase": "05",
+    "file": ".planning/phases/05-shell-boot-one-command-integration/deferred-items.md",
+    "line": null,
+    "description": "r9-side: stat(5) records carry 3 strings (no muid) in devcons/devroot/devenv/devsrv/devdup listings — dirreadall's statcheck walks FOUR and rejects them (devproc fixed 05-09; the rest latent, no dirreadall consumer this era)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T15:09:20.285Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 22,
+    "kind": "deviation",
+    "phase": "05",
+    "file": "build/aarch64/drive-r9.expect",
+    "line": null,
+    "description": "interactive-driver input wedge flake: 2 of ~7 early sweep runs wedged at a prompt read (line never completes); 6 consecutive clean passes since; not reproducing under the cons watchdog; deferred as the top debug candidate for 05-12/05-13's CI leg",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T15:09:20.518Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 23,
+    "kind": "stub",
+    "phase": "05",
+    "file": ".planning/phases/05-shell-boot-one-command-integration/deferred-items.md",
+    "line": null,
+    "description": "r9-side: stat records carry 3 strings no muid in devcons/devroot/devenv/devsrv/devdup listings - dirreadall statcheck walks FOUR and rejects them (devproc fixed 05-09)",
+    "status": "waived",
+    "reason": "accidental duplicate of #21 (executor re-ran the append after a misleading tail display)",
+    "recorded_at": "2026-11-03T15:09:25.686Z",
+    "resolved_at": "2026-11-03T15:09:56.078Z",
+    "milestone": null
+  },
+  {
+    "id": 24,
+    "kind": "deviation",
+    "phase": "05",
+    "file": "build/aarch64/drive-r9.expect",
+    "line": null,
+    "description": "interactive-driver input wedge flake: 2 of ~7 early sweep runs wedged at a prompt read; 6 consecutive clean passes since; top debug candidate for 05-12/05-13 CI",
+    "status": "waived",
+    "reason": "accidental duplicate of #20 (executor re-ran the append after a misleading tail display)",
+    "recorded_at": "2026-11-03T15:09:25.913Z",
+    "resolved_at": "2026-11-03T15:09:56.309Z",
     "milestone": null
   }
 ]
