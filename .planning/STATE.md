@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Shell Boot + One-Command Integration
 status: executing
-stopped_at: Completed 05-02-PLAN.md
-last_updated: "2026-11-03T01:10:12.514Z"
+stopped_at: Completed 05-03-PLAN.md
+last_updated: "2026-11-03T04:58:16.271Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 05 execution started
-state_head: a783c938e37308c6a2984c7b0c5c795ca48da0d9
+state_head: a624fc1816010193c3c8332b1d78556f05ce7ad5
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 38
-  completed_plans: 27
-  percent: 71
+  completed_plans: 28
+  percent: 74
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
-Plan: 3 of 13
+Plan: 4 of 13
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 05 execution started
 
-Progress: [███████░░░] 71%
+Progress: [███████░░░] 74%
 
 ## Performance Metrics
 
@@ -86,6 +86,7 @@ Progress: [███████░░░] 71%
 | Phase 04 P08 | 40min | 3 tasks | 18 files |
 | Phase 05 P01 | 64 min | 3 tasks | 11 files |
 | Phase 05 P02 | 15 min | 3 tasks | 9 files |
+| Phase 05 P03 | 225 min | 2 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,9 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05]: 05-02: BOOTFILES trimmed to the real 7l closure by reference analysis — paq.7 is the lone trim (embed-only table never names it); bootcache.7 stays for statbuf (settime/local extern it), bootip.7 via local.c's configip, printstub.7 linked explicitly so its fmt stubs beat libc's fmtlock members
 - [Phase 05]: [Phase 05]: 05-02: build/aarch64/out/ ownership — subset-build.sh syncs its four boot-chain binaries per-file (no --delete); stage-build.sh keeps wholesale --delete for the staged-init supply chain (05-10's "unchanged" constraint); last writer wins, and mkimage.sh's manifest assert names the fix
 - [Phase 05]: [Phase 05]: 05-02: adm/timezone/local is copied into the staged tree at bake time from the repo's adm/timezone/local (not committed to root-tree/) — the action text's "copy at bake time" governs over the files_modified listing
+- [Phase 05]: 05-03: the real-chain donor trace is the measure-first gate for the kernel stream — 26 syscalls measured (16 NEW vs Phase 4: bind, chdir, dup, alarm, fauth, sleep, pipe, create, fd2path, brk_, unmount, seek, fversion, stat, fstat, mount); 05-04..05-09 implement exactly this set — Measured on the 9front donor with the 05-03 rig (born-traced arming + tagged fragments); opencons provably captured; REMOVE/WSTAT never fired (loud-unimplemented stays)
+- [Phase 05]: 05-03: donor trace accommodations that do NOT carry to r9: devcons /dev/cons reads Egreg by design on the donor (kbdfs-served consoles) so the sweep was sourced not typed; r9's devcons serves reads (D-06) and 05-09 drives the console for real — opencons's bind #c MBEFORE pins the kernel cons into the chain's fd 0 on the donor; the donor's devcons refuses Qcons reads (Egreg) — the trace termrc sources the sweep instead
+- [Phase 05]: 05-03 finding for 05-08: the image's scoped /lib/namespace needs the k10root-style re-mount (mount -a #s/boot /root; bind -a /root /) BEFORE its /root-prefixed bin binds — newns's RFCNAMEG wipe discards boot's mount table — proven empirically on the donor: the trace namespace file with exactly that shape let init's newns resolve /bin/rc; without it the replay fails soft and init's exec stalls
 
 ### Pending Todos
 
@@ -185,6 +189,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T01:09:34.713Z
-Stopped at: Completed 05-02-PLAN.md
+Last session: 2026-11-03T04:58:16.206Z
+Stopped at: Completed 05-03-PLAN.md
 Resume file: None
