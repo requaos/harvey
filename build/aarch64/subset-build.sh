@@ -23,6 +23,10 @@
 #      per-target install rule
 #   3. rsync the resulting /aarch64/bin tree back to the host checkout's
 #      gitignored aarch64/bin
+#   4. the boot chain (05-02 Task 1): boot(8) for aarch64 via
+#      sys/src/9k/boot/mkfile.aarch64 (additive, objtype-gated;
+#      hand-written bootr9.c bootconf — RESEARCH Pattern 2), harvested
+#      to the gitignored build/aarch64/out/boot with an R_MAGIC assert
 #
 # The libmp/libsec aarch64 stubs (empty-OFILES arch dirs, the riscv64
 # pattern) let those libs' port+$objtype recursion resolve; the port
@@ -140,6 +144,19 @@ objtype=aarch64 mk cat.install cp.install date.install echo.install \
 	ls.install mkdir.install mv.install ps.install rm.install \
 	sed.install test.install wc.install || fail "cmd single-file set"
 
+# 05-02 Task 1: the boot chain — boot(8) for aarch64 via the additive,
+# objtype-gated mkfile.aarch64 (05-RESEARCH Pattern 2 / Pitfall 2: boot
+# has no standalone mkfile; the amd64 path awk-generates the bootconf
+# from a kernel config, and the hand-written bootr9.c is the generated
+# equivalent here).  Build in-tree, harvest to build/aarch64/out/boot
+# (gitignored), then clean the boot dir so the guest tree stays
+# pristine (no *.7/libboot.a7/boot artifacts left behind).
+echo "== boot chain: boot(8) aarch64 (05-02)"
+(cd /sys/src/9k/boot && objtype=aarch64 mk -f mkfile.aarch64) || fail "boot(8) aarch64 build"
+mkdir -p "$HARVEY/build/aarch64/out"
+cp /sys/src/9k/boot/boot "$HARVEY/build/aarch64/out/boot" || fail "harvest boot to out/"
+(cd /sys/src/9k/boot && objtype=aarch64 mk -f mkfile.aarch64 clean) || fail "boot dir clean"
+
 echo "== subset tree (/aarch64/bin):"
 ls /aarch64/bin
 echo "-- ip:"
@@ -174,11 +191,27 @@ mkdir -p "$HARVEY/aarch64/bin"
 rsync -a --delete -e "$RSYNC_RSH" \
 	"$GUEST:$GUEST_DIR/aarch64/bin/" "$HARVEY/aarch64/bin/"
 
+# 05-02 Task 1: pull the boot-chain binary back to the host's
+# gitignored build/aarch64/out/.  Individual-file sync (no --delete):
+# stage-build.sh owns out/ wholesale for the staged-init supply chain
+# (--delete there) — last writer wins; mkimage.sh's manifest assert
+# names subset-build.sh as the fix when its inputs are absent.
+echo "== pulling the boot-chain binary back to host build/aarch64/out"
+mkdir -p "$HARVEY/build/aarch64/out"
+rsync -a -e "$RSYNC_RSH" \
+	"$GUEST:$GUEST_DIR/build/aarch64/out/boot" "$HARVEY/build/aarch64/out/"
+
 # assert the sixteen expected binaries on the host side
 for f in rc grep cat cp date echo ls mkdir mv ps rm sed test wc; do
 	[ -x "$HARVEY/aarch64/bin/$f" ] || err "aarch64/bin/$f missing after rsync-back"
 done
 [ -x "$HARVEY/aarch64/bin/ip/ipconfig" ] || err "aarch64/bin/ip/ipconfig missing after rsync-back"
 [ -x "$HARVEY/aarch64/bin/auth/factotum" ] || err "aarch64/bin/auth/factotum missing after rsync-back"
+
+# 05-02 Task 1: the boot binary must carry the arm64 a.out magic
+# (R_MAGIC 0x8C47, BE)
+[ -s "$HARVEY/build/aarch64/out/boot" ] || err "build/aarch64/out/boot missing after rsync-back"
+magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/boot" | tr -d ' \n')
+[ "$magic" = "00008c47" ] || err "build/aarch64/out/boot: bad magic $magic (want 00008c47)"
 
 echo "== PASS: aarch64 shell-boot subset built and installed ($(ls "$HARVEY/aarch64/bin" | wc -l | tr -d ' ') entries in aarch64/bin; log: $LOG)"
