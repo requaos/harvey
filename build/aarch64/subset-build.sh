@@ -7,7 +7,8 @@
 # whole build — aarch64/mkfile, aarch64/include/, CPUS, OS=...7):
 #   1. libs in dependency order: libc (idempotent rerun), libbio,
 #      libregexp, libip, libndb, libmp, libsec, libString, libthread,
-#      lib9p, libauth, libauthsrv — abort on first failure, dir named.
+#      lib9p, libauth, libauthsrv, libflate — abort on first failure,
+#      dir named.
 #      (The plan's named set — libip libmp libsec libauth libauthsrv —
 #      is the declared-LIB surface; the full set above is the
 #      #pragma-lib closure discovered at link time, exactly as the
@@ -23,10 +24,12 @@
 #      per-target install rule
 #   3. rsync the resulting /aarch64/bin tree back to the host checkout's
 #      gitignored aarch64/bin
-#   4. the boot chain (05-02 Task 1): boot(8) for aarch64 via
+#   4. the boot chain (05-02): boot(8) for aarch64 via
 #      sys/src/9k/boot/mkfile.aarch64 (additive, objtype-gated;
-#      hand-written bootr9.c bootconf — RESEARCH Pattern 2), harvested
-#      to the gitignored build/aarch64/out/boot with an R_MAGIC assert
+#      hand-written bootr9.c bootconf — RESEARCH Pattern 2), init via
+#      cmd's per-target install (lands at /aarch64/init), paqfs via its
+#      dir's per-target install, and 05-01's stacksmoke — all harvested
+#      to the gitignored build/aarch64/out/ with R_MAGIC asserts
 #
 # The libmp/libsec aarch64 stubs (empty-OFILES arch dirs, the riscv64
 # pattern) let those libs' port+$objtype recursion resolve; the port
@@ -118,8 +121,9 @@ cd "$HARVEY" && bash build/mkdirs || fail "mkdirs"
 # time per the plan's flagged assumptions): ls/ps/sed/wc/grep →
 # libbio; sed → libregexp; ipconfig → libip + libndb; factotum →
 # libauth + libauthsrv + libmp/libsec transitives + libString +
-# libthread + lib9p.
-for d in libc libbio libregexp libip libndb libmp libsec libString libthread lib9p libauth libauthsrv; do
+# libthread + lib9p.  05-02: paqfs adds libflate (flate.h's
+# #pragma lib) to the closure.
+for d in libc libbio libregexp libip libndb libmp libsec libString libthread lib9p libauth libauthsrv libflate; do
 	echo "== subset lib: $d"
 	(cd "/sys/src/$d" && objtype=aarch64 mk install) || fail "lib $d"
 done
@@ -157,6 +161,24 @@ mkdir -p "$HARVEY/build/aarch64/out"
 cp /sys/src/9k/boot/boot "$HARVEY/build/aarch64/out/boot" || fail "harvest boot to out/"
 (cd /sys/src/9k/boot && objtype=aarch64 mk -f mkfile.aarch64 clean) || fail "boot dir clean"
 
+# 05-02 Task 2: init, paqfs, and stacksmoke join the image supply
+# chain.  init installs via cmd's per-target rule — cmd/mkfile's
+# special $BIN/init rule lands it at /aarch64/init (boot's execinit
+# builds /$objtype/init), so harvest from there, not /aarch64/bin.
+# paqfs installs per-target from its own dir (NEVER the dir's whole
+# mkmany TARG — that would also build mkpaqfs for aarch64, which only
+# the host needs).  stacksmoke is 05-01's D-15 deep-recursion binary
+# (build/aarch64/stacksmoke.c), recompiled here so it ships in the
+# real image too (D-15).
+echo "== boot chain: init paqfs stacksmoke (05-02)"
+(cd /sys/src/cmd && objtype=aarch64 mk init.install) || fail "init.install"
+cp /aarch64/init "$HARVEY/build/aarch64/out/init" || fail "harvest init to out/"
+(cd /sys/src/cmd/paqfs && objtype=aarch64 mk paqfs.install) || fail "paqfs.install"
+cp /aarch64/bin/paqfs "$HARVEY/build/aarch64/out/paqfs" || fail "harvest paqfs to out/"
+(cd "$HARVEY/build/aarch64" && objtype=aarch64 7c -FTVw stacksmoke.c \
+	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/stacksmoke" stacksmoke.7 \
+	&& rm -f stacksmoke.7) || fail "stacksmoke"
+
 echo "== subset tree (/aarch64/bin):"
 ls /aarch64/bin
 echo "-- ip:"
@@ -191,15 +213,19 @@ mkdir -p "$HARVEY/aarch64/bin"
 rsync -a --delete -e "$RSYNC_RSH" \
 	"$GUEST:$GUEST_DIR/aarch64/bin/" "$HARVEY/aarch64/bin/"
 
-# 05-02 Task 1: pull the boot-chain binary back to the host's
-# gitignored build/aarch64/out/.  Individual-file sync (no --delete):
+# 05-02: pull the boot-chain binaries back to the host's gitignored
+# build/aarch64/out/.  Individual-file sync (no --delete):
 # stage-build.sh owns out/ wholesale for the staged-init supply chain
 # (--delete there) — last writer wins; mkimage.sh's manifest assert
 # names subset-build.sh as the fix when its inputs are absent.
-echo "== pulling the boot-chain binary back to host build/aarch64/out"
+echo "== pulling the boot-chain binaries back to host build/aarch64/out"
 mkdir -p "$HARVEY/build/aarch64/out"
 rsync -a -e "$RSYNC_RSH" \
-	"$GUEST:$GUEST_DIR/build/aarch64/out/boot" "$HARVEY/build/aarch64/out/"
+	"$GUEST:$GUEST_DIR/build/aarch64/out/boot" \
+	"$GUEST:$GUEST_DIR/build/aarch64/out/init" \
+	"$GUEST:$GUEST_DIR/build/aarch64/out/paqfs" \
+	"$GUEST:$GUEST_DIR/build/aarch64/out/stacksmoke" \
+	"$HARVEY/build/aarch64/out/"
 
 # assert the sixteen expected binaries on the host side
 for f in rc grep cat cp date echo ls mkdir mv ps rm sed test wc; do
@@ -208,10 +234,12 @@ done
 [ -x "$HARVEY/aarch64/bin/ip/ipconfig" ] || err "aarch64/bin/ip/ipconfig missing after rsync-back"
 [ -x "$HARVEY/aarch64/bin/auth/factotum" ] || err "aarch64/bin/auth/factotum missing after rsync-back"
 
-# 05-02 Task 1: the boot binary must carry the arm64 a.out magic
+# 05-02: every boot-chain binary must carry the arm64 a.out magic
 # (R_MAGIC 0x8C47, BE)
-[ -s "$HARVEY/build/aarch64/out/boot" ] || err "build/aarch64/out/boot missing after rsync-back"
-magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/boot" | tr -d ' \n')
-[ "$magic" = "00008c47" ] || err "build/aarch64/out/boot: bad magic $magic (want 00008c47)"
+for f in boot init paqfs stacksmoke; do
+	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
+	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
+	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
+done
 
 echo "== PASS: aarch64 shell-boot subset built and installed ($(ls "$HARVEY/aarch64/bin" | wc -l | tr -d ' ') entries in aarch64/bin; log: $LOG)"

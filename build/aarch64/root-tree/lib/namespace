@@ -1,0 +1,17 @@
+# /lib/namespace for the r9 boot chain image (05-02, D-08) — scoped
+# from lib/namespace, modeled on sys/src/9k/k10/root/k10root.namespace's
+# shape: the paqfs tree is mounted at /root when init's newns runs, so
+# the bin binds carry the /root/ prefix.  No network binds (#I/#l0) and
+# no factotum mount — auth is stub-by-absence (D-02) and the embedded
+# root has no network.
+
+# kernel devices
+bind #c /dev
+bind #d /fd
+bind -c #e /env
+bind #p /proc
+bind -c #s /srv
+
+# standard bin
+bind /root/$cputype/bin /bin
+bind -a /root/rc/bin /bin
