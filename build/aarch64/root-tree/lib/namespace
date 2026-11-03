@@ -1,9 +1,19 @@
 # /lib/namespace for the r9 boot chain image (05-02, D-08) — scoped
 # from lib/namespace, modeled on sys/src/9k/k10/root/k10root.namespace's
-# shape: the paqfs tree is mounted at /root when init's newns runs, so
-# the bin binds carry the /root/ prefix.  No network binds (#I/#l0) and
-# no factotum mount — auth is stub-by-absence (D-02) and the embedded
-# root has no network.
+# shape.  No network binds (#I/#l0) and no factotum mount — auth is
+# stub-by-absence (D-02) and the embedded root has no network.
+#
+# 05-07: the RE-MOUNT pair comes FIRST (the binding 05-03 finding,
+# proven empirically on the donor): newns's rfork(RFENVG|RFCNAMEG) WIPES
+# the mount table boot built, so the paqfs tree must be re-attached at
+# /root (via #s/boot — the devsrv entry boot's srvcreate posted) and
+# re-bound onto / before any /root-prefixed bind can resolve.  Without
+# this pair, the bin binds below fail soft and init's exec of /bin/rc
+# stalls.
+
+# re-mount the root server (the wiped table's reconstruction)
+mount -a #s/boot /root
+bind -a /root /
 
 # kernel devices
 bind #c /dev
