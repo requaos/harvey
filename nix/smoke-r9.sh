@@ -136,7 +136,7 @@ cleanup() {
 	# with the gate) is the only match class.
 	pkill -f '[q]emu-system-aarch64.*kernel-virt\.elf' 2>/dev/null || true
 	rm -rf "$TMPD"
-	exit $status
+	exit "$status"
 }
 trap cleanup EXIT
 
