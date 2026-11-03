@@ -16,8 +16,9 @@
 # drive9.py's stage-named failures.  Spawned pipeline hygiene per D-16:
 # a fresh capture per run (rm first), and cleanup kills the spawned
 # run-r9.sh's process GROUP (qemu is in it on darwin, which lacks
-# setsid(1)) with the bracket-fixed pkill fallback (the pattern cannot
-# self-match the harness argv; it keys on this run's kernel path).
+# setsid(1)) with the bracket-fixed pkill fallback keyed on this run's
+# unique -name tag (WR-07 — the pattern cannot self-match the harness
+# argv and never matches a foreign r9 qemu's kernel class).
 #
 # Wire notes (why the markers are unambiguous): r9's devcons does NOT
 # echo typed input this era (05-08's documented delta), so the typed
@@ -56,19 +57,27 @@ set CAPTURE build/aarch64/drive-r9.log
 exec rm -f $CAPTURE
 
 # --- spawn the launcher in interactive (stdio) mode ----------------------
+# WR-07: a per-run unique tag flows into qemu's argv via run-r9.sh's
+# R9_RUN_TAG → -name; the teardown's survivor sweep keys on THIS run's
+# tag, never a kernel-name class (a foreign r9 qemu — a dev's
+# interactive boot-r9, a parallel CI job — shares the kernel path).
+set run_tag [expr {[info exists env(R9_RUN_TAG)] ? $env(R9_RUN_TAG) : "r9drive-[pid]-[clock seconds]"}]
+set env(R9_RUN_TAG) $run_tag
 spawn sh build/aarch64/run-r9.sh
 set spawn_pid [exp_pid]
 log_file $CAPTURE
 
 # --- teardown: kill the spawned pipeline's process group + pkill fallback
 proc cleanup {} {
-    global spawn_pid
+    global spawn_pid run_tag
     # the pty session's process group (qemu shares it on darwin — no
     # setsid there); catch: already-dead is fine
     catch { exec kill -KILL -- -$spawn_pid 2>/dev/null }
-    # fallback for the setsid leg (linux): match this run's qemu by its
-    # kernel-path argv; the [q] bracket keeps pkill from self-matching
-    catch { exec pkill -f {[q]emu-system-aarch64.*aarch64-unknown-none-elf} 2>/dev/null }
+    # fallback for the setsid leg (linux): match THIS run's qemu by its
+    # unique -name tag argv (WR-07); the \[q] escape keeps the bracket
+    # literal (Tcl double quotes would command-substitute [q]) and pkill
+    # from self-matching
+    catch { exec pkill -f "\[q]emu-system-aarch64.*$run_tag" 2>/dev/null }
 }
 
 # --- staged ordered assertions (each stage names its failure) ------------

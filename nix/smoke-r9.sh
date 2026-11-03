@@ -47,9 +47,12 @@
 # pre-seeded stale log cannot pass — it starts empty and only this
 # run's boot writes it); the expect driver kills qemu's process group
 # on every exit path; THIS script's EXIT trap sweeps any survivor via a
-# bracket-fixed pkill keyed on this run's kernel-path argv — the
-# pattern '[q]emu…' cannot self-match the harness shell's or pkill's
-# own argv (Phase-3 carried discipline).
+# bracket-fixed pkill keyed on this run's unique R9_RUN_TAG (exported
+# below; the driver adds it to qemu's argv as -name) — WR-07: never a
+# kernel-name class, so a foreign r9 qemu (a dev's interactive boot-r9,
+# a parallel CI job) is never matched.  The '[q]emu…' pattern cannot
+# self-match the harness shell's or pkill's own argv (Phase-3 carried
+# discipline).
 #
 # Wrapper provides (the flake app's runtimeInputs): PLAN9 with
 # $PLAN9/bin LAST on PATH; qemu, dtc (fdtput), git, expect always;
@@ -125,16 +128,23 @@ R9_INITRD="$HARVEY/build/aarch64/bootfs.paq"
 # --- step 3: DTB patch (the Phase-4 fdtput recipe; see the header) ---
 
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/smoke-r9.XXXXXX")
+# WR-07: the per-run unique tag — exported so smoke-r9.expect adds it to
+# qemu's argv (-name), and this run's survivor sweep (cleanup below)
+# keys on it.  The sweep NEVER matches a kernel-name class: a foreign
+# r9 qemu (a dev's interactive boot-r9 uses the same kernel; a parallel
+# CI job on a shared runner) must never be killed by this gate's
+# teardown.
+R9_RUN_TAG="r9smoke-$$-$(date +%s)"
+export R9_RUN_TAG
 # shellcheck disable=SC2329  # invoked via trap below
 cleanup() {
 	status=$?
 	# the expect driver kills qemu's process group on every exit path;
 	# this trap sweeps any survivor.  the pattern is bracket-fixed
 	# ([q]emu) so pkill cannot self-match this shell's or its own argv,
-	# and keyed on this run's kernel path so a foreign qemu (a dev's
-	# interactive boot-r9 uses the same kernel, but never concurrently
-	# with the gate) is the only match class.
-	pkill -f '[q]emu-system-aarch64.*kernel-virt\.elf' 2>/dev/null || true
+	# and keyed on THIS run's unique -name tag (WR-07) — never on the
+	# kernel-path class.
+	pkill -f "[q]emu-system-aarch64.*${R9_RUN_TAG}" 2>/dev/null || true
 	rm -rf "$TMPD"
 	exit "$status"
 }

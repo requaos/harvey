@@ -17,6 +17,10 @@
 #   R9_INITRD   default $HARVEY/build/aarch64/bootfs.paq — baked via
 #               build/aarch64/mkimage.sh first when absent.
 #   QEMU_BIN    default qemu-system-aarch64 (PATH lookup).
+#   R9_RUN_TAG  optional — a per-run unique token added to qemu's argv
+#               as `-name` (WR-07): the gate drivers set it so their
+#               survivor sweeps match THIS run's qemu only, never a
+#               kernel-name class.
 #
 # Modes:
 #   default         interactive: qemu -nographic, serial on stdio
@@ -32,11 +36,12 @@
 #     -device loader,file=$R9_INITRD,addr=0x48000000
 #
 # Hygiene (D-16): fresh log per --log run; on exit the spawned qemu's
-# process group is killed (setsid leg) with a lone-pid fallback.  On
-# darwin there is no setsid(1) — ad-hoc gate kills there use
-#   pkill -f '[q]emu-system-aarch64.*…'
-# with the bracket-fixed pattern so pkill cannot self-match the harness
-# shell argv (Phase-3 carried discipline).
+# process group is killed (setsid leg) with a lone-pid fallback.  Gate
+# survivors are swept by pkill keyed on the run's unique R9_RUN_TAG
+# (-name argv token — WR-07), never a kernel-name class: a foreign r9
+# qemu (a dev's interactive boot-r9, a parallel CI job) shares the
+# kernel path and must never match.  The bracket-fixed '[q]emu' pattern
+# cannot self-match the harness shell argv (Phase-3 carried discipline).
 #
 # usage: R9_KERNEL=… R9_DTB=… build/aarch64/run-r9.sh [--log FILE]
 
@@ -117,6 +122,11 @@ if [ -n "$LOG" ]; then
 	set -- "$@" -display none -serial "file:$LOG"
 else
 	set -- "$@" -nographic
+fi
+# WR-07: the per-run unique tag rides qemu's argv (-name) so the gate's
+# survivor sweep can key on THIS run (see the header's hygiene note).
+if [ -n "${R9_RUN_TAG:-}" ]; then
+	set -- "$@" -name "$R9_RUN_TAG"
 fi
 
 # always print the assembled argv so captured gate logs are

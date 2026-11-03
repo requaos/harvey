@@ -64,6 +64,10 @@ foreach v {R9_KERNEL R9_DTB R9_INITRD R9_SMOKE_LOG} {
     }
 }
 set QEMU [expr {[info exists env(R9_QEMU)] ? $env(R9_QEMU) : "qemu-system-aarch64"}]
+# WR-07: the per-run unique tag in qemu's argv (-name) — the caller
+# (nix/smoke-r9.sh) exports R9_RUN_TAG so its survivor sweep matches
+# THIS run's qemu only; standalone runs default to a unique tag here.
+set run_tag [expr {[info exists env(R9_RUN_TAG)] ? $env(R9_RUN_TAG) : "r9smoke-[pid]-[clock seconds]"}]
 
 # --- D-16 hygiene: a fresh capture per run ------------------------------
 # The caller already rm -f'd it; remove again here so the rule holds
@@ -78,7 +82,8 @@ spawn $QEMU -M virt,gic-version=2 -cpu cortex-a72 -smp 1 -m 1024M \
     -kernel $env(R9_KERNEL) \
     -dtb $env(R9_DTB) \
     -device loader,file=$env(R9_INITRD),addr=0x48000000 \
-    -nographic
+    -nographic \
+    -name $run_tag
 set spawn_pid [exp_pid]
 log_file $env(R9_SMOKE_LOG)
 
