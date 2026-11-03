@@ -3,17 +3,17 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Shell Boot + One-Command Integration
 status: executing
-stopped_at: Completed 05-05-PLAN.md
-last_updated: "2026-11-03T06:35:12.536Z"
+stopped_at: Completed 05-06-PLAN.md
+last_updated: "2026-11-03T08:30:58.946Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 05 execution started
-state_head: 8743f2328f14a93055cd44d89a61c72d8ee9c25f
+state_head: 8e354658330a59cd2b08aeda8b24d9895cd544ed
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 38
-  completed_plans: 30
-  percent: 79
+  completed_plans: 31
+  percent: 80
 ---
 
 # Project State
@@ -28,11 +28,11 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
-Plan: 6 of 13
+Plan: 7 of 13
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 05 execution started
 
-Progress: [████████░░] 79%
+Progress: [████████░░] 80%
 
 ## Performance Metrics
 
@@ -89,6 +89,7 @@ Progress: [████████░░] 79%
 | Phase 05 P03 | 225 min | 2 tasks | 7 files |
 | Phase 05 P04 | 55 min | 3 tasks | 18 files |
 | Phase 05 P05 | 26 min | 2 tasks | 14 files |
+| Phase 05 P06 | 110 min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -170,6 +171,11 @@ Recent decisions affecting current work:
 - [Phase 05]: /rootfs.img synthesized by devroot pulled forward from 05-05 Task 2 (the 05-04 gate needs dirstat(paqfile)); real image entry always wins; 05-05 hardens
 - [Phase 05]: sys_brk_ landed in 05-04 per the dispatch-note mandate (brk_ ×28); boot dirstat mallocs are gate-load-bearing; brk_ = bss-break set with USTOP cap
 - [Phase 05]: multi-config verify ordering: all aarch64 configs share target/.../debug/aarch64 — the config under gate must build LAST (the raspi4b leg otherwise overwrites the virtshell ELF)
+- [Phase 05]: [Phase 05] 05-06: rfork fd-group semantics follow fork(2)+9k sysproc.c — the plan's bullet inverts RFFDG vs default (NEITHER share / RFFDG copy / RFCFDG empty); the donor governs — the phase's THIRD flag inversion (05-04 RFNAMEG, 05-05 RFENVG precedents). libc fork()=rfork(RFPROC|RFFDG|RFREND)=COPY is exactly what connectembed's child dup/close choreography requires; the staged init's rfork(RFPROC|RFMEM) children now SHARE its fd table (fork(2)) and the fan proves them green
+- [Phase 05]: [Phase 05] 05-06: the pipe is TWO cross-connected queues in ONE Arc-shared Pipe (9k devpipe.c — the plan's own semantic reference — governs): paqfs's io(1) reads AND writes fd 1, which a single FIFO cannot serve (a server would consume its own replies); the plan's "single shared queue" prose names the shared pipe STATE both ends reference
+- [Phase 05]: [Phase 05] 05-06: FdGroup slots are heap-backed (Vec) — an inline [Option<Chan>; 32] (~5.7 KB) in Proc::new overflowed the 16 KiB kstack into the proc's root-table page (the rfork chain's construction); no giant stack temporaries in proc construction is now a pattern rule
+- [Phase 05]: [Phase 05] 05-06: fault::ensure_user_resident closes the cold-syscall-buffer class (phase-04 deferred #3's post-exec half): paqfs's emalloc'd heap buffers are brk_-grown demand pages whose first touch was the kernel's pread write — explicit zero-page-in before deref (04-08's T-04-16 pattern generalized); never a nested fault, so T-05-06 holds. Wired into pread/pwrite/errstr/await/fd2path/pipe's buffer paths
+- [Phase 05]: [Phase 05] 05-06: sys_seek (SEEK 39, measured ×72) landed via the gate's iterate-discipline + RFNOTEG accepted as a no-op (per-pid notes have no group to split; paqfs's rfork requires it); devsrv/devdup live boot-chain exercise is 05-07's (boot.c:141 fversion precedes :144 srvcreate — the plan's gate prose inverted that order; semantics host-pinned)
 
 ### Pending Todos
 
@@ -197,6 +203,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T06:35:12.467Z
-Stopped at: Completed 05-05-PLAN.md
+Last session: 2026-11-03T08:30:38.099Z
+Stopped at: Completed 05-06-PLAN.md
 Resume file: None

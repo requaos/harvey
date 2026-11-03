@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 13
+open_count: 14
 waived_count: 1
-fixed_count: 1
-total_count: 15
-last_updated: 2026-11-03T06:32:58.375Z
+fixed_count: 2
+total_count: 17
+last_updated: 2026-11-03T08:27:38.460Z
 ---
 
 # Broken Windows Ledger
@@ -28,8 +28,10 @@ last_updated: 2026-11-03T06:32:58.375Z
 | 11 | 05 | stub | r9:port/src/devcons.rs |  | cons reads return loud -1 until 05-08 wires the PL011 RX ring through the device (plan-mandated; open succeeds) | open |  | 2026-11-03T05:59:51.093Z |  |
 | 12 | 05 | stub | r9:port/src/devproc.rs |  | devproc directory reads + status/args absent this plan; 05-08/05-09 grow them (ps needs /proc/*/status) | open |  | 2026-11-03T05:59:51.314Z |  |
 | 13 | 05 | deviation | r9:aarch64/src/exec.rs |  | exec maps data+bss eagerly (cold syscall-arg residency) — D-09-letter adjustment, T-05-06 honored; phase-04 deferred #3 closed for the argument class | open |  | 2026-11-03T05:59:51.532Z |  |
-| 14 | 05 | stub | r9:aarch64/src/syscall.rs |  | CREATE(22) stays loud-unimplemented until 05-06 wires sys_create; devenv's create op is host-tested and slots in unchanged (init's setenv/cpenv path); plan-mandated ordering (05-05 Task 1 action step 1) | open |  | 2026-11-03T06:32:58.158Z |  |
+| 14 | 05 | stub | r9:aarch64/src/syscall.rs |  | CREATE(22) stays loud-unimplemented until 05-06 wires sys_create; devenv's create op is host-tested and slots in unchanged (init's setenv/cpenv path); plan-mandated ordering (05-05 Task 1 action step 1) | fixed |  | 2026-11-03T06:32:58.158Z | 2026-11-03T08:27:38.113Z |
 | 15 | 05 | deviation | r9:aarch64/src/proc.rs |  | 05-05: plan's RFENVG/RFCENVG bullet inverted vs fork(2)+9k sysproc.c — donor governs (neither=share, RFENVG=copy, RFCENVG=empty); the 05-04 RFNAMEG/RFCNAMEG precedent; pinned by devenv_test.rs + the env-driven boot gate | open |  | 2026-11-03T06:32:58.375Z |  |
+| 16 | 05 | deviation | r9:aarch64/src/proc.rs |  | 05-06: plan's fd-group bullet inverts RFFDG vs default vs fork(2)+9k sysproc.c (neither=SHARE, RFFDG=COPY, RFCFDG=empty) — the phase's third flag inversion; donor governs (libc fork()=RFFDG=COPY is what connectembed's dup/close needs); pinned by fdgroup_test.rs | open |  | 2026-11-03T08:27:38.289Z |  |
+| 17 | 05 | deviation | r9:aarch64/src/fault.rs |  | 05-06: cold-syscall-buffer class fixed at the gate (EL1h DataAbort on paqfs's emalloc'd brk_-grown buffer — the kernel's pread made the first touch) — fault::ensure_user_resident generalizes 04-08's explicit page-in to any writable user buffer before deref; T-05-06 holds (never a nested fault); phase-04 deferred #3 closed for the growth class | open |  | 2026-11-03T08:27:38.460Z |  |
 
 ````json
 [
@@ -209,10 +211,10 @@ last_updated: 2026-11-03T06:32:58.375Z
     "file": "r9:aarch64/src/syscall.rs",
     "line": null,
     "description": "CREATE(22) stays loud-unimplemented until 05-06 wires sys_create; devenv's create op is host-tested and slots in unchanged (init's setenv/cpenv path); plan-mandated ordering (05-05 Task 1 action step 1)",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-11-03T06:32:58.158Z",
-    "resolved_at": null,
+    "resolved_at": "2026-11-03T08:27:38.113Z",
     "milestone": null
   },
   {
@@ -225,6 +227,32 @@ last_updated: 2026-11-03T06:32:58.375Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-03T06:32:58.375Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 16,
+    "kind": "deviation",
+    "phase": "05",
+    "file": "r9:aarch64/src/proc.rs",
+    "line": null,
+    "description": "05-06: plan's fd-group bullet inverts RFFDG vs default vs fork(2)+9k sysproc.c (neither=SHARE, RFFDG=COPY, RFCFDG=empty) — the phase's third flag inversion; donor governs (libc fork()=RFFDG=COPY is what connectembed's dup/close needs); pinned by fdgroup_test.rs",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T08:27:38.289Z",
+    "resolved_at": null,
+    "milestone": null
+  },
+  {
+    "id": 17,
+    "kind": "deviation",
+    "phase": "05",
+    "file": "r9:aarch64/src/fault.rs",
+    "line": null,
+    "description": "05-06: cold-syscall-buffer class fixed at the gate (EL1h DataAbort on paqfs's emalloc'd brk_-grown buffer — the kernel's pread made the first touch) — fault::ensure_user_resident generalizes 04-08's explicit page-in to any writable user buffer before deref; T-05-06 holds (never a nested fault); phase-04 deferred #3 closed for the growth class",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-03T08:27:38.460Z",
     "resolved_at": null,
     "milestone": null
   }
