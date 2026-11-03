@@ -16,14 +16,15 @@
 #   ROOTFS       served root    (default: .build/9front-dist/srvroot)
 #   SRV9_PORT    host-side 9P port (default: 1564 — 564 is privileged;
 #                qemu guestfwd maps guest 10.0.2.100:564 here)
-#   PYTHON       python3        (default: PATH lookup)
+#   HARNESS_BIN  the harness binary (default: PATH lookup of `harness`;
+#                the nix devshell exports the store path — D-04)
 #   WAKE_POKE    set to 0 to skip the GICR WAKER wake poke (only for
 #                debugging against a hypothetical qemu that wakes the
 #                redistributor itself)
 #
 # Boot proof: the captured serial log must contain the kernel banner
 # ("Plan 9", arm64/main.c:181), an rc prompt signature (term% — see
-# drive9.py's header for why we set it explicitly), and no panic/trap
+# drive9's header for why we set it explicitly), and no panic/trap
 # line. The banner/marker greps, not the boot timer, are the source of
 # truth — a healthy-but-slow TCG boot just needs a bigger BOOT_BUDGET
 # (rerun; do not retry silently on a missed banner).
@@ -48,7 +49,7 @@
 # pristine per D-12 — every accommodation is harness-side):
 #   1. -device loader: qemu -kernel delivers the DTB via x0 but the
 #      donor reads the fixed DTBADDR=0x40000000 — pre-placed there.
-#   2. GICR WAKER wake (gdbpoke9.py): qemu 11.1.2's spec-accurate GICv3
+#   2. GICR WAKER wake (harness gdbpoke9): qemu 11.1.2's spec-accurate GICv3
 #      resets the redistributor ProcessorSleep=1 and the donor's gic.c
 #      never clears it (its native platforms' firmware did). Asleep,
 #      PPIs (CNTV timer INTID 27) never fire: no ticks → devuart's
@@ -67,15 +68,15 @@
 # Root-fs delivery (plan deviation, documented in 02-04-SUMMARY): the
 # stock donor boot cannot reach a shell from the embedded bootfs.paq
 # alone — bootrc needs a /srv/boot connection and the local!paqfs path
-# is broken upstream (paqfs has no -f). So srv9.py serves ROOTFS over
+# is broken upstream (paqfs has no -f). So `harness srv9` serves ROOTFS over
 # 9P2000/tcp (the donor's own connecttcp path) and the kernel is told
 # via -append (DTB /chosen/bootargs → plan9.ini keys):
 #   bootargs=tcp fs=10.0.2.100 user=glenda console=0
 # user=glenda pre-answers factotum -u's promptforhostowner; the
-# bootargs prompt itself is still shown and answered (CR) by drive9.py.
+# bootargs prompt itself is still shown and answered (CR) by drive9.
 #
 # Mechanics: qemu launches PAUSED (-S) with serial on a chardev socket
-# (server=on,wait=off); drive9.py attaches the capture BEFORE the guest
+# (server=on,wait=off); drive9 attaches the capture BEFORE the guest
 # runs, resumes via QMP "cont", then drives the boot with send-on-match;
 # a trap kills qemu + the 9P server and removes the tmpdir on every exit.
 #
@@ -106,16 +107,12 @@ fi
 [ -n "$QEMU_BIN" ] && [ -x "$QEMU_BIN" ] || err "qemu-system-aarch64 not found — run inside the nix devshell or set QEMU_BIN"
 "$QEMU_BIN" --version >/dev/null 2>&1 || err "$QEMU_BIN not runnable"
 
-PYTHON="${PYTHON:-}"
-if [ -z "$PYTHON" ]; then
-	PYTHON=$(command -v python3 || true)
+HARNESS_BIN="${HARNESS_BIN:-}"
+if [ -z "$HARNESS_BIN" ]; then
+	HARNESS_BIN=$(command -v harness || true)
 fi
-[ -n "$PYTHON" ] || err "python3 not found — needed for srv9.py/drive9.py (set PYTHON)"
-
-SRV9="$HARVEY/build/aarch64/srv9.py"
-DRIVE9="$HARVEY/build/aarch64/drive9.py"
-[ -f "$SRV9" ] || err "$SRV9 missing"
-[ -f "$DRIVE9" ] || err "$DRIVE9 missing"
+[ -n "$HARNESS_BIN" ] && [ -x "$HARNESS_BIN" ] || \
+	err "harness binary not found — set HARNESS_BIN or run inside the nix devshell (which exports it)"
 
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/boot-9qemu.XXXXXX")
 SOCK="$TMPD/serial.sock"
@@ -136,11 +133,13 @@ trap cleanup EXIT
 
 # 1. serve the root fs (9P2000, read-only) on the host
 echo "== serving $ROOTFS on 127.0.0.1:$SRV9_PORT (9P2000)"
-"$PYTHON" "$SRV9" serve --root "$ROOTFS" --host 127.0.0.1 --port "$SRV9_PORT" \
+"$HARNESS_BIN" srv9 serve --root "$ROOTFS" --host 127.0.0.1 --port "$SRV9_PORT" \
 	> "$TMPD/srv9.log" 2>&1 &
 SRV9_PID=$!
+# the Rust srv9 prints 'srv9: serving …' to stderr AFTER listen() — poll
+# the log for it (keeps the kill -0 liveness leg and the 60s cap)
 i=0
-while ! "$PYTHON" -c "import socket,sys; sys.exit(socket.socket(socket.AF_INET, socket.SOCK_STREAM).connect_ex(('127.0.0.1', $SRV9_PORT)))" >/dev/null 2>&1; do
+while ! grep -q 'srv9: serving' "$TMPD/srv9.log" 2>/dev/null; do
 	i=$((i + 1))
 	if [ $i -gt 60 ]; then
 		cat "$TMPD/srv9.log" >&2 || true
@@ -204,7 +203,7 @@ fi
 #     A CR the driver sent meanwhile sits staged in the UART and is
 #     flushed by uartclock() on the first tick after the wake.
 if [ "${WAKE_POKE:-1}" != "0" ]; then
-	"$PYTHON" "$HARVEY/build/aarch64/gdbpoke9.py" --sock "$TMPD/gdb.sock" \
+	"$HARNESS_BIN" gdbpoke9 --sock "$TMPD/gdb.sock" \
 		--watch-file "$QEMU_LOG" --watch-str "bootargs is" \
 		--deadline "$BOOT_BUDGET" \
 		> "$TMPD/gdbpoke.log" 2>&1 &
@@ -217,7 +216,7 @@ fi
 #    the boot to the shell (banner → bootargs answered → rc prompt)
 echo "== driving boot to rc shell (budget ${BOOT_BUDGET}s; log: $QEMU_LOG)"
 set +e
-"$PYTHON" "$DRIVE9" --serial "$SOCK" --qmp "$QMPS" --log "$QEMU_LOG" \
+"$HARNESS_BIN" drive9 --serial "$SOCK" --qmp "$QMPS" --log "$QEMU_LOG" \
 	--budget "$BOOT_BUDGET"
 RC=$?
 set -e
@@ -241,7 +240,7 @@ if [ $RC -ne 0 ]; then
 	exit 1
 fi
 
-# 4. assertions (defense in depth; drive9.py already proved the shell)
+# 4. assertions (defense in depth; drive9 already proved the shell)
 grep -qiE '9front|Plan 9' "$QEMU_LOG" || err "captured log lacks the 9front/Plan 9 banner"
 grep -qE '(term|cpu)%' "$QEMU_LOG" || err "captured log lacks the rc prompt signature"
 if grep -qiE 'panic|trap:' "$QEMU_LOG"; then

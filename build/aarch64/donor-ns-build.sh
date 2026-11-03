@@ -62,7 +62,7 @@
 #   E. kernel: cd /sys/src/9/arm64 && mk CONF=qemu → 9qemu + 9qemu.u
 #      (donor's own aux/aout2uimage per D-12 — never imported)
 #   F. dist assembly in ~/9front-dist: 9qemu{,.u} + srvroot/ (the root
-#      fs served to the guest by srv9.py at boot time; see boot-9qemu.sh)
+#      fs served to the guest by `harness srv9` at boot time; see boot-9qemu.sh)
 #
 # Boundary (D-07/D-12): nothing from the donor tree is copied into
 # Harvey's tracked tree; donor kernel sources are never patched. The ONE
@@ -243,23 +243,32 @@ EOF
 			"$PLAN9/bin/9l" -o "$SCRATCH/mkpaqfs" mkpaqfs.o \
 			-lflate -lsec -lmp -lbio -l9)
 
-		echo "   disk/mkfs (harness-side: build/aarch64/mkfs9.py)"
+		echo "   disk/mkfs (harness-side: the Rust harness's mkfs9 subcommand)"
 		# mkfs is NOT built from donor sources. Every host build route for
 		# the donor's mkfs.c is broken on a unix host: plan9port's libdisk
 		# rdproto mangles relative proto source paths; the donor proto.c
 		# route then dies on plan9port lib9's dirfwstat silently ignoring
 		# nd.name (no rename — the temp+rename idiom leaves read-only
-		# __mkfstmp files; reproduced on host and guest). build/aarch64/
-		# mkfs9.py implements the exact proto semantics CONF=qemu needs
-		# (see its header). Installed as disk/mkfs in the scratch bin
-		# (always, after the if-block — it tracks repo edits).
+		# __mkfstmp files; reproduced on host and guest). The Rust harness
+		# (build/harness, quick task 261103-giq) implements the exact proto
+		# semantics CONF=qemu needs (see src/mkfs9.rs's header). Installed
+		# as disk/mkfs in the scratch bin (always, after the if-block — it
+		# tracks repo edits).
 	else
 		echo "== A. host helpers cached in $SCRATCH (skip)"
 	fi
 
-	# mkfs9.py is always (re)installed — cheap, and tracks repo edits
-	# even when the compiled helpers are cached
-	install -m 755 "$HARVEY/build/aarch64/mkfs9.py" "$SCRATCH/disk/mkfs"
+	# the harness mkfs9 is always (re)installed — cheap (nix cache hits),
+	# and tracks repo edits even when the compiled helpers are cached.
+	# D-05: the guest's disk/mkfs is a thin wrapper exec'ing the compiled
+	# aarch64-linux harness from the flake package; --out-link gcroot-pins
+	# the store path in the guest scratch.
+	nix build "$HARVEY#harness" --out-link "$SCRATCH/harness-pkg"
+	cat > "$SCRATCH/disk/mkfs" <<EOF
+#!/bin/sh
+exec "$SCRATCH/harness-pkg/bin/harness" mkfs9 "\$@"
+EOF
+	chmod 755 "$SCRATCH/disk/mkfs"
 
 	# ---- B. donor libc for arm64 ----------------------------------
 	echo "== B. donor libc (objtype=arm64)"
@@ -381,7 +390,7 @@ EOF
 	mkdir -p "$DIST"
 	cp /sys/src/9/arm64/9qemu /sys/src/9/arm64/9qemu.u "$DIST/"
 
-	# srvroot: the root fs srv9.py serves to the booting guest.
+	# srvroot: the root fs harness srv9 serves to the booting guest.
 	# arm64/init + arm64/bin are the 7c/7l-built target binaries; the
 	# rest is donor scripts/data + the empty dirs newns/termrc expect.
 	SR="$DIST/srvroot"

@@ -2,7 +2,7 @@
 # trace-boot.rc — guest-side real-chain trace driver (05-03 Task 1).
 # Staged into the donor kernel's CONF=qemu bootdir as DATA (mkrootall
 # strips only file-identified executables; text rides through) and run
-# at the donor's rc prompt by trace-syscalls.py --boot-chain:
+# at the donor's rc prompt by harness trace-syscalls --boot-chain:
 #
 #	rc /boot/trace-boot.rc chain	trace the real boot chain
 #	rc /boot/trace-boot.rc sweep	trace the standalone sweep binaries
