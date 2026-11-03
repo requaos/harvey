@@ -3,16 +3,16 @@ gsd_state_version: "1.0"
 current_phase: 05
 current_phase_name: Shell Boot + One-Command Integration
 status: executing
-stopped_at: Completed 05-11-PLAN.md
-last_updated: "2026-11-03T15:51:42.203Z"
+stopped_at: Completed 05-12-PLAN.md
+last_updated: "2026-11-03T16:03:00.717Z"
 last_activity: 2026-11-02
 last_activity_desc: Phase 05 execution started
-state_head: 862ea0403fd87adb4468bca8905a8e2b1d88caa4
+state_head: e97bc224501dbc5b5826c181116ee4d09357243b
 progress:
   total_phases: 5
   completed_phases: 4
   total_plans: 38
-  completed_plans: 36
+  completed_plans: 37
   percent: 80
 ---
 
@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 ## Current Position
 
 Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
-Plan: 12 of 13
+Plan: 13 of 13
 Status: Ready to execute
 Last activity: 2026-11-02 — Phase 05 execution started
 
@@ -95,6 +95,7 @@ Progress: [████████░░] 80%
 | Phase 05 P09 | 54 min | 2 tasks | 14 files |
 | Phase 05 P10 | 10 min | 2 tasks | 4 files |
 | Phase 05 P11 | 25 min | 3 tasks | 6 files |
+| Phase 05 P12 | 6 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -201,6 +202,8 @@ Recent decisions affecting current work:
 - [Phase 05]: [Phase 05]: 05-11: subset-build.sh owns BOTH transports — additive NATIVE_LINUX leg (nsrun.sh sudo-unshare, artifacts land in place via the binds, no rsync-back, host toolchain auto-bootstrap mirrors vm-run.sh) — the plan's 'linux → the same script natively' was impossible as shipped (hard limactl requirement); darwin leg byte-identical and gate-proven
 - [Phase 05]: [Phase 05]: 05-11: compose-app contract — kernel/DTB arrive ONLY via the nix-controlled R9_KERNEL_PKG store path (presence validated before launch, T-05-21); qemu runs as a foreground child (not exec) so the EXIT trap reclaims the mktemp DTB dir; cp-from-store needs chmod u+w before fdtput (store files are r--r--r-- and cp duplicates the mode); pkgs.git rides runtimeInputs so the KERNDATE derivation works inside the app
 - [Phase 05]: [Phase 05]: 05-11: boot-r9 app gated by (builtins.hasAttr system r9.packages) — r9 ships no x86_64-darwin package (out of project scope) and an ungated reference broke whole-flake evaluation; x86_64-linux full program eval deferred to 05-13's native CI because r9's kernel-virt embeds genuine IFD (importCargoLock reads a Cargo.lock inside the built toolchain — foreign-system eval builds a foreign-system toolchain)
+- [Phase 05]: 05-12: the smoke spawns qemu directly from expect over -nographic stdio (the A6 pick) — the build.bash/drive-r9-proven shape; expect's spawn makes qemu a session/group leader on both hosts so one group-kill teardown works everywhere, the shell-side bracket-fixed pkill a pure fallback
+- [Phase 05]: 05-12: the retained smoke evidence is run TWO's capture — the hygiene-proving second pass (run 2 green after run 1's rm -f proves no stale-log/orphan assist); the two gate logs were byte-shaped-identical but genuinely independent (distinct mktemp DTB dirs in the diff)
 
 ### Pending Todos
 
@@ -228,6 +231,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T15:51:41.218Z
-Stopped at: Completed 05-11-PLAN.md
+Last session: 2026-11-03T16:02:54.312Z
+Stopped at: Completed 05-12-PLAN.md
 Resume file: None
