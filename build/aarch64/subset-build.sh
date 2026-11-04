@@ -26,6 +26,11 @@ LOG="${SUBSET_BUILD_LOG:-$HARVEY/.build/subset-build.log}"
 
 err() { echo "error: $*" >&2; exit 1; }
 
+# Resolve a host grep once (D-02): the greps below need -q/-x, which
+# plan9 grep lacks — but a hardcoded /usr/bin/grep breaks on
+# NixOS-class hosts, so fall back to PATH.
+GREP=$(command -v /usr/bin/grep || command -v grep) || err "no host grep found"
+
 [ -d "$HARVEY/sys/src" ] || err "$HARVEY does not look like the harvey checkout (missing sys/src)"
 [ -f "$HARVEY/sys/src/libmp/aarch64/mkfile" ] || err "sys/src/libmp/aarch64/mkfile missing (plan 02-07 Task 1 stub)"
 [ -f "$HARVEY/sys/src/libsec/aarch64/mkfile" ] || err "sys/src/libsec/aarch64/mkfile missing (plan 02-07 Task 1 stub)"
@@ -57,7 +62,7 @@ if [ -n "$NATIVE_LINUX" ]; then
 	export FORCERCFORMK=1 CGO_ENABLED=0 objtype=amd64 cputype=unix
 else
 	command -v limactl >/dev/null 2>&1 || err "limactl not found — run inside the nix devshell"
-	if ! limactl list -q 2>/dev/null | /usr/bin/grep -qx "$VM"; then
+	if ! limactl list -q 2>/dev/null | "$GREP" -qx "$VM"; then
 		err "lima VM '$VM' does not exist"
 	fi
 	status=$(limactl list --format '{{.Status}}' "$VM" 2>/dev/null || echo unknown)
@@ -198,7 +203,7 @@ if [ $RC -ne 0 ]; then
 	echo "hint: the log names the first failing mk step (SUBSET-BUILD-FAIL: <dir>)" >&2
 	exit $RC
 fi
-/usr/bin/grep -q 'SUBSET-BUILD-OK' "$LOG" || err "guest build log lacks SUBSET-BUILD-OK"
+"$GREP" -q 'SUBSET-BUILD-OK' "$LOG" || err "guest build log lacks SUBSET-BUILD-OK"
 
 if [ -z "$NATIVE_LINUX" ]; then
 	# rsync the resulting /aarch64/bin tree back to the host checkout

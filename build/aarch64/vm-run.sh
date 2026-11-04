@@ -39,10 +39,15 @@ if [ $# -ne 1 ]; then
 fi
 CMD="$1"
 
+# Resolve a host grep once (D-02): the VM-listing grep below needs
+# -q/-x, which plan9 grep lacks — but a hardcoded /usr/bin/grep breaks
+# on NixOS-class hosts, so fall back to PATH.
+GREP=$(command -v /usr/bin/grep || command -v grep) || { echo "error: no host grep found" >&2; exit 1; }
+
 # ensure the VM exists and is Running (nix/vm-build.sh shape; the
-# devshell prepends Plan 9 tools, so call host grep explicitly —
+# devshell prepends Plan 9 tools, so use the resolved host grep —
 # plan9 grep does not support -q/-x)
-if ! limactl list -q 2>/dev/null | /usr/bin/grep -qx "$VM"; then
+if ! limactl list -q 2>/dev/null | "$GREP" -qx "$VM"; then
 	echo "creating lima VM '$VM' (first run downloads the guest image + nix)..."
 	limactl start --name="$VM" --tty=false "$LIMA_YAML"
 else

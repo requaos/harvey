@@ -81,6 +81,11 @@ SRV9_GUEST_IP="${SRV9_GUEST_IP:-10.0.2.100}"
 
 err() { echo "error: $*" >&2; exit 1; }
 
+# Resolve a host grep once (D-02): the VM-listing grep below needs
+# -q/-x, which plan9 grep lacks — but a hardcoded /usr/bin/grep breaks
+# on NixOS-class hosts, so fall back to PATH.
+GREP=$(command -v /usr/bin/grep || command -v grep) || err "no host grep found"
+
 sha256() {
 	if command -v sha256sum >/dev/null 2>&1; then
 		sha256sum "$1" | awk '{print $1}'
@@ -96,7 +101,7 @@ actual=$(git -C "$DONOR" rev-parse HEAD 2>/dev/null || echo missing)
 [ "$actual" = "$DONOR_SHA" ] || err "donor pin mismatch: want $DONOR_SHA, have $actual"
 [ -d "$ROOTFS/arm64/bin" ] || err "$ROOTFS incomplete — run sh build/aarch64/donor-vm-build.sh first"
 command -v limactl >/dev/null 2>&1 || err "limactl not found — run inside the nix devshell"
-if ! limactl list -q 2>/dev/null | /usr/bin/grep -qx "$VM"; then
+if ! limactl list -q 2>/dev/null | "$GREP" -qx "$VM"; then
 	err "lima VM '$VM' does not exist"
 fi
 status=$(limactl list --format '{{.Status}}' "$VM" 2>/dev/null || echo unknown)

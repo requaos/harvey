@@ -56,6 +56,11 @@ DONOR="$HARVEY/.build/9front-donor"
 DONOR_SHA=350266104f1fed81c78c3d05fa44f523bec0ae4d
 LOG="$HARVEY/build/aarch64/pre-gate-build.log"
 
+# Resolve a host grep once (D-02): the VM-listing grep below needs
+# -q/-x, which plan9 grep lacks — but a hardcoded /usr/bin/grep breaks
+# on NixOS-class hosts, so fall back to PATH.
+GREP=$(command -v /usr/bin/grep || command -v grep) || { echo "error: no host grep found" >&2; exit 1; }
+
 if [ ! -d "$HARVEY/sys/src" ]; then
 	echo "error: $HARVEY does not look like the harvey checkout (missing sys/src)" >&2
 	exit 1
@@ -78,8 +83,8 @@ fi
 echo "== donor pin verified ($DONOR_SHA)"
 
 # 2. VM up + rsync (vm-run.sh shape; the devshell prepends Plan 9
-#    tools, so call host grep explicitly)
-if ! limactl list -q 2>/dev/null | /usr/bin/grep -qx "$VM"; then
+#    tools, so use the resolved host grep)
+if ! limactl list -q 2>/dev/null | "$GREP" -qx "$VM"; then
 	echo "error: lima VM '$VM' does not exist" >&2
 	exit 1
 fi

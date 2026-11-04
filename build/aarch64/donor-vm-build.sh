@@ -64,6 +64,11 @@ if [ ! -d "$HARVEY/sys/src" ]; then
 fi
 mkdir -p "$DIST"
 
+# Resolve a host grep once (D-02): the VM-listing grep below needs
+# -q/-x, which plan9 grep lacks — but a hardcoded /usr/bin/grep breaks
+# on NixOS-class hosts, so fall back to PATH.
+GREP=$(command -v /usr/bin/grep || command -v grep) || { echo "error: no host grep found" >&2; exit 1; }
+
 # 1. donor pin gate (fetch if missing)
 if [ ! -d "$DONOR/.git" ]; then
 	echo "== cloning 9front donor at $DONOR_SHA"
@@ -81,8 +86,8 @@ fi
 echo "== donor pin verified ($DONOR_SHA)"
 
 # 2. VM up (vm-run.sh shape; the devshell prepends Plan 9 tools, so
-#    call host grep explicitly — plan9 grep has no -q/-x)
-if ! limactl list -q 2>/dev/null | /usr/bin/grep -qx "$VM"; then
+#    use the resolved host grep — plan9 grep has no -q/-x)
+if ! limactl list -q 2>/dev/null | "$GREP" -qx "$VM"; then
 	echo "creating lima VM '$VM' (first run downloads the guest image + nix)..."
 	limactl start --name="$VM" --tty=false "$LIMA_YAML"
 else

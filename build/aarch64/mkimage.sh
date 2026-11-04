@@ -41,6 +41,11 @@ MKPAQFS="$HARVEY/.build/bin/mkpaqfs"
 
 err() { echo "error: $*" >&2; exit 1; }
 
+# Resolve a host grep once (D-02): the greps below need -q/-x, which
+# plan9 grep lacks — but a hardcoded /usr/bin/grep breaks on
+# NixOS-class hosts, so fall back to PATH.
+GREP=$(command -v /usr/bin/grep || command -v grep) || err "no host grep found"
+
 [ -d "$HARVEY/sys/src" ] || err "$HARVEY does not look like the harvey checkout (missing sys/src)"
 [ -d "$ROOT_TREE" ] || err "$ROOT_TREE missing — the committed image skeleton (05-02)"
 
@@ -123,10 +128,11 @@ done
 # stays as the permanent guard.  Prove the REAL init at bake time:
 # the real init carries "init: starting /bin/rc"; the staged one carries
 # "init: r9 EL0 alive" (grep on a.out binaries matches rodata strings;
-# /usr/bin/grep per the host-shell discipline — plan9 grep lacks -q).
-/usr/bin/grep -q "init: starting /bin/rc" "$OUT/init" \
+# "$GREP" is the host grep resolved at the top of this script — plan9
+# grep lacks -q).
+"$GREP" -q "init: starting /bin/rc" "$OUT/init" \
 	|| err "out/init is not the real init (staged-supply-chain pollution — re-run sh build/aarch64/subset-build.sh)"
-/usr/bin/grep -q "init: r9 EL0 alive" "$OUT/init" \
+"$GREP" -q "init: r9 EL0 alive" "$OUT/init" \
 	&& err "out/init is the STAGED init (re-run sh build/aarch64/subset-build.sh)"
 for f in $SUBSET; do
 	[ -f "$STAGE/aarch64/bin/$f" ] || err "manifest: aarch64/bin/$f missing"

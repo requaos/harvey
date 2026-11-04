@@ -100,6 +100,11 @@ SUBSET_NAMED="ip/ipconfig auth/factotum"
 
 err() { echo "error: $*" >&2; exit 1; }
 
+# Resolve a host grep once (D-02): the greps below need -q/-x, which
+# plan9 grep lacks — but a hardcoded /usr/bin/grep breaks on
+# NixOS-class hosts, so fall back to PATH.
+GREP=$(command -v /usr/bin/grep || command -v grep) || err "no host grep found"
+
 # ---- preconditions (read-only) ------------------------------------
 [ -d "$HARVEY/sys/src" ] || err "$HARVEY does not look like the harvey checkout (missing sys/src)"
 actual=$(git -C "$DONOR" rev-parse HEAD 2>/dev/null || echo missing)
@@ -113,7 +118,7 @@ for f in $SUBSET_NAMED; do
 	[ -x "$HARVEY/aarch64/bin/$f" ] || err "aarch64/bin/$f missing — run sh build/aarch64/subset-build.sh first"
 done
 command -v limactl >/dev/null 2>&1 || err "limactl not found — run inside the nix devshell"
-if ! limactl list -q 2>/dev/null | /usr/bin/grep -qx "$VM"; then
+if ! limactl list -q 2>/dev/null | "$GREP" -qx "$VM"; then
 	err "lima VM '$VM' does not exist"
 fi
 status=$(limactl list --format '{{.Status}}' "$VM" 2>/dev/null || echo unknown)

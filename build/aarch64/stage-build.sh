@@ -42,6 +42,11 @@ STAGE_SRCS="init smokefork smokenote stacksmoke smokesleep"
 
 err() { echo "error: $*" >&2; exit 1; }
 
+# Resolve a host grep once (D-02): the greps below need -q/-x, which
+# plan9 grep lacks — but a hardcoded /usr/bin/grep breaks on
+# NixOS-class hosts, so fall back to PATH.
+GREP=$(command -v /usr/bin/grep || command -v grep) || err "no host grep found"
+
 [ -d "$HARVEY/sys/src" ] || err "$HARVEY does not look like the harvey checkout (missing sys/src)"
 for f in $STAGE_SRCS; do
 	[ -f "$HARVEY/build/aarch64/$f.c" ] || err "build/aarch64/$f.c missing"
@@ -49,7 +54,7 @@ done
 [ -f "$HARVEY/build/aarch64/hello.7.out" ] || err "build/aarch64/hello.7.out missing (the committed ABI bisect binary)"
 
 command -v limactl >/dev/null 2>&1 || err "limactl not found — run inside the nix devshell"
-if ! limactl list -q 2>/dev/null | /usr/bin/grep -qx "$VM"; then
+if ! limactl list -q 2>/dev/null | "$GREP" -qx "$VM"; then
 	err "lima VM '$VM' does not exist"
 fi
 status=$(limactl list --format '{{.Status}}' "$VM" 2>/dev/null || echo unknown)
@@ -126,7 +131,7 @@ if [ $RC -ne 0 ]; then
 	echo "hint: the log names the first failing step (STAGE-BUILD-FAIL: <name>)" >&2
 	exit $RC
 fi
-/usr/bin/grep -q 'STAGE-BUILD-OK' "$LOG" || err "guest build log lacks STAGE-BUILD-OK"
+"$GREP" -q 'STAGE-BUILD-OK' "$LOG" || err "guest build log lacks STAGE-BUILD-OK"
 
 # rsync the staged binaries back to the host checkout's gitignored smoke-out/
 echo "== pulling the staged binaries back to host build/aarch64/smoke-out"
