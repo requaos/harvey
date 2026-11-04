@@ -729,14 +729,20 @@ cat /net/ether0/stats                          # in:/out: counters — serial ev
 | A4 | ping-pong N modest on TCG (suggest N=4 default, env-scalable on KVM) | gates | LOW — D-08 leaves N to planner/researcher discretion; TCG pacing is the only variable |
 | A5 | qemu's GICv2 ICFGR defaults SPIs to level-triggered at reset (irq_state zero-init observed; the zeroing itself is inferred from gic realize conventions, and PL011-level behavior is consistent) | GICv2 plumbing | LOW — the plan programs ICFGR explicitly regardless, making the default moot |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All four were discharged at planning time (2026-11-04); each disposition names the plan that adopted it.
 
 1. **RX read blocking vs. polling-read:** the data-file read must block until a frame arrives (netif's qread semantics). r9 has the block/wake hook machinery (devpipe). Confirm in planning that a read on `/net/ether0/0/data` from the sweep is expected to block (it isn't for the ARP gate — the sweep writes, never reads; the stats file carries RX proof). If no reader ever blocks this phase, the block hook can land minimal-but-correct.
    - What we know: the hook pattern exists and is precedented; the ARP gate never reads data.
    - What's unclear: whether any Phase-7 gate wants a blocking data read (recommendation: no — stats + pcap suffice).
+   - Disposition (RESOLVED → 07-07): no Phase-7 gate blocks on a data read — the sweep writes, never reads; RX proof is the stats counter + pcap. The blocking read path lands complete-but-gate-unexercised, recorded loudly in devether.rs's module header (07-07 must_haves cites this as OQ-1's disposition).
 2. **Queue sizing:** accept qemu's 256 or downsize to 64/128? (Memory: ~3 pages/queue part either way.) Recommendation: accept 256 — zero queue_size write, one less deviation from qemu's tested default.
+   - Disposition (RESOLVED → 07-03): accept qemu's 256 with no downsize write — recorded as a flagged assumption in 07-03's frontmatter (EDGE-PROBE NETDRV-02).
 3. **RX buffer ring capacity vs. conversation queue depth:** how many frames may queue per conversation before soverflows++? netifinit's `limit` (bsz computed from mbps) — recommend a fixed modest bound (e.g. 64 KiB) this phase.
+   - Disposition (RESOLVED → 07-07): a fixed 64 KiB per-conversation inbound queue bound (the netif.rs VecDeque limit, cited as OQ-3 in 07-07 Task 1); queue-full increments soverflows.
 4. **The TX-bulk blaster's exact invariant set** (CONTEXT D-08 leaves it to us): recommend ISR-count ≤ TX-frames ≤ ISR-count + coalescing bound; pcap frame count == TX count exactly; zero soverflows/misses; no wedge over the full drain.
+   - Disposition (RESOLVED → 07-05 + 07-07): blast invariants adopted — pcap frame count == `netblast: sent` count == stats out, stats in == 0 on a fresh boot, nintr_tx ∈ [1, frames], used==lastused (drained), zero soverflows, NET-DONE inside the budget; arp mode is the exact-reconciling ping-pong (N requests ⇒ N replies). 07-05 unit-proves the assertions on synthetic fixtures; 07-07 runs them live.
 
 ## Environment Availability
 
