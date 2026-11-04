@@ -76,6 +76,11 @@ PREREF=2e3b37027efe1ee8ae0a7dc8c6fabbead1500a0a
 VM="${HARVEY_VM:-harvey}"
 GUEST_DIR="${HARVEY_GUEST_DIR:-harvey-build}"
 
+# Resolve a host grep once (D-02): the VM-listing grep in run_darwin
+# needs -q/-x, which plan9 grep lacks — but a hardcoded /usr/bin/grep
+# breaks on NixOS-class hosts, so fall back to PATH.
+GREP=$(command -v /usr/bin/grep || command -v grep) || { echo "error: no host grep found" >&2; exit 1; }
+
 usage() {
 	echo "usage: gethunk-repro-6l.sh snapshot|archive|verify" >&2
 	echo "       (internal: --guest snapshot|archive|verify)" >&2
@@ -288,7 +293,7 @@ run_darwin() {
 		echo "error: limactl not found — run inside the nix devshell" >&2
 		exit 1
 	}
-	if ! limactl list -q 2>/dev/null | /usr/bin/grep -qx "$VM"; then
+	if ! limactl list -q 2>/dev/null | "$GREP" -qx "$VM"; then
 		echo "error: lima VM '$VM' does not exist" >&2
 		exit 1
 	fi
