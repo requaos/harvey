@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 23
+open_count: 25
 waived_count: 3
 fixed_count: 2
-total_count: 28
-last_updated: 2026-11-03T18:24:07.120Z
+total_count: 30
+last_updated: 2026-11-04T23:18:26.940Z
 ---
 
 # Broken Windows Ledger
@@ -43,6 +43,8 @@ last_updated: 2026-11-03T18:24:07.120Z
 | 26 | 261103-giq | deviation | build/harness/src/trace.rs |  | trace-syscalls: prompt-substring wait after pid probe closes the .py's latent echo/prompt race | open |  | 2026-11-03T18:24:06.688Z |  |
 | 27 | 261103-giq | deviation | build/aarch64/vm-run.sh |  | rsync exclusion for build/harness/target added to the four vm-sync scripts | open |  | 2026-11-03T18:24:06.904Z |  |
 | 28 | 261103-giq | deviation | build/aarch64/subset-exec.sh |  | guest-scratch CONF=qemu bootdir reset to pristine (39 accumulated rows exceeded Nbootfiles=32; pre-existing guest state) | open |  | 2026-11-03T18:24:07.120Z |  |
+| 29 | 06 | deviation | build/aarch64/gethunk-repro-cc.sh |  | cc repro input shape changed from plan's >600KB string literal to digit/comma macro define (NSYMB/STRINGSZ caps reject the sketched shape before gethunk); use line dropped (macexpand Io.b 16KB cap) | open |  | 2026-11-04T23:18:26.722Z |  |
+| 30 | 06 | deviation | build/aarch64/gethunk-repro-6l.sh |  | 6l repro input shape settled by A4 spike to >2.5MB archive __.SYMDEF bang-malloc (array toothless, string-literal impossible); venue linux-only (darwin sbrk 4096KB arena); fixed pair built from working tree not hostbin | open |  | 2026-11-04T23:18:26.940Z |  |
 
 ````json
 [
@@ -409,6 +411,32 @@ last_updated: 2026-11-03T18:24:07.120Z
     "recorded_at": "2026-11-03T18:24:07.120Z",
     "resolved_at": null,
     "milestone": null
+  },
+  {
+    "id": 29,
+    "kind": "deviation",
+    "phase": "06",
+    "file": "build/aarch64/gethunk-repro-cc.sh",
+    "line": null,
+    "description": "cc repro input shape changed from plan's >600KB string literal to digit/comma macro define (NSYMB/STRINGSZ caps reject the sketched shape before gethunk); use line dropped (macexpand Io.b 16KB cap)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-04T23:18:26.722Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 30,
+    "kind": "deviation",
+    "phase": "06",
+    "file": "build/aarch64/gethunk-repro-6l.sh",
+    "line": null,
+    "description": "6l repro input shape settled by A4 spike to >2.5MB archive __.SYMDEF bang-malloc (array toothless, string-literal impossible); venue linux-only (darwin sbrk 4096KB arena); fixed pair built from working tree not hostbin",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-04T23:18:26.940Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
   }
 ]
 ````
