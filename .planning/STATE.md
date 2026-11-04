@@ -4,10 +4,10 @@ current_phase: 05
 current_phase_name: Shell Boot + One-Command Integration
 status: verifying
 stopped_at: Completed 05-13-PLAN.md
-last_updated: "2026-11-03T18:25:54.914Z"
-last_activity: 2026-11-02
+last_updated: "2026-11-04T00:28:29.137Z"
+last_activity: 2026-11-03
 last_activity_desc: Phase 05 execution started
-state_head: c427262560bb4b7316736c1b812a020916350b0e
+state_head: 4150a3034274d257507889ec11e0b3806b94eb09
 progress:
   total_phases: 5
   completed_phases: 4
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-02)
 Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
 Plan: 13 of 13
 Status: Phase complete — ready for verification
-Last activity: 2026-11-03 — Completed quick task 261103-giq: Python harness tools reimplemented in Rust
+Last activity: 2026-11-03 — Completed quick task 261103-p64: maximal unsafe elimination in r9 (per-process usermem model locked)
 
 Progress: [████████░░] 80%
 
@@ -230,6 +230,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 261103-giq | Reimplement the five Python harness tools in build/aarch64/ as one std-only Rust `harness` binary (srv9/drive9/gdbpoke9/mkfs9/trace-syscalls subcommands); callers rewired; flake gains packages.harness + devshell Rust; all 5 equivalence gates green; .py originals deleted | 2026-11-03 | c42726256 | [261103-giq-reimplement-the-five-python-harness-tool](./quick/261103-giq-reimplement-the-five-python-harness-tool/) |
+| 261103-p64 | Maximal unsafe elimination in r9: static mut→0, usermem module (per-process TTBR0-live route — locked model rule), MMIO register blocks, index/arena allocator, forbid(unsafe_code) across port/ except globalalloc+mcslock shims, 160-site audit reconciled; all gates green (port 75/75, 5 profiles, smoke ×3) | 2026-11-03 | 4150a3034 | [261103-p64-maximal-unsafe-elimination-in-the-r9-ker](./quick/261103-p64-maximal-unsafe-elimination-in-the-r9-ker/) |
 
 ## Deferred Items
 
