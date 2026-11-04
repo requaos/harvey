@@ -59,8 +59,9 @@ blocked: 0
 - gap_id: G-05-1
   truth: "`nix run .#boot-r9-smoke` exits 0 on ubuntu-latest (x86_64-linux) with the ALL STAGES PASS marker in the run log"
   status: failed
-  reason: "User reported: hosted run failed — guest subset build died entering libString with zero mk output; no SUBSET-BUILD-FAIL line emitted; rc=1. x86_64-linux-specific (darwin-aarch64 and aarch64-linux pass)."
+  reason: "User reported: hosted run failed. DIAGNOSED (see .planning/debug/DEBUG-G-05-1.md): the streaming-log symptom (died at libString) was a GH viewer interleave artifact — the raw log shows all 13 libs green, then boot(8) aarch64 link failure: `names=\`{membername $newprereq}` → membername's #!/bin/rc shebang fails ENOENT on a fresh host (nsrun.sh never provided /bin/rc; the lima VM's undocumented manual /bin/rc masked it on darwin+aarch64-linux; Dockerfile:42 codified the convention, the nix path never replicated it). The x86_64 axis was a red herring — first fresh-host execution was the trigger. Fix committed: d758c2071 (nsrun.sh binds $PLAN9/bin/rc at /bin/rc in the namespace). Locally verified: byte-identical CI failure pre-fix in an emulated x86_64 container, full ALL STAGES PASS post-fix, aarch64 lima leg no regression. REMAINING GATE: hosted CI re-run after push (fix is local; not yet on origin)."
   severity: blocker
   test: 1
-  artifacts: []
+  artifacts: [.planning/debug/DEBUG-G-05-1.md]
+  fix_commit: d758c2071
   missing: []
