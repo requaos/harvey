@@ -147,7 +147,8 @@ NOT in this phase: devip/TCP/UDP/ICMP and the arp/ethermedium/ipifc binding to d
 - Watch-out: qemu moved the ECAM window once already (NETDRV-01's origin) — read the pci node's `reg` from the DTB every boot; `0x4010000000` appears in docs, never in code.
 - Watch-out: Harvey's `ethervirtio.c` files are legacy-transitional PCI — a ring-semantics reference, NOT a negotiation reference (modern-only per D-03).
 - Watch-out: TCG in CI — assertions presence-based with generous timeouts (v1.0 smoke discipline); the ping-pong count N should be modest on TCG and can scale up on KVM hosts.
-- Watch-out: `virtio_net_hdr` is 10 bytes without MRG_RXBUF — the zero-offload mask fixes this; if anything ever negotiates MRG_RXBUF the header grows to 12 and frames parse as garbage (Pitfall 6's off-by-2). The feature mask is the guardrail; assert the negotiated mask in the boot log.
+- Watch-out: `virtio_net_hdr` size — ERRATA (07-RESEARCH.md, verified against qemu 11.1.2 + virtio-1.3 §5.1.6.1): the header is **12 bytes** whenever VIRTIO_F_VERSION_1 is negotiated, regardless of MRG_RXBUF (the 10-byte form is legacy-only; Harvey's ethervirtio.c VheaderSize=10 is the legacy shape D-03 forbids copying). Assert the negotiated mask in the boot log.
+- ERRATA (07-RESEARCH.md): D-07's baked ARP frame is **60 bytes, not 42** — a netif-faithful devether write path enforces ETHERMINTU=60 (Etoosmall otherwise); pad 42+18 zero bytes, matching ethermedium's adjustblock precedent.
 - User overrides to honor downstream (deliberate, don't second-guess): from-scratch virtio over the recommended crate (D-01 — control/audit grounds); always-on NIC over a dedicated net profile (D-10 — Ethernet is part of the standard boot).
 
 </specifics>
