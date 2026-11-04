@@ -25,11 +25,16 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 - ✓ r9 carries its own `flake.nix` (rust-overlay honoring `rust-toolchain.toml`, qemu + dtc, `apps.build`) — Phase 3 (R9-05; darwin + linux legs both passed)
 - ✓ r9 loads and runs Harvey aarch64 userland binaries: paqfs initrd delivery (loader + patched DTB), devroot, demand-paged exec, EL0 entry, SVC dispatch (measured set), preemptive round-robin, RFORK/AWAIT/EXITS, notes via devproc-lite — Phase 4 (R9-02/R9-03; SC#2 hello.7.out prints, SC#4 smoke suite green; `04-EVIDENCE.md`, r9 pinned `54e8c10`)
 - ✓ Harvey↔r9 syscall ABI published + build-enforced: TrapFrame ≡ `aarch64/include/ureg.h` field-for-field (35×u64, stride 288), two-layer static checks (const asserts + xtask `ureg-check` with negative control) — Phase 4 (R9-04/SC#1; `aarch64/ABI.md` kernel-side appendix)
+- ✓ **Core value delivered**: one command (`nix run .#boot-r9`) boots r9 + Harvey aarch64 userland to an interactive `/bin/rc` shell — from clean checkouts of both repos, on darwin-aarch64 and linux; `nix run .#boot-r9-smoke` expect-gates it (INT-01..04) — Phase 5 (namespace core, devenv, devpipe/devdup/devsrv, devmnt, devcons read path, devproc; smoke green on darwin ×2, native aarch64-linux pristine clone, AND hosted x86_64-linux CI run 41825728636; UAT 2/2 incl. live-prompt)
+- ✓ r9 namespace/device substrate for the shell path: namec/pgrp/union walks, per-pgrp env (`#e`), pipes/fd groups, kernel 9P client (FVERSION/MOUNT), cooked console + note groups, full `/proc` — Phase 5 (D-03..D-09; host suites 75/75+, five boot profiles green)
+- ✓ Note-delivery timing race root-caused and buried: `trap_return` tail clobbered restored x9 (r9 `83cbbbe`) — Phase 5 wave 0 (D-14; 20/20 virtnotes + 20/20 virtmulti ×2, DEL-safety re-exercised every smoke)
+- ✓ Harness hygiene (D-16): fresh serial log per boot-test run, process-group qemu teardown — Phase 5 (05-01); WR-07 keyed survivor sweeps (05-REVIEW-FIX)
+- ✓ Host harness tooling is std-only Rust (`build/harness/`, one binary + subcommands) — zero Python in the harness path — quick task 261103-giq (5/5 equivalence gates)
+- ✓ r9 unsafe surface minimized + gated: static mut → 0, per-process usermem model locked, forbid(unsafe_code) across port/ except two named shims, 160-site audit reconciled — quick task 261103-p64
 
 ### Active
 
-- [ ] Harvey aarch64 userland boots to `/bin/rc` shell on r9 kernel under qemu virt — Phase 5
-- [ ] Note-delivery timing race (smokenote `note-timeout` flake, ~1/3 virtmulti runs; reproduces on pre-fix base b4f858a — pre-existing, not from the review fixes) — debug candidate before Phase 5 hardening; 04-REVIEW-FIX.md
+- [ ] Advance the harvey flake.lock r9 pin past the review-fix + unsafe-elimination commits (pin currently at 9549cee; r9 main carries the hardened kernel) — milestone-completion decision; a pin bump needs a fresh hosted CI run to stay honest
 - [ ] Re-test the Phase 1 9k-amd64 embedded-root `bad magic` pool panic against the LP64-fixed 6c (same signature as the pswt.c bug fixed in Phase 2) — deferred-items.md #8
 - [ ] Upstream raspi3b-on-qemu-11.1.2 boot defect (FAR 0xfe215004 — rpi4 MMIO base on the raspi3b machine) — pre-existing, A/B-proven not-a-regression, accepted 2026-11-01; phase-03 deferred-items.md #1
 
@@ -101,6 +106,13 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 | Tracer-first falsification spikes before machinery (04-01) | Phase 4 — the spike caught the A3 delivery falsification before any kernel capability depended on it; gate splitting (compile-verified machinery 04-04 vs runtime gate 04-05) caught the trap-entry x0 clobber | ✓ Good |
 | Implement only the measured syscall set (D-14 trace: pwrite/open/pread/close/exits + named core; loud-unimplemented default) | Phase 4 — no handler without a traced or SC#4-named caller; the first real SVC was pwrite(51), exactly as measured | ✓ Good |
 | Exercise IRQ-from-EL0 + return-to-different-process this phase (D-13); invariant `PSTATE.I=0 ⟺ EL0 or stateless sched wfi` | Phase 4 — preemption proven via `sched: switch` markers; exec_bootstrap IRQ-masked after the miniz-inflate heisenbug (contained, root cause deferred #4) | ✓ Good (containment; race follow-up tracked Active) |
+| Debug-first Wave 0 before the shell path depends on notes (D-14) | Phase 5 — the note-timeout flake was root-caused (trap_return x9 clobber) and buried BEFORE rc's parser relied on delivery; no unexplained defuses | ✓ Good |
+| Measure-first syscall trace of the real boot chain before kernel growth (05-03) | Phase 5 — 26-syscall measured set (16 new vs hello path); caught the brk_ requirement and the namespace re-mount stanza before any device was written | ✓ Good |
+| Harvey's flake owns the two-repo composition: inputs.r9 pinned git rev, boot-r9/smoke apps; push-before-pin ordering | Phase 5 (INT-03/INT-04, D-10/D-11) — the pin must name a commit fetchable from a clean clone; relative-path/submodule glue rejected | ✓ Good (hosted CI green on x86_64-linux) |
+| CI green = linux leg only (D-13 amendment); darwin leg is documented-manual | Phase 5 — darwin's lima dependency has no hosted runner; the linux leg IS the clean-checkout proof | ✓ Good (run 41825728636) |
+| Python harness tools reimplemented as one std-only Rust binary (`build/harness/`) | User decision 2026-11-03 — the repo converges on Rust (r9 kernel); Python host tooling was a stranded dependency | ✓ Good (5/5 equivalence gates; caught a dead Twstat rename + a trace prompt race latent in the .py) |
+| Maximal unsafe elimination in r9 with an honesty floor (confined+documented beats wrapped-and-hidden); per-process user-memory model locked | User decision 2026-11-03 — audit surface shrinks to named floor modules; Plan 9's per-process route (TTBR0-live in syscall context) is THE model; no Linux-style copy layer may be introduced | ✓ Good (160-site audit reconciled; all boot gates green) |
+| Namespace harness must provide `/bin/rc` (bind `$PLAN9/bin/rc`) — the Dockerfile:42 convention replicated in nsrun.sh | Phase 5 UAT (G-05-1) — the lima VM's undocumented manual /bin/rc masked the gap on every prior leg; first fresh-host run (hosted CI) found it | ✓ Good (byte-identical failure repro → green post-fix) |
 
 ## Evolution
 
@@ -120,4 +132,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-02 after Phase 4*
+*Last updated: 2026-11-04 after Phase 5*

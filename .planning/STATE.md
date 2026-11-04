@@ -1,43 +1,42 @@
 ---
 gsd_state_version: "1.0"
 current_phase: 05
-current_phase_name: Shell Boot + One-Command Integration
-status: verifying
-stopped_at: Completed 05-13-PLAN.md
-last_updated: "2026-11-04T00:28:29.137Z"
-last_activity: 2026-11-03
-last_activity_desc: Phase 05 execution started
-state_head: 4150a3034274d257507889ec11e0b3806b94eb09
+status: completed
+stopped_at: Phase 05 complete — all phases complete
+last_updated: "2026-11-04T12:32:52.752Z"
+last_activity: 2026-11-04
+last_activity_desc: Phase 05 complete
+state_head: b1918bb83903c15220452ca8797f30c00f133e9d
 progress:
   total_phases: 5
-  completed_phases: 4
+  completed_phases: 5
   total_plans: 38
   completed_plans: 38
-  percent: 80
+  percent: 100
 ---
 
 # Project State
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-02)
+See: .planning/PROJECT.md (updated 2026-11-04)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 05 — Shell Boot + One-Command Integration
+**Current focus:** Milestone complete — all 5 phases done
 
 ## Current Position
 
-Phase: 05 (Shell Boot + One-Command Integration) — EXECUTING
-Plan: 13 of 13
-Status: Phase complete — ready for verification
-Last activity: 2026-11-03 — Completed quick task 261103-p64: maximal unsafe elimination in r9 (per-process usermem model locked)
+Phase: 05
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-11-04 — Phase 05 complete
 
-Progress: [████████░░] 80%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 25
+- Total plans completed: 38
 - Average duration: —
 - Total execution time: —
 
@@ -49,6 +48,7 @@ Progress: [████████░░] 80%
 | 02 | 7 | - | - |
 | 03 | 6 | - | - |
 | 04 | 8 | - | - |
+| 05 | 13 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: —
@@ -215,15 +215,14 @@ None yet.
 
 ### Blockers/Concerns
 
-- ~~Phase 4: Harvey↔r9 syscall ABI kernel side greenfield~~ RESOLVED — Phase 4 complete: ABI published + build-pinned (R9-04), measured-set dispatch (R9-02), first-process demand-paged path (R9-03); the Wave-0 spike pattern caught the A3 delivery falsification early
-- ~~Phase 4: root-fs delivery mechanism to r9 undecided~~ RESOLVED — D-01 amended (04-01): qemu generic loader + fdtput-patched DTB (qemu never delivers -initrd for ELF kernels)
-- ~~Phase 4: WR-01 — virt TTBR0 identity map never torn down~~ RESOLVED by 04-05 (D-10 teardown + console-liveness proof at every exec-profile boot)
-- ~~KERNDATE bit-reproducibility policy must be decided in Phase 1 (BUILD-04)~~ RESOLVED by 01-03: pinned git-derived policy documented at build/REPRODUCIBILITY.md and demonstrated bit-identical — Phase 5 reproducibility claims unblocked
-- Phase 5: note-delivery timing race (smokenote `note-timeout` flake, ~1/3 virtmulti runs, reproduces on pre-fix base) — debug candidate; 04-REVIEW-FIX.md
-- Phase 5: stack-growth machinery proven-by-shared-path but never exercised (no evidence run grew the stack; UAT-accepted) — first deep-stack binary is the real test
-- Phase 5: 8 open Info findings (04-REVIEW-DISPOSITION.md) + phase-04 deferred #2/#3/#4 (harness qemu cleanup, cold-pointer syscall aborts, contained heisenbug) — none goal-blocking
+- ~~Phase 5: note-delivery timing race~~ RESOLVED by 05-01 — trap_return x9 clobber root-caused + buried (20/20 ×2; DEL gate re-exercises every smoke)
+- ~~Phase 5: stack-growth never exercised~~ RESOLVED by 05-01/05-04 — stacksmoke forces 3 demand-paged stack page-ins per run through the real EL0 path, in every exec-profile boot
+- ~~Phase 5: harness qemu cleanup (phase-04 deferred #2)~~ RESOLVED — D-16 fresh-log + process-group teardown; WR-07 keyed survivor sweeps
+- ~~Phase 5: cold-pointer syscall aborts (phase-04 deferred #3)~~ RESOLVED — eager data+bss at exec (05-04) + usermem fused validate+reside + CR-02 stat/fstat
+- Phase 5 residue: 13 open Info findings (05-REVIEW-DISPOSITION.md) + the input-wedge note (never reproduced under the cons watchdog; tick-FIFO-drain fix d8496d3 likely closed the class) + hosted CI has exactly one green run — none goal-blocking
+- Pin advisory: harvey flake.lock r9 pin (9549cee) is behind r9 main (review fixes + unsafe elimination) — bump at milestone completion with a fresh hosted run (verifier advisory, 2026-11-04)
 - 9k-amd64 post-banner `bad magic` pool panic — same signature as the pswt.c LP64 bug fixed in Phase 2; re-test with the fixed 6c (deferred-items.md #8) before relying on the harness for deeper smoke signals
-- Hygiene debt: Phase 1 review items (01-REVIEW-DISPOSITION.md) + Phase 2's 13 open Info findings (02-REVIEW-DISPOSITION.md) + Phase 3's 5 open warnings / 10 open Info (03-REVIEW-DISPOSITION.md; WR-02 boot-test platform guard, WR-03 raspi uartpl011 gpiosetpull MMIO window, WR-04 map_phys_range swallowed mid-range failure, WR-05 timer INTID DTB-mismatch warn-only) + upstream raspi3b-on-qemu-11.1.2 defect (phase-03 deferred-items.md #1, human-accepted A/B evidence); none goal-blocking
+- Hygiene debt: Phase 1 review items (01-REVIEW-DISPOSITION.md) + Phase 2's 13 open Info findings (02-REVIEW-DISPOSITION.md) + Phase 3's 5 open warnings / 10 open Info (03-REVIEW-DISPOSITION.md) + upstream raspi3b-on-qemu-11.1.2 defect (phase-03 deferred-items.md #1, human-accepted A/B evidence); none goal-blocking
 
 ### Quick Tasks Completed
 
@@ -242,6 +241,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-03T16:16:59.654Z
-Stopped at: Completed 05-13-PLAN.md
+Last session: 2026-11-04T12:35:00Z
+Stopped at: Phase 05 complete — milestone ready to close (all 5 phases, 38/38 plans)
 Resume file: None

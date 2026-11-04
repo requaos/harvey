@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: aarch64 Toolchain + libc (9front donor)** - Vendor 7a/7c/7l + libmach arm64 + libc/aarch64; 7l-linked hello-world gate before any arch scaffolding; shell-subset userland builds for aarch64 (completed 2026-11-01)
 - [x] **Phase 3: r9 qemu-virt Platform Bring-up** - *(cross-repo: `../r9`)* r9 aarch64 boots on qemu `-M virt`: kernel entry, memory map, GICv2, PL011 console, generic timer (completed 2026-11-01)
 - [x] **Phase 4: r9 Userspace-Exec + Harvey↔r9 ABI** - *(cross-repo: `../r9`)* EL0 entry/exit, `svc` syscall dispatch matching Harvey's frozen user-side ABI, first-process loading, trap-frame static checks (completed 2026-11-02)
-- [ ] **Phase 5: Shell Boot + One-Command Integration** - One command boots r9 + Harvey aarch64 userland to `/bin/rc`; expect smoke test green on darwin-aarch64 and linux; clean-checkout reproducibility verified
+- [x] **Phase 5: Shell Boot + One-Command Integration** - One command boots r9 + Harvey aarch64 userland to `/bin/rc`; expect smoke test green on darwin-aarch64 and linux; clean-checkout reproducibility verified (completed 2026-11-04)
 
 ## Phase Details
 
@@ -153,7 +153,7 @@ Decimal phases appear between their surrounding integers in numeric order.
   4. From clean checkouts of both repos, the documented commands reproduce the boot with pinned toolchains/qemu — honoring Phase 1's KERNDATE/reproducibility policy
   5. Harvey's `flake.nix` consumes r9 as a flake input (pinned git rev) — the integration glue lives in the flakes, not in `../r9` relative paths or git submodules (INT-04)
 
-**Plans**: 13/13 plans executed (12 waves; D-14's debug-first Wave 0 precedes the phase tracer at 05-04, and the measure-first donor trace (05-03) precedes all dispatch growth per carried-forward policy)
+**Plans**: 13/13 plans complete (12 waves; D-14's debug-first Wave 0 precedes the phase tracer at 05-04, and the measure-first donor trace (05-03) precedes all dispatch growth per carried-forward policy)
 **Wave 1**
 - [x] 05-01-PLAN.md — r9 hygiene: D-14 note-race root-cause + fix (40/40 gate), D-16 boot-test qemu/log cleanup, D-15 stacksmoke staged gate
 
@@ -202,4 +202,4 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. aarch64 Toolchain + libc | 7/7 | Complete    | 2026-11-01 |
 | 3. r9 qemu-virt Platform Bring-up | 6/6 | Complete    | 2026-11-01 |
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | 8/8 | Complete    | 2026-11-02 |
-| 5. Shell Boot + One-Command Integration | 13/13 | In Progress|  |
+| 5. Shell Boot + One-Command Integration | 13/13 | Complete    | 2026-11-04 |
