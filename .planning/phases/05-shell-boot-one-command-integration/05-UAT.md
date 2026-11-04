@@ -1,23 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 05-shell-boot-one-command-integration
 source: [05-VERIFICATION.md]
 started: 2026-11-03T17:35:00Z
-updated: 2026-11-04T09:15:00Z
+updated: 2026-11-04T09:25:00Z
 ---
 
 ## Current Test
 
-number: 2
-name: Optional live-interactive sanity — `nix run .#boot-r9` and type at the live % prompt
-expected: |
-  At the live `% ` prompt: type `echo hi`, `ls /bin`, `ps`, `exit`.
-  Commands answer correctly; `exit` returns to a fresh % prompt via init's restart loop.
-  NOTE: typed input has no console echo this era (documented in deferred-items.md —
-  the donor's cooked-mode echo is deliberately absent; commands execute, input is
-  invisible). Judge whether that is acceptable for the milestone's 'interactive
-  shell' headline.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -42,14 +33,15 @@ expected: |
   the donor's cooked-mode echo is deliberately absent; commands execute, input is
   invisible). Judge whether that is acceptable for the milestone's 'interactive
   shell' headline.
-result: [pending]
+result: pass
+resolved: "User confirmed live-interactive sanity on 2026-11-04: echo/ls/ps answer at the live % prompt, exit restarts rc; the no-console-echo era delta judged acceptable for the milestone's interactive-shell headline."
 
 ## Summary
 
 total: 2
-passed: 1
+passed: 2
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
