@@ -90,7 +90,15 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. devether `#l` presents `/net/ether0` per netif.h with live RX/TX packet counters, and the guest's ARP request is observable in a host-side capture (NETDRV-03)
   4. Interrupt accounting is proven under load: INTx level-triggered plumbing with ISR read-to-ack, and a sustained packet blast shows guest and host counters reconciling with no silent virtqueue wedge (NETDRV-04)
 
-**Plans**: TBD
+**Plans:** 8 plans
+- [ ] 07-01-PLAN.md — xtask netdev stanza (D-09/D-10 idle staging) + pcap parser + harvey: initrd channel + idle-NIC regression (NETDRV-03 machinery)
+- [ ] 07-02-PLAN.md — fdt interrupt-map extensions + pci.rs DTB discovery prints + lowecam moved-window perturbation gate (NETDRV-01)
+- [ ] 07-03-PLAN.md — from-scratch virtio transport + unsafe-free ring index model + host unit tests + D-01 provenance record (NETDRV-02 transport half)
+- [ ] 07-04-PLAN.md — Harvey bootfs payload: 60-byte arp.req fixture, net-sweep.rc, netblast.c, dd into the image (NETDRV-03 payload half)
+- [ ] 07-05-PLAN.md — virtnet boot-test profile: Net stage machine + typed sweep + pcap/stats assertion suite + red-path proof (NETDRV-03 gate machinery)
+- [ ] 07-06-PLAN.md — virtio-net driver bring-up: BAR/caps/negotiation/queues/ISR handler + GIC ICFGR + bind in the arming window, ether on all virt configs (NETDRV-02 boot half)
+- [ ] 07-07-PLAN.md — devether #l + netif model + arp-mode gate green + blast-mode load gate + evidence (NETDRV-03, NETDRV-04)
+- [ ] 07-08-PLAN.md — closure: r9 push-before-pin, flake.lock pin advance (own commit), compose-path NIC + smoke bind-line gate + CI + 07-EVIDENCE.md (NETDRV-03 end state)
 
 ### Phase 8: r9 TCP/IP Path — devip-Compatible /net
 
