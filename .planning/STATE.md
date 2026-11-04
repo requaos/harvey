@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 current_phase: 05
 status: completed
 stopped_at: Phase 05 complete — all phases complete
-last_updated: "2026-11-04T12:32:52.752Z"
+last_updated: "2026-11-04T13:53:09.902Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 05 complete
-state_head: b1918bb83903c15220452ca8797f30c00f133e9d
+state_head: b1d600114867b858d0b464cb8b7d8f283d668cd3
 progress:
   total_phases: 5
   completed_phases: 5
@@ -230,6 +230,7 @@ None yet.
 |---|-------------|------|--------|-----------|
 | 261103-giq | Reimplement the five Python harness tools in build/aarch64/ as one std-only Rust `harness` binary (srv9/drive9/gdbpoke9/mkfs9/trace-syscalls subcommands); callers rewired; flake gains packages.harness + devshell Rust; all 5 equivalence gates green; .py originals deleted | 2026-11-03 | c42726256 | [261103-giq-reimplement-the-five-python-harness-tool](./quick/261103-giq-reimplement-the-five-python-harness-tool/) |
 | 261103-p64 | Maximal unsafe elimination in r9: static mut→0, usermem module (per-process TTBR0-live route — locked model rule), MMIO register blocks, index/arena allocator, forbid(unsafe_code) across port/ except globalalloc+mcslock shims, 160-site audit reconciled; all gates green (port 75/75, 5 profiles, smoke ×3) | 2026-11-03 | 4150a3034 | [261103-p64-maximal-unsafe-elimination-in-the-r9-ker](./quick/261103-p64-maximal-unsafe-elimination-in-the-r9-ker/) |
+| 261104-b4p | Resolved 8 deferred items pre-milestone: console cooked echo + #c/pid pin, mk bquote depth counter, exit fd-group sweep, Arc'd devmnt fid lifecycle, interruptible sys_sleep (smokesleep e2e), HowItWorks namespace-core flip, x86_64-darwin systems drop; +2 evidence flips (WR-04 wedge, CR-01 muid). Gates: port 80/80, 5 profiles, sweep ×2, override-input smoke green | 2026-11-04 | b1d600114 | [261104-b4p-resolve-eight-deferred-items-before-the-](./quick/261104-b4p-resolve-eight-deferred-items-before-the-/) |
 
 ## Deferred Items
 
