@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 07
 current_phase_name: r9 PCI/ECAM + virtio-net + devether
 status: executing
-stopped_at: Completed 06-01-PLAN.md
-last_updated: "2026-11-04T23:18:16.087Z"
+stopped_at: Completed 07-01-PLAN.md
+last_updated: "2026-11-04T23:20:21.710Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 07 execution started
-state_head: 83fde179f84c8700001bf97e3e5c67ddcf642e6a
+state_head: 679d5af311917c9bc26d1d1062e6437ee6e42c1d
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 16
-  completed_plans: 1
+  completed_plans: 2
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-04)
 ## Current Position
 
 Phase: 07 (r9 PCI/ECAM + virtio-net + devether) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-11-04 — Phase 07 execution started
 
@@ -100,6 +100,7 @@ Progress: [░░░░░░░░░░] 0% (v2.0)
 | Phase 05 P12 | 6 min | 2 tasks | 5 files |
 | Phase 05-shell-boot-one-command-integration P13 | 9 min | 3 tasks | 7 files |
 | Phase 06 P01 | 35 min | 3 tasks | 8 files |
+| Phase 07 P01 | 10min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -211,6 +212,9 @@ Recent decisions affecting current work:
 - [Phase 05-shell-boot-one-command-integration]: 05-13: GH-run leg substituted per the orchestrator's explicit no-push rule: the workflow was authored + locally validated, and the exact pipeline it encodes ran green natively on aarch64-linux from a pristine clone at dc8299575 — 05-EVIDENCE.md records the hosted run as PENDING FIRST PUSH (nothing fabricated)
 - [Phase 05-shell-boot-one-command-integration]: 05-13: DeterminateSystems nix-installer-action pinned to commit 3138316df39ed29be04236d7ffc686fa525866aa (v23 resolved via the GitHub API; T-05-24 supply-chain rule)
 - [Phase 05-shell-boot-one-command-integration]: 05-13: the flake.lock r9 pin stays at 9549cee (NOT re-pinned to cbbc8e4): the docs commit is docs-only (same kernel image), and re-pinning to an unpushed local commit would break the clean-checkout leg the pin exists to serve
+- [Phase 07]: [Phase 07]: 07-01: netdev stanza emission lives in r9 config.rs::apply_virt_netdev (the shared qemu apply-path module), called from both aarch64-virt spawn sites with a per-step pcap path (target/qemu-<config>.pcap / target/boot-test-<config>.pcap); riscv64 MMIO leg + raspi/x86_64 argv byte-untouched, unit-test-pinned
+- [Phase 07]: [Phase 07]: 07-01: pcap parser accepts BOTH classic-pcap byte orders — qemu 11.1.2 filter-dump writes the header host-endian (measured: bytes d4c3b2a1 on the LE gate hosts; magic VALUE 0xa1b2c3d4 either way); the plan text's literal a1b2c3d4 od expectation is the big-endian order — corrected substance check run, parser pins both shapes
+- [Phase 07]: [Phase 07]: 07-01: plan verify commands ran with --arch aarch64 added (xtask Arch::from defaults to x86_64; every historical boot-test invocation carries the flag)
 
 ### Pending Todos
 
@@ -259,8 +263,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T23:18:16.067Z
-Stopped at: Completed 06-01-PLAN.md
+Last session: 2026-11-04T23:20:10.032Z
+Stopped at: Completed 07-01-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
