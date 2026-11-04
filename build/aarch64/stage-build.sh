@@ -1,17 +1,17 @@
 #!/bin/sh
-# build/aarch64/stage-build.sh — stage the r9-userspace binaries (phase
-# 04-05, D-03/D-04): compile the C list below in the lima guest's Plan 9
-# namespace (objtype=aarch64, the committed 02-06 wiring: the vendored
+# build/aarch64/stage-build.sh — stage the r9-userspace binaries:
+# compile the C list below in the lima guest's Plan 9
+# namespace (objtype=aarch64, the committed wiring: the vendored
 # 7c/7l carry thestring=aarch64, resolving /aarch64/include and
 # /aarch64/lib), rsync the results back to the gitignored
 # build/aarch64/smoke-out/, and copy the committed hello.7.out in verbatim
-# (the ABI bisect binary rides the initrd from 04-06 on).  r9's
+# (the ABI bisect binary rides the initrd).  r9's
 # `cargo xtask initrd` then bakes smoke-out/{init,hello,smokefork,smokenote,
 # stacksmoke,smokesleep} into target/bootfs.paq via mkpaqfs.  Every staged
 # binary is R_MAGIC (0x8C47, BE) verified here before the rsync-back is
 # trusted.
 #
-# 261103-p64 (the smoke/bootchain split): the smoke stage now owns
+# The smoke/bootchain split: the smoke stage owns
 # smoke-out/ EXCLUSIVELY — it previously wrote out/, where
 # subset-build.sh's boot chain lands the REAL init, and "last writer
 # wins" meant whichever build ran last decided out/init's identity.
@@ -37,7 +37,7 @@ LOG="${STAGE_BUILD_LOG:-$HARVEY/.build/stage-build.log}"
 OUT="$HARVEY/build/aarch64/smoke-out"
 
 # The C sources this script stages: NAME.c -> smoke-out/NAME (7c/7l).
-# 261104-b4p: smokesleep joins (item 6's interruptible-sleep smoke).
+# smokesleep is the interruptible-sleep smoke.
 STAGE_SRCS="init smokefork smokenote stacksmoke smokesleep"
 
 err() { echo "error: $*" >&2; exit 1; }
@@ -94,8 +94,8 @@ echo "   mk: $(command -v mk)"
 # does not run mkdirs first — subset-build.sh's note)
 cd "$HARVEY" && bash build/mkdirs || fail "mkdirs"
 
-# ensure objtype=aarch64 libc — idempotent rerun (02-06 wiring proved
-# it green); everything staged here links /aarch64/lib/libc.a
+# ensure objtype=aarch64 libc — idempotent rerun (the committed wiring
+# proved green); everything staged here links /aarch64/lib/libc.a
 echo "== stage lib: libc (idempotent)"
 (cd /sys/src/libc && objtype=aarch64 mk install) || fail "libc"
 
@@ -133,7 +133,7 @@ echo "== pulling the staged binaries back to host build/aarch64/smoke-out"
 mkdir -p "$OUT"
 rsync -a --delete -e "$RSYNC_RSH" "$GUEST:$GUEST_DIR/build/aarch64/smoke-out/" "$OUT/"
 
-# the committed ABI bisect binary rides along verbatim (04-06 consumes it)
+# the committed ABI bisect binary rides along verbatim
 cp "$HARVEY/build/aarch64/hello.7.out" "$OUT/hello"
 
 # every staged binary must carry the arm64 a.out magic (R_MAGIC 0x8C47, BE)

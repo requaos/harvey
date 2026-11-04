@@ -1,4 +1,4 @@
-# boot-9k10cpu.sh — BUILD-05 smoke harness: boot amd64/9k10cpu.elf under
+# boot-9k10cpu.sh — the amd64 smoke harness: boot amd64/9k10cpu.elf under
 # minimega and prove the boot by capturing the COM1 serial banner.
 #
 # Usage (from the repo root):
@@ -20,8 +20,7 @@
 # sys/src/9k/k10/main.c:182) and prints "\nPlan 9" (main.c:191). Success =
 # the string "Plan 9" appears in the captured serial log. The banner grep,
 # not the timer, is the source of truth — a healthy-but-slow boot just needs
-# a bigger MM_BOOT_BUDGET (rerun; do not retry silently on a missed banner —
-# see 01-04-PLAN.md Flagged Assumptions).
+# a bigger MM_BOOT_BUDGET (rerun; do not retry silently on a missed banner).
 #
 # Mechanics (verified against minimega 3.3.0 cmd/minimega/kvm.go + main.go):
 #  - qemu is always launched PAUSED (-S); `vm start` resumes via QMP. The
@@ -36,8 +35,8 @@
 #  - `minimega -e` exits 0 even when the command fails, so launch success is
 #    gated on the serial socket appearing, not on exit status.
 #
-# Boundary (BUILD-05): minimega manages amd64/KVM VMs only; aarch64/r9 boots
-# stay on plain qemu in later phases. No in-guest agent (miniccc), no qemu
+# Boundary: minimega manages amd64/KVM VMs only; aarch64/r9 boots
+# stay on plain qemu elsewhere. No in-guest agent (miniccc), no qemu
 # stdio scraping — serial socket capture + banner grep only.
 #
 # NOTE: standalone script (not flake-wrapped this phase), so it sets its own

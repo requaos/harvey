@@ -1,5 +1,5 @@
-//! regex.rs — std-only byte-oriented backtracking regex engine (D-02 forbids
-//! the regex crate). Covers exactly the pattern families the harness drivers
+//! regex.rs — std-only byte-oriented backtracking regex engine (no new
+//! crates). Covers exactly the pattern families the harness drivers
 //! use:
 //!
 //!   - multiline `^` / `$` anchors (^ matches at start or after \n; $ matches
@@ -14,7 +14,7 @@
 //!   - case-insensitive mode (re.I equivalent — the one ci use is
 //!     'panic|trap:', pure literals)
 //!
-//! Threat T-GIQ-04: matching runs on bounded buffers with a GLOBAL step cap
+//! Matching runs on bounded buffers with a GLOBAL step cap
 //! per search (2M steps); a pathological pattern returns no-match instead of
 //! hanging.
 
@@ -502,7 +502,7 @@ impl Regex {
                 });
             }
             if !ctx.bump() {
-                return None; // global step cap (T-GIQ-04)
+                return None; // global step cap
             }
             st += 1;
         }
@@ -568,7 +568,7 @@ mod tests {
         assert!(!rx.is_match(b"auth address is")); // literal ? required
     }
 
-    // ---- SHELL_RE: '^__GSD_SHELL_OK__\r?$' + WR-04 echo-attack discipline --
+    // ---- SHELL_RE: '^__GSD_SHELL_OK__\r?$' + the echo-attack discipline --
     #[test]
     fn shell_marker_anchored() {
         let rx = m("^__GSD_SHELL_OK__\r?$");
@@ -578,7 +578,7 @@ mod tests {
     }
     #[test]
     fn shell_marker_rejects_echo_attack() {
-        // WR-04: the echoed probe command line must never satisfy the proof.
+        // The echoed probe command line must never satisfy the proof.
         let rx = m("^__GSD_SHELL_OK__\r?$");
         assert!(!rx.is_match(b"term% echo __GSD_SHELL_^OK__\r\n"));
         assert!(!rx.is_match(b"echo __GSD_SHELL_^OK__\r\n"));

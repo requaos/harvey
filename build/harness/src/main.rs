@@ -1,6 +1,6 @@
 // harness — the Harvey build/aarch64 host harness as ONE std-only Rust
-// binary (quick task 261103-giq, D-01/D-02). Subcommands are drop-in
-// CLI-compatible replacements for the retired Python tools (D-03):
+// binary. Subcommands are drop-in
+// CLI-compatible replacements for the retired Python tools:
 //
 //   harness srv9 serve --root DIR [--host H] [--port P] [--writable-prefix P ...]
 //   harness drive9 --serial SOCK --qmp SOCK --log FILE [--budget SECS] [--steps FILE]

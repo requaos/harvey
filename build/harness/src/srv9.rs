@@ -7,19 +7,19 @@
 //! the read-only Rerror for guest-visible absolute prefixes (e.g. /tmp and
 //! /usr/glenda/tmp).
 //!
-//! Porting-fidelity notes (02-REVIEW-DISPOSITION, preserved deliberately):
-//!   - IN-05: Twstat rename DELETES an existing target before os.rename —
+//! Porting-fidelity notes (preserved deliberately):
+//!   - Twstat rename DELETES an existing target before os.rename —
 //!     harness semantics the subset gate may rely on.
-//!   - IN-04: the fid table is per-connection here (the .py shared it
+//!   - The fid table is per-connection here (the .py shared it
 //!     across connections with a global lock); strictly more correct and
 //!     behavior-identical under the gates' single-active-connection use.
 //!
 //! Wire format: all fields little-endian (Harvey sys/src/libc/9sys/convD2M.c,
-//! convS2M.c, sys/include/fcall.h). MAXMSIZE 65536. Threat T-GIQ-01: frames
+//! convS2M.c, sys/include/fcall.h). MAXMSIZE 65536. Frames
 //! with size < 7 or > MAXMSIZE+24 drop the connection; every integer read is
-//! bounds-checked. Threat T-GIQ-02: every walked path is canonicalized and
-//! must equal-or-be-under the served root ('..' clamped at root). Threat
-//! T-GIQ-03: writable ops pass the canonicalized-path writable check, else
+//! bounds-checked. Every walked path is canonicalized and
+//! must equal-or-be-under the served root ('..' clamped at root).
+//! Writable ops pass the canonicalized-path writable check, else
 //! Rerror "read only".
 
 use std::collections::HashMap;
@@ -277,7 +277,7 @@ impl Fid {
 
 struct P9Error(String);
 
-/// Bounds-checked little-endian payload reader (T-GIQ-01: no panic paths on
+/// Bounds-checked little-endian payload reader (no panic paths on
 /// malformed frames — short reads become Rerror).
 struct Rd<'a> {
     b: &'a [u8],
@@ -374,7 +374,7 @@ fn resolve_mut(fids: &mut HashMap<u32, Fid>, fid: u32) -> Result<&mut Fid, P9Err
 
 fn dropdircache(fids: &mut HashMap<u32, Fid>) {
     // a mutation invalidated cached directory listings on every fid of this
-    // connection (the .py cleared a shared table; per-conn here, IN-04)
+    // connection (the .py cleared a shared table; per-conn here)
     for f in fids.values_mut() {
         f.dirbuf = None;
         f.dirents = None;
@@ -659,9 +659,9 @@ fn handle(
             // fid | n=54 | n-2=52 | 39×0xff | nlen | name | empty uid/gid/
             // muid. The .py used 45 — off by the inner size field — and
             // never actually parsed a name; its Rerror made mv fall back to
-            // copy+delete, which is how the 02-07 gate passed. This port
+            // copy+delete. This port
             // parses the real offset, so the rename genuinely happens and
-            // IN-05's delete-target semantics are actually exercised.)
+            // the delete-target semantics are actually exercised.)
             let mut r = Rd::new(p);
             let fid = r.g32()?;
             {
@@ -710,7 +710,7 @@ fn handle(
                 if !srv.writable(&npath) {
                     return Err(P9Error("read only".into()));
                 }
-                // IN-05 (preserved): rename over an EXISTING target deletes
+                // Preserved: rename over an EXISTING target deletes
                 // the target first — harness semantics the subset gate may
                 // rely on. Do not "fix" silently.
                 {
@@ -737,7 +737,7 @@ fn handle(
 }
 
 fn serveconn(srv: Arc<Shared>, conn: TcpStream) {
-    let mut fids: HashMap<u32, Fid> = HashMap::new(); // per-connection (IN-04)
+    let mut fids: HashMap<u32, Fid> = HashMap::new(); // per-connection
     let trace = std::env::var_os("SRV9_TRACE").is_some();
     loop {
         let mut hdr = [0u8; 4];
@@ -746,7 +746,7 @@ fn serveconn(srv: Arc<Shared>, conn: TcpStream) {
         }
         let size = u32::from_le_bytes(hdr) as usize;
         if size < 7 || size > MAXMSIZE as usize + 24 {
-            break; // T-GIQ-01 frame guard
+            break; // the frame guard
         }
         let mut rest = vec![0u8; size - 4];
         if (&conn).read_exact(&mut rest).is_err() {
@@ -882,7 +882,7 @@ mod tests {
         (td, root)
     }
 
-    /// minimal tempdir helper (std-only — no tempfile crate per D-02)
+    /// minimal tempdir helper (std-only — no tempfile crate)
     mod tempfile_like {
         use std::path::{Path, PathBuf};
         pub struct TempDir(PathBuf);
@@ -1210,7 +1210,7 @@ mod tests {
         };
         assert!(vers2 > vers1, "qid.vers bumped across mutation");
 
-        // Twstat rename — and IN-05: rename over an EXISTING target deletes it
+        // Twstat rename: rename over an EXISTING target deletes it
         let (t, _p) = c.walk(1, 11, &["tmp"]);
         assert_eq!(t, RWALK);
         let (t, _p) = c.create(11, "target.txt", 0o666);

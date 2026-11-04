@@ -2,7 +2,7 @@
 #include <libc.h>
 
 /*
- * smokefork — SC#4's rfork + fd-ops smoke (phase 04-07), exec'd by the
+ * smokefork — the rfork + fd-ops smoke, exec'd by the
  * staged init on r9.  Exercises OPEN/PREAD/CLOSE against devroot from EL0
  * (read /hello's first four bytes, verify the R_MAGIC 0x00008c47 a.out
  * header), then rforks a child and awaits its exit record.  One binary

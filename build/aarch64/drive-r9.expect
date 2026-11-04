@@ -1,30 +1,29 @@
 #!/usr/bin/expect -f
-# drive-r9.expect — the 05-08 INTERACTIVE GATE driver (INT-01's proof),
-# extended by 05-09 with the full D-09 command sweep: boots r9 + the
+# drive-r9.expect — the INTERACTIVE GATE driver: boots r9 + the
 # real Harvey aarch64 boot chain on qemu virt and DRIVES the shell —
 # the staged boot assertions, an echo round-trip, then the sweep
 # (ls /bin subset presence, ps's live-process lines, cat of a known
 # file), then DEL safety (an interrupt note at the prompt must not kill
-# rc), and exit → init's for(;;) restart loop back to a fresh prompt
-# (D-01).  The DEL/exit assertions stay LAST (they reset the shell
+# rc), and exit → init's for(;;) restart loop back to a fresh prompt.
+# The DEL/exit assertions stay LAST (they reset the shell
 # state — the sweep rides the first rc generation).
 #
 # Lineage + discipline: the build/build.bash heredoc-expect precedent
-# (spawn/expect/send over stdio) grown into a committed file (05-12's
-# smoke grows from this); Phase-1 capture-before-start and marker-not-
-# order rules (D-13: presence assertions only, never interleaving order);
-# drive9.py's stage-named failures.  Spawned pipeline hygiene per D-16:
-# a fresh capture per run (rm first), and cleanup kills the spawned
+# (spawn/expect/send over stdio) grown into a committed file;
+# capture-before-start and marker-not-order rules (presence assertions
+# only, never interleaving order); drive9.py's stage-named failures.
+# Spawned pipeline hygiene: a fresh capture per run (rm first), and
+# cleanup kills the spawned
 # run-r9.sh's process GROUP (qemu is in it on darwin, which lacks
 # setsid(1)) with the bracket-fixed pkill fallback keyed on this run's
-# unique -name tag (WR-07 — the pattern cannot self-match the harness
+# unique -name tag (the pattern cannot self-match the harness
 # argv and never matches a foreign r9 qemu's kernel class).
 #
 # Wire notes (why the markers stay unambiguous WITH echo): r9's devcons
-# ECHOES cooked-mode typed input now (261104-b4p item 1 — the donor's
-# cooked echo; the 05-08 no-echo delta retired), so every typed command
+# ECHOES cooked-mode typed input (the donor's
+# cooked echo), so every typed command
 # appears on the wire BEFORE its output.  The marker discipline is
-# load-bearing (T-b4p-05: an assertion must never match the ECHOED
+# load-bearing (an assertion must never match the ECHOED
 # command instead of the command's output — a false-PASS class):
 # response markers are staged TWO-OCCURRENCE (the typed echo first, then
 # the command's output), and every sweep capture strips everything
@@ -40,10 +39,10 @@
 # usage: R9_KERNEL=… R9_DTB=… expect build/aarch64/drive-r9.expect
 # exit 0 on all-pass; exit 1 names the failed stage on stderr.
 
-set timeout 600                    ;# TCG-sized (Pitfall 11)
+set timeout 600                    ;# TCG-sized
 match_max 65536
 # NOTE: log_user stays ON — expect 5.45 (darwin /usr/bin/expect) writes
-# NOTHING to log_file when log_user is 0 (measured 05-08: the capture
+# NOTHING to log_file when log_user is 0 (measured: the capture
 # file was created empty).  The wire echo on the driver's stdout is
 # harmless; the stage lines name progress on stderr.
 
@@ -55,15 +54,13 @@ foreach v {R9_KERNEL R9_DTB} {
     }
 }
 
-# --- D-16 hygiene: a fresh capture per run (a stale log is dead evidence)
-# 05-09: the capture is RETAINED at build/aarch64/drive-r9.log (the plan's
-# named artifact, gitignored — 05-12 reuses this driver; the committed
-# evidence copy goes to the phase dir per the 05-08 convention).
+# --- Hygiene: a fresh capture per run (a stale log is dead evidence)
+# The capture is RETAINED at build/aarch64/drive-r9.log (gitignored).
 set CAPTURE build/aarch64/drive-r9.log
 exec rm -f $CAPTURE
 
 # --- spawn the launcher in interactive (stdio) mode ----------------------
-# WR-07: a per-run unique tag flows into qemu's argv via run-r9.sh's
+# A per-run unique tag flows into qemu's argv via run-r9.sh's
 # R9_RUN_TAG → -name; the teardown's survivor sweep keys on THIS run's
 # tag, never a kernel-name class (a foreign r9 qemu — a dev's
 # interactive boot-r9, a parallel CI job — shares the kernel path).
@@ -80,7 +77,7 @@ proc cleanup {} {
     # setsid there); catch: already-dead is fine
     catch { exec kill -KILL -- -$spawn_pid 2>/dev/null }
     # fallback for the setsid leg (linux): match THIS run's qemu by its
-    # unique -name tag argv (WR-07); the \[q] escape keeps the bracket
+    # unique -name tag argv; the \[q] escape keeps the bracket
     # literal (Tcl double quotes would command-substitute [q]) and pkill
     # from self-matching
     catch { exec pkill -f "\[q]emu-system-aarch64.*$run_tag" 2>/dev/null }
@@ -115,7 +112,7 @@ stage stacksmoke {stacksmoke: depth 64 ok}
 stage prompt    {% }
 
 # 2. the echo round-trip: typed input is READ, cooked, ECHOED, answered.
-#    261104-b4p: the marker now occurs TWICE on the wire — the typed
+#    The marker occurs TWICE on the wire — the typed
 #    command's echo first, then the echo binary's OUTPUT — so the
 #    round-trip is staged two-occurrence (each stage consumes one
 #    occurrence in order; a missing echo OR a missing output fails its
@@ -125,13 +122,13 @@ stage echo-echoed   {r9shell7}
 stage echo-response {r9shell7}
 stage echo-prompt   {% }
 
-# 3. the D-09 command sweep (05-09) — each command's output is captured
-#    up to the next prompt, then PRESENCE-asserted (D-13: never
+# 3. the command sweep — each command's output is captured
+#    up to the next prompt, then PRESENCE-asserted (never
 #    interleaving order).  The sweep rides the first rc generation; the
-#    state-resetting stages (DEL, exit) follow it.  261104-b4p: with
+#    state-resetting stages (DEL, exit) follow it.  With
 #    cooked echo on the wire, every capture begins with the ECHOED
 #    command line — strip everything through the first newline before
-#    asserting (T-b4p-05: never presence-match the echo instead of the
+#    asserting (never presence-match the echo instead of the
 #    output).
 
 # strip everything through the first newline (the echoed command line)
@@ -157,7 +154,7 @@ foreach name {rc ls cat echo ps} {
 puts stderr "drive-r9: stage ok — ls /bin subset (rc ls cat echo ps present)"
 
 # 3b. ps — one line per LIVE process (devproc's root listing + per-pid
-#     status/args, 05-09's kernel surface): at least 3 lines matching
+#     status/args, the kernel surface): at least 3 lines matching
 #     the pid-and-name shape ("glenda <pid> … <name>"), one of them rc.
 send "ps\r"
 stage ps-prompt {% }
@@ -191,7 +188,7 @@ if {![string match "*bind -c #e /env*" $catout]} {
 }
 puts stderr "drive-r9: stage ok — cat /lib/namespace (known line present)"
 
-# 4. DEL safety (D-06/D-14 combined contract): a partial command with no
+# 4. DEL safety: a partial command with no
 #    newline sits in the line assembly; DEL (0x7f) posts the interrupt
 #    note to rc's note group, discards the partial, and fails rc's read
 #    "interrupted" — rc's Eintr path re-prompts.  rc MUST be alive.
@@ -207,16 +204,15 @@ stage del-echoed  {r9delok}        ;# occurrence 1: the typed echo
 stage del-answer  {r9delok}        ;# occurrence 2: the OUTPUT — the partial did NOT corrupt the fresh command
 stage del-prompt  {% }
 
-# 5. exit → init's for(;;) restart (sleep(1000) — sys_sleep's gate
-#    evidence — then fexec re-runs rc): a fresh prompt proves D-01's
-#    restart loop end-to-end.
+# 5. exit → init's for(;;) restart (sleep(1000), then fexec re-runs
+#    rc): a fresh prompt proves the restart loop end-to-end.
 send "exit\r"
 stage restart-print {init: starting /bin/rc}
 stage restart-prompt {% }
 
-# 6. pid-warning-absent (261104-b4p item 2's gate half): #c/pid resolved
+# 6. pid-warning-absent: #c/pid resolved
 #    getpid() all boot, so init's pri-10 write named the REAL pid — the
-#    05-09-era designed-degradation warning's pid-0 ctl path fragment
+#    designed-degradation warning's pid-0 ctl path fragment
 #    must be ABSENT from the whole capture (its presence proves getpid()
 #    failed and the write targeted pid 0).
 log_file                           ;# stop + flush before the whole-file scan

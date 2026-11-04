@@ -2,7 +2,7 @@
 #include <libc.h>
 
 /*
- * smokenote — SC#4's notes smoke (phase 04-08, D-16), exec'd by the
+ * smokenote — the notes smoke, exec'd by the
  * staged init on r9.  notify() installs the handler, then a bounded
  * pure-compute spin (NO sleep — alarm is unimplemented) waits for the
  * parent's postnote(PNPROC, pid, "smoke") — a libc write to

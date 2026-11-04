@@ -1,9 +1,9 @@
-# /lib/namespace for the r9 boot chain image (05-02, D-08) — scoped
+# /lib/namespace for the r9 boot chain image — scoped
 # from lib/namespace, modeled on sys/src/9k/k10/root/k10root.namespace's
 # shape.  No network binds (#I/#l0) and no factotum mount — auth is
-# stub-by-absence (D-02) and the embedded root has no network.
+# stub-by-absence and the embedded root has no network.
 #
-# 05-07: the RE-MOUNT pair comes FIRST (the binding 05-03 finding,
+# The RE-MOUNT pair comes FIRST (the binding finding,
 # proven empirically on the donor): newns's rfork(RFENVG|RFCNAMEG) WIPES
 # the mount table boot built, so the paqfs tree must be re-attached at
 # /root (via #s/boot — the devsrv entry boot's srvcreate posted) and

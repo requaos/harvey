@@ -2,7 +2,7 @@
 #include <libc.h>
 
 /*
- * tracehello — the D-14 donor-kernel trace target (04-01 Task 3).
+ * tracehello — the donor-kernel trace target.
  * hello.c's shape with a leading PURE-COMPUTE spin BEFORE the first
  * print(): crt0 (main9.s) makes no syscalls and a volatile counter loop
  * pulls no fmt/pool allocation, so every syscall the binary ever makes

@@ -1,7 +1,7 @@
 #!/bin/sh
 # build/aarch64/donor-ns-build.sh — build the pinned 9front donor kernel
 # (CONF=qemu) INSIDE the donor tree in the lima guest's Linux mount
-# namespace, using Harvey's vendored 7a/7c/7l (plan 02-04, D-07).
+# namespace, using Harvey's vendored 7a/7c/7l.
 #
 # Runs in three phases (self-re-entrant; modeled on nsrun.sh, which is
 # the command-parameterized form of sys/src/BUILD_SETUP_NAMESPACE):
@@ -19,10 +19,10 @@
 #   /sys     ← $DONOR/sys          donor mkfiles/includes
 #   /arm64   ← $DONOR/arm64        donor arch dir (objtype=arm64 INSIDE
 #                                  the donor tree — the donor's own
-#                                  naming, D-11 carve-out)
+#                                  naming carve-out)
 #   /aarch64 ← $DONOR/arm64        COMPATIBILITY ALIAS: Harvey's vendored
-#                                  7a/7c/7l carry thestring=aarch64
-#                                  (plan 02-01), so their built-in
+#                                  7a/7c/7l carry thestring=aarch64,
+#                                  so their built-in
 #                                  include search /aarch64/include and
 #                                  library search /aarch64/lib must
 #                                  resolve into the donor's arm64 dirs
@@ -38,7 +38,7 @@
 #      port/mkrootall} at execution time, per plan)
 #   2. $HARVEY_LINUX_BIN — Harvey's guest hostbin (7a/7c/7l, iar as ar)
 #      FIRST among toolchain tools: the donor kernel is compiled,
-#      assembled, linked and archived by OUR tools (D-07). The build
+#      assembled, linked and archived by OUR tools. The build
 #      logs `command -v 7c 7a 7l ar` as the provenance proof.
 #   3. $PLAN9/bin ahead of the system dirs INSIDE this namespace build:
 #      the donor mkfiles assume Plan 9 tool semantics (date -n for
@@ -49,7 +49,7 @@
 # Build order (donor mkfiles are the authority):
 #   A. host helpers into $SCRATCH (donor sources; 9cc-tree route for
 #      mach.h consumers — size/strip/aout2uimage need arm64 crackhdr,
-#      which only the vendored 9cc libmach has (plan 02-03); pure
+#      which only the vendored 9cc libmach has; pure
 #      plan9port 9c/9l for mkpaqfs/mkfs/data2s)
 #   B. donor libc for arm64: cd /sys/src/libc && mk install
 #   C. kernel LIB list + bootdir deps: libmp libsec libflate libip
@@ -60,11 +60,11 @@
 #      ip/ipconfig paqfs) via their mkfiles; factotum targeted
 #      ($O.factotum only — mkmany install would also build fgui)
 #   E. kernel: cd /sys/src/9/arm64 && mk CONF=qemu → 9qemu + 9qemu.u
-#      (donor's own aux/aout2uimage per D-12 — never imported)
+#      (donor's own aux/aout2uimage — never imported)
 #   F. dist assembly in ~/9front-dist: 9qemu{,.u} + srvroot/ (the root
 #      fs served to the guest by `harness srv9` at boot time; see boot-9qemu.sh)
 #
-# Boundary (D-07/D-12): nothing from the donor tree is copied into
+# Boundary: nothing from the donor tree is copied into
 # Harvey's tracked tree; donor kernel sources are never patched. The ONE
 # guest-copy exception, disclosed: bootmkfile's BOOTFSPROTOS block is
 # replaced with its provably-identical CONF=qemu expansion (see the wrap
@@ -99,7 +99,7 @@ if [ "${1:-}" = "--build" ]; then
 	done
 
 	mkdir -p "$SCRATCH" "$SCRATCH/disk" "$SCRATCH/aux"
-	# hostbin first among toolchain tools (D-07), plan9port ahead of
+	# hostbin first among toolchain tools, plan9port ahead of
 	# system dirs for Plan 9 semantics (date -n, sed, xd)
 	PATH="$SCRATCH:$HARVEY_LINUX_BIN:$PLAN9/bin:$PATH"
 	export PATH
@@ -122,7 +122,7 @@ if [ "${1:-}" = "--build" ]; then
 	#     cc.y:1158) — the diagnostic is the ONLY behavioral difference
 	#     and the emitted code is identical.
 	# The wrapper execs the real vendored 7c — no donor source edits
-	# (vendor fidelity), no shared-frontend edits (D-13).
+	# (vendor fidelity), no shared-frontend edits.
 	cat > "$SCRATCH/7c" <<EOF
 #!/bin/sh
 exec "$HARVEY_LINUX_BIN/7c" -D_Noreturn= -wB "\$@"
@@ -147,7 +147,7 @@ EOF
 	trap '/bin/rm -rf "$SHIM"' EXIT
 	echo '#include <lib9.h>' > "$SHIM/u.h"
 	echo '/* lib9.h already included via u.h */' > "$SHIM/libc.h"
-	# 9cc-tree include route (nm.BUILD precedent, plan 02-03): its
+	# 9cc-tree include route (the nm.BUILD precedent): its
 	# libmach is the only host libmach with arm64 (7-format) support
 	IFLAGS="-I$SHIM -I$NINE_CC/include -I$NINE_CC/lib9/linux -I$NINE_CC -I$NINE_CC/cmd"
 
@@ -250,7 +250,7 @@ EOF
 		# route then dies on plan9port lib9's dirfwstat silently ignoring
 		# nd.name (no rename — the temp+rename idiom leaves read-only
 		# __mkfstmp files; reproduced on host and guest). The Rust harness
-		# (build/harness, quick task 261103-giq) implements the exact proto
+		# (build/harness) implements the exact proto
 		# semantics CONF=qemu needs (see src/mkfs9.rs's header). Installed
 		# as disk/mkfs in the scratch bin (always, after the if-block — it
 		# tracks repo edits).
@@ -260,7 +260,7 @@ EOF
 
 	# the harness mkfs9 is always (re)installed — cheap (nix cache hits),
 	# and tracks repo edits even when the compiled helpers are cached.
-	# D-05: the guest's disk/mkfs is a thin wrapper exec'ing the compiled
+	# The guest's disk/mkfs is a thin wrapper exec'ing the compiled
 	# aarch64-linux harness from the flake package; --out-link gcroot-pins
 	# the store path in the guest scratch.
 	nix build "$HARVEY#harness" --out-link "$SCRATCH/harness-pkg"
@@ -466,7 +466,7 @@ if [ "${1:-}" = "--ns" ]; then
 	trap unwind EXIT
 
 	# su resets PATH (login.defs ENV_PATH) — re-source the captured
-	# exports inside the su shell (Phase 1 su-proof env pattern)
+	# exports inside the su shell (the su-proof env pattern)
 	set +e
 	su -c ". '$ENVFILE'; sh '$HARVEY/build/aarch64/donor-ns-build.sh' --build" "$BUILD_USER"
 	RC=$?
@@ -498,7 +498,7 @@ mkdir -p $DONOR_BINDIRS
 # empirically: rc gets an unclosed backquote → "/dev/stdin: token EOF",
 # then mk's graph is mangled into a false cycle at qemu.root.7).
 # 9front's own mk counts braces (donor sys/src/cmd/mk/lex.c bquote);
-# Harvey's in-tree mk shares the naive form (deferred-items entry).
+# Harvey's in-tree mk shares the naive form.
 # For CONF=qemu the expression provably evaluates to the three protos
 # below: qemu.bootfs.proto absent → ../boot/bootfs.proto; CONF has dev
 # `sd` (devsd.$O ∈ $OBJ) → ../boot/disk.proto; CONF has dev `usb`

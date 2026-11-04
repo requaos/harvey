@@ -5,24 +5,24 @@
 # (aarch64/mkfile + aarch64/include/{u.h,ureg.h}) injected into the
 # DISPOSABLE GUEST COPY ONLY. The committed tree gains the linked
 # binary (build/aarch64/hello.7.out) but no arch scaffolding —
-# aarch64/, CPUS, pcc.c all land post-gate in plan 02-06.
+# aarch64/, CPUS, pcc.c all landed post-gate.
 #
-# OBSOLETE post-02-06: the arch scaffolding is now committed (aarch64/
+# OBSOLETE: the arch scaffolding is now committed (aarch64/
 # mkfile, include/{u.h,ureg.h}, ABI.md), so the guest-scratch injection
 # this script exists to perform is already wired in. The script refuses
-# to run on a post-02-06 tree (the guard below, exit 2); use
+# to run on a current tree (the guard below, exit 2); use
 # objtype=aarch64 mk in the namespace instead. Kept committed as the
 # historical record of how hello.7.out was produced pre-gate.
 #
 # Steps:
-#   1. pin-verify .build/9front-donor (the phase's single supply-chain
-#      input, T-02-01)
+#   1. pin-verify .build/9front-donor (the single supply-chain
+#      input)
 #   2. rsync this checkout to the lima guest (vm-run.sh exclusion set)
 #      and ensure the guest toolchain (7a/7c/7l, iar)
 #   3. guest-only scratch injection: aarch64/mkfile (the known 5-line
-#      objtype file — 02-RESEARCH.md Code Examples; 02-06 commits the
-#      identical file) + aarch64/include/{u.h,ureg.h} copied from the
-#      pinned donor (02-06 commits the same files and asserts sha256
+#      objtype file — now committed
+#      identically) + aarch64/include/{u.h,ureg.h} copied from the
+#      pinned donor (the committed copies assert sha256
 #      equality with the copies used here) + aarch64/lib/
 #   4. namespace build via nsrun.sh (which conditionally binds
 #      /aarch64 now that the guest copy has it):
@@ -31,14 +31,13 @@
 #      port + aarch64) — the new 9syscall `case aarch64` block
 #      generates every SVC stub and 7a assembles them into
 #      /aarch64/lib/libc.a — then 7c/7l build the gate program
-#      (7l resolves the libc.a pragma via /aarch64/lib, thestring
-#      shim from 02-01)
+#      (7l resolves the libc.a pragma via /aarch64/lib)
 #   5. pull hello.7.out back to the host checkout (committed gate
-#      evidence, ROADMAP SC#3 — this precedes any arch scaffolding)
+#      evidence — this precedes any arch scaffolding)
 #   6. assert the host checkout gained no aarch64/ dir
 #
 # Guest-state partitioning: mutates the default guest dir
-# harvey-build only (the wave-2 peer plan 02-04 uses
+# harvey-build only (the donor build uses
 # harvey-build-donor); the guest copy is disposable — the next
 # rsync --delete removes the scratch injection.
 #
@@ -62,7 +61,7 @@ if [ ! -d "$HARVEY/sys/src" ]; then
 	exit 1
 fi
 
-# obsolescence guard: plan 02-06 committed the arch scaffolding, so the
+# obsolescence guard: the arch scaffolding is committed, so the
 # guest-scratch injection below is already wired in — running this
 # script would only rebuild what the namespace build does directly.
 if [ -e "$HARVEY/aarch64/mkfile" ]; then

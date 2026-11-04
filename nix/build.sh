@@ -15,7 +15,7 @@ _hb_arch=$(uname -m); [ "$_hb_arch" = "arm64" ] && _hb_arch=aarch64
 export HARVEY_LINUX_BIN="${HARVEY_LINUX_BIN:-$HARVEY/.build/hostbin-$_hb_os-$_hb_arch/bin}"
 # plan9port's 9l autolib calls bare `nm` on HOST ELF objects (e.g.
 # cmd/awk's maketab host build); with $HARVEY_LINUX_BIN first on PATH that
-# resolves to Harvey's ken-format nm (nm.BUILD, plan 02-03), which fails
+# resolves to Harvey's ken-format nm (nm.BUILD), which fails
 # "Can't read header" and silently breaks autolib (undefined Bopen/Brdline/
 # Blinelen at link). Shadow it with the wrapper PATH's (binutils) nm for
 # the duration — the same shim nix/toolchain.sh installs for the toolchain
@@ -34,7 +34,7 @@ export USER="${USER:-root}"
 export objtype=amd64
 export cputype=unix
 export FORCERCFORMK=1
-# Pinned kernel timestamp (BUILD-04); override with KERNDATE=<epoch>.
+# Pinned kernel timestamp; override with KERNDATE=<epoch>.
 # Derive from the checkout's git commit (host-side; the lima guest has no .git);
 # fall back to build time when git metadata is absent.
 if [ -z "${KERNDATE:-}" ]; then
@@ -70,7 +70,7 @@ done
 # bind mounts + mk install need the per-arch output dirs to exist
 bash "$HARVEY/build/mkdirs"
 
-# Userland preflight (Pitfall 2): the kernel rootdir embedding
+# Userland preflight: the kernel rootdir embedding
 # (9k/mk/parse -> mkrootall) consumes /amd64/bin/{ip/ipconfig,
 # auth/factotum, fossil/fossil, venti/venti} at kernel link time and fails
 # late with a misleading "don't know how to make" when one is missing.

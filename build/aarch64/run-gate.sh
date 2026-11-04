@@ -1,16 +1,16 @@
 #!/bin/sh
-# build/aarch64/run-gate.sh — the TC-03 execution gate (plan 02-05):
-# the committed hello.7.out (plan 02-03, built by Harvey's vendored
+# build/aarch64/run-gate.sh — the toolchain execution gate:
+# the committed hello.7.out (built by Harvey's vendored
 # 7c/7l with the frozen-ABI SVC stubs) EXECUTES on the 9front donor
-# kernel (plan 02-04, built in-donor-tree by the same tools) under
+# kernel (built in-donor-tree by the same tools) under
 # qemu -M virt TCG, printing its marker line over the serial console.
 #
-# This is the phase's load-bearing proof (the riscv64 vaporware gate,
-# ROADMAP SC#3): compiler → assembler → linker → libc asm → generated
+# This is the load-bearing proof (the vaporware gate):
+# compiler → assembler → linker → libc asm → generated
 # SVC stubs → syscall wire contract → reference-kernel execution, in
-# one executed slice, BEFORE any aarch64/ scaffolding lands (02-06).
-# Phase 4 inherits hello.7.out as the known-good ABI bisect point: if
-# it later fails on r9, the bug is in r9 (D-06 rationale).
+# one executed slice, BEFORE any aarch64/ scaffolding lands.
+# hello.7.out is the known-good ABI bisect point: if
+# it later fails on r9, the bug is in r9.
 #
 # Usage (from the repo root, inside the nix devshell):
 #   sh build/aarch64/run-gate.sh
@@ -38,8 +38,8 @@
 #      $status marker line, zero fault lines
 #   7. append the evidence block to build/aarch64/gate-evidence.log
 #
-# Flagged-assumption resolution (plan 02-05, "spec-less probe
-# fallback"): the plan's step (2) says to stage hello where the
+# Staging note ("spec-less probe
+# fallback"): stage hello where the
 # CONF=qemu bootdir/mkpaqfs wiring picks it up — "add hello there,
 # e.g. as /hello". The donor's boot flow decides WHICH wiring works:
 # boot.c paqfs-mounts bootfs.paq at /root and bootrc later does
@@ -144,7 +144,7 @@ trap cleanup EXIT
 # The guest-side script is written from here-documents so run-gate.sh
 # stays the single committed harness file. It mirrors donor-ns-build.sh's
 # namespace discipline (same binds, same PATH order, same su-proof env)
-# but runs only the kernel relink: the guest donor tree keeps its 02-04
+# but runs only the kernel relink: the guest donor tree keeps its
 # build outputs (donor-vm-build.sh rsyncs the donor WITHOUT --delete),
 # so this is incremental — root.s/rootc.c regeneration + 7c/7a/7l +
 # aout2uimage, seconds-to-minutes, not a full rebuild.
@@ -184,7 +184,7 @@ if [ "${1:-}" = "--build" ]; then
 	# force regeneration of everything derived from the CONF/bootdir:
 	# mkdevc (qemu.c), mkrootall/mkrootc (root.s/rootc.c — the hello
 	# embed), the link, and the uImage wrap. All other objects are
-	# cached from the 02-04 build.
+	# cached from the prior build.
 	rm -f qemu.c qemu.7 qemu.root.s qemu.root.7 qemu.rootc.c qemu.rootc.7 9qemu 9qemu.u
 	mk 'CONF=qemu'
 
@@ -314,7 +314,7 @@ GATE_KERNEL_SHA=$(sha256 "$GATE_U")
 echo "== gate kernel: $GATE_U (sha256 $GATE_KERNEL_SHA)"
 
 # ---- 4/5. boot + execute (boot-9qemu.sh discipline, duplicated) ----
-# The post-shell step table (replacing the gatedrive9.py heredoc — D-04):
+# The post-shell step table (replacing the gatedrive9.py heredoc):
 # drive9 --steps drives the proven boot (capture-before-start, QMP cont,
 # bootargs/auth answers, anchored prompt proof), then runs these rows with
 # paced echo-verified sends. Tab-separated: cmd, echo-pattern (literal \r
@@ -463,7 +463,7 @@ STATUS_LINE=$(grep -m1 '^__GSD_EXIT__' "$RUNLOG" | tr -d '\r' | sed 's/^[[:space
 } >> "$EVIDENCE"
 
 # NOTE: the pre-gate "committed tree must stay scaffolding-free"
-# assertion was removed when plan 02-06 committed the arch dir
+# assertion was removed when the arch dir was committed
 # (aarch64/mkfile, include/{u.h,ureg.h}, ABI.md — commit a7945d8b5).
 # aarch64/ is now legitimate committed wiring, so the gate is idempotent
 # again (README: consecutive runs append consecutive PASS blocks).

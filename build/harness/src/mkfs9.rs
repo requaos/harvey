@@ -1,7 +1,6 @@
 //! mkfs9.rs — host-side replacement for the donor's disk/mkfs (port of
 //! mkfs9.py), installed as disk/mkfs in the guest scratch bin by
-//! donor-ns-build.sh (via the D-05 harness-pkg wrapper after this quick
-//! task).
+//! donor-ns-build.sh (via the harness-pkg wrapper).
 //!
 //! Implements the exact semantics the CONF=qemu boot needs from the pinned
 //! protos (bootfs.proto + disk.proto + devusb.proto):
@@ -14,7 +13,7 @@
 //!   `$objtype` → environment expansion; `#` comment; blank skipped
 //!   missing source → warn to stderr, skip the entry's subtree
 //! Modes: explicit proto mode wins; otherwise the source's mode is
-//! preserved. IN-08: a bare `d` mode (strips to empty) falls back to copying
+//! preserved.  A bare `d` mode (strips to empty) falls back to copying
 //! the source mode instead of crashing.
 
 use std::fs;
@@ -112,7 +111,7 @@ fn sourcepath(oldroot: &str, cwd: &Path, pp: &str, src: Option<&str>) -> String 
 }
 
 /// chmod with a proto mode string (strip the d/a/l letters, parse octal);
-/// IN-08: a bare 'd' (or 'dal' letters only) strips to empty — fall back to
+/// a bare 'd' (or 'dal' letters only) strips to empty — fall back to
 /// copying the source mode instead of crashing.
 fn apply_mode(mode: &Option<String>, src: &Path, dest: &Path) -> std::io::Result<()> {
     use std::os::unix::fs::PermissionsExt;
@@ -598,7 +597,7 @@ mod tests {
 
     #[test]
     fn bare_d_mode_falls_back_to_source_mode() {
-        // IN-08: 'd' strips to an empty octal string — must not crash;
+        // 'd' strips to an empty octal string — must not crash;
         // falls back to copying the source mode.
         let (td, old) = fixture("bared");
         let proto = write_proto(&td, "p.proto", "lib\td\n\tfoo.a\n");

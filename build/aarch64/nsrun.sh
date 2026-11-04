@@ -150,7 +150,7 @@ unwind() {
 trap unwind EXIT
 
 # su resets PATH (login.defs ENV_PATH) — re-source the captured exports
-# inside the su shell (Phase 1 su-proof env pattern: BUILD's
+# inside the su shell (the su-proof env pattern: BUILD's
 # `. buildnamespace`), with the /rc/bin:. tail the rc side of the
 # build expects.
 set +e

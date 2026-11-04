@@ -3,12 +3,12 @@
 //! thread, the QMP "cont" handshake, the bootargs/auth/shell/prompt boot
 //! drive, paced sends, and echo-verified command delivery.
 //!
-//! Capture-before-start discipline (Phase 1 build/mm/boot-9k10cpu.sh, ported
+//! Capture-before-start discipline (build/mm/boot-9k10cpu.sh, ported
 //! by drive9.py): the caller launches qemu PAUSED (-S) with serial on a
 //! chardev unix socket (server=on,wait=off); the capture attaches BEFORE the
 //! guest runs, then QMP resumes.
 //!
-//! Shell-liveness proof (WR-04): the marker is probed with rc's ^
+//! Shell-liveness proof: the marker is probed with rc's ^
 //! concatenation (`echo __GSD_SHELL_^OK__`) so the echoed command line never
 //! contains the contiguous marker; the prompt proof is anchored (^term% $)
 //! and order-dependent (searched only after the recorded base).
@@ -24,7 +24,7 @@ use crate::regex::{Match, Regex};
 pub const SHELL_MARKER: &str = "__GSD_SHELL_OK__";
 pub const SHELL_PROBE: &[u8] = b"echo __GSD_SHELL_^OK__\r";
 
-// The crate is std-only (D-02) — build the shared patterns at each call site
+// The crate is std-only — build the shared patterns at each call site
 // (compilation is microseconds) instead of a lazy-static registry.
 pub fn panic_re() -> Regex {
     Regex::new_ci("panic|trap:").unwrap()
@@ -48,8 +48,8 @@ pub fn prompt_set_re() -> Regex {
 /// Bounded capture: every byte goes to the file unbuffered; the searchable
 /// ring trims from `window` down to `trim` bytes (drive9: 512KiB/256KiB;
 /// trace-syscalls: 256MiB/128MiB — effectively never, so offset bases stay
-/// valid: a base captured before a trim silently points past reality, the
-/// 05-03 wedge).
+/// valid: a base captured before a trim silently points past reality —
+/// the wedge shape).
 pub struct Log {
     inner: Mutex<Inner>,
     window: usize,

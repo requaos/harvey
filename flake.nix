@@ -2,11 +2,11 @@
   description = "Harvey OS dev environment — plan9port toolchain, devshell and build apps";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  # D-10/INT-04: Harvey's flake owns the composition — the r9 kernel arrives
+  # Harvey's flake owns the composition — the r9 kernel arrives
   # as a proper flake input (exact rev + narHash pinned in flake.lock), never
   # a sibling-checkout path or submodule.  Consumed: r9.packages.<system>.kernel-virt
-  # (05-10's kernel-virt.elf + aarch64/lib/virt-gicv2.dtb store-path contract).
-  # Dev flow against a local r9 checkout (D-13): nix run .#boot-r9
+  # (the kernel-virt.elf + aarch64/lib/virt-gicv2.dtb store-path contract).
+  # Dev flow against a local r9 checkout: nix run .#boot-r9
   # --override-input r9 git+file:///path/to/r9 — dev-only, never the default.
   inputs.r9.url = "github:requaos/r9";
 
@@ -17,7 +17,7 @@
       # throws — and Harvey never ships for it); r9 also ships no package
       # for the tuple, so dropping it from the systems list fixes
       # `nix flake show --all-systems` AND keeps the boot-r9 hasAttr
-      # gating truthful (05-11's comment).
+      # gating truthful.
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
       pkgsFor = system: nixpkgs.legacyPackages.${system};
@@ -41,8 +41,8 @@
       packages = forAllSystems (system:
         let pkgs = pkgsFor system; in
         # harness: the build/aarch64 host harness (srv9/drive9/gdbpoke9/mkfs9/
-        # trace-syscalls) as ONE std-only Rust binary (quick task 261103-giq,
-        # D-01/D-02). Pure-std: builds on all four systems, sandboxed build is
+        # trace-syscalls) as ONE std-only Rust binary.
+        # Pure-std: builds on all four systems, sandboxed build is
         # network-free via the committed zero-dep Cargo.lock.
         {
           harness = pkgs.rustPlatform.buildRustPackage {
@@ -92,13 +92,13 @@
             else mkScriptApp pkgs "harvey-build" ./nix/vm-build.sh ''
               export LIMA_YAML="${./nix/lima-harvey.yaml}"
             '' [ pkgs.lima pkgs.openssh pkgs.rsync ];
-          # 05-11 (INT-01, D-10/D-11): THE one command — build the aarch64
+          # THE one command — build the aarch64
           # userland (lima on darwin, native unshare on linux — the same
           # mkScriptApp platform split), bake bootfs.paq with Harvey's own
           # mkpaqfs, fdtput-patch a copy of the r9 package's DTB, and
           # launch the flake-input kernel to the interactive % prompt.
           # The kernel/DTB arrive ONLY as the r9 flake input's store
-          # paths (T-05-21) — never a sibling-checkout path (INT-04).
+          # paths — never a sibling-checkout path.
           # qemu+dtc+git always (the launch, the DTB patch, the KERNDATE
           # derivation); the build-transport inputs mirror the build
           # app's platform split.
@@ -107,10 +107,10 @@
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
             ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
-          # 05-12 (INT-02, D-12): the expect-style smoke as a flake app —
+          # The expect-style smoke as a flake app —
           # the SAME composed pipeline as boot-r9 (R9_KERNEL_PKG store
           # path, build → bake → DTB patch) but launched under
-          # build/aarch64/smoke-r9.expect, which drives the full D-09
+          # build/aarch64/smoke-r9.expect, which drives the full
           # sweep and exits 0/1 for CI.  boot-r9's behavior is untouched.
           smokeR9Pkg = mkScriptApp pkgs "harvey-boot-r9-smoke" ./nix/smoke-r9.sh ''
             export R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"
@@ -126,8 +126,8 @@
           # boot-r9 exists only where r9 ships packages.kernel-virt (its
           # flake systems: aarch64-darwin, aarch64-linux, x86_64-linux).
           # x86_64-darwin is doubly absent: r9 ships no package for it AND
-          # Harvey dropped the tuple from the systems list (261104-b4p,
-          # PROJECT.md scope) — the hasAttr gate keeps this attrset's
+          # Harvey dropped the tuple from the systems list
+          # (PROJECT.md scope) — the hasAttr gate keeps this attrset's
           # evaluation lazy where the package is absent.
         } // nixpkgs.lib.optionalAttrs (builtins.hasAttr system r9.packages) {
           boot-r9 = mkApp bootR9Pkg;
@@ -143,7 +143,7 @@
             packages = with pkgs; [
               plan9port git gnumake bashInteractive coreutils gnused findutils
               qemu expect curl bzip2 gnutar
-              # 261103-giq (D-06): stable nixpkgs Rust for the harness crate
+              # Stable nixpkgs Rust for the harness crate
               # (NO rust-overlay, NO nightly) + the harness itself on PATH
               cargo rustc
             ] ++ [ self.packages.${system}.harness ]
@@ -162,7 +162,7 @@
               export CGO_ENABLED=0
               # $PLAN9/bin LAST per BUILD_ON_UNIX; harvey host bin FIRST
               export PATH="$HARVEY_LINUX_BIN:$PATH:$PLAN9/bin"
-              # 261103-giq (D-04): nix-store-first harness resolution for the
+              # Nix-store-first harness resolution for the
               # build/aarch64 shell callers (they fall back to PATH)
               export HARNESS_BIN="${self.packages.${system}.harness}/bin/harness"
 

@@ -1,6 +1,5 @@
 /*
- * bootr9.c — hand-written bootconf for the aarch64/r9 boot(8) build
- * (05-02 Task 1; 05-CONTEXT D-01/D-04; 05-RESEARCH Pattern 2 / Pitfall 2).
+ * bootr9.c — hand-written bootconf for the aarch64/r9 boot(8) build.
  *
  * The amd64 build awk-generates this file from the kernel config's boot
  * section (sys/src/9k/mk/parse, mkbootconf); the r9 boot has no kernel
@@ -12,10 +11,10 @@
  * when the config's rootdir section carries no /bin/cfs).
  *
  * The method table names the embed method first, so rootserver()
- * defaults to it (the kernel additionally seeds nobootprompt=embed per
- * RESEARCH Pattern 3); embed's arg is the raw-image path /rootfs.img —
- * the cross-plan contract: 05-05's devroot raw node serves this exact
- * literal.  cpuflag=0 selects the terminal path (init -t, D-05).
+ * defaults to it (the kernel additionally seeds nobootprompt=embed);
+ * embed's arg is the raw-image path /rootfs.img —
+ * the cross-repo contract: the devroot raw node serves this exact
+ * literal.  cpuflag=0 selects the terminal path (init -t).
  */
 #include <u.h>
 #include <libc.h>
@@ -26,7 +25,7 @@ Method method[] = {
 	{ nil },
 };
 
-int cpuflag = 0;		/* terminal → init -t (D-05) */
+int cpuflag = 0;		/* terminal → init -t */
 char *rootdir = "/root";
 char *bootdisk = "";
 int (*cfs)(int) = 0;		/* no cache fs — the generated default */

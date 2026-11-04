@@ -9,7 +9,7 @@
 //!   3. boot 9qemu-trace.u with the run-gate.sh qemu invocation, drive to
 //!      the rc shell (shared console.rs boot drive)
 //!   4. trace: launch /boot/tracehello backgrounded, capture $apid, run
-//!      /boot/trace.rc (the RESEARCH.md D-14 startsyscall recipe)
+//!      /boot/trace.rc (the startsyscall recipe)
 //!   5. parse the ENTRY fragments host-side, resolve names against
 //!      sys/src/libc/9syscall/sys.h, write the artifact
 //!
@@ -109,7 +109,8 @@ pub fn parse_hello_region(
     Ok(ordered)
 }
 
-/// Hello-path artifact text (byte-shape of 04-01-d14-trace.txt).
+/// Hello-path artifact text (the byte shape of the hello-path trace
+/// artifact).
 pub fn artifact_hello(ordered: &[(u32, String)], runlog: &str, now_iso: &str) -> String {
     let mut s = String::new();
     s.push_str(&format!("# date: {}\n", now_iso));
@@ -318,7 +319,8 @@ pub fn opencons_analysis(boot_stream: &[String]) -> (i64, Vec<(&'static str, &'s
     (opencons_at, additions)
 }
 
-/// Boot-chain artifact text (byte-shape of 05-03-trace.txt).
+/// Boot-chain artifact text (the byte shape of the boot-chain trace
+/// artifact).
 pub fn artifact_chain(data: &ChainData, runlog_bc: &str, now_iso: &str) -> String {
     let (opencons_at, source_additions) = opencons_analysis(&data.boot_stream);
     let names: HashSet<&str> = data.counts.keys().map(|s| s.as_str()).collect();
@@ -421,7 +423,7 @@ pub fn artifact_chain(data: &ChainData, runlog_bc: &str, now_iso: &str) -> Strin
 }
 
 // ---------------------------------------------------------------------------
-// Live orchestration (drives lima + qemu per D-10)
+// Live orchestration (drives lima + qemu)
 // ---------------------------------------------------------------------------
 
 use std::io::Write;
@@ -479,7 +481,7 @@ fn cfg() -> Cfg {
         .unwrap_or(1564);
     let ssh_cfg = PathBuf::from(std::env::var("HOME").unwrap_or_else(|_| "/root".into()))
         .join(format!(".lima/{}/ssh.config", vm));
-    // D-04: $HARNESS_BIN if set, else our own binary (the subcommands are us)
+    // $HARNESS_BIN if set, else our own binary (the subcommands are us)
     let harness_bin = match std::env::var("HARNESS_BIN") {
         Ok(v) if !v.is_empty() => PathBuf::from(v),
         _ => std::env::current_exe().unwrap_or_else(|_| PathBuf::from("harness")),
@@ -835,7 +837,7 @@ rm -f "$EXPORTS"
 exit $RC
 "#;
 
-// The RESEARCH.md D-14 recipe verbatim, staged as /boot/trace.rc so the
+// The startsyscall recipe verbatim, staged as /boot/trace.rc so the
 // console only ever carries short single-line commands.
 const TRACE_RC: &str = r#"# trace.rc — D-14 startsyscall loop over /proc/$1 (RESEARCH.md recipe).
 # Plan 9 rc has no break builtin: the while CONDITION is the startsyscall
@@ -1224,7 +1226,7 @@ fn parse_and_write(cfg: &Cfg, capture: &[u8]) -> Result<(), String> {
 }
 
 // ======================================================================
-// 05-03 --boot-chain: trace the REAL boot chain on the 9front donor kernel.
+// --boot-chain: trace the REAL boot chain on the 9front donor kernel.
 // ======================================================================
 
 // host path in this repo → guest donor arm64/bin bootdir name
@@ -1330,7 +1332,7 @@ fn compile_pidwait(cfg: &Cfg, tmpd: &Path) -> Result<PathBuf, String> {
 }
 
 // The boot-chain guest rebuild: same self-re-entrant shape as GUEST_REBUILD
-// (wrap -> --ns -> --build) with the 05-03 staging set.
+// (wrap -> --ns -> --build) with the boot-chain staging set.
 const GUEST_REBUILD_BC: &str = r#"#!/usr/bin/env bash
 # trace-bootchain-ns-rebuild.sh — guest side of trace-syscalls.py
 # --boot-chain (the trace-ns-rebuild.sh shape).  Lives in the guest's
@@ -1784,7 +1786,7 @@ fn boot_and_trace_chain(cfg: &Cfg, tmpd: &Path) -> Result<Vec<u8>, String> {
         eprintln!("== chain armed (boot/paqfs/srv/rc loops live)");
 
         // boot's progress prints localize a stall; termrc's stacksmoke
-        // marker proves the D-15 binary ran in-chain
+        // marker proves the stack-growth binary ran in-chain
         for (rx, what) in [
             (crate::regex::Regex::new("paqfs\\.\\.\\.").unwrap(), "boot's paqfs... print"),
             (crate::regex::Regex::new("version\\.\\.\\.").unwrap(), "boot's version... print"),

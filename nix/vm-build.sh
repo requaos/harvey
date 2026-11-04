@@ -16,7 +16,7 @@ if [ ! -d "$HARVEY/sys/src" ]; then
   exit 1
 fi
 
-# Pinned kernel timestamp (BUILD-04); override with KERNDATE=<epoch>.
+# Pinned kernel timestamp; override with KERNDATE=<epoch>.
 # Computed host-side: the rsync below excludes .git, so the guest checkout
 # has no git metadata to derive from. Falls back to build time when git
 # metadata is absent (non-reproducible; see build/REPRODUCIBILITY.md).

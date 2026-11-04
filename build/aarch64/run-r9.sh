@@ -1,15 +1,15 @@
 #!/bin/sh
 # build/aarch64/run-r9.sh — dev-time qemu launcher: r9 kernel + the
-# Harvey real-chain paqfs image on the virt machine (05-02 Task 3; the
-# 05-04..05-09 gates drive this).  Assembles the full qemu argv (loader
-# device + fdtput-patched DTB per the Phase-4 recipe, D-01 amended)
+# Harvey real-chain paqfs image on the virt machine.  Assembles the full
+# qemu argv (loader
+# device + fdtput-patched DTB)
 # around an explicitly-supplied kernel ELF.
 #
 # Interface (env):
 #   R9_KERNEL   REQUIRED — path to the r9 aarch64 kernel ELF.  No
-#               default by design (D-10/D-11): the shipped composition
-#               resolves the kernel from the flake input (05-11), and no
-#               script in this phase may grow an implicit
+#               default by design: the shipped composition
+#               resolves the kernel from the flake input, and no
+#               script here may grow an implicit
 #               sibling-checkout assumption.
 #   R9_DTB      REQUIRED — path to the virt DTB (the r9 package's
 #               virt-gicv2.dtb).  Required alongside R9_KERNEL for the
@@ -18,14 +18,14 @@
 #               build/aarch64/mkimage.sh first when absent.
 #   QEMU_BIN    default qemu-system-aarch64 (PATH lookup).
 #   R9_RUN_TAG  optional — a per-run unique token added to qemu's argv
-#               as `-name` (WR-07): the gate drivers set it so their
+#               as `-name`: the gate drivers set it so their
 #               survivor sweeps match THIS run's qemu only, never a
 #               kernel-name class.
 #
 # Modes:
 #   default         interactive: qemu -nographic, serial on stdio
 #   --log FILE      gate mode: serial to FILE, -display none; FILE is
-#                   removed first (Pitfall 10 / D-16: a stale log
+#                   removed first (a stale log
 #                   satisfies the next run's marker wait with dead
 #                   evidence)
 #
@@ -35,13 +35,13 @@
 #     -m 1024M -accel tcg -kernel $R9_KERNEL -dtb <patched copy>
 #     -device loader,file=$R9_INITRD,addr=0x48000000
 #
-# Hygiene (D-16): fresh log per --log run; on exit the spawned qemu's
+# Hygiene: fresh log per --log run; on exit the spawned qemu's
 # process group is killed (setsid leg) with a lone-pid fallback.  Gate
 # survivors are swept by pkill keyed on the run's unique R9_RUN_TAG
-# (-name argv token — WR-07), never a kernel-name class: a foreign r9
+# (-name argv token), never a kernel-name class: a foreign r9
 # qemu (a dev's interactive boot-r9, a parallel CI job) shares the
 # kernel path and must never match.  The bracket-fixed '[q]emu' pattern
-# cannot self-match the harness shell argv (Phase-3 carried discipline).
+# cannot self-match the harness shell argv.
 #
 # usage: R9_KERNEL=… R9_DTB=… build/aarch64/run-r9.sh [--log FILE]
 
@@ -70,7 +70,7 @@ QEMU_BIN="${QEMU_BIN:-qemu-system-aarch64}"
 command -v "$QEMU_BIN" >/dev/null 2>&1 || err "qemu-system-aarch64 not found on PATH (set QEMU_BIN)"
 
 # fdtput (from dtc) patches the DTB /chosen initrd properties — supplied
-# by the devshell/flake (the r9 devshell ships dtc today; 05-11's
+# by the devshell/flake (the r9 devshell ships dtc today; the
 # compose app carries it in runtimeInputs)
 command -v fdtput >/dev/null 2>&1 || err "fdtput not found — install/supply dtc (the devshell provides it)"
 
@@ -99,7 +99,7 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# DTB patch (Phase-4 recipe, D-01 amended): a throwaway copy gets
+# DTB patch: a throwaway copy gets
 # /chosen linux,initrd-start/end.  The kernel's property_value_as_u64
 # reads each property as one 8-byte BE cell; dtc has no 8-byte property
 # type, so each u64 is written as two 32-bit cells, high word first.
@@ -123,7 +123,7 @@ if [ -n "$LOG" ]; then
 else
 	set -- "$@" -nographic
 fi
-# WR-07: the per-run unique tag rides qemu's argv (-name) so the gate's
+# The per-run unique tag rides qemu's argv (-name) so the gate's
 # survivor sweep can key on THIS run (see the header's hygiene note).
 if [ -n "${R9_RUN_TAG:-}" ]; then
 	set -- "$@" -name "$R9_RUN_TAG"
@@ -133,7 +133,7 @@ fi
 # self-describing
 echo "== qemu argv: $*"
 
-# 05-08 (the interactive gate's Rule-3 fix): the explicit `<&0` is
+# The explicit `<&0` is
 # LOAD-BEARING — a non-interactive sh (no job control) redirects a
 # backgrounded command's stdin from /dev/null (POSIX), which silently
 # starved qemu's stdio serial of typed input (measured: the guest never

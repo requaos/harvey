@@ -1,29 +1,28 @@
 #!/bin/sh
 # build/aarch64/mkimage.sh — bake build/aarch64/bootfs.paq, the paqfs
-# root image for the r9 real boot chain (05-02 Task 2).  Stages a
+# root image for the r9 real boot chain.  Stages a
 # scratch tree from the committed build/aarch64/root-tree/ skeleton
 # plus the built binaries (subset-build.sh's out/ + aarch64/bin), then
 # invokes the host mkpaqfs (.build/bin/mkpaqfs, built by
-# build/aarch64/mkpaqfs-host.sh when missing — the 04-01 recipe).
+# build/aarch64/mkpaqfs-host.sh when missing).
 #
-# Image contract (05-02 must_haves; D-02/D-05/D-08; RESEARCH Pitfalls
-# 1/6/8):
+# Image contract:
 #   /boot/boot, /boot/paqfs        the pid-1 binary + its paqfs server
-#   /aarch64/init                  execinit's target (/%s/init, Pitfall 1)
+#   /aarch64/init                  execinit's target (/%s/init)
 #   /aarch64/bin/<16 subset + stacksmoke>
 #   /rc/lib/rcmain                 copied VERBATIM from rc/lib/rcmain at
 #                                  bake time (single source of truth;
 #                                  amd64 safety keys on image contents,
 #                                  never shared-source edits)
-#   /rc/bin/termrc                 scoped (D-05) — committed skeleton
-#   /lib/namespace                 scoped (D-08) — committed skeleton
+#   /rc/bin/termrc                 scoped — committed skeleton
+#   /lib/namespace                 scoped — committed skeleton
 #   /adm/timezone/local            copied from the repo's adm/timezone
 #                                  at bake time (init's cpenv consumer)
 #   /usr/glenda/lib/profile        committed skeleton
 #   empty dirs /root /env /proc /dev /srv /fd /bin /tmp /mnt
-#                                  (Pitfall 8: bind/mount targets must
+#                                  (bind/mount targets must
 #                                  pre-exist; the image is read-only)
-#   NO /boot/factotum              auth stub = absence (D-02, Pitfall 6):
+#   NO /boot/factotum              auth stub = absence:
 #                                  its mere presence flips
 #                                  authentication() into the real
 #                                  factotum-exec path
@@ -87,7 +86,7 @@ mkdir -p "$STAGE"
 #    usr/glenda/lib/profile)
 (cd "$ROOT_TREE" && tar -cf - .) | (cd "$STAGE" && tar -xf -)
 
-# 2. empty mount-point dirs (Pitfall 8) + staging parents
+# 2. empty mount-point dirs + staging parents
 mkdir -p "$STAGE/root" "$STAGE/env" "$STAGE/proc" "$STAGE/dev" "$STAGE/srv" \
 	"$STAGE/fd" "$STAGE/bin" "$STAGE/tmp" "$STAGE/mnt" \
 	"$STAGE/boot" "$STAGE/aarch64/bin/ip" "$STAGE/aarch64/bin/auth" \
@@ -110,16 +109,16 @@ cp "$HARVEY/rc/lib/rcmain" "$STAGE/rc/lib/rcmain"
 cp "$HARVEY/adm/timezone/local" "$STAGE/adm/timezone/local"
 
 # 5. pre-bake manifest: every mandated path exists, and /boot/factotum
-#    is ABSENT (D-02 auth-stub-by-absence)
+#    is ABSENT (auth-stub-by-absence)
 for p in boot/boot boot/paqfs aarch64/init aarch64/bin/stacksmoke \
 	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
 	usr/glenda/lib/profile; do
 	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
 done
 
-# 5a. init identity (05-07's gate-wedge lesson): out/ was shared with the
-# staged-init supply chain — 261103-p64 ended the sharing (the smoke stage
-# now owns build/aarch64/smoke-out/ exclusively; out/ is the boot chain's
+# 5a. init identity: out/ was shared with the
+# staged-init supply chain — the sharing ended (the smoke stage
+# owns build/aarch64/smoke-out/ exclusively; out/ is the boot chain's
 # alone), so the WRONG binary can never land here again.  The assertion
 # stays as the permanent guard.  Prove the REAL init at bake time:
 # the real init carries "init: starting /bin/rc"; the staged one carries
@@ -148,7 +147,7 @@ rm -f "$IMAGE"
 "$MKPAQFS" -o "$IMAGE" "$STAGE" || err "mkpaqfs failed"
 [ -s "$IMAGE" ] || err "$IMAGE missing/empty after mkpaqfs"
 
-# 7. the byte-format contract r9's reader consumes (04-01's proven
+# 7. the byte-format contract r9's reader consumes (the proven
 #    checks): paqfs header magic 529ab12b (first 4 bytes) and trailer
 #    magic 6b46e688 (the last 28-byte block's first 4 bytes)
 magic=$(od -An -tx1 -N4 "$IMAGE" | tr -d ' \n')

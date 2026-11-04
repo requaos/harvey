@@ -2,7 +2,7 @@
 #include <libc.h>
 
 /*
- * smokesleep — 261104-b4p item 6's interruptible-sleep smoke, exec'd by
+ * smokesleep — the interruptible-sleep smoke, exec'd by
  * the staged init (child E) on r9.  notify() installs the handler, then
  * alarm(300) arms the alarm note and sleep(30000) parks — the tick's
  * alarm-expiry arm posts "alarm" at +300ms, the note-interruptible
@@ -23,7 +23,7 @@ static int noteflag;
  * load in a register across straight-line code (even volatile), so the
  * handler's store would never be observed.  Plan 9 compilers never
  * inline C functions, so seen() reloads noteflag from memory every call.
- * (The smokenote.c trick — 04-08's SC#4 lesson.)
+ * (The smokenote.c trick.)
  */
 static int
 seen(void)

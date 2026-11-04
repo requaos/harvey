@@ -2,7 +2,7 @@
 #include <libc.h>
 
 /*
- * stacksmoke — phase 05-01, D-15's staged half: force multiple
+ * stacksmoke — the staged stack-growth smoke: force multiple
  * demand-paged stack page-ins on r9 before rc's parser ever depends on
  * stack growth.  A recursion of depth 64, each frame carrying a
  * 256-byte local array written through a real assignment loop (so 7c

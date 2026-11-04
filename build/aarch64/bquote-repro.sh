@@ -1,5 +1,5 @@
 #!/bin/sh
-# bquote-repro.sh — 261104-b4p item 3's evidence harness: build a host mk
+# bquote-repro.sh — the evidence harness: build a host mk
 # from a PRISTINE git-archive copy of sys/src/cmd/mk (pre-fix) or from the
 # WORKING tree (post-fix), then run the nested-backquote repro mkfile and
 # capture the log.  Never committed artifacts: everything lands under

@@ -1,24 +1,24 @@
 #!/bin/sh
-# build/aarch64/donor-vm-build.sh — host driver for the D-07 donor
+# build/aarch64/donor-vm-build.sh — host driver for the donor
 # kernel build: the pinned 9front checkout (350266104f1fed81c78c3d05fa44
 # f523bec0ae4d) builds its own CONF=qemu arm64 kernel IN THE DONOR TREE
 # inside the lima guest's Linux mount namespace, with Harvey's vendored
 # 7a/7c/7l + iar on PATH (provenance logged via `command -v`).
 #
-# Steps (vm-run.sh/pre-gate-build.sh machinery, plan 02-01/02-03):
+# Steps (vm-run.sh/pre-gate-build.sh machinery):
 #   1. ensure .build/9front-donor at the pin (fetch + hard rev-parse
-#      gate — the phase's single supply-chain input, T-02-06)
+#      gate — the single supply-chain input)
 #   2. ensure lima VM 'harvey' is Running
 #   3. rsync this checkout to guest dir harvey-build-donor — DISTINCT
-#      from vm-run.sh's default harvey-build, which wave-2 peer 02-03's
+#      from vm-run.sh's default harvey-build, which the
 #      pre-gate build owns and mutates with guest-only scratch
-#      injection; the second checkout makes the same-wave namespace
-#      builds race-free under parallel wave execution (declared
-#      guest-state partitioning, 02-04-PLAN flagged assumptions)
+#      injection; the second checkout makes same-run namespace
+#      builds race-free under parallel execution (declared
+#      guest-state partitioning)
 #   4. ensure the guest toolchain inside harvey-build-donor (first run
 #      builds hostbin there via nix run .#setup / .#toolchain; cached
 #      across reruns — .build is rsync-excluded), then rebuild iar so
-#      it tracks the vendored 9cc sources (02-03 precedent)
+#      it tracks the vendored 9cc sources
 #   5. rsync the donor checkout separately to guest dir 9front-donor
 #      (vm-run's exclusion set drops .build, so the donor needs its own
 #      rsync line; plain -a, no --delete: the build's outputs live in
@@ -31,12 +31,12 @@
 #   7. rsync the guest's 9front-dist back to .build/9front-dist/ on the
 #      host; propagate exit status
 #
-# The full guest build transcript (including the D-07 provenance lines)
+# The full guest build transcript (including the provenance lines)
 # is captured to .build/9front-dist/donor-build.log and echoed at the
 # end; a failed run exits non-zero with the log intact (the pre-gate
 # capture-then-cat pattern — POSIX sh has no pipefail).
 #
-# Boundary (D-07/D-12): the donor kernel and tree never enter Harvey's
+# Boundary: the donor kernel and tree never enter Harvey's
 # tracked tree; .build/ is gitignored; only this harness is committed.
 #
 # Wrapper/env provides: limactl + openssh + rsync on PATH (nix devshell
@@ -64,7 +64,7 @@ if [ ! -d "$HARVEY/sys/src" ]; then
 fi
 mkdir -p "$DIST"
 
-# 1. donor pin gate (fetch if missing; same shape as plan 02-01)
+# 1. donor pin gate (fetch if missing)
 if [ ! -d "$DONOR/.git" ]; then
 	echo "== cloning 9front donor at $DONOR_SHA"
 	mkdir -p "$DONOR"
@@ -105,8 +105,7 @@ rsync -a --delete -e "$RSYNC_RSH" \
 
 # 4. guest toolchain (7a/7c/7l + iar). Sentinels: 7c + ar. Then always
 #    rebuild 7a/7c/7l + iar so the guest tools track the vendored sources
-#    (the sentinel path skips BUILDTOOLCHAIN entirely; iar's 7-format
-#    SYMDEF support landed in 02-03 and 7l's allocator fix in 02-04 —
+#    (the sentinel path skips BUILDTOOLCHAIN entirely;
 #    each is seconds, idempotent, and must not go stale).
 GHB="$GUEST_DIR/.build/hostbin-linux-aarch64/bin"
 echo "== ensuring guest toolchain (7c, ar) in ~/$GUEST_DIR"
@@ -117,7 +116,7 @@ ssh -F "$SSH_CFG" "$GUEST" "cd \"$GUEST_DIR\" && nix develop -c sh -c 'for t in 
 # 4b. the toolchain is rebuilt unconditionally above, but mk's freshness
 #     graph does not name the toolchain binaries as prerequisites — donor
 #     objects compiled by a previous toolchain would be relinked STALE
-#     (observed in the 02-04 audit: pool.7 survived the pswt.c LP64 fix
+#     (observed: pool.7 survived the pswt.c LP64 fix
 #     and the donor kernel's blockcheck panic persisted byte-identical).
 #     Sweep compiler outputs from the guest donor tree: *.7 objects, the
 #     $O.<name> linked intermediates (7.paqfs, 7.rc, ... — mk sees them
@@ -137,7 +136,7 @@ echo "== pushing donor checkout to guest ~/$GUEST_DONOR"
 rsync -a -e "$RSYNC_RSH" --exclude .git \
 	"$DONOR/" "$GUEST:$GUEST_DONOR/"
 
-# 6. the in-donor-tree namespace build (D-07). Transcript → the log;
+# 6. the in-donor-tree namespace build. Transcript → the log;
 #    exit status propagated after the cat so the provenance proof and
 #    the artifacts always come from the same run.
 echo "== running donor build in guest namespace (log: $LOG)"

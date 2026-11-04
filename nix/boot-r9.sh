@@ -1,6 +1,6 @@
-# nix/boot-r9.sh — THE one command (05-11, INT-01, D-10): compose the
+# nix/boot-r9.sh — THE one command: compose the
 # pinned r9 kernel — Harvey's flake input's packages.kernel-virt store
-# paths (05-10's contract: kernel-virt.elf + aarch64/lib/virt-gicv2.dtb)
+# paths (kernel-virt.elf + aarch64/lib/virt-gicv2.dtb)
 # — with Harvey's aarch64 userland, and boot to the interactive rc
 # prompt on the qemu virt machine.  The pipeline, each step loud on
 # failure:
@@ -9,16 +9,15 @@
 #      driver on both platforms (darwin: the lima namespace build;
 #      linux: the same guest script natively under sudo unshare).
 #      Skip with R9_SKIP_BUILD=1 for iteration — an escape hatch,
-#      NEVER the default; INT-03's documented command uses the
+#      NEVER the default; the documented command uses the
 #      default (always build).
 #   2. bake — build/aarch64/mkimage.sh → build/aarch64/bootfs.paq
-#      (Harvey's own mkpaqfs; r9's xtask is never invoked — D-11).
-#   3. DTB patch — the Phase-4 recipe (D-01 amended): a throwaway copy
+#      (Harvey's own mkpaqfs; r9's xtask is never invoked).
+#   3. DTB patch: a throwaway copy
 #      of the package's virt-gicv2.dtb gets /chosen linux,initrd-start/
 #      -end as two 32-bit BE cells, high word first (dtc has no 8-byte
 #      property type).  Mirrors r9's xtask/src/config.rs
-#      prepare_initrd_dtb (lines 385-434) per D-11's "documented from
-#      r9's config TOML".
+#      prepare_initrd_dtb.
 #   4. launch — qemu argv values from r9's aarch64/lib/
 #      config_virtexec.toml [qemu] (carried-forward locked shape):
 #        qemu-system-aarch64 -M virt,gic-version=2 -cpu cortex-a72
@@ -35,15 +34,15 @@
 #                  the flake app exports it from
 #                  inputs.r9.packages.<system>.kernel-virt.  The kernel
 #                  and DTB arrive ONLY via this nix-controlled,
-#                  read-only store path (T-05-21: no caller-supplied
+#                  read-only store path (no caller-supplied
 #                  kernel path is exec'd; presence is validated before
 #                  launch).  No sibling-checkout path appears here by
-#                  design (INT-04).
+#                  design.
 #   R9_SKIP_BUILD  =1 skips step 1 (iteration hatch; see above).
-#   KERNDATE       pinned-build timestamp override (BUILD-04); derived
+#   KERNDATE       pinned-build timestamp override; derived
 #                  from the HARVEY checkout's git log otherwise.
 #
-# Dev flow against a LOCAL r9 checkout (D-13 — dev-only, never the
+# Dev flow against a LOCAL r9 checkout (dev-only, never the
 # default):
 #   nix run .#boot-r9 --override-input r9 git+file:///path/to/r9
 #
@@ -69,7 +68,7 @@ err() { echo "error: $*" >&2; exit 1; }
 
 R9_KERNEL="$R9_KERNEL_PKG/kernel-virt.elf"
 if [ ! -f "$R9_KERNEL" ]; then
-	# find fallback: the package's layout is the 05-10 contract, but
+	# find fallback: the package's layout is the published contract, but
 	# locate the ELF by name rather than failing blind on a layout drift
 	R9_KERNEL=$(find "$R9_KERNEL_PKG" -name 'kernel-virt.elf' -type f 2>/dev/null | head -1 || true)
 fi
@@ -86,7 +85,7 @@ echo "   kernel: $R9_KERNEL"
 echo "   dtb:    $R9_DTB"
 
 # --- provenance (KERNDATE; the nix/build.sh discipline) -------------
-# Pinned build timestamp (BUILD-04); override with KERNDATE=<epoch>.
+# Pinned build timestamp; override with KERNDATE=<epoch>.
 # Derived host-side from the checkout's git commit; falls back to build
 # time when git metadata is absent (non-reproducible; see
 # build/REPRODUCIBILITY.md).  date(1) dialects differ (plan9port -n vs

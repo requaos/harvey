@@ -1,12 +1,12 @@
 #!/bin/sh
-# build/aarch64/subset-exec.sh — the D-08 execution gate (plan 02-07
-# Task 2; TC-05's acceptance evidence): the sixteen Harvey aarch64
+# build/aarch64/subset-exec.sh — the execution gate: the sixteen Harvey
+# aarch64
 # subset binaries (rc, grep, ip/ipconfig, auth/factotum, and the core
 # single-file commands cat cp date echo ls mkdir mv ps rm sed test wc —
-# all compiled by Harvey's vendored 7c and linked by 7l, plan 02-07
-# Task 1) EXECUTE on the 9front donor kernel under qemu -M virt TCG.
+# all compiled by Harvey's vendored 7c and linked by 7l)
+# EXECUTE on the 9front donor kernel under qemu -M virt TCG.
 #
-# Generalizes run-gate.sh (plan 02-05): stage the subset into the
+# Generalizes run-gate.sh: stage the subset into the
 # guest's disposable donor tree at arm64/bin/subset/, extend the
 # guest-copy CONF=qemu bootdir (guest-scratch staging — never
 # committed), targeted mkrootall rebake embeds the binaries into the
@@ -226,7 +226,7 @@ if [ "${1:-}" = "--build" ]; then
 	# force regeneration of everything derived from the CONF/bootdir:
 	# mkdevc (qemu.c), mkrootall/mkrootc (root.s/rootc.c — the subset
 	# embed), the link, and the uImage wrap. All other objects are
-	# cached from the 02-04 build.
+	# cached from the prior build.
 	rm -f qemu.c qemu.7 qemu.root.s qemu.root.7 qemu.rootc.c qemu.rootc.7 9qemu 9qemu.u
 	mk 'CONF=qemu'
 
@@ -342,8 +342,8 @@ rsync -a -e "$RSYNC_RSH" "$GUEST:$GUEST_DIST/9qemu-subset.u" "$GATE_U"
 [ -s "$GATE_U" ] || err "$GATE_U missing/empty after rsync"
 
 # ---- 3. boot + exercise (boot-9qemu.sh discipline, duplicated) -----
-# The post-shell step table (replacing the subsetdrive9.py heredoc —
-# D-04): drive9 --steps drives the proven boot, then runs these rows
+# The post-shell step table (replacing the subsetdrive9.py heredoc):
+# drive9 --steps drives the proven boot, then runs these rows
 # with paced echo-verified sends ('drive9: step i/n OK (label)').
 # Tab-separated: cmd (literal \r escape), echo-pattern ('-' = the
 # escaped first-16-bytes default), out-pattern, timeout-secs, label.

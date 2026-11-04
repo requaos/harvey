@@ -1,5 +1,5 @@
 #!/bin/rc
-# trace-boot.rc — guest-side real-chain trace driver (05-03 Task 1).
+# trace-boot.rc — guest-side real-chain trace driver.
 # Staged into the donor kernel's CONF=qemu bootdir as DATA (mkrootall
 # strips only file-identified executables; text rides through) and run
 # at the donor's rc prompt by harness trace-syscalls --boot-chain:
@@ -7,15 +7,15 @@
 #	rc /boot/trace-boot.rc chain	trace the real boot chain
 #	rc /boot/trace-boot.rc sweep	trace the standalone sweep binaries
 #
-# chain: launches /boot/ourboot (05-02's aarch64 boot(8)) with the embed
+# chain: launches /boot/ourboot (the aarch64 boot(8)) with the embed
 # method aimed at /boot/ourbootfs.paq — the REAL flow measured on the
 # donor kernel: opencons → bindenvsrv → doauth (glenda path: the donor
 # devroot's /boot/factotum is covered by a bind onto '#c/null' so
-# access(AEXEC) fails exactly as on r9, D-02) → rfork(RFNAMEG) →
+# access(AEXEC) fails exactly as on r9) → rfork(RFNAMEG) →
 # connectembed (pipe+fork+exec /boot/paqfs — overridden to OUR aarch64
 # paqfs by the driver's bind) → fversion → mount /root → nsinit binds
 # → execinit → /aarch64/init -t (from the image via the / union) →
-# newns → termrc (stacksmoke first, D-15) → exec rc -i → the % prompt.
+# newns → termrc (stacksmoke first) → exec rc -i → the % prompt.
 #
 # The staging binds + env writes run in THIS shell (the untraced
 # driver).  They must NOT live in the traced launcher: rc has no bind
@@ -31,7 +31,7 @@
 # stays shared — the seeds use the '#e' DEVICE path, immune to the
 # chain's /env rebinds.
 #
-# Tracing (04-01's recipe, extended): one startsyscall loop per pid,
+# Tracing: one startsyscall loop per pid,
 # fragments re-emitted one tagged line each (the donor's entry fragments
 # carry no trailing newline — concurrent raw cats would glue entries
 # mid-line).  Born-traced children are armed in strict birth order by
@@ -51,8 +51,8 @@
 # init's restart loop run long enough for sleep(17) to be captured,
 # then kills the chain; every loop ends on Eprocdied.
 #
-# sweep: the D-09 sweep binaries + stacksmoke, each launched under a
-# spin-armed subshell and step-traced to exit (the 04-01 shape).
+# sweep: the sweep binaries + stacksmoke, each launched under a
+# spin-armed subshell and step-traced to exit.
 
 mode = $1
 
@@ -67,7 +67,7 @@ fn spin {
 			x = $b^$x
 }
 
-# traceloop PID TAG — the 04-01 startsyscall recipe: each write blocks
+# traceloop PID TAG — the startsyscall recipe: each write blocks
 # until the target's next stop; the fragment is then read from
 # /proc/N/syscall; the target's EXITS breaks the write (Eprocdied).
 # fragprint re-emits every fragment as ONE newline-terminated line with
@@ -136,7 +136,7 @@ if (~ $mode chain) {
 	rm /srv/boot >[2]/dev/null
 	# stage the overrides + seeds: our paqfs answers the embed method's
 	# exec of /boot/paqfs; the donor devroot's factotum is covered so
-	# access(AEXEC) fails exactly as on r9 (D-02); the trace namespace
+	# access(AEXEC) fails exactly as on r9; the trace namespace
 	# file is bound over /lib/namespace so init's newns replays it (the
 	# open precedes the RFCNAMEG wipe).  The seeds use the '#e' DEVICE
 	# path — immune to the chain's /env rebinds; #e/init must be REMOVED

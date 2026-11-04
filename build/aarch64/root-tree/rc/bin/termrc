@@ -1,8 +1,8 @@
 #!/bin/rc
-# scoped /rc/bin/termrc for the r9 boot chain image (05-02, D-05) —
+# scoped /rc/bin/termrc for the r9 boot chain image —
 # replaces cfg/example/termrc's network/window machinery: the embedded
 # root has neither.  stacksmoke runs first so its marker evidences
-# demand-paged stack growth before rc -i's parser depends on it (D-15).
+# demand-paged stack growth before rc -i's parser depends on it.
 # Ends in exec rc -i → rcmain → the interactive %  prompt (the smoke
 # asserts the literal).
 stacksmoke

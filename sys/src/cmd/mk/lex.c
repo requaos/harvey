@@ -64,8 +64,8 @@ eof:
 /*
  *	assemble a back-quoted shell command into a buffer
  *
- *	261104-b4p (Phase-2 deferred item 5 — the 9front donor pin
- *	350266104f's depth counter, ported verbatim): an rc-style `{...}`
+ *	The 9front donor pin 350266104f's depth counter, ported
+ *	verbatim: an rc-style `{...}`
  *	backquote nests braces (`{if(true) { echo ok }}`); the naive
  *	first-`}` scan ended early and the leftover text corrupted the
  *	mkfile parse.  Count the nesting depth: `{` increments (rc style

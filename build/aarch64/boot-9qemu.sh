@@ -1,5 +1,5 @@
 #!/bin/sh
-# build/aarch64/boot-9qemu.sh — boot the D-07 donor kernel (9front
+# build/aarch64/boot-9qemu.sh — boot the donor kernel (9front
 # CONF=qemu arm64, built in-donor-tree by Harvey's vendored 7a/7c/7l)
 # to an rc shell under qemu TCG on the host, with captured serial proof.
 #
@@ -10,14 +10,14 @@
 #   HARVEY       repo root                (default: $PWD)
 #   QEMU_BIN     qemu-system-aarch64      (default: PATH lookup)
 #   BOOT_BUDGET  seconds to wait for the shell (default: 600 — TCG on
-#                Apple silicon is slow; Phase 1's TCG-degraded serial
-#                capture acceptance (2026-10-31) covers this)
+#                Apple silicon is slow; the TCG-degraded serial
+#                capture acceptance covers this)
 #   QEMU_LOG     capture file  (default: .build/9front-dist/boot-9qemu.log)
 #   ROOTFS       served root    (default: .build/9front-dist/srvroot)
 #   SRV9_PORT    host-side 9P port (default: 1564 — 564 is privileged;
 #                qemu guestfwd maps guest 10.0.2.100:564 here)
 #   HARNESS_BIN  the harness binary (default: PATH lookup of `harness`;
-#                the nix devshell exports the store path — D-04)
+#                the nix devshell exports the store path)
 #   WAKE_POKE    set to 0 to skip the GICR WAKER wake poke (only for
 #                debugging against a hypothetical qemu that wakes the
 #                redistributor itself)
@@ -29,24 +29,24 @@
 # truth — a healthy-but-slow TCG boot just needs a bigger BOOT_BUDGET
 # (rerun; do not retry silently on a missed banner).
 #
-# TCG-only rationale (verified against qemu 11.1.2 on the M5 Max,
-# 02-RESEARCH.md Pitfall F): the donor kernel needs GICv3 — its
+# TCG-only rationale (verified against qemu 11.1.2 on the M5 Max):
+# the donor kernel needs GICv3 — its
 # trapinit unconditionally syswr's GICv3 ICC registers (gic.c
 # intrcpushutdown), which UNDEF under qemu's gic-version=2 (verified:
-# "Undefined Instruction" at the mkinstr-built MSR). The research's
+# "Undefined Instruction" at the mkinstr-built MSR). The early
 # "GICv2-only guest" reading (from gic.c's GICD_TARGETSR0 bank) was
 # wrong. qemu rejects HVF for this guest outright — HVF with
 # -M virt,gic-version=3 fails with "HVF does not support GICv3
 # emulation"... (see below); and HVF with -cpu cortex-a72 fails with
 # "Invalid CPU model" (valid HVF CPUs: cortex-a53, cortex-a57, host,
 # max). This harness therefore pins `-accel tcg -cpu cortex-a72
-# -M virt,gic-version=3,highmem-ecam=off`; no plan may "upgrade" it to
+# -M virt,gic-version=3,highmem-ecam=off`; never "upgrade" it to
 # HVF. highmem-ecam=off restores the legacy PCI ECAM at 0x3f000000 that
 # the donor hardcodes (qemu 11.1.2 moved it to 0x40100000). HVF returns
-# when the guest is r9 with GICv3 (Phase 3 forward-note, D-02/D-03).
+# when the guest is r9 with GICv3.
 #
-# Donor↔qemu drift accommodations (02-04 audit; donor sources stay
-# pristine per D-12 — every accommodation is harness-side):
+# Donor↔qemu drift accommodations (donor sources stay
+# pristine — every accommodation is harness-side):
 #   1. -device loader: qemu -kernel delivers the DTB via x0 but the
 #      donor reads the fixed DTBADDR=0x40000000 — pre-placed there.
 #   2. GICR WAKER wake (harness gdbpoke9): qemu 11.1.2's spec-accurate GICv3
@@ -65,7 +65,7 @@
 #      modern device ID 0x1041; qemu's default virtio-net-pci is
 #      transitional (0x1000) and never binds → no /net/ether0.
 #
-# Root-fs delivery (plan deviation, documented in 02-04-SUMMARY): the
+# Root-fs delivery (documented deviation): the
 # stock donor boot cannot reach a shell from the embedded bootfs.paq
 # alone — bootrc needs a /srv/boot connection and the local!paqfs path
 # is broken upstream (paqfs has no -f). So `harness srv9` serves ROOTFS over

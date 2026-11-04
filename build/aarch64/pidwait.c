@@ -1,5 +1,5 @@
 /*
- * pidwait — trace-rig helper (05-03 Task 1): watch /proc for the first
+ * pidwait — trace-rig helper: watch /proc for the first
  * process whose status name (field 0, the ps(1) "text" field) matches a
  * given name, print its pid on stdout, and exit.  rc collects it with a
  * backquote (cpid = `{pidwait ...}) — NOT via $status: the kernel

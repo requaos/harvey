@@ -1,8 +1,8 @@
-# nix/smoke-r9.sh — 05-12's packaged smoke (INT-02, D-12): the
+# nix/smoke-r9.sh — the packaged smoke: the
 # expect-style smoke as a flake app.  Runs the SAME composed pipeline
-# as nix/boot-r9.sh (build → bake → DTB patch — INT-01's composition)
+# as nix/boot-r9.sh (build → bake → DTB patch)
 # but launches qemu under build/aarch64/smoke-r9.expect, which drives
-# the full D-09 sweep against the serial wire and exits 0/1 for CI.
+# the full command sweep against the serial wire and exits 0/1 for CI.
 # boot-r9's own behavior is untouched.
 #
 # The pipeline, each step loud on failure:
@@ -13,46 +13,45 @@
 #      Skip with R9_SKIP_BUILD=1 for iteration — an escape hatch,
 #      NEVER the default; the gate runs the default (always build).
 #   2. bake — build/aarch64/mkimage.sh → build/aarch64/bootfs.paq
-#      (Harvey's own mkpaqfs; r9's xtask is never invoked — D-11).
-#   3. DTB patch — the Phase-4 recipe (D-01 amended): a throwaway copy
+#      (Harvey's own mkpaqfs; r9's xtask is never invoked).
+#   3. DTB patch: a throwaway copy
 #      of the package's virt-gicv2.dtb gets /chosen linux,initrd-start/
 #      -end as two 32-bit BE cells, high word first (dtc has no 8-byte
 #      property type).  Mirrors r9's xtask/src/config.rs
-#      prepare_initrd_dtb (lines 385-434) per D-11.
+#      prepare_initrd_dtb.
 #   4. smoke — build/aarch64/smoke-r9.expect spawns qemu with serial on
 #      stdio (-nographic, the build/build.bash-proven shape; A6) and
 #      asserts: banner → boot prints → stacksmoke → the %  prompt →
 #      echo r9shell7 → ls /bin subset → ps → cat /lib/namespace → DEL
 #      safety → exit → restart.  Markers are the ONLY proof — the
-#      supervisor's exit status is never trusted (D-16).
+#      supervisor's exit status is never trusted.
 #
 # Env contract:
 #   R9_KERNEL_PKG  REQUIRED — the r9 kernel-virt package's store path;
 #                  the flake app exports it from
 #                  inputs.r9.packages.<system>.kernel-virt.  Kernel and
 #                  DTB arrive ONLY via this nix-controlled, read-only
-#                  store path (T-05-21; presence validated before
+#                  store path (presence validated before
 #                  launch).  No sibling-checkout path appears here by
-#                  design (INT-04).
+#                  design.
 #   R9_SKIP_BUILD  =1 skips step 1 (iteration hatch; see above).
 #   R9_SMOKE_LOG   default $HARVEY/build/aarch64/smoke-r9.log (a
 #                  gitignored transient — a passing capture is copied
 #                  into the phase dir as retained evidence by the plan's
 #                  gate task).
 #   R9_QEMU        default qemu-system-aarch64.
-#   KERNDATE       pinned-build timestamp override (BUILD-04); derived
+#   KERNDATE       pinned-build timestamp override; derived
 #                  from the HARVEY checkout's git log otherwise.
 #
-# Hygiene (D-16, Pitfall 10): the capture is rm -f'd BEFORE launch (a
+# Hygiene: the capture is rm -f'd BEFORE launch (a
 # pre-seeded stale log cannot pass — it starts empty and only this
 # run's boot writes it); the expect driver kills qemu's process group
 # on every exit path; THIS script's EXIT trap sweeps any survivor via a
 # bracket-fixed pkill keyed on this run's unique R9_RUN_TAG (exported
-# below; the driver adds it to qemu's argv as -name) — WR-07: never a
+# below; the driver adds it to qemu's argv as -name) — never a
 # kernel-name class, so a foreign r9 qemu (a dev's interactive boot-r9,
 # a parallel CI job) is never matched.  The '[q]emu…' pattern cannot
-# self-match the harness shell's or pkill's own argv (Phase-3 carried
-# discipline).
+# self-match the harness shell's or pkill's own argv.
 #
 # Wrapper provides (the flake app's runtimeInputs): PLAN9 with
 # $PLAN9/bin LAST on PATH; qemu, dtc (fdtput), git, expect always;
@@ -76,7 +75,7 @@ err() { echo "error: $*" >&2; exit 1; }
 
 R9_KERNEL="$R9_KERNEL_PKG/kernel-virt.elf"
 if [ ! -f "$R9_KERNEL" ]; then
-	# find fallback: the package's layout is the 05-10 contract, but
+	# find fallback: the package's layout is the published contract, but
 	# locate the ELF by name rather than failing blind on a layout drift
 	R9_KERNEL=$(find "$R9_KERNEL_PKG" -name 'kernel-virt.elf' -type f 2>/dev/null | head -1 || true)
 fi
@@ -93,7 +92,7 @@ echo "   kernel: $R9_KERNEL"
 echo "   dtb:    $R9_DTB_SRC"
 
 # --- provenance (KERNDATE; the nix/build.sh discipline) -------------
-# Pinned build timestamp (BUILD-04); override with KERNDATE=<epoch>.
+# Pinned build timestamp; override with KERNDATE=<epoch>.
 # Derived host-side from the checkout's git commit; falls back to build
 # time when git metadata is absent (non-reproducible; see
 # build/REPRODUCIBILITY.md).  date(1) dialects differ (plan9port -n vs
@@ -128,7 +127,7 @@ R9_INITRD="$HARVEY/build/aarch64/bootfs.paq"
 # --- step 3: DTB patch (the Phase-4 fdtput recipe; see the header) ---
 
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/smoke-r9.XXXXXX")
-# WR-07: the per-run unique tag — exported so smoke-r9.expect adds it to
+# The per-run unique tag — exported so smoke-r9.expect adds it to
 # qemu's argv (-name), and this run's survivor sweep (cleanup below)
 # keys on it.  The sweep NEVER matches a kernel-name class: a foreign
 # r9 qemu (a dev's interactive boot-r9 uses the same kernel; a parallel
@@ -142,7 +141,7 @@ cleanup() {
 	# the expect driver kills qemu's process group on every exit path;
 	# this trap sweeps any survivor.  the pattern is bracket-fixed
 	# ([q]emu) so pkill cannot self-match this shell's or its own argv,
-	# and keyed on THIS run's unique -name tag (WR-07) — never on the
+	# and keyed on THIS run's unique -name tag — never on the
 	# kernel-path class.
 	pkill -f "[q]emu-system-aarch64.*${R9_RUN_TAG}" 2>/dev/null || true
 	rm -rf "$TMPD"
@@ -173,7 +172,7 @@ fdtput -t x "$DTB" /chosen linux,initrd-end "$HI" "$LO" \
 R9_SMOKE_LOG="${R9_SMOKE_LOG:-$HARVEY/build/aarch64/smoke-r9.log}"
 R9_QEMU="${R9_QEMU:-qemu-system-aarch64}"
 
-# fresh capture per run BEFORE launch (Pitfall 10 / T-05-22: a
+# fresh capture per run BEFORE launch (a
 # pre-seeded stale log is dead evidence — it starts empty and only this
 # run's boot writes it; the driver rm -f's it again belt-and-braces)
 rm -f "$R9_SMOKE_LOG"

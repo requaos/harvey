@@ -2,7 +2,7 @@
 # build/aarch64/mkpaqfs-host.sh — build Harvey's in-tree mkpaqfs
 # (sys/src/cmd/paqfs/mkpaqfs.c, NOT the 9front donor's copy) as a host
 # binary at .build/bin/mkpaqfs, using the plan9port 9c/9l recipe proven
-# by Phase 2's donor-ns-build.sh (lines 240-243).  Run from the repo
+# by donor-ns-build.sh.  Run from the repo
 # root inside the nix devshell:
 #
 #     nix develop -c sh build/aarch64/mkpaqfs-host.sh
@@ -10,8 +10,8 @@
 # PATH discipline: "$PLAN9/bin" goes LAST (project rule, BUILD_ON_UNIX) —
 # the devshell's own tools stay ahead and plan9port supplies only what
 # the host lacks.  .build/ is gitignored: the binary is a host artifact
-# and is never committed.  Phase 4 plan 04-01 Task 2 uses this binary to
-# bake the paqfs fixture that r9's 04-02 reader parses (D-02).
+# and is never committed.  r9's initrd assembly uses this binary to
+# bake the paqfs image the kernel's reader parses.
 
 set -eu
 
