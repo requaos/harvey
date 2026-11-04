@@ -22,7 +22,7 @@ current_phase: 05
 See: .planning/PROJECT.md (updated 2026-11-04)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Milestone complete — all 5 phases done
+**Current focus:** Planning next milestone (v1.0 Boot Revival shipped 2026-11-04)
 
 ## Current Position
 
