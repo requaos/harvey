@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 07
 current_phase_name: r9 PCI/ECAM + virtio-net + devether
 status: executing
-stopped_at: Completed 07-01-PLAN.md
-last_updated: "2026-11-04T23:20:21.710Z"
+stopped_at: Completed 07-03-PLAN.md
+last_updated: "2026-11-04T23:42:15.982Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 07 execution started
-state_head: 679d5af311917c9bc26d1d1062e6437ee6e42c1d
+state_head: 877cdae110447534aed11bc033da539ec284b991
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 16
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-04)
 ## Current Position
 
 Phase: 07 (r9 PCI/ECAM + virtio-net + devether) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-11-04 — Phase 07 execution started
 
@@ -101,6 +101,7 @@ Progress: [░░░░░░░░░░] 0% (v2.0)
 | Phase 05-shell-boot-one-command-integration P13 | 9 min | 3 tasks | 7 files |
 | Phase 06 P01 | 35 min | 3 tasks | 8 files |
 | Phase 07 P01 | 10min | 2 tasks | 3 files |
+| Phase 07 P03 | 19 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -215,6 +216,9 @@ Recent decisions affecting current work:
 - [Phase 07]: [Phase 07]: 07-01: netdev stanza emission lives in r9 config.rs::apply_virt_netdev (the shared qemu apply-path module), called from both aarch64-virt spawn sites with a per-step pcap path (target/qemu-<config>.pcap / target/boot-test-<config>.pcap); riscv64 MMIO leg + raspi/x86_64 argv byte-untouched, unit-test-pinned
 - [Phase 07]: [Phase 07]: 07-01: pcap parser accepts BOTH classic-pcap byte orders — qemu 11.1.2 filter-dump writes the header host-endian (measured: bytes d4c3b2a1 on the LE gate hosts; magic VALUE 0xa1b2c3d4 either way); the plan text's literal a1b2c3d4 od expectation is the big-endian order — corrected substance check run, parser pins both shapes
 - [Phase 07]: [Phase 07]: 07-01: plan verify commands ran with --arch aarch64 added (xtask Arch::from defaults to x86_64; every historical boot-test invocation carries the flag)
+- [Phase 07]: 07-03: RingMem::fence(order) trait method with a core-fence default (dmb ish/ishld per RESEARCH codegen) — the mock overrides to record op ORDER, so the virtio barrier sandwich is test-proven as a sequence; zero new unsafe/asm in port::virtio (#[forbid(unsafe_code)])
+- [Phase 07]: 07-03: avail pre-linking is literal (Ring::new writes each avail entry to its slot's chain head once; post re-writes the fixed value inside the §2.7.13 sequence); a fresh ascending DescPool reproduces ethervirtio.c's 2i chain-head layout organically; MAX_QSIZE=256 loud ceiling implements the accept-256-never-downsize EDGE-PROBE assumption
+- [Phase 07]: 07-03: used-ring validation beyond the plan's named checks (Rule 2): odd ids rejected as device faults (chain heads are even — aliasing guard), direction guards on tx_post/rx_replenish — the T-07-05 device-untrusted boundary's completed shape
 
 ### Pending Todos
 
@@ -263,8 +267,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T23:20:10.032Z
-Stopped at: Completed 07-01-PLAN.md
+Last session: 2026-11-04T23:42:15.961Z
+Stopped at: Completed 07-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
