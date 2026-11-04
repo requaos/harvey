@@ -22,6 +22,7 @@ gate; these tools are not built into the Phase 1 toolchain path):
 If a dormant arch is revived (or Phase 2 imports 7c/7l for aarch64), audit
 for the same idiom before trusting output. Detection signature to grep:
 `long l;` adjacent to `(vlong)l` comparisons or `= a->offset`.
+  status: acknowledged
 
 ### 2. Post-banner boot-process pool panic (observed, not chased)
 
