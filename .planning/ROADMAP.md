@@ -53,7 +53,15 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. The cross-compiled-generator audit artifact lists every build-then-run generator in swept mkfiles with host-toolchain proof (7c output never runs on the host), and CI reds on any `.7`-magic generator artifact (USPACE-03)
   4. Tiered allowlist machinery is live: per-dir append-only allowlist growth (never a flag-flip), per-tier execution gates run on the 9front donor kernel FIRST then r9 via measure-first traces, and artifact+execution markers are committed as the only gates — namespace-build mk exit status is never trusted (USPACE-04)
   5. Tier-0/1 are green with committed markers: all 22 outstanding libraries (libdraw/libmemdraw/libmemlayer/libframe, libcontrol, libhtml, libhttpd, libdisk, libflate, libgeometry, liblex, libplumb, libventi/liboventi, …) compile for aarch64 via the mksyslib portable-C fallback (no cargo-culted stale `.6`/`.8` objects), and shell/coreutils + the guest build chain (7a/7c/7l/cc/cpp/mk/yacc/lex as aarch64 binaries) execute on the donor kernel (USPACE-05, USPACE-06)
-**Plans**: TBD
+**Plans:** 8 plans
+- [ ] 06-01-PLAN.md — Wave-0 landmines: gethunk ×2 fixes + teeth-proven repro gates + FPdbleword uint fix (USPACE-01, D-01)
+- [ ] 06-02-PLAN.md — Append-only tier allowlist machinery: D-02 hygiene, A1 spike, D-13 checkpoint, objtype-gated mk filter, build_aarch64 filtered sweep (USPACE-04)
+- [ ] 06-03-PLAN.md — Tracer: libavl + awk + float canary end-to-end through the donor gate stack; ledgers started (USPACE-04, D-07/D-10/D-14)
+- [ ] 06-04-PLAN.md — Dir-coverage report + generator audit + .7-magic scan (USPACE-02, USPACE-03, D-15)
+- [ ] 06-05-PLAN.md — Tier-0 wave: 22 libraries compile fresh via mksyslib portable-C; libdynld rename verdict; documented exclusions (USPACE-05, D-05..D-08)
+- [ ] 06-06-PLAN.md — Tier-1: build chain + ~32 coreutils + guest self-host canary on the donor (USPACE-06, D-09/D-11)
+- [ ] 06-07-PLAN.md — r9 venue: measure-first dispatch growth, push-before-pin, boot-r9-tier1 gate (USPACE-04, USPACE-06, D-12)
+- [ ] 06-08-PLAN.md — CI pipeline: phase6.yml four jobs incl. x86_64 pool-panic verdict leg (USPACE-10, D-04/D-16)
 
 ### Phase 7: r9 PCI/ECAM + virtio-net + devether
 
