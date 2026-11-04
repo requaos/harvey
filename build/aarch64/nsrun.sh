@@ -93,6 +93,17 @@ mount --bind $HARVEY/acme /acme
 mkdir -p /rc
 mount --bind $HARVEY/rc /rc
 
+# mk recipes backquote rc scripts whose shebang is #!/bin/rc (membername in
+# the boot mkfiles: 9k/mk/bootmkfile, 9/boot/bootmkfile, 9k/boot/mkfile.aarch64).
+# The namespace shares the distro /bin, which has no rc on a fresh host — the
+# legacy docker path provided it globally (build/Dockerfile: cp $PLAN9/bin/rc
+# /bin/rc).  Bind the wrapper's rc over /bin/rc here; the mount namespace is
+# private, and if the mountpoint had to be created it is an inert empty file
+# on the host — the same class as the /arm, /386, ... mountpoint dirs above.
+[ -x "$PLAN9/bin/rc" ] || { echo "error: nsrun: $PLAN9/bin/rc not executable — run via the nix devshell/app wrapper, which exports PLAN9" >&2; exit 1; }
+[ -e /bin/rc ] || touch /bin/rc
+mount --bind "$PLAN9/bin/rc" /bin/rc
+
 mkdir -p /mail
 mount --bind $HARVEY/mail /mail
 
