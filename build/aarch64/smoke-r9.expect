@@ -28,9 +28,13 @@
 # Markers: PRESENCE assertions only, never interleaving order (D-13 —
 # preemption and TCG make arrival order meaningless).  Patterns are
 # CRLF-tolerant substrings, never end-of-line anchored (the kernel
-# console cooks \n → \r\n; userland writes are byte-exact).  r9's
-# devcons does not echo typed input this era (05-08's documented
-# delta), so a "r9shell7" line can only be the echo binary's OUTPUT.
+# console cooks \n → \r\n; userland writes are byte-exact).  261104-b4p:
+# r9's devcons ECHOES cooked-mode typed input now (the 05-08 no-echo
+# delta retired), so every typed command appears on the wire BEFORE its
+# output — the marker discipline is load-bearing (T-b4p-05: never match
+# the ECHOED command instead of the output): response markers are staged
+# TWO-OCCURRENCE (typed echo, then output) and sweep captures strip
+# everything through the first newline before presence-asserting.
 # Timeouts are TCG-sized (600s per stage — Pitfall 11; the legacy
 # harness used 600-2400s).
 #
@@ -126,24 +130,38 @@ stage paqfs     {paqfs\.\.\.}
 stage stacksmoke {stacksmoke: depth 64 ok}
 stage prompt    {% }
 
-# 2. the echo round-trip: typed input is READ, cooked, answered (the
-#    response is distinct from any typed echo — r9's cons does not echo
-#    input this era, so the marker can only be echo's output)
+# 2. the echo round-trip: typed input is READ, cooked, ECHOED, answered.
+#    261104-b4p: the marker now occurs TWICE on the wire — the typed
+#    command's echo first, then the echo binary's OUTPUT — so the
+#    round-trip is staged two-occurrence (each stage consumes one
+#    occurrence in order; a missing echo OR a missing output fails its
+#    own stage).
 send "echo r9shell7\r"
+stage echo-echoed   {r9shell7}
 stage echo-response {r9shell7}
 stage echo-prompt   {% }
 
 # 3. the D-09 command sweep — each command's output is captured up to
 #    the next prompt, then PRESENCE-asserted (D-13: never interleaving
 #    order).  The sweep rides the first rc generation; the state-
-#    resetting stages (DEL, exit) follow it.
+#    resetting stages (DEL, exit) follow it.  261104-b4p: with cooked
+#    echo on the wire, every capture begins with the ECHOED command
+#    line — strip everything through the first newline before asserting
+#    (T-b4p-05: never presence-match the echo instead of the output).
+
+# strip everything through the first newline (the echoed command line)
+proc strip_echoed_line {capture} {
+    set nl [string first "\n" $capture]
+    if {$nl < 0} { return $capture }
+    string range $capture [expr {$nl + 1}] end
+}
 
 # 3a. ls /bin — the subset binaries are present (the /bin union resolves
 #     to the image's aarch64/bin through devmnt): five word-anchored
 #     presence assertions.
 send "ls /bin\r"
 stage ls-prompt {% }
-set lsout $expect_out(buffer)
+set lsout [strip_echoed_line $expect_out(buffer)]
 foreach name {rc ls cat echo ps} {
     if {![regexp "\\m$name\\M" $lsout]} {
         puts stderr "smoke-r9: ls /bin missing '$name'"
@@ -158,7 +176,7 @@ puts stderr "smoke-r9: stage ok — ls /bin subset (rc ls cat echo ps present)"
 #     ("glenda <pid> … <name>"), one of them rc.
 send "ps\r"
 stage ps-prompt {% }
-set psout $expect_out(buffer)
+set psout [strip_echoed_line $expect_out(buffer)]
 set pslines [regexp -all -inline {glenda +\d+[^\n]*} $psout]
 if {[llength $pslines] < 3} {
     puts stderr "smoke-r9: ps printed [llength $pslines] process lines (< 3)"
@@ -180,7 +198,7 @@ puts stderr "smoke-r9: stage ok — ps ([llength $pslines] process lines, rc pre
 #     mounted tree's read path verbatim.
 send "cat /lib/namespace\r"
 stage cat-prompt {% }
-set catout $expect_out(buffer)
+set catout [strip_echoed_line $expect_out(buffer)]
 if {![string match "*bind -c #e /env*" $catout]} {
     puts stderr "smoke-r9: cat /lib/namespace missing 'bind -c #e /env'"
     cleanup
@@ -192,6 +210,7 @@ puts stderr "smoke-r9: stage ok — cat /lib/namespace (known line present)"
 #    newline sits in the line assembly; DEL (0x7f) posts the interrupt
 #    note to rc's note group, discards the partial, and fails rc's read
 #    "interrupted" — rc's Eintr path re-prompts.  rc MUST be alive.
+#    (The partial's typed bytes echo as typed; DEL itself is silent.)
 send "fnord"                       ;# partial, no newline (a non-command:
                                    ;# a flush failure can never echo the
                                    ;# stage marker through it)
@@ -199,7 +218,8 @@ send "\x7f"                        ;# DEL
 stage del-reprompt {% }            ;# rc interrupted + re-prompted, not dead
 
 send "echo r9delok\r"
-stage del-answer  {r9delok}        ;# the partial did NOT corrupt the fresh command
+stage del-echoed  {r9delok}        ;# occurrence 1: the typed echo
+stage del-answer  {r9delok}        ;# occurrence 2: the OUTPUT — the partial did NOT corrupt the fresh command
 stage del-prompt  {% }
 
 # 5. exit → init's for(;;) restart (sleep(1000) — sys_sleep's gate
@@ -209,6 +229,22 @@ send "exit\r"
 stage restart-print {init: starting /bin/rc}
 stage restart-prompt {% }
 
-puts stderr "smoke-r9: ALL STAGES PASS — boot, echo, ls/ps/cat sweep, DEL safety, restart"
+# 6. pid-warning-absent (261104-b4p item 2's gate half): #c/pid resolved
+#    getpid() all boot, so init's pri-10 write named the REAL pid — the
+#    05-09-era designed-degradation warning's pid-0 ctl path fragment
+#    must be ABSENT from the whole capture (its presence proves getpid()
+#    failed and the write targeted pid 0).
+log_file                           ;# stop + flush before the whole-file scan
+set fh [open $env(R9_SMOKE_LOG) r]
+set whole [read $fh]
+close $fh
+if {[string match "*#p/0/ctl*" $whole]} {
+    puts stderr "smoke-r9: pid-0 ctl path present in the capture — getpid() regressed"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9: stage ok — pid-warning-absent (no #p/0/ctl in the capture)"
+
+puts stderr "smoke-r9: ALL STAGES PASS — boot, echo (typed + answered), ls/ps/cat sweep, DEL safety, restart, pid-warning-absent"
 cleanup
 exit 0
