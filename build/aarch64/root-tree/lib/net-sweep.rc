@@ -1,0 +1,109 @@
+#!/bin/rc
+# net-sweep.rc — the Phase-7 net sweep, the guest half of the
+# D-07/D-08 gates (NETDRV-03/04).  Sourced by the gate harness, never
+# typed at a prompt (the sourced-not-typed discipline).
+#
+#	net-sweep.rc arp [n]	bind #l, clone a conversation,
+#				connect 2054 (ethertype 0x0806), dd the baked
+#				60-byte ARP fixture (/lib/test/arp.req) to the
+#				conversation's data file n times (default 4 —
+#				TCG-modest per RESEARCH A4), then dump stats.
+#	net-sweep.rc blast [n]	bind #l, clone a conversation (no
+#				connect — pure TX), run netblast for n frames
+#				(netblast's own default 256 when n absent),
+#				then dump stats.
+#
+# Every failed step prints `netsweep: FAIL <stage>' and exits non-nil
+# (rc's || idiom per command) — a gate must never hang silently.
+# Success ends with the NET-DONE marker line.  No timing assumptions,
+# no sleeps.
+
+switch($#*){
+case 1 2
+case *
+	echo 'usage: net-sweep.rc {arp [n] | blast [n]}' >[1=2]
+	exit usage
+}
+
+mode=$1
+n=()
+if(~ $#* 2)
+	n=$2
+
+# the arp loop counts by list growth, so a non-numeric n would never
+# terminate — admit 1..3 digit counts only (256 is the TCG-sane scale)
+~ $#n 0 || switch($n){
+case [0-9]
+case [0-9][0-9]
+case [0-9][0-9][0-9]
+case *
+	echo 'net-sweep.rc: count must be 1-3 digits' >[1=2]
+	exit usage
+}
+
+bind -a '#l' /net || {
+	echo netsweep: FAIL bind >[1=2]
+	exit bind
+}
+
+conv=`{cat /net/ether0/clone} || {
+	echo netsweep: FAIL clone >[1=2]
+	exit clone
+}
+~ $#conv 1 || {
+	echo netsweep: FAIL clone >[1=2]
+	exit clone
+}
+
+switch($mode){
+case arp
+	if(~ $#n 0)
+		n=4
+	# test -e first: a failed redirect OPEN is an uncatchable rc
+	# Xerror (aborts the script without the named FAIL line); the
+	# || on the echo itself then covers the WRITE failing (Ebadctl)
+	test -e /net/ether0/$conv/ctl || {
+		echo netsweep: FAIL connect >[1=2]
+		exit connect
+	}
+	echo connect 2054 > /net/ether0/$conv/ctl || {
+		echo netsweep: FAIL connect >[1=2]
+		exit connect
+	}
+	i=()
+	while(! ~ $#i $n){
+		dd -if /lib/test/arp.req -of /net/ether0/$conv/data || {
+			echo netsweep: FAIL dd >[1=2]
+			exit dd
+		}
+		i=($i x)
+		echo netsweep: arp sent $#i
+	}
+case blast
+	switch($#n){
+	case 0
+		netblast $conv || {
+			echo netsweep: FAIL blast >[1=2]
+			exit blast
+		}
+	case *
+		netblast $conv $n || {
+			echo netsweep: FAIL blast >[1=2]
+			exit blast
+		}
+	}
+case *
+	echo 'usage: net-sweep.rc {arp [n] | blast [n]}' >[1=2]
+	exit usage
+}
+
+cat /net/ether0/stats || {
+	echo netsweep: FAIL stats >[1=2]
+	exit stats
+}
+cat /net/ether0/ifstats || {
+	echo netsweep: FAIL stats >[1=2]
+	exit stats
+}
+echo netsweep: NET-DONE
+exit ''

@@ -70,6 +70,7 @@ for f in boot init paqfs stacksmoke; do
 	[ -s "$OUT/$f" ] || err "$OUT/$f missing — run sh build/aarch64/subset-build.sh first"
 done
 SUBSET="rc grep cat cp date echo ls mkdir mv ps rm sed test wc"
+SUBSET="$SUBSET dd"	# 07-04: dd joins the image (D-07's sweep writer); append form keeps the edit insertion-only
 for f in $SUBSET; do
 	[ -f "$BIN/$f" ] || err "$BIN/$f missing — run sh build/aarch64/subset-build.sh first"
 done
@@ -121,6 +122,13 @@ for p in boot/boot boot/paqfs aarch64/init aarch64/bin/stacksmoke \
 	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
 done
 
+# 5b. 07-04 payload manifest (D-07/D-08): the net test payload must be
+#     baked — the committed-skeleton tar copy carries the lib/ files,
+#     and these asserts make an absent payload fail the bake loudly
+for p in lib/test/arp.req lib/net-sweep.rc; do
+	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
+done
+
 # 5a. init identity: out/ was shared with the
 # staged-init supply chain — the sharing ended (the smoke stage
 # owns build/aarch64/smoke-out/ exclusively; out/ is the boot chain's
@@ -160,6 +168,11 @@ magic=$(od -An -tx1 -N4 "$IMAGE" | tr -d ' \n')
 [ "$magic" = "529ab12b" ] || err "$IMAGE: bad header magic $magic (want 529ab12b)"
 sz=$(wc -c < "$IMAGE" | tr -d ' ')
 trailer=$(dd if="$IMAGE" bs=1 skip=$((sz - 28)) count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')
+# 07-04: re-extract with od -j — Harvey's host dd (dash-pair arg
+# syntax) shadows POSIX dd on the devshell PATH (the D-02
+# hostbin-shadowing class, same as the grep fix), leaving trailer
+# empty and the bake red; od is never shadowed (Plan 9 has no od)
+trailer=$(od -An -tx1 -j $((sz - 28)) -N 4 "$IMAGE" | tr -d ' \n')
 [ "$trailer" = "6b46e688" ] || err "$IMAGE: bad trailer magic $trailer (want 6b46e688)"
 
 echo "== PASS: baked $IMAGE ($sz bytes; header $magic trailer $trailer)"

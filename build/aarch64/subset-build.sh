@@ -139,6 +139,14 @@ objtype=aarch64 mk cat.install cp.install date.install echo.install \
 	ls.install mkdir.install mv.install ps.install rm.install \
 	sed.install test.install wc.install || fail "cmd single-file set"
 
+# 07-04: dd joins the image (D-07 names dd as the sweep's writer) —
+# dd.c is single-file, u.h+libc.h only, so no new libs enter the
+# closure.  Separate additive line (not folded into the list above) so
+# this phase's edits stay insertion-only against the parallel Phase 6
+# tier machinery touching the same regions.
+echo "== subset cmd: dd (per-target install, 07-04)"
+objtype=aarch64 mk dd.install || fail "cmd dd (per-target install)"
+
 # The boot chain — boot(8) for aarch64 via the additive,
 # objtype-gated mkfile.aarch64 (boot has no standalone mkfile; the
 # amd64 path awk-generates the bootconf from a kernel config, and the
@@ -236,6 +244,8 @@ fi
 for f in rc grep cat cp date echo ls mkdir mv ps rm sed test wc; do
 	[ -x "$HARVEY/aarch64/bin/$f" ] || err "aarch64/bin/$f missing after rsync-back"
 done
+# 07-04: the seventeenth — dd (D-07's sweep writer)
+[ -x "$HARVEY/aarch64/bin/dd" ] || err "aarch64/bin/dd missing after rsync-back"
 [ -x "$HARVEY/aarch64/bin/ip/ipconfig" ] || err "aarch64/bin/ip/ipconfig missing after rsync-back"
 [ -x "$HARVEY/aarch64/bin/auth/factotum" ] || err "aarch64/bin/auth/factotum missing after rsync-back"
 
