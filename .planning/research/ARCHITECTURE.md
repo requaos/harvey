@@ -1,279 +1,239 @@
-# Architecture Research
+# Architecture Patterns — v2.0 Full System & Drawterm
 
-**Domain:** Plan 9 kernel architecture port (Harvey 9k → aarch64, qemu `-M virt`)
-**Researched:** 2026-10-30
-**Confidence:** HIGH for Harvey-side structure (read directly from this repo); MEDIUM-HIGH for 9front-side (primary source — upstream git repo read via gitweb; tagged MEDIUM per source-hierarchy rules)
+**Domain:** OS milestone — full aarch64 userspace, guest networking, auth domain, cpu service, drawterm desktop
+**Researched:** 2026-11-04
+**Scope:** NEW-feature integration with the existing two-repo (Harvey + r9) architecture. v1.0 architecture is assumed, not re-derived.
+**Overall confidence:** HIGH (all structural claims read directly from the two trees; only qemu-host-networking and effort estimates are MEDIUM)
 
-## Standard Architecture
+---
 
-### System Overview — how a Plan 9 kernel arch port is put together
-
-A Plan 9 kernel is three layers glued by the build system, not one tree:
-
-```
-┌────────────────────────────────────────────────────────────────────┐
-│  port/   — portable kernel: proc, chan, dev, qio, page, segment,   │
-│            sysfile/sysproc, qmalloc, devtab, devroot, portclock,   │
-│            devcons, devuart, ip/ stack, error/lock primitives      │
-│            (sys/src/9k/port: 61 .c files + portdat.h/portfns.h)    │
-├────────────────────────────────────────────────────────────────────┤
-│  <arch>/ — machine layer. In Harvey 9k today: k10/ (amd64) with    │
-│            drivers in 386/. Contract surface:                      │
-│            mem.h dat.h fns.h io.h  (header triad + io)             │
-│            l*.s entry/trap/syscall asm, main.c, mmu.c, trap.c,     │
-│            syscall.c, fpu.c, clock/timer, interrupt ctlr,          │
-│            memory.c (phys mem), arch.c (procsave/restore),         │
-│            devarch.c (#P), bootargs/init9, <CONF> config, mkfile   │
-├────────────────────────────────────────────────────────────────────┤
-│  mk/     — config compiler: parse (awk) reads <CONF> and emits     │
-│            $CONF.c (devtab[] + links() + embedded-root table),     │
-│            systab.c (from libc/9syscall/sys.h), errstr.h, and the  │
-│            object lists MACH/DEVS/PORT/LIB + pattern rules.        │
-│            bootmkfile builds boot$CONF.out (pid-1 program) into    │
-│            ../boot/libboot.a$O; mkrootall embeds rootdir files.    │
-└────────────────────────────────────────────────────────────────────┘
-```
-
-**The port/↔arch contract is header-based and circular by design:** arch code includes `u.h` → `../port/lib.h` → `mem.h` → `dat.h` (which ends with `#include "../port/portdat.h"`) → `fns.h` (which ends including `../port/portfns.h`). `dat.h` defines the machine halves of portable structs via macros that portdat.h expands inside `struct Proc`/`struct Mach`: `PMMU`, `PFPU`, `PNOTIFY` (Proc) and `MCPU`, `MFPU`, `MMMU` (Mach). **This is the single most important structural fact for the port: the arch dir owns the definition of these macro-structs.** k10 defines `PMMU = { Page* mmuptp[4]; }`; 9front's arm64 mmu.c instead wants `mmufree/mmuhead[PTLEVELS]/mmutail/asid` per proc — the aarch64 `dat.h` must define PMMU accordingly (fields exist per-arch, so no port/ change is needed).
-
-### Component Responsibilities (arch dir, canonical set)
-
-| Component | Responsibility | k10 (amd64) file | 9front arm64 file |
-|-----------|----------------|------------------|-------------------|
-| Entry asm | Reset entry, MMU enable, jump to high VA, per-CPU Mach/SP setup | `l32p.s`+`l64v.s` | `l.s` |
-| Exception vectors | VBAR table, trap/syscall/irq entry stubs, `touser`, `forkret` | `l64idt.s`, `l64syscall.s` | `l.s` + `cache.v8.s` helpers |
-| `main.c` | C entry, init ordering, `init0`/`userinit`/`bootargs`, shutdown/reboot/exit hooks | `main.c` (465 ln) | `main.c` (~410 ln) |
-| `mmu.c` | Page tables, `mmuswitch`, `putmmu`, `mmukmap`, `kmap`/`vmap`, ASID | `mmu.c` (628 ln) | `mmu.c` (~550 ln) |
-| `trap.c` | `trapinit`, `trap(Ureg*)`, fault dispatch, `intrenable`/`intrdisable`, Vctl | `trap.c` (668 ln) | `trap.c` (~600 ln) |
-| `syscall.c` | Harvey-specific: build `Ar0`, call generated `systab[]`, notes/`noted` | `syscall.c` (375 ln) | *absent — 9front folds syscall into trap.c with different ABI* |
-| Timer/clock | `fastticks(uvlong*)` (contract fn), `kproftimer` hook, `timerset`, HZ tick via irq | `i8254.c`, `hpet.c`, `apic.c` timers | `clock.c` (ARM generic timer CNTPCT/CNTP) |
-| Interrupt ctlr | `intrenable(int, void(*)(Ureg*,void*), void*, int, char*)`, Vctl alloc, IRQ dispatch | `apic.c`+`ioapic.c`+`i8259.c` | `gic.c` (GICv2/v3) |
-| FPU | `fpuinit`, `fpuprocsave/restore`, `fpunoted`, FPU-in-irq policy | `fpu.c`, `l64fpu.s` | `fpu.c` |
-| Phys memory | `meminit`/memory map discovery, `conf.mem[]` fill, `kmapram` | `memory.c`, `map.c`, `multiboot.c` | `mem.c` (dtb/`*maxmem`) |
-| Arch device | `#P` devarch (ioalloc, irq stats) — *optional*, 9front arm64 omits it | `devarch.c` | — |
-| Proc machine glue | `procsave`/`procrestore`, `machinit`, `mpinit`/SMP bring-up | `arch.c`, `archk10.c`, `sipi.c`, `mp.c` | `main.c` (mpinit), `bootargs.c` |
-| Console uart | `PhysUart` registration for `devuart`, early printk | `uarti8250.c` (in 386/) | `uartqemu.c` (PL011 @ 0x09000000) |
-| PCI | config-space access for virtio etc. | `pci.c` (in 386/) | `pciqemu.c` (ECAM) |
-| RTC | `devrtc` (#rTC) via tod hooks | `devrtc.c` (in 386/, CMOS) | `devrtc.c` (generic) |
-| Config | device list, links, boot method, rootdir, per-objtype MACH list | `k10cpu`, `k10cpuf`, … | `qemu`, `pi3`, `pi4` |
-| mkfile | `ARCH=`, `objtype=`, link addr, `$LD` header flags, special rules | `k10/mkfile` | `arm64/mkfile` |
-| Boot args | parse firmware handoff (multiboot vs DTB/plan9.ini) | `multiboot.c` | `bootargs.c` |
-| First user trampoline | `init9` → `startboot` (port/initcode.c) embedded via `init.h` | `init9.c` | `init9.s` |
-
-## The conf/mk machinery — how a new arch gets wired in
-
-Concrete wiring checklist (each item verified in-repo):
-
-1. **`sys/src/9k/<arch>/mkfile`** sets `ARCH=<dirname>`, `CONF=<arch>cpu`, `objtype=aarch64`, then `</$objtype/mkfile` (pulls CC/AS/LD/O from the arch root), includes `<../mk/bootmkfile` + `<../mk/portmkfile`, and runs `<| awk -f ../mk/parse $CONF` which emits `DEVS=… MACH=… LIB=… PORT=…` plus all pattern rules. Final link: `$LD -o $target -T<loadaddr> -l $OBJ $CONF.$O $LIB`. k10 additionally emits an ELF via a second `$LD -H5`; bcm-style raw uses `-H6 -R4096`; 9front qemu kernel uses neither (Plan 9 boot image) + `aux/aout2uimage`.
-2. **The config file** (`<arch>cpu`) is sectioned text. Sections: `dev` (kernel devices; entries may take driver names on the right), `uart`/`ip`/`link`/`misc` (+dev variants get compiled in), `boot` (method table → `boot$CONF.c`), `rootdir` (files embedded into devroot: `boot<conf>.out boot`, factotum, ipconfig…), `conf` (raw C appended to `$CONF.c`, e.g. `int cpuserver=0;`), `dbgflg`, **`<objtype>`** (the machine object list — `parse` reads section named by `$objtype` env into `MACH=`), `port` (portable objects), `dir` (extra source dirs to auto-compile from: k10cpu uses `386 ip port`), `lib` (libraries to link: libip libsec libmp libc).
-3. **Generated sources:** `$CONF.c` (devtab[], links(), addbootfile() root table, physseg[], dbgflg[], conffile), `../port/systab.c` (from `sys/src/libc/9syscall/sys.h` — Harvey's Ar0-typed syscall table), `errstr.h` (from port/error.h), `init.h` (embedded init.out bytecode), `$CONF.root.s` (mkrootall — embedded root image).
-4. **Arch root dir** `/$objtype/` (`aarch64/`): `mkfile` (`CC=7c LD=7l O=7 AS=7a`), `include/u.h`, `include/ureg.h` (+`ape/` later). Repo currently has an **empty `arm64/`** root and `build_arm64` functions in `build/scripts/{build,linux-build}` referencing `objtype=arm64` — PROJECT.md mandates `aarch64`, so: create `aarch64/`, update the two build functions, remove/ignore the empty `arm64/`.
-5. **libc**: `sys/src/libc/aarch64/` (asm files below) + **`sys/src/libc/9syscall/mkfile` needs a `case aarch64`** emitting SVC stubs (9front's arm64 case: `MOV R0,'0(FP)'; MOV $n,R0; SVC; RETURN`). `sys/src/libc/mkfile` iterates `$objtype` automatically; `sys/src/mkfile.proto` `CPUS` += aarch64 for installall.
-6. **Toolchain**: `sys/src/cmd/7a`, `7c`, `7l` (import from 9front; 7c links shared `../cc/cc.a` which Harvey already has) + **`sys/src/cmd/pcc.c` objtype entry** `{"aarch64", "7c", "7l", "7", "7.out"}`.
-7. **libmach** (debugger/disasm): 9front `libmach/7.c` + `MARM64` — defer to a debug-support phase; not needed to boot.
-
-## Mapping table: 9front arm64 → Harvey 9k
-
-9front restructured arm64 support (Nov 2023 "HUMANBIOLOGICS") into a **generic `sys/src/9/arm64/` layer** shared by all arm64 kernels (bcm64, imx8, qemu) — this generic layer, not bcm64, is the right import source. The `qemu` kernel config there targets exactly our milestone machine (`-M virt`, GIC, PL011, ECAM PCIe, virtio).
-
-| 9front source | Action for Harvey | Harvey destination | Adaptation needed |
-|---------------|-------------------|--------------------|-------------------|
-| `9/arm64/l.s` | **Adapt** | `9k/aarch64/l.s` | Entry asm is directly reusable (MMU-off entry, EL2→EL1 drop, cache invalidate, Mach/SP from MPIDR, mmuidmap/mmu0init calls, TPIDR_EL1=m, SEVL secondary release). Edit: symbols must match Harvey `mem.h`; integrate Harvey `init.h` path later. |
-| `9/arm64/cache.v8.s` | **Import** | `9k/aarch64/cache.v8.s` | Verbatim ARMv8 cache/TLB ops (`cachedwbinv`, `cacheiinv`, `flushtlb`, `flushasid*`, `coherence`). |
-| `9/arm64/sysreg.h` (+`sysreg.c`) | **Import** | `9k/aarch64/sysreg.h` | SYSREG encoding macros + accessors. bcm64 later dropped sysreg.c (macros only) — prefer header-only. |
-| `9/arm64/mmu.c` | **Adapt (medium)** | `9k/aarch64/mmu.c` | Core logic portable (block-map kernel, per-proc TTBR0, ASID alloc, `mmuswitch`/`putmmu`/`mmukmap`/`kmap`/`vmap`). Must match Harvey port contract: `PMMU` fields in Proc (define 9front-style `mmufree/mmuhead/mmutail/asid` in our `dat.h`), Harvey `putmmu(va,pa,Page*)` signature (matches), `flushmmu`, `kmapinval` macro, Harvey `PTE*` names in `mem.h`. |
-| `9/arm64/mem.c` | **Adapt (small)** | `9k/aarch64/memory.c` (Harvey naming) | `mmuidmap`/`mmu0init`/`meminit`. 9front uses DTB + `*maxmem`; keep DTB parse minimal, honor `conf.mem[0]`. Rename to match k10 (`memory.c`). |
-| `9/arm64/main.c` | **Adapt (medium)** | `9k/aarch64/main.c` | Init call sequence differs: Harvey k10 order is console→memory→mmu→trap→devtab→`procinit0`→`init0`; Harvey has `Sys *sys` singleton + `sizeofSys`, `confsetenv`, Harvey `init0` (namec `#/`, devtabinit, ksetenv `cputype=aarch64`), Harvey `bootargs` stack build, `userinit` using Harvey Segment/KMap API. Keep 9front's `machinit`/`mpinit` (SPINTABLE/SEV SMP start) — can defer SMP to later phase. |
-| `9/arm64/trap.c` | **Adapt (medium)** | `9k/aarch64/trap.c` | Keep vector install (`VBAR_EL1`), ESR decode, irq dispatch via `Vctl`. Adapt to Harvey: `intrenable` signature (k10 fns.h:57), Harvey note delivery (`postnote`, "sys: trap: …" strings), `fault()` interaction in port/fault.c, `userureg()` check. |
-| — (9front folds into trap.c) | **Write new** | `9k/aarch64/syscall.c` | Harvey-specific: `syscall(int scallnr, Ureg*)` modeled on `k10/syscall.c` — `userureg` check, `up->insyscall`, proctrace hooks, `memmove(up->arg, sp+…, sizeof(up->arg))` (**offset 0 from SP_EL0, not BY2SE**: arm64 BL doesn't push a return address), `systab[scallnr].f(&ar0, (va_list)up->arg)`, return via `ureg->r0 = ar0.p`, errstr swap dance. |
-| `9/arm64/clock.c` | **Adapt (small)** | `9k/aarch64/clock.c` | ARM generic timer: read CNTFRQ_EL0, `fastticks(uvlong*)` = CNTVCT/CNTPCT, `kproftimer` wiring (Harvey portclock.c:172 calls it if non-nil), `timerset` via CNTP_TVAL/CVAL, timer PPI irq (27/30) through gic. |
-| `9/arm64/gic.c` | **Adapt (small)** | `9k/aarch64/gic.c` | GICv2/v3 dist/redist/cpuif init (virt: GIC400 @0x08000000 or GICv3 @0x08000000/0x0A000000), `intrenable`→enable SGI/PPI/SPI, EOI. Match Harvey Vctl. |
-| `9/arm64/fpu.c` | **Import (small edits)** | `9k/aarch64/fpu.c` | FP/SIMD save-restore (32×128-bit regs + FPCR/FPSR), `fpuprocsave/restore`, CPACR_EL1 enable. Harvey names via fns.h. |
-| `9/arm64/uartqemu.c` | **Adapt (small)** | `9k/aarch64/uartpl011.c` | PL011 @0x09000000, irq 33. Register as `PhysUart pl011physuart` — Harvey's `parse` generates `physuart[]` from config `uart` section by stripping the `uart` prefix (`uartpl011` → `pl011physuart`). Rename file to say what it is. |
-| `9/arm64/pciqemu.c` | **Import/adapt** | `9k/aarch64/pciqemu.c` | ECAM PCIe for qemu virt. Only needed when virtio drivers enter the config (phase 2); deferrable for first boot. |
-| `9/arm64/devrtc.c` | **Import** | `9k/aarch64/devrtc.c` | Generic tod-based rtc device; only if `rtc` stays in config (can drop initially). |
-| `9/arm64/bootargs.c` | **Adapt (small)** | fold into `main.c` or keep | Parses x0 (DTB pa) + plan9.ini at CONFADDR. For direct `-kernel` boot with embedded root and no plan9.ini, reduce to DTB scan for memory size (or fixed `*maxmem` default). |
-| `9/arm64/init9.s` | **Import (trivial)** | `9k/aarch64/init9.s` | 4 instructions: set SB, load `/boot`, `B startboot`. Harvey port/initcode.c provides `startboot`. |
-| `9/arm64/rebootcode.s` | **Skip for now** | — | Reboot support; add in a later phase. |
-| `9/arm64/qemu` (config) | **Rewrite in Harvey format** | `9k/aarch64/aarch64cpu` | Harvey config grammar (see below). |
-| `9/arm64/mkfile` | **Rewrite** | `9k/aarch64/mkfile` | Harvey style: `ARCH=aarch64`, `parse`+`bootmkfile`+`portmkfile`, Harvey link line. |
-| `9/bcm64/*` (archbcm3/4, ethergenet, sdhc, pcibcm, gisb, vcore…) | **Do not import** | — | RPi board support; out of scope (qemu virt only). |
-| 9front `port/ethervirtio10.c`, `sdvirtio10.c` | **Phase 2, optional** | `9k/port/` | Harvey already has `386/ethervirtio.c` (PCI virtio-net) and `386/sdvirtio.c` — audit for x86 port-I/O assumptions before reuse; alternatively import 9front's newer virtio10 drivers into port/. **Not needed for first shell.** |
-
-## Recommended port dir: `sys/src/9k/aarch64/` file inventory
-
-Minimal set to boot qemu virt to a shell (~4,500 lines, most imported/adapted):
+## Recommended Architecture
 
 ```
-sys/src/9k/aarch64/
-├── mkfile            # ARCH=aarch64 objtype=aarch64 CONF=aarch64cpu; parse+bootmkfile+portmkfile (~60 ln)
-├── aarch64cpu        # kernel config in Harvey grammar (~90 ln, below)
-├── mem.h             # address map + PTE bits + register conventions (~200 ln, from 9front arm64)
-├── dat.h             # Lock/Label/Mach/Sys-adapted, PMMU/PFPU/PNOTIFY, Vctl, Confmem (~250 ln)
-├── fns.h             # machine fn prototypes consumed by port/ (~200 ln)
-├── io.h              # PHYSIO/VIRTIO windows, GIC/UART base addrs, Vctl irq glue (~80 ln)
-├── sysreg.h          # SYSREG macros, DAIF/SCTLR/TCR/MAIR constants (~250 ln, import)
-├── l.s               # _start, vectors (vsys0/vtrap0 + EL1 variants), touser, forkret,
-│                     #   mmuenable/mmudisable, setttbr, splhi/splx, tas/locks asm (~450 ln)
-├── cache.v8.s        # ARMv8 cache/TLB maintenance (~350 ln, import verbatim)
-├── syscallentry.s    # (optional split of l.s; k10 splits l64syscall.s — our call)
-├── main.c            # main(arg0=dtb), machinit, confinit, init0, userinit, bootargs,
-│                     #   mpinit(deferrable), shutdown/exit/reboot stubs (~450 ln)
-├── memory.c          # mmuidmap, mmu0init, meminit, kmapram (~150 ln, = 9front mem.c)
-├── mmu.c             # mmuswitch, putmmu, mmuwalk, mmukmap, kmap/vmap, ASIDs (~550 ln)
-├── trap.c            # trapinit, trap(), fault glue, intrenable/intrdisable (~400 ln)
-├── syscall.c         # Harvey Ar0 ABI, systab dispatch, notify/noted (~300 ln, from k10)
-├── clock.c           # generic timer: fastticks, kproftimer, HZ irq, timersinit (~200 ln)
-├── fpu.c             # fpuprocsave/restore, fpuinit, fpunoted (~250 ln)
-├── gic.c             # GICv2/v3 init + irq enable/disable/eoi (~250 ln)
-├── uartpl011.c       # PhysUart pl011physuart + consuart early print (~180 ln)
-├── devrtc.c          # optional; generic rtc via tod (~120 ln)
-├── pciqemu.c         # optional phase-2; ECAM pci (~600 ln)
-├── bootargs.c        # optional; dtb/plan9.ini scan (~150 ln, can fold into main.c)
-└── init9.s           # 4-line first-user trampoline (import)
+host (darwin/linux)                     guest (qemu -M virt, r9 kernel)
+┌─────────────────────────────┐        ┌────────────────────────────────────────┐
+│ drawterm (nix-supplied)     │  tcp   │ listen (aux/listen) scans /net/tcp     │
+│  serves /dev/draw /mouse    │─17010─▶│  └─▶ /rc/bin/service/tcp17010          │
+│  /snarf over the cpu conn   │ 9P+    │       #!/bin/cpu -R                    │
+│  mounts guest exportfs      │ p9sk1  │            ├─ auth_proxy (factotum)    │
+└─────────────┬───────────────┘        │            ├─ auth_chuid → #¤ (devcap) │
+              │ qemu netdev            │            ├─ newns(user)              │
+   ┌──────────┴───────────┐            │            ├─ exportfs ⇄ drawterm      │
+   │ slirp (default,       │  virtio-  │            └─ mount drawterm devfs →   │
+   │  hostfwd 17010)       │  net-pci  │              /dev/draw,/dev/mouse…     │
+   │ vmnet (darwin, sudo)  │◀─────────▶│              rio from $home/profile    │
+   │ tap/bridge (linux)    │  virtqueue│                                          │
+   └──────────────────────┘  +GICv2    │ kernel: devether(#l) ⇄ ethermedium      │
+                             SPI/INTx  │           devip(#I): arp ip ipifc      │
+┌─────────────────────────┐            │             iproute icmp udp tcp        │
+│ srv9-style host 9P      │  9P/tcp    │             + loopback/null medium      │
+│ server serves /adm      │◀──────────▶│ devmnt mounts /adm, /lib/ndb (real-use) │
+│ + /lib/ndb (real use)   │            │ auth: keyfs authsrv factotum cs dns     │
+└─────────────────────────┘            └────────────────────────────────────────┘
 ```
 
-Config sketch (`aarch64cpu`, Harvey grammar — note `<objtype>` section must be named `aarch64` since `parse` keys MACH off `$objtype`):
+Everything above the `kernel:` line is **existing Harvey userspace, ported not invented**. Everything on the kernel line is **new Rust in r9, ported from Harvey's C**. The host's only novelties are qemu netdev wiring and the drawterm package.
+
+---
+
+## The TCP/IP Path Decision (the milestone's pivotal call)
+
+### What Harvey actually ships (verified in-tree)
+
+| Layer | Content | Location |
+|-------|---------|----------|
+| Kernel IP stack | Full IPv4+IPv6: `devip.c` (#I device), `ip.c`, `ipifc.c`, `iproute.c`, `arp.c`, `tcp.c` (3,486 lines), `udp.c`, `icmp.c`, `icmp6.c`, `ipv6.c`, mediums (`ethermedium`, `loopbackmedium`, `nullmedium`, `pktmedium`, `netdevmedium`, `gre`, `esp`, `rudp`, `igmp`, `ipmux`), `ipaux.c`, `chandial.c`, `netlog.c`, `ptclbsum.c` | `sys/src/9k/ip/` (**9k carries its own copy**, 22 files ≈ 15.4k lines C; it drifts from `sys/src/9/ip/`) |
+| Kernel ether | `netif.c`/`netif.h` (portable ether framework) + per-driver `devether.c`/`ethervirtio.c` | `sys/src/9k/port/netif.c`, `sys/src/9k/386/ethervirtio.c` (legacy-transitional PCI only) |
+| Userspace | `libip` = **address parsing/dial helpers only** (not a stack). `sys/src/cmd/ip/` = *services on top of the kernel stack*: `ipconfig` (2.1k-line main — configures the **kernel** stack via `/net/ether0`/`/net/ipifc` ctl writes + `dhcpclient.c`), `ping`, `traceroute`, `ftpd`, `telnetd`, `dhcpd`, `tftpd`, `snoopy`, `gping`, `udpecho`… | `sys/src/libip/`, `sys/src/cmd/ip/` |
+| Connection service | `cs`/`dns` are userspace 9P servers mounted at `/net/cs`, `/net/dns` | `sys/src/cmd/ndb/cs.c`, `dns.c` |
+
+**The decisive fact:** `announce()`/`listen()`/`dial()` in libc (`sys/src/libc/9sys/announce.c`) are **pure file I/O on `/net`** — open `/net/tcp/clone`, write `announce tcp!*!17010`, read back the line number. There are **no ANNOUNCE/LISTEN syscalls** in `sys/src/libc/9syscall/sys.h` (verified: table runs BIND(2)…NMOUNT(54) with no net syscalls). The entire TCP/IP interface is the `/net` file tree served by kernel devip. Whoever provides TCP must present devip's exact file interface (`clone`, `N/{ctl,data,local,remote,status}`, `ipifc`, `arp`) or none of libc/`ipconfig`/`listen` works.
+
+### Options compared
+
+| Option | What it means | Verdict |
+|--------|---------------|---------|
+| **(a)+(c) Rust `devether`+`devip` in r9, virtio-net under it** (the same option — (c) is (a) with the driver) | Port the IPv4 subset of `sys/src/9k/ip` to Rust in `r9/port/src/`; virtio-net feeds a new `devether` (#l) | **RECOMMENDED.** The only path that satisfies libc's `/net` contract without inventing a parallel one. r9 is the kernel; a Plan 9 kernel owns its IP stack. Bounded: ~11–12k lines C (IPv4 subset) → est. 6–8k lines Rust. |
+| (b) Userspace TCP/IP over raw ether | Write a brand-new userspace TCP in C | **REJECTED.** Harvey ships no userspace stack to port — this is pure invention at the *same* scale as (a), and it must still reimplement devip's file interface for `announce()` to work. Worst of both worlds, non-idiomatic for Plan 9. |
+| Kernel ip stack as foreign C linked into r9 | Compile `9k/ip` C into the Rust kernel | **REJECTED** (implicit): r9 is `#![forbid(unsafe_code)]` no_std Rust with a locked per-process usermem model; injecting a C stack violates the project's defining constraint (Key Decision: maximal unsafe elimination). |
+| Dodge the stack entirely (9P over serial/virtio-console, slirp socket tricks) | — | **REJECTED.** The requirement is a real `tcp/17010` listener on a real L2 NIC that a stock drawterm dials. No dodge satisfies it. |
+
+### Recommended shape: staged IPv4 port of `9k/ip`
+
+Stage by protocol file, each with a gate (details in Build Order):
+
+1. **Core + loopback**: `devip` device shell, `ip.c`, `ipifc.c`, `iproute.c`, `ipaux.c`, `chandial.c`, `netlog.c`, `ptclbsum.c`, `nullmedium`, `loopbackmedium` → `/net` exists; loopback dial works **before any NIC driver lands**. This decoupling is sequencing gold: auth/cpu pieces are testable over loopback.
+2. **ICMP + UDP**: `icmp.c`, `udp.c` → `ping 127.0.0.1`, `udpecho` gates in-guest.
+3. **TCP**: `tcp.c` (the 3.5k-line core: Reno CC, timers, listen/announce state machine) → in-guest `listen` on tcp/7 echo over loopback; then over ether.
+4. **Ether binding**: `arp.c` + `ethermedium.c` bound to `devether` → real wire.
+5. **Deferred**: `ipv6.c`/`icmp6.c` (defer to a later milestone), `gre/esp/rudp/igmp/inferno/ipmux/pktmedium/netdevmedium` (drop — not needed for cpu/auth/drawterm).
+
+**Semantic dependencies the port must re-home** (the real cost, name them in the phase plan):
+- **`Block`/`allocb` buffer chains** (`sys/src/9k/port/allocb.c`) — the stack's packet currency. r9 has no equivalent; add a `port/src/block.rs`.
+- **`kproc` kernel processes** — tcp timers, arp expiry, iproute aging run as kernel procs in C. r9 has per-process kernel stacks + a 1 ms tick; restructure ip timers onto a tick-driven timer wheel instead of growing a kproc concept. Design decision for the phase.
+- **`Rendez` sleep/wakeup + `qlock`** — r9 has `mcslock`/`Lock` and wait/wake machinery inside devpipe; extract a reusable rendez.
+- **`Fs`/`Proto` table dispatch** (`devip.c` protocol table, `ipprotoinit[]`) — maps naturally to Rust match/statics.
+- **Medium abstraction** — `Medium` vtable → Rust trait. This is what lets loopback land first.
+
+---
+
+## virtio-net Driver Shape in r9
+
+**Transport choice: virtio 1.x modern PCI, non-transitional only.** Phase 2's donor note (`build/aarch64/boot-9qemu.sh:64-66`) established that qemu 11.1.2's default `virtio-net-pci` is transitional (device 0x1000) and already forced `virtio-net-pci-non-transitional` (modern, 0x1041) for the 9front donor. Since r9's xtask owns the qemu command line via TOML data (D-05/D-06/D-07), r9 dictates the modern device and implements **only** the modern path — PCI capabilities list (common cfg / notify / ISR / device cfg), no legacy I/O-port state machine. Harvey's own `9k/386/ethervirtio.c` is legacy-era and x86-port-I/O-flavored; **9front's `ethervirtio10.c` (in the vendored donor tree) is the correct modern reference**.
+
+**New components (r9 repo):**
+
+| Component | File (proposed) | Content |
+|-----------|-----------------|---------|
+| PCI/ECAM discovery | `aarch64/src/platform/virt/pci.rs` | ECAM window at PA `0x4010000000` (qemu virt map, confirmed in DTB `pci` node); bus scan; BAR sizing; INTx→SPI routing read from the DTB's PCI `interrupt-map` (r9's DTB-discovered-drivers convention — **never hardcoded IRQ numbers**) |
+| virtio transport | `port/src/virtio.rs` | Virtio 1.x over PCI: caps parsing, split virtqueues (descriptor table/avail/used), queue 0=RX, queue 1=TX, ISR read + notify |
+| devether | `port/src/devether.rs` + `port/src/netif.rs` | #l device presenting `/net/ether0/{clone,0/{addr,ctl,data,ifstats,stats,type}}` per `netif.h`; RX IRQ → wakeup → ethermedium; TX from ip stack → virtqueue |
+| qemu wiring | `aarch64/lib/config_virt.toml` | `-device virtio-net-pci-non-transitional,netdev=n0` + `-netdev …` become TOML `[qemu]` data — platforms-as-data decision already locked |
+
+**Interrupts:** PCI INTx → GICv2 SPI per DTB interrupt-map → existing `trap()` dispatch gains an IRQ-handler registry slot (today: timer INTID 30, PL011 INTID 33; virtio SPI joins the same table). MSI is possible on gicv2 only via a GICv2m frame — **skip for v2.0**, INTx is one line and DTB-declared.
+
+---
+
+## What auth/cpu/rio Need From the r9 Kernel
+
+All three are **Harvey userspace** (`sys/src/cmd/auth/`, `cpu.c`, `exportfs/`, `aux/listen.c`, `rio/`). Verified kernel requirements beyond the measured 26-syscall set (r9 `aarch64/src/syscall.rs` dispatch table, currently 26 `Some` entries):
+
+| Need | Why (evidence) | Size |
+|------|----------------|------|
+| **`#!` exec in r9** | `/rc/bin/service/tcp17010` is literally `#!/bin/cpu -R`, and `aux/listen.c:541` `execl()`s it directly — kernel-side `#!` parsing (Harvey: `sys/src/9k/port/sysproc.c:282-301`). r9 `exec.rs` has **no** shebang path today. Without it the cpu service cannot start. | Small, load-bearing |
+| **devcap (`#¤`)** | cpu server set-user: `cpu.c:srvp9auth` → `auth_chuid(ai)` → libauth writes `/dev/capwrite` after the auth server seeds `/dev/caphash`. Standard namespace already does `bind -a #¤ /dev` (`lib/namespace`). | Small device (~200 lines C in `9k/port/devcap.c`) |
+| **`/dev/random` + `/dev/urandom`** | p9sk1 challenge generation (factotum, authsrv, cpu key exchange — `cpu.c:p9auth` calls `truerand()`). r9 devcons has **no** random files today. Entropy on qemu-virt: recommend **DTB-seeded CSPRNG** — the boot-r9 app already fdtput-patches `/chosen` (initrd delivery, Phase 4); add an `rng-seed` property per launch, expand via chacha (libsec lineage). `virtio-rng-pci` is the cleaner follow-up once virtio exists — name both, take DTB-seed for v2.0. Dev-grade crypto is honest for this milestone (TLS hardening is explicitly out of scope). | Small |
+| **WSTAT(44) / FWSTAT(45) / REMOVE(25)** | exportfs maps incoming Twstat/Tremove to these syscalls; a drawterm session that edits files (rio snarf buffers, acme) needs them. Today loud-`None`. | Small |
+| **Measure-first additions** | RENDEZVOUS(34), SEMACQUIRE(37)/SEMRELEASE(38)/TSEMACQUIRE(52), SEGATTACH(30): predicted-unused but unverified. **Apply the Phase 5 D-14 discipline**: tracer-gate the real auth/cpu boot chain, extend only what the trace names. FAUTH(10) stays out (cpu-layer auth doesn't fauth; the designed no-auth fall-through already exists). | Method, not code |
+| **devproc completeness** | `listen` procsetname writes `#p/pid/args`; cpurc/rc job control pokes `/proc` ctl. Phase 5's "full /proc" likely covers; verify against the traced chain. | Verify only |
+| **Time** | r9 devcons already has `#c/time` (fixed epoch + settime writes) — sufficient for p9sk1 (tickets carry no wall-clock expiry). Optional nicety: PL031 RTC at `0x09010000` (DTB `arm,pl031`) for real wall time; ipconfig/DHCP lease bookkeeping likes it. **Not blocking.** | Optional |
+| **devssl (`#S`)** | `cpu.c` defaults `ealgs = "rc4_256 sha1"` via `pushssl`. **Recommend negotiate `clear` for v2.0** (both cpu and drawterm accept `-e clear`) and defer devssl to the security-hardening milestone (already named Out of Scope). p9sk1 still authenticates; the session is unencrypted. Document loudly. | Deferred by decision |
+| **Writable storage for auth state** | **Gap:** r9 has no writable fs — paqfs/devroot is read-only by design. `/adm/keys` (keyfs's format) must live somewhere. **Answer: host-served 9P.** The Phase 2 `harness srv9` lineage already serves 9P2000/tcp to a guest; r9's devmnt (kernel 9P client) mounts it as `/adm` + `/lib/ndb`. Chicken-egg is clean: the mount needs no auth on the host-local tap. **CI/smoke variant:** bake a fixed dev-password `/adm/keys` into the paqfs image (host-side generation via a one-shot `auth-setup` boot that writes through the 9P mount, then re-bake). Baked = deterministic CI; host-9P = real use. Both documented. | Integration, no new fs |
+
+---
+
+## Boot Flow Changes (terminal → cpu server)
+
+Current r9 boot (`sys/src/9k/boot/bootr9.c`) hardcodes the terminal profile: `cpuflag=0` → `init -t` → `termrc`, method table = embed `/rootfs.img` only, `nobootprompt=embed` seeded by the kernel.
+
+CPU-server profile needs:
+
+1. **`service=cpu` delivery**: `boot.c` reads plan9.ini keys (`#e` env) and runs `init -c` → `/rc/bin/cpurc`. plan9.ini keys arrive via **DTB `/chosen/bootargs` → `-append`** — the Phase 2/4-established channel (`bootargs=tcp fs=… user=glenda` precedent). The boot-r9 app adds `service=cpu auth=<authdom-ip>` to the append line; `bootr9.c` (or a `bootr9cpu.c` sibling) sets `cpuflag=1` from it instead of hardcoding 0.
+2. **A real `cpurc`** (extend `cfg/example/cpurc`, currently a 13-line stub): `ip/ipconfig` (static or `dhcpclient` vs slirp's 10.0.2.x DHCP), mount host-9P `/adm`+`/lib/ndb` (real-use path), `auth/keyfs -w /adm/keys`, `auth/authsrv`, `ndb/cs` + `ndb/dns` (guest-local — `lib/namespace` already mounts `/srv/cs`,`/srv/dns` into `/net`), `aux/listen -q tcp`.
+3. **ndb content**: `/lib/ndb/local` with the authdom, guest IP, `auth=` entry. Baked into the image or host-9P-mounted (same duality as `/adm/keys`).
+4. **init exists**: `sys/src/cmd/init.c` — the `-c` path is stock; no kernel change beyond the bootconf cpuflag.
+
+**Namespace for a drawterm session** (all existing machinery): `cpu -R` post-auth runs `newns(user, nil)` → `/lib/namespace` (verified present, binds `#I`/`#l` into `/net`, `/srv/factotum` into `/mnt`), then serves `exportfs` toward drawterm **and mounts drawterm's device fs back over the same connection** (the cpu protocol is bidirectional 9P on one fd — how cpu/import have always worked), binding drawterm's `/dev/draw`, `/dev/mouse`, `/dev/cursor`, `/dev/snarf` into the session's `/dev`. rio starts from the user's `$home/lib/profile`, opens `/dev/draw` — which is now the **host's** window. r9 needs **no** devdraw/devmouse/gpu: the draw device arrives over 9P. This is the canonical Plan 9 terminal/cpu arrangement with drawterm playing the terminal kernel's role. (`rio.c` verified: needs `/dev/snarf`, `/dev/draw` via libdraw, `/dev/mouse` via mouse fd — all drawterm-served.)
+
+---
+
+## Host Side
+
+| Piece | darwin | linux | Notes |
+|-------|--------|-------|-------|
+| Default net (unprivileged) | `-netdev user,id=n0,hostfwd=tcp:127.0.0.1:17010-:17010` (slirp) | same | Works with guest DHCP (10.0.2.15, gw 10.0.2.2); drawterm dials localhost. **CI-able** — the smoke gate uses this. Not true L2 (no real ARP visibility), which is fine for v2.0's gate. |
+| Real L2 (documented, privileged) | `-netdev vmnet-shared` / `vmnet-bridged` — **requires root or the restricted `com.apple.vm.networking` entitlement** (confirmed: vmnet.framework is root-gated) | `-netdev tap,ifname=tap0,script=no` + bridge, or `-netdev bridge` via qemu-bridge-helper (setuid) | Per-host setup doc in the repo; the milestone's "real L2" story lands here. |
+| Flake wrap | `boot-r9` app gains a net-mode switch: `slirp` default; `vmnet`/`tap` via env/flag; r9 TOML `[qemu]` gains netdev data | same | Keeps platforms/hosts-as-data discipline |
+| drawterm | nixpkgs `drawterm` (builds darwin+linux; X11 on linux, cocoa-capable on darwin) | nixpkgs `drawterm` | **Recommend nixpkgs pin for v2.0.** In-tree `sys/src/cmd/unix/drawterm/` (with `Make.osx`/`gui-osx`, `Make.unix`/`gui-x11`) is a vendored-build follow-up consistent with the vendor-and-own discipline — not gate-blocking. |
+
+---
+
+## Suggested Build Order (dependency-explicit)
 
 ```
-dev +dev
-	root cons env pipe proc mnt srv dup ssl tls cap kprof
-	ether	netif
-	ip	arp chandial ip ipv6 ipaux iproute netlog nullmedium pktmedium ptclbsum
-	uart
-uart +dev
-	uartpl011
-ip +dev
-	tcp udp ipifc icmp icmp6
-link +dev
-	loopbackmedium ethermedium netdevmedium
-misc +dev
-	cache
-boot cpu
-	tcp
-rootdir
-	bootaarch64cpu.out boot
-	/aarch64/bin/auth/factotum factotum
-	/aarch64/bin/ip/ipconfig ipconfig
-conf
-	int cpuserver = 0;
-aarch64 +dev
-	l cache.v8 clock fpu gic main mmu memory syscall trap uartpl011 sysreg(?) …
-port
-	alarm allocb chan dev devtab edf fault image latin1 page parse pgrp
-	portclock print proc ps qio qlock qmalloc random rebootcmd segment
-	sysauth sysfile sysproc sysseg systab taslock tod watermarks
-dir
-	ip port
-lib
-	libip libsec libmp libc
+[1] Full aarch64 userspace ──────────────────────────────┐ (parallel with everything;
+     all sys/src/cmd + GUI libs compile; compile-gated     │  GUI validated headless until [8])
+     (ipconfig, listen, cpu, exportfs, auth/*, ndb/*, rio) │
+                                                          ▼
+[2] r9 PCI/ECAM + virtio-1.x + virtqueues + virtio-net + devether(#l)
+     gate: RX/TX packet counters; ARP request visible on host tap/slirp
+     │
+     ▼ (parallel with [2]! loopback needs no NIC)
+[3] r9 devip core: block.rs + devip/ip/ipifc/iproute/ipaux/chandial/netlog
+     + null/loopback mediums; then icmp→udp→tcp
+     gates: ping 127.0.0.1 → udpecho → in-guest tcp/7 echo (all loopback)
+     │
+     ├──────────────────────────────┐
+     ▼                              ▼
+[4] arp + ethermedium bound to    [6] r9 kernel service additions (parallel):
+     devether; ipconfig vs slirp      #! exec, devcap(#¤), /dev/random (DTB-seed),
+     gates: ping 10.0.2.2; udp        WSTAT/FWSTAT/REMOVE, tracer-gated syscall
+     echo to host                     extensions, devproc verification
+     │                              │
+     ▼                              │
+[5] Host net flake: slirp default + hostfwd, documented vmnet/tap,
+     r9 TOML netdev data (needs [2]; e2e gate needs [4])
+     │                              │
+     ▼                              ▼
+[7] Auth domain: cpurc, service=cpu bootconf, /adm/keys + ndb content
+     (baked + host-9P paths), keyfs/authsrv/factotum/cs/dns composition
+     gate: factotum p9sk1 challenge vs local authsrv **over loopback** [needs 3,6,1]
+     │
+     ▼
+[8] cpu service + drawterm: listen/tcp17010, exportfs, drawterm pkg, rio session
+     gates: drawterm → p9sk1 → rio window (interactive UAT);
+            CI smoke via hostfwd 127.0.0.1:17010 [needs 4,5,7]
 ```
 
-Deliberately **excluded** vs k10cpu: `acpi`, `rtc` (until devrtc imported), `devarch` (`arch` — x86 ioalloc semantics; 9front arm64 omits #P entirely), vga/draw/mouse (headless), `swap` (9k port has no devswap), `ether`+`link` virtio NICs (phase 2), `sd` storage (boot from embedded devroot).
+**Ordering rationale:**
+- [2]∥[3] is the critical decoupling: loopback devip gives a `/net` before the NIC exists, so the TCP state machine (hardest part) is debuggable without driver heisenbugs in the loop.
+- [7] before [8]: the cpu service authenticates; testing cpu without auth first is the debuggable intermediate (`srvnoauth` path exists in `cpu.c` — a legit stepping stone behind a debug flag, not the shipped gate).
+- [1] is genuinely parallel: it shares no code with the r9 work and is compile-gated until [8] gives the GUI stack somewhere to run.
+- [5]'s slirp leg is pure qemu-args work (can start at [2]); only its acceptance needs [4].
 
-**Critical compile-time trap:** Harvey `port/` files assume arch defines from `mem.h`: `BY2PG/PGSZ`, `PTEMAPMEM/PTEPERTAB/SEGMAXSIZE` (portdat.h:351,373 size the Segment page-map arrays!), `MACHMAX`, `MACHSZ`, `KZERO`, `UTZERO/USTKTOP/USTKSIZE`, `KTZERO`, `STACKALIGN`. SEGMAXSIZE is derived from PTEPERTAB×PTEMAPMEM — pick mem.h values first, then verify portdat.h arrays stay sane (9front arm64: 4K pages, EVASHIFT=36, PTLEVELS=3 → PGLSZ(1)=2MiB blocks; their kernel later had to fix SEGMAXSIZE for 64-bit — see 9front commit "kernel: fix SEGMAXSIZE macro, force 64-bit result"; apply that fix proactively).
+---
 
-## Memory map (recommended: adopt 9front arm64 qemu layout verbatim)
+## Component Boundaries (new vs modified)
 
-```
-0xFFFFFFFF80000000  KZERO    kernel VA base
-0xFFFFFFFFB0000000  VIRTIO   device window VA (phys 0x08000000–0x10000000: GIC, PL011)
-0xFFFFFFFFC0000000  VDRAM    DRAM VA base (phys 0x40000000 = qemu virt DRAM start)
-0xFFFFFFFFC0100000  KTZERO   kernel text VA (phys 0x40100000; first 1M: DTB@0x40000000,
-│                              plan9.ini/CONFADDR@0x40010000, rebootcode@0x40020000)
-↓ below KTZERO:      MACHADDR(n) = KTZERO-(n+1)*8KiB   per-CPU Mach+stack arrays
-↓                    L1TOP/L1 boot page tables
-0xFFFFFFFE00000000  KMAP/KSEG0  kmap window (phys 0x40000000…, to 0x140000000 = 5GB max RAM)
-0xFFFFFFFF00000000  VMAP     vmap() arena
-user: UZERO=0, UTZERO=+0x10000, USTKTOP=0x00007FFFFFFF0000, USTKSIZE=16MiB
-```
+| Component | Repo | Status | Responsibility |
+|-----------|------|--------|----------------|
+| `port/src/virtio.rs` | r9 | **NEW** | virtio 1.x PCI transport, split virtqueues |
+| `aarch64/src/platform/virt/pci.rs` | r9 | **NEW** | ECAM scan, BARs, DTB interrupt-map → GIC SPI |
+| `port/src/devether.rs` + `netif.rs` | r9 | **NEW** | #l device, `/net/ether0` file tree |
+| `port/src/block.rs` | r9 | **NEW** | allocb/Block packet buffers |
+| `port/src/devip.rs` + `ip/` module | r9 | **NEW** (port of `9k/ip` IPv4 subset) | #I device, TCP/UDP/ICMP/ARP, mediums |
+| `port/src/devcap.rs` | r9 | **NEW** (port of `9k/port/devcap.c`) | #¤ caphash/capwrite |
+| `port/src/devcons.rs` | r9 | **MODIFIED** | add `random`/`urandom` files (DTB-seeded CSPRNG); optional PL031 rtc |
+| `aarch64/src/exec.rs` | r9 | **MODIFIED** | `#!` interpreter exec |
+| `aarch64/src/syscall.rs` | r9 | **MODIFIED** | WSTAT/FWSTAT/REMOVE + tracer-named additions |
+| `aarch64/lib/config_virt.toml` | r9 | **MODIFIED** | virtio-net device + netdev qemu args as data |
+| `sys/src/9k/boot/bootr9.c` (+`bootr9cpu.c`) | Harvey | **MODIFIED/NEW** | cpuflag from plan9.ini `service` key |
+| `cfg/example/cpurc` | Harvey | **MODIFIED** | real cpu-server startup (ipconfig, keyfs, authsrv, cs/dns, listen) |
+| `lib/ndb/local` + `/adm/keys` bake | Harvey | **NEW content** | authdom data; mkpaqfs bake stage injects |
+| `flake.nix` / `nix/*.sh` | Harvey | **MODIFIED** | net-mode switch on boot-r9; `drawterm` app; `auth-setup` app |
+| `sys/src/cmd/*` (all) + GUI libs | Harvey | **MODIFIED** (port fixes only) | aarch64 compile — no architectural change |
+| `sys/src/cmd/ip/*`, `auth/*`, `cpu.c`, `exportfs/`, `aux/listen*`, `rio/`, `ndb/*` | Harvey | **UNCHANGED architecturally** | they are the payload; compile + run |
 
-Rationale: identical constants to 9front's qemu kernel means `l.s`/`mmu.c`/`mem.c` import with near-zero constant bugs. `va−KZERO = pa` for DRAM (paddr/kaddr are ±KZERO).
+## Anti-Patterns to Avoid
 
-**Register conventions (7c ABI + kernel):** R0 = first arg / return value / syscall number carrier; R26 = `up` (USER); R27 = `m` (MACH), mirrored in `TPIDR_EL1` (trap entry does `MRS TPIDR_EL1,R27; MOV 16(R27),R26` — **Mach.proc must stay at offset 16**, asm-known offsets documented in k10 dat.h comments — replicate); R28 = SB (`setSB`); R30 = LR. Trap frame: Ureg = r0..r30, sp, pc, psr, type (38×8 frame).
+### Inventing a userspace TCP/IP to dodge the kernel port
+**What:** raw ether to a C/Rust userspace stack. **Why bad:** must still reimplement devip's `/net` file contract for libc `announce()` — same work, worse shape, breaks ipconfig/cs/dns assumptions. **Instead:** port `9k/ip` IPv4 subset into r9.
 
-**Syscall ABI (matches Harvey amd64 shape):** user stub `MOV R0,'0(FP)'; MOV $n,R0; SVC`; kernel `vsys0` saves regs, `syscall(ureg->r0, ureg)`; args fetched from user stack at `SP_EL0+0` (no pushed return addr on arm64 — differs from k10's `sp+BY2SE`); handlers `sysX(Ar0*, va_list)` read from `up->arg` via the arm64 `va_arg` (8-byte slots, from `aarch64/include/u.h`); result → `ureg->r0 = ar0.p`.
+### Hardcoding virtio IRQs/addresses
+**Why bad:** violates r9's locked DTB-discovered-driver convention (Phase 3 decision, raspi3b/qemu drift is the standing cautionary tale). **Instead:** PCI node + interrupt-map from the DTB; platform differences stay TOML/DTB data.
 
-## Boot sequence: qemu `-M virt` → shell
+### Letting the C stack's kproc/timer model leak into r9 unchanged
+**Why bad:** r9 deliberately has no kproc concept; bolting one on for ip timers grows kernel surface the unsafe-elimination milestone just shrank. **Instead:** tick-driven timer wheel on the existing 1 ms generic-timer tick.
 
-**Recommended path for the milestone: direct `qemu -kernel` raw binary.** Alternatives documented after.
+### Shipping devssl/rc4 because cpu.c defaults to it
+**Why bad:** ports weak crypto (rc4_256/sha1) into the new kernel — the opposite of the TLS-modernization direction. **Instead:** `-e clear` for v2.0 (documented), devssl/TLS in the hardening milestone.
 
-```
-qemu-system-aarch64 -M virt,gic-version=2(or 3) -cpu cortex-a72 -m 1G \
-    -nographic -serial mon:stdio -kernel 9aarch64cpu
-```
+### Baking real user keys into committed images
+**Why bad:** secrets in git. **Instead:** baked **dev-only** keys for CI smoke (clearly marked), host-9P `/adm` mount for real use, `auth-setup` one-shot boot to generate.
 
-1. **Firmware/loader:** qemu loads the raw kernel image at physical `DRAM+0x80000` (0x40080000) for `-kernel` on virt, sets **x0 = phys addr of DTB** (qemu places DTB at 0x40000000), starts all primaries' CPU0 at the load address in **EL1 (or EL2 with virtualization=on), MMU off, caches off**.
-   - *Constant check:* 9front's layout assumes phys load at 0x40100000 (u-boot loads there). For `-kernel` either (a) set `KTZERO=VDRAM+0x80000` in mem.h and link `-T` accordingly, or (b) keep 0x40100000 and emit ELF (`7l` ELF header flag — verify `-H` support during toolchain phase; k10 uses `6l -H5`) and let qemu honor ELF phdrs. Pick (a) if 7l lacks ELF output.
-2. **`l.s _start`:** save x0(DTB)→R26; physical SB (`$setSB-KZERO`); `svcmode` (drop EL2→EL1 if needed, `SPSel=1`); `mmudisable`; invalidate caches; compute this CPU's Mach phys base from `MPIDR_EL1&(MAXMACH-1)`, set SP to Mach top; CPU0 only: zero L1+Mach region, clear BSS, `mmuidmap(L1BOT)` (TTBR0 identity map of DRAM), `mmu0init(L1)` (TTBR1 kernel high map: INITMAP + VIRTIO device window), `SEVL` releases secondaries (they WFE-wait then re-enter at `_startup` — SMP deferrable: conf.nmach=1).
-3. **`mmuenable`:** program MAIR/TCR/TTBR0/TTBR1, `SCTLR_EL1.M=1`, ISB, return into the high alias; restore R0=DTB; `TPIDR_EL1 = m|KZERO`; SB virtual; `BL main`.
-4. **`main(arg0)` (CPU0):** `machinit` → `bootargsinit(arg0)` (DTB mem size / plan9.ini) → `meminit` (conf.mem, `kmapram`) → `confinit` (npage/nproc/nswap…) → `xinit` (Harvey qmalloc arenas) → `printinit` → **uartconsinit (PL011)** → `print("Harvey\n")` → `trapinit` (VBAR_EL1) → `fpuinit` → `clockinit`/`timersinit` (generic timer, fastticks live) → `pageinit` → `procinit0` → `initseg` → `links()` → `devtabreset`/`chandevreset` → `userinit` (first proc + embedded initcode page) → `mmu1init` → `schedinit` → first `sched()` enters `init0` kproc.
-5. **`init0` (Harvey):** `up->slash = namec("#/",…)` (devroot = embedded root from `mkrootall`), `devtabinit`, `ksetenv("cputype","aarch64")`, service env, `kproc("alarm",…)`, `touser(sp)`.
-6. **First user process:** embedded `initcode` (port/initcode.c `startboot`) execs `/boot` (= `bootaarch64cpu.out`, embedded per config `rootdir`).
-7. **`boot` (9k/boot/boot.c):** with embedded root + `local`/no-auth path, mounts `#/`, execs rc with `rcmain` → **shell on the UART console**. (Network/auth methods come alive once virtio-net lands; the milestone can ship `boot` with a rootdir-only path — follow `k10root`-style embedding precedent.)
+## Scalability Considerations
 
-**Alternative boot paths (document, don't build yet):** (b) u-boot: 9front's flow — `7l` image → `aux/aout2uimage -Z$kzero` → FAT with `boot.scr`+`plan9.ini`, qemu `-bios u-boot.bin` (adds a firmware dep but matches 9front qcow2 installs); (c) EDK2 + Harvey EFI loader — 9front ported boot/efi to arm64; that's the long-term hardware path, out of milestone scope.
-
-## Architectural Patterns
-
-### Pattern 1: Import board-neutral layer, rewrite the seams
-**What:** Take 9front `9/arm64/*` (not bcm64) as the base; rewrite only `dat.h`/`fns.h`/`main.c`/`syscall.c`/`trap.c` seams where Harvey's port contract differs (Ar0 ABI, Sys singleton, PMMU shape, devtab init order).
-**When:** This whole port.
-**Trade-offs:** fastest path to a proven booting arm64 kernel; cost is keeping a mental diff vs upstream 9front for future merges. Acceptable — upstream Harvey is dormant and this repo is the maintained fork.
-
-### Pattern 2: Config-driven composition (devtab/systab/rootdir generated)
-**What:** Never hand-edit `$CONF.c`, `systab.c`, `errstr.h`, `init.h`, `*.root.s` — all generated by `mk/parse` from the config + `sys.h` + `error.h`.
-**Trade-offs:** adding a device = edit config + drop `devX.c`; but the awk generator is fragile about section names (`<objtype>` section must literally be `aarch64`) and the `+dev` suffix controls compilation inclusion.
-
-### Pattern 3: Headless-first kernel config
-**What:** First config has no draw/mouse/vga/sd/ether-pci — console purely on PL011 UART, root purely from devroot. Mirrors k10cpu (which is also headless: no draw in its dev list).
-**Trade-offs:** shell over serial proves proc/VM/syscall/9p-root stack end-to-end; graphics/storage/network are strictly additive config lines later.
-
-## Anti-Patterns
-
-### Anti-Pattern 1: Porting bcm64 (board) files instead of the generic arm64 layer
-**Why wrong:** bcm64 carries RPi mailbox/vcore/genet/sdhc baggage and *itself* now reuses `../arm64` via mkfilelist rules; copying it imports board deps and 9front's old-style mk helpers (`mkdevlist`, `mkbootrules`) that don't exist in 9k.
-**Instead:** import `9/arm64/*` only; write Harvey-native mkfile/config.
-
-### Anti-Pattern 2: Letting 386/ x86 drivers leak into the aarch64 build
-**What:** k10cpu's `dir` section pulls `386/` (pci.c, uarti8250.c, devrtc.c are x86-shaped: inb/outb, iomap, ISA IRQs).
-**Instead:** aarch64 config's `dir` = `ip port` only; arch-local gic/pl011/pciqemu. Audit any 386 file before reuse (ethervirtio.c/sdvirtio.c are the only plausible reuse candidates — check for x86 port I/O first).
-
-### Anti-Pattern 3: Hand-rolling the arm64 MMU from ARM ARM instead of importing mmu.c
-**Why wrong:** TLB/ASID/break-before-make and cache-coherence details (the `putasid` race comment in 9front mmu.c — freed page tables vs in-flight interrupts across CPUs) are hard-won; SEGMAXSIZE had a real 64-bit overflow bug upstream.
-**Instead:** import and adapt; re-derive only where Harvey's PMMU/Proc shape forces it.
-
-### Anti-Pattern 4: Assuming `arm64` naming anywhere in-tree
-**Instead:** `aarch64` everywhere (PROJECT.md decision): dir `9k/aarch64`, root `aarch64/`, `objtype=aarch64`, pcc entry key, libc dir. Toolchain program names stay `7a/7c/7l` (digit = arch family, invariant). Fix stale `build_arm64`/`objtype=arm64` references in `build/scripts/{build,linux-build}`; empty `arm64/` root dir should be removed when `aarch64/` lands.
-
-## Integration Points
-
-| Boundary | Communication | Notes |
-|----------|---------------|-------|
-| port/ ↔ aarch64/ | header triad `dat.h`/`fns.h`/`mem.h` + `io.h`; port calls fns.h exports (`touser`, `mmuswitch`, `putmmu`, `fastticks`, `intrenable`, `procsave/restore`, `coherence`…) | k10/fns.h (232 ln) is the definitive contract list — diff against it at bring-up |
-| kernel ↔ libc | `9syscall/sys.h` numbers + generated SVC stubs + `ureg.h` frame | arg block from user stack; Ar0/va_list per arm64 u.h |
-| kernel ↔ qemu | DTB (x0), memory map, GIC/PL011 bases | hardcode virt addresses in io.h initially (0x09000000 uart, 0x08000000 gic), DTB parse is the polish |
-| kernel ↔ boot userland | embedded devroot (`mkrootall`, `addbootfile`) | boot aarch64 binaries must exist → depends on toolchain+libc phases first |
-| build harness ↔ port | `build_arm64`→`build_aarch64` in build/scripts; lima-VM namespace build path unchanged | kernel build must run under the Linux namespace (lima on macOS) like k10 |
-
-## Phase-shape implications (for the roadmap)
-
-1. **Toolchain phase** (7a/7c/7l + pcc + arch root + libmach-later): everything else compiles through this. Import from 9front; Harvey `cc/cc.a` shared core already exists.
-2. **libc aarch64 phase** (11 .s + 3 .c + u.h/ureg.h + 9syscall case): unblocks all userspace; independent of kernel phase once toolchain lands.
-3. **Kernel skeleton phase**: mem.h/dat.h/fns.h/io.h + l.s + cache.v8.s + sysreg.h + minimal main (print to PL011, die cleanly) — proves entry/MMU/UART before touching port/.
-4. **Kernel port phase**: mmu/trap/syscall/clock/fpu/gic/memory + config/mkfile + rootdir embedding → schedinit → shell.
-5. **Stretch:** virtio (pciqemu + ethervirtio audit), SMP (mpinit/spin-table), devrtc, EFI/u-boot boot paths.
+| Concern | v2.0 (single drawterm) | Honest limit |
+|---------|------------------------|--------------|
+| devmnt outstanding RPCs | one per session (existing discipline) — fine for /adm mount | multi-mount concurrency unchanged |
+| virtio queues | RX+TX pair, no multiqueue | multiqueue/VQ sizing if throughput matters |
+| ip stack connections | devip's conv table — scales by design | IPv6/mediums deferred, not closed off |
 
 ## Sources
 
-- 9front git (primary, read via gitweb): `sys/src/9/arm64/` dir listing, `l.s`, `mmu.c`, `mem.h`, `mem.c`, `mkfile`, `qemu` config, `bcm64/mkfile`, `main.c` (bcm64) — commits 68512a3f, 12ad6dff, 404c901f, 9be64bcb [MEDIUM per seam; primary-source content]
-- 9front commit dd798542 (2023-10-28, Keegan Saunders): "add arm64 qemu kernel" — qemu run line, u-boot flow [MEDIUM]
-- 9front HUMANBIOLOGICS release notes (2023-11-22): generic 9/arm64 layer, qemu kernel, efi-on-arm64 [MEDIUM]
-- 9front `sys/src/libc/arm64/mkfile`, `libc/9syscall/mkfile` (arm64 stub case), `arm64/include/u.h`+`ureg.h` (cinap patch 9920ecc0), `cmd/7c/mkfile`, `pcc.c` objtype table, `libmach/7.c` [MEDIUM]
-- Harvey repo (read directly): `sys/src/9k/{k10,mk,port}`, `sys/src/9/bcm`, `sys/src/libc`, `build/scripts` [HIGH]
-- Plan 9 compiler paper (9p.io/sys/doc/compiler.html): shared cc/ + per-arch split [MEDIUM]
+All HIGH confidence (read directly from source) unless noted:
 
----
-*Architecture research for: Harvey 9k aarch64 port (qemu virt)*
-*Researched: 2026-10-30*
-
+- Harvey: `sys/src/9k/ip/` (22 files, 15.4k lines), `sys/src/9k/k10/k10cpu` (kernel config: `ip`+`ether netif`+`ethervirtio`+embedded `/amd64/bin/ip/ipconfig`), `sys/src/9k/mk/parse:319-327` (ip table codegen), `sys/src/libc/9syscall/sys.h` (no net syscalls; NMOUNT=54), `sys/src/libc/9sys/announce.c` (announce/listen = /net file I/O), `sys/src/cmd/cpu.c` (srvp9auth→auth_proxy→auth_chuid; ealgs default; newns), `sys/src/cmd/aux/listen.c:541` (direct execl of #! service scripts), `rc/bin/service/tcp17010` (`#!/bin/cpu -R`), `lib/namespace` (#I/#l/#¤/#S binds, /srv/cs+dns mounts), `cfg/example/cpurc` (stub), `sys/src/9k/boot/bootr9.c` (hardcoded terminal cpuflag), `sys/src/9k/port/sysproc.c:282-301` (kernel #! handling), `sys/src/9k/port/devcap.c`, `sys/src/9k/port/random.c`, `sys/src/cmd/unix/drawterm/` (in-tree drawterm, Make.osx/gui-osx), `build/aarch64/boot-9qemu.sh:55-90` (virtio-non-transitional donor note; srv9 9P/tcp root precedent), `build/aarch64/README.md` (bake-vs-ufs resolution).
+- r9: `port/src/` device inventory (no net devices), `aarch64/src/syscall.rs` (26-entry dispatch, loud-None policy), `aarch64/src/exec.rs` (no #!), `port/src/devcons.rs` (time file present, no random), `aarch64/src/platform/virt/` (devcons/gic/pl011/timer; DTB-discovered convention), `HowItWorks.md` (boot contract, TOML-as-data, fdtput /chosen patching), `xtask/` (qemu args from TOML).
+- MEDIUM: qemu vmnet root/entitlement requirement (Apple forums/lima docs via web search, 2026); slirp hostfwd behavior (qemu docs, long-stable).
+- Effort estimates (Rust port sizes) are inference from C line counts — MEDIUM confidence, treat as planning inputs not commitments.

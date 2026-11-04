@@ -1,401 +1,561 @@
-# Pitfalls Research
+# Pitfalls Research — Milestone v2.0 "Full System & Drawterm"
 
-**Domain:** Dormant Plan 9-family OS revival + aarch64 (ARM64) port to qemu `-M virt`
-**Researched:** 2026-10-30
-**Confidence:** HIGH for in-tree findings (direct file reads); HIGH for qemu-virt behavior (official QEMU docs); MEDIUM for Plan 9 ecosystem history (web sources, partially cross-checked)
+**Domain:** Plan 9 userspace port completion + OS networking/auth/desktop bring-up (Harvey OS on r9, aarch64, qemu `-M virt`)
+**Researched:** 2026-11-04
+**Confidence:** HIGH (grounded in this repo's v1.0 artifacts + primary-source protocol/qemu docs; see Sources)
+**Supersedes:** the v1.0 pitfalls research previously at this path (retrievable from git history; v1.0 pitfalls 1–14 remain valid background — this document covers only the NEW failure modes of v2.0's feature set)
 
-**Scope note:** This file is the risk burn-down input for the roadmap. Pitfalls are ordered so that the ones which can *sink the milestone* are addressed in the earliest phases; chores come last. Every pitfall names the Harvey tree paths where it lives.
+**Phase-area labels used below** (roadmapper assigns numbers):
+- **USERSPACE** — full aarch64 userspace: remaining libs + all of `sys/src/cmd` via vendored 7c
+- **NETDRV** — r9 virtio-net driver + TCP/IP path
+- **HOSTNET** — tap/bridge/vmnet host plumbing + docs
+- **AUTH** — in-guest p9sk1 domain (auth server, keyfs, factotum, ndb)
+- **DESKTOP** — cpu service tcp/17010 + drawterm + rio session
+- **FLAKE** — host drawterm packaging, flake apps, privileged-setup boundary
 
 ## Risk Ranking at a Glance
 
-| # | Pitfall | Blast radius | Sink risk? | Where it lives |
-|---|---------|--------------|------------|----------------|
-| 1 | Compile-and-run generators assume self-hosting Plan 9 | Whole cmd chain → kernels won't link | **YES — blocks milestone requirement "full 9k amd64 set green"** | `sys/src/cmd/jpg/mkfile`, `sys/src/cmd/awk/mkfile`, `unix/mkfile` |
-| 2 | Embedded-root kernels silently depend on userland install order | k10cpuf/k10f fail late, confusingly | **YES — same requirement** | `sys/src/9k/k10/k10cpu` (rootdir), `sys/src/9k/mk/parse`, `sys/src/9k/mk/mkrootall` |
-| 3 | riscv64-style scaffolding-first port (headers without toolchain) | aarch64 port dies as vaporware | **YES — the project's own precedent** | `riscv64/`, `sys/src/libc/riscv64/`, `sys/src/mkfile.proto` |
-| 4 | arm64↔aarch64 naming collision with vestigial in-tree scaffolding | Half-bound dirs, wrong mkfiles, ecosystem impedance | High (chronic drag, easy to botch) | `arm64/` (empty `bbin/`), `build/scripts/build:76`, `build/scripts/linux-build:63`, `build/mkdirs:264` |
-| 5 | Boot-protocol mismatch: multiboot doesn't exist on aarch64 | Kernel never reaches `main()` | **YES — first boot** | `sys/src/9k/k10/main.c:145`, `sys/src/9k/k10/l32p.s`, `sys/src/9k/k10/l64v.s` |
-| 6 | qemu `-M virt` defaults (32-bit CPU, drifting GIC/layout) | "Kernel does nothing" with zero diagnostics | Medium (days lost, not weeks) | run scripts / nix qemu invocation |
-| 7 | MMU/VA-layout + cache maintenance on arm64 | Hangs before first `print()` | **YES — first boot** | new `sys/src/9k/<aarch64 mach dir>` |
-| 8 | No console until PL011+GIC+generic-timer triple works | Debugging blind | Medium | new mach dir, `sys/src/9k/port/devuart.c` |
-| 9 | 7c/7a/7l ported from stale 5c lineage instead of 9front's live 7c | Re-imports decade-old fixed bugs | High | `sys/src/cmd/5?`, `sys/src/cmd/cc/` |
-| 10 | libc arch-dir minimal contract (tas/setjmp/main9/notejmp) | Everything links, nothing runs | High | `sys/src/libc/riscv64/` (template), `aarch64` equivalent to create |
-| 11 | `u.h`/`ureg.h` ABI mismatch between libc and kernel trap frame | Corrupted notes/forkret — worst debug class | High | `riscv64/include/u.h` (pattern), `amd64/include/ureg.h` |
-| 12 | 9front bcm64 reference targets `sys/src/9/` layout, not 9k | Copy-paste port doesn't fit mk machinery | Medium | `sys/src/9k/mk/parse` vs 9front `/sys/src/9/bcm64` |
-| 13 | TLS 1.2 cap + SSL3 floor + NULL/RC4/DES ciphers | Deferred milestone, but "ported ≠ validated" | Medium (scope creep risk) | `sys/src/libsec/port/tlshand.c:143-267`, `sys/src/9k/port/devtls.c:27-33` |
-| 14 | mk quirks: pipe-includes, generated files, `cputype=unix` pseudo-arch | Non-reproducible/stale builds | Medium | `sys/src/9k/k10/mkfile:11`, `sys/src/mkfile.proto`, `nix/build.sh:12-13` |
-| 15 | Go unsupported on plan9/arm64 | Image-shipped Go cmds can't exist on aarch64 | Low (scope, not correctness) | `sys/src/cmd/go/commands`, `.github/workflows/harvey.yml` |
+| # | Pitfall | Likelihood | Blast radius | Phase area |
+|---|---------|-----------|--------------|------------|
+| 1 | Compile-green ≠ run-correct at 250-command scale (whack-a-mole) | Certain | milestone schedule | USERSPACE |
+| 2 | Target-compiled generators can't run on the build host | High | build hangs/false red | USERSPACE |
+| 3 | aarch64 bug-class catalog (unsigned char, varargs width, LP64 fossils) | Certain (per-file) | per-file silent corruption | USERSPACE |
+| 4 | Known latent shared-frontend landmines (gethunk ×2, hswal) fire at full-tree scale | High | toolchain hangs mid-wave | USERSPACE |
+| 5 | ape scope creep | Medium | eats a phase | USERSPACE |
+| 6 | virtio feature-negotiation landmines (CSUM/TSO/MRG_RXBUF; "ping works, TCP hangs") | High | days of phantom debugging | NETDRV |
+| 7 | Virtqueue memory-ordering races on aarch64 | Medium | corruption under load only | NETDRV |
+| 8 | GICv2 virtio interrupt plumbing (INTx level SPIs, ISR ack, no-MSI, DTB) | High | driver wedges silently | NETDRV |
+| 9 | slirp masks L2 bugs; mode confusion when switching to tap | High | false "networking done" | HOSTNET |
+| 10 | darwin vmnet entitlement wall + privileges can't be hermetic | Certain on darwin | blocked macOS path | HOSTNET + FLAKE |
+| 11 | Auth first-boot chicken-and-egg without NVRAM | Certain | auth phase blocked at step 0 | AUTH |
+| 12 | p9sk1 "authentication failed" opacity (authdom/hostowner/speaksfor triangle) | High | days of opaque failures | AUTH |
+| 13 | 9front drawterm defaults to rcpu/TLS/17019 + dp9ik | Certain if 9front drawterm chosen | instant interop failure | DESKTOP + FLAKE |
+| 14 | rio started in the wrong script (cpurc vs profile); fonts missing from bootfs | High | blank/failed desktop | DESKTOP |
+| 15 | Debugging the TCP stack through the drawterm session that rides it | Medium | undebuggable wedges | NETDRV + DESKTOP |
+| 16 | Cross-repo drift: qemu netdev flags, pin-vs-HEAD, staged-bake pollution | High | green gate, broken compose | all (process) |
 
 ---
 
 ## Critical Pitfalls
 
-### Pitfall 1: Compile-and-run generators assume a self-hosting Plan 9 host
+### Pitfall 1: Compile-green ≠ run-correct at 250-command scale — the whack-a-mole death spiral
 
 **What goes wrong:**
-Several mkfiles compile a C generator with the *target* toolchain and then **execute the freshly linked binary** to emit a generated header. The canonical failure observed this milestone: `sys/src/cmd/jpg/mkfile:56-68` derives a tool prefix from the host pseudo-arch — `c=`{sed -n 's/^O=//p' /$cputype/mkfile}` — then runs `$c^c rgbycc.c; $c^l -o $c.rgbycc rgbycc.$c; $c.rgbycc > ycbcr.h`. The namespace build exports `cputype=unix` (`nix/build.sh:13`), and `unix/mkfile` sets `O=o`, so the recipe literally invokes **`oc`** — a compiler that does not exist. The cmd build chain aborts there (`sys/src/cmd/mkfile:34-38` iterates `cc $DIRS` in `ls` order; `jpg` precedes `ip/`, `venti/`, …), so `ipconfig` and `venti` never reach `/amd64/bin`, which then detonates Pitfall 2. Same shape in `sys/src/cmd/awk/mkfile:42-50` (`maketab` builds with the *cputype* compiler then runs `./$cputype.maketab > proctab.c`), and fossil's own build script admits the coupling: `sys/src/cmd/fossil/build:9` — "so awk can be cross-compiled (needs to run pcc for maketab)". `sys/src/cmd/cc/mkfile` additionally depends on yacc output (`y.tab.$O`, `YFILES=cc.y`) and cross-dir sources (`sys/src/cmd/4a/mkfile:19`: `lex.$O: ../cc/macbody ../cc/lexbody ../cc/compat`), the `4a lex.c bind` half of the observed failure.
+`nix run .#build` flips to "all of `sys/src/cmd`" and the milestone degenerates into 250 sequential compile-fix-commit loops, each discovered one `mk` failure at a time; worse, the dirs that DO compile ship silently-broken binaries (the v1.0 lesson: build-green masked silent kernel miscompilation — only execution exposed it). Compile gates alone prove nothing about a 7c-produced binary.
 
 **Why it happens:**
-These mkfiles were written for native Plan 9 builds where host == target == `$cputype`, so "compile a tool and run it" is free. Under the Unix-hosted namespace build (`nix/build.sh` → `RUN_BUILD_IN_PRIVATE_NAMESPACE`), target binaries are Plan 9 a.out — unrunnable on Linux — and `$cputype=unix` is a pseudo-arch whose `O=o` produces nonsense tool names. The build's error surfaces as a missing command (`oc`), not as "you are cross-compiling a generator," so the root cause is disguised.
+The v1.0 subset was 16 commands chosen to be easy. The remaining ~234 include the tree's notorious residents. The default build is dual-arch (`arch=(amd64 aarch64)`, Phase 2 decision), so every broken aarch64 dir breaks the default build for every other workstream — pressure to "just fix it inline" destroys ordering discipline.
+
+**Notorious directories (in-repo evidence + 4e/9front lineage):**
+
+| Dir | Why it's notorious | Handling |
+|-----|--------------------|----------|
+| `jpg`, `jtagfs` | Phase-1 head blockers (generator mkfiles; `jpg/mkfile:56-68` `oc`-from-`cputype=unix` class) | already fixed for amd64; re-verify generator fix is host-toolchain-correct for aarch64 (Pitfall 2) |
+| other-arch compilers `4a–9l`, `qa–ql`, `va–vl` | big cc-frontend C; pointless-but-harmless as *target* binaries; their mkfiles sit in DIRS sweeps | exclude toolchain letters from the aarch64 target sweep (host tools via BUILDTOOLCHAIN only); don't 7c-compile them this milestone |
+| `ape/` | NOT `sys/src/cmd` — its own libc, own syscall stubs, own arch dirs; a separate port | Pitfall 5 — exclude explicitly |
+| `games/` | `mahjongg` cpp breakage is a known upstream TODO; `snes`/`gb` carry per-arch asm | tier-4; per-game gates; fix or exclude by name |
+| `gs` (ghostscript) | huge, non-Plan-9 build assumptions, GPL-fonts entanglement | exclude from tiers; document as known gap (like Go) |
+| `upas/` | portable C but drags libauth/libauthsrv/TLS adjacency | build-only gate; no send/receive UAT this milestone |
+| `lp/` | postscript pipeline → ghostscript adjacency | build-only; exclude gs-dependent stages |
+| `libhtml`, `libhttpd` | big portable C, heavy varargs printers | Pitfall 3 classes; no arch code — low real risk, high volume |
+| `libdraw`/`libmemdraw`/`libmemlayer`/`libframe` | per-arch asm dirs exist for some arches; mkfiles must fall back to portable C for aarch64 | verify mkfile arch-asm guards before the GUI wave |
+| `aux/vga`, `usbd`, `disk/prep` neighbors | x86-hardware-only or need kernel subsystems r9 doesn't have | exclude by name with a comment; don't "fix" them |
+| `prof`, `snap` | build fine; RUN needs kernel profiling / a draw device | build + `-h`-style smoke only; runtime UAT lives in DESKTOP era |
 
 **How to avoid:**
-Introduce an explicit host-tool rule: generators (`rgbycc`, `rgbrgbv`, `maketab`, anything matching `grep -rn '\$c\^c' sys/src/cmd/*/mkfile`) build with the host compiler (`pcc`, already in `HARVEY_LINUX_BIN`) into `.build/hostbin-<os>-<arch>` and run natively. Never derive tool names from `$cputype` in generator recipes. Add a preflight in `nix/build.sh`: after the cmd phase, assert `/amd64/bin/ip/ipconfig`, `/amd64/bin/auth/factotum`, and venti binaries exist before any kernel `mk` runs.
+- **Tiered waves with an allowlist, never a flag-flip.** The aarch64 sweep grows monotonically: a dir enters the default build only after passing its per-dir gate. Tier 0: remaining libs (auth-adjacent first: libsec/libmp/libauth/libauthsrv/libndb — AUTH needs them later; then libdraw family for DESKTOP). Tier 1: core cmds. Tier 2: services (`ip/`, `ndb/`, `auth/`, `aux/listen`). Tier 3: GUI (`rio`, `acme`, `sam`, `plumb`). Tier 4: games/misc. ape/gs excluded by decision.
+- **Execute each tier on the 9front donor kernel FIRST** (the Phase-2/5 subset harness already does this): the donor runs a full 9front userspace, so a Harvey binary that fails there is a Harvey/7c bug, not an r9 gap — this decouples the two confounders. Divergent syscalls (NMOUNT=54 class) wall loudly; keep the Phase-2 divergence ledger and expect it to grow.
+- **Then the same tier on r9** via the measure-first rule (v1.0 D-14/05-03): trace the tier's real syscall footprint on the donor, extend r9's dispatch to the measured set, never speculate.
+- Extend `build/aarch64/`'s per-command marker pattern (the SUBSET-OK harness) to per-tier markers so a regression names the dir and the binary.
 
 **Warning signs:**
-`o^c`-style concatenated command names in build logs; "not found" errors for tool names that aren't real (`oc`, `ol`); generated headers (`ycbcr.h`, `proctab.c`, `y.tab.h`) stale or zero-length after a "successful" build.
+A build fix commit whose only evidence is "now compiles"; the default dual-arch build breaking on someone's unrelated checkout; the same bug class fixed in three dirs without a grep for the fourth; `mk` exit status trusted (known: `nix run .#build` exit status is always 0 — Phase-2 deferred item; artifact checks are the gate).
 
 **Phase to address:**
-The build-revival phase (9k amd64 green). This is the current blocker — burn down first.
+USERSPACE (the tier structure IS the phase structure; this pitfall argues for splitting USERSPACE into ≥2 phases: libs+core, then GUI+services+games).
 
 ---
 
-### Pitfall 2: Embedded-root kernels silently depend on userland install order
+### Pitfall 2: Cross-compiled generators can't run on the build host
 
 **What goes wrong:**
-`sys/src/9k/k10/k10cpu` (and k10cpuf/k10f) declare a `rootdir` section embedding `/amd64/bin/auth/factotum`, `/amd64/bin/ip/ipconfig`, `bootk10cpu.out`, and `../root/nvram` *into the kernel binary*. The awk generator `sys/src/9k/mk/parse` (`mkrootrules`, lines 466-478; rule emission lines 97-108) turns each entry into a dependency of `$CONF.root.s`, produced by `sys/src/9k/mk/mkrootall`. If the cmd chain (Pitfall 1) aborted before installing ipconfig/factotum, the kernel build fails at the *root-embedding* step — a different directory, a different tool, minutes later. `k10cpu` (non-embedded) already builds green (validated), which makes the k10cpuf/k10f failures look like a kernel problem when they are a userland-ordering problem.
+Mkfiles with compile-and-run generators (`jpg`'s `ycbcr.h`, `awk`'s `proctab.c`, the `jtagfs` class, v1.0 Pitfall 1) build the generator with `$CC`. For `objtype=aarch64` that's `7c` — producing a `.7` binary the darwin/linux build host **cannot execute**. In v1.0's amd64-in-a-namespace-on-x86_64 flow, host==target so the bug was invisible; for aarch64 it fires on every generator dir.
 
 **Why it happens:**
-The config-file → awk → mk-rule pipeline hides a cross-tree dependency (`sys/src/9k/k10` ← `/amd64/bin/*`) that no mkfile declares explicitly. mk's error names the missing file but not *why* it was never installed.
+mkfiles were written for self-hosting Plan 9 where target==host by definition. Phase 1 fixed the *derivation* bugs (`oc` from `cputype=unix`); the *host-vs-target toolchain selection* bug is the aarch64-specific twin.
 
 **How to avoid:**
-Treat "embedded-root kernels build" as a *postcondition* of the cmd-chain fix, not a separate bug. Verify in order: (1) cmd chain completes with zero aborts, (2) `/amd64/bin/ip/ipconfig` + `/amd64/bin/auth/factotum` exist, (3) `mk CONF=k10cpuf install`. Add the preflight assertion from Pitfall 1 to make the ordering explicit in CI.
+- Audit every `mkfile` in the tier list for generator recipes (`<|`, `:$name: $O.$tool`, build-then-run shapes) BEFORE the wave that includes the dir — the Phase-1 normalize-on-awk decision (`objtype=$cputype mk <tool>.$cputype`) is the established pattern; extend it: generators always build with the host toolchain (pcc/9c into the per-OS host bin dir), never `$CC`.
+- Gate: `file`/`nm` the generator artifact in CI — a `.7` magic generator in the build log is an automatic red.
+- grep starter set: `mkfile`s containing `<\|` or recipes whose target is executed by a later recipe.
 
 **Warning signs:**
-Kernel build fails inside `mkrootall`/`$CONF.root.s` rules; `ls /amd64/bin/ip/` empty after a "green" userland build.
+`mk` failures like `cannot execute binary file` / exec-format errors inside namespace builds; a generator "working" on an aarch64-linux host (can run .7 via qemu-user binfmt on some systems!) but failing on darwin — host-dependent green.
 
 **Phase to address:**
-Build-revival phase, immediately after Pitfall 1. Same phase, same verification run.
+USERSPACE, wave 0 (the audit is a Wave-0 task before any tier starts; it is cheap and total).
 
 ---
 
-### Pitfall 3: Scaffolding-first port death (the riscv64 precedent)
+### Pitfall 3: The aarch64 bug-class catalog — unsigned char, varargs width, LP64 fossils, unaligned struct punning
 
 **What goes wrong:**
-Harvey's own `riscv64/` is the cautionary tale, in-tree and undeniable: the arch dir contains only `include/` (`u.h`, `ureg.h`, `ape/`) and a 5-line `mkfile` naming **`jc`/`jl`/`ja`** — a toolchain that *was never committed* (`sys/src/cmd/` has `4a 4c 4l 5a 5c 5i 5l 6a 6c 6l 8a 8c 8l 9a 9c 9l`, no `j*`). `sys/src/libc/riscv64/` carries the minimal ~10-file libc set with all `mem*.s` commented out. `sys/src/mkfile.proto:6` nonetheless lists `riscv riscv64` in `CPUS`, so `installall` targets reference a port that cannot compile a single file. Result: dead scaffolding that greps, tars into `harvey.tgz`, and teaches contributors that "ports here are aspirational."
+Per-file silent misbehavior in code only ever exercised on 386/amd64. The classes:
+
+| Class | Mechanism | Detection pattern |
+|-------|-----------|-------------------|
+| **Unsigned char on ARM** | Plan 9 ARM compilers (5c/7c lineage, ARM ABI) make plain `char` UNSIGNED; x86 makes it signed. EOF/−1 idioms (`char c = Bgetc(...); if(c < 0)`, `if(c == 0xFF)`) silently never-fire; signed-shift-through-char checksums differ | grep for `char` locals fed by `Bgetc/getc/read` returns and compared against negatives or `0x80–0xFF`; any `char` arithmetic without a cast |
+| **Varargs width** | Plan 9 varargs promote per the callee's `va_arg` width; callers passing `int` where callee reads `long`/`vlong` (or vice versa) worked by luck on 32-bit, corrupts the stack on aarch64 | `#pragma varargck` covers printf-like ONLY; hand-rolled `va_arg` users (libbio Bprint wrappers, libhttpd, libhtml) need eyeballs |
+| **LP64 fossils in donor/ape-imported code** | code assuming `long`==64-bit breaks on Plan 9 where `long` is 32-bit everywhere (`vlong` is 64) — inverted vs unix LP64; the 9cc libmach `hswal` stride bugs beyond commonllp64 (Phase-2 acknowledged deferred) live here | any `#ifdef` on unix LP64 macros; `sizeof(long)==8` assumptions in ported code |
+| **Struct punning / unaligned** | `*(ulong*)(buf+1)` on aarch64: qemu TCG tolerates unaligned Normal-memory loads, so this USUALLY works — until it lands on Device memory or gets optimized into an aligned-only instruction; don't rely on tolerance | grep `*(u*` casts into byte buffers in libip/libndb/wire codecs; fix to `GET32`-style byte assembly only where a gate proves it wrong |
+| **Endianness** | aarch64 and amd64 both LE — near-zero risk; the trap is assuming this milestone PROVED BE-cleanliness | none needed; don't add BE "support" speculatively |
 
 **Why it happens:**
-Committing headers/mkfiles first *feels* like progress and is easy to review, but without the toolchain there is no feedback loop, so the scaffolding rots in place. The dependency order for a real port is strict: **assembler+compiler+linker → libc arch dir → arch mkfile+include → kernel mach dir**. Harvey's riscv64 did it backwards.
+The 16-command subset was chosen from heavily-ported core commands; the long tail contains code last touched on 32-bit x86, plus 9front-vendored trees whose upstream tested only on arm64-with-9front-kernel (different syscall ABI, different libc).
 
 **How to avoid:**
-For aarch64, enforce the gate: `7a` assembles and `7l` links a hello-world (run under qemu user-mode or on the 9k kernel test harness) *before* `aarch64/mkfile`, `aarch64/include/`, or `sys/src/libc/aarch64/` are committed. Add aarch64 to `CPUS` in `sys/src/mkfile.proto` **last**, only when `installall` can survive it. The riscv64 dirs should be quarantined or deleted in the same phase to stop them setting the pattern.
+- Put the grep patterns above into a Wave-0 audit per tier; file findings as a per-dir checklist, not drive-by fixes.
+- The execution gates (Pitfall 1) are the real net — these bugs mostly survive compilation.
+- Fix classes by pattern across the tree in ONE commit per class (v1.0's atomic-sweep convention), not interleaved with bring-up commits.
 
 **Warning signs:**
-An arch dir whose mkfile names tools absent from `sys/src/cmd/`; `CPUS` entries without a matching `sys/src/libc/<arch>/` that builds.
+A command that runs but emits wrong output (checksums, dates, sizes); `Bgetc` loops that never terminate; crashes only under TCG-but-not-donor or vice versa.
 
 **Phase to address:**
-Toolchain phase (7a/7c/7l + libc). Flag the riscv64 quarantine as a build-revival-phase chore.
+USERSPACE (Wave-0 audit; per-tier execution gates catch escapees).
 
 ---
 
-### Pitfall 4: arm64↔aarch64 naming collision with vestigial scaffolding
+### Pitfall 4: Known latent shared-frontend landmines fire at full-tree scale
 
 **What goes wrong:**
-The tree already contains `arm64` debris: an `arm64/` root dir holding only an empty `bbin/`, `build_arm64` functions in both `build/scripts/build:76-80` and `build/scripts/linux-build:63-67` (`for(i in /sys/src/cmd/7?)` — directories that don't exist — and `objtype=arm64`), and `build/mkdirs:264` (`./arm64/bbin`). The project decision (2026-10-30, PROJECT.md) is **`aarch64`** naming. Meanwhile the entire upstream ecosystem (9front `arm64/mkfile`: `CC=7c LD=7l AS=7a O=7`) calls it `arm64`. Three collision risks: (a) a namespace bind or `mkdirs` run resurrects `/arm64` and mkfiles include the wrong arch mkfile; (b) porters import 9front patches and forget the rename, producing mixed `arm64`/`aarch64` paths; (c) `build_arm64` looks runnable but is a no-op-at-best (glob `cmd/7?` matches nothing, `mk` against a nonexistent `/arm64/mkfile` fails).
+Phase 2 left three acknowledged-unfixed landmines (deferred-items, all "fix when touched next"): (a) `cc/macbody` `gethunk` reset-not-accumulate — any macro expansion needing >NHUNK-max alloc loops forever; (b) the same pattern in `6l/obj.c` `gethunk`; (c) 9cc libmach `hswal` stride bugs on non-`_MAGIC` a.out paths. The full-userspace wave compiles thousands of files with Harvey's shared cc frontend — including very large ones (libhtml, libdraw, upas) — and (a) is a compile-HANG, not an error: the wave wedges mid-build with 100% CPU.
 
 **Why it happens:**
-Two conventions collided in one tree and the rename decision post-dates the scaffolding.
+The arm64-donor-kernel link already fired the 7l variant (malloc(3.7MB) → thunk 88TB → ENOMEM, fixed in `7l/unixcompat.c`). `cc/macbody` and `6l/obj.c` were left "untriggered by current workloads" — the full tree IS the trigger.
 
 **How to avoid:**
-In the first phase that touches arch wiring: rename/remove `arm64/` and `build_arm64` (or rewrite them to `aarch64` + real 7-series dirs), update `build/mkdirs`, and write the mapping "7c/7a/7l, objtype=aarch64" into the phase plan so every imported 9front reference is renamed on entry. Keep tool *letters* (7a/7c/7l) identical to 9front — only the objtype string differs.
+Fix both `gethunk` sites preemptively in USERSPACE Wave 0 using the proven 7l fix pattern (accumulate-when-contiguous); each fix is small and its own commit with a synthetic large-macro/large-input repro as the gate. Do not wait for the first hung build to diagnose from scratch. The hswal item only matters if a host tool needs non-`_MAGIC` formats — leave it logged, don't fix speculatively.
 
 **Warning signs:**
-`/arm64` appearing in namespace listings; mk errors including `</arm64/mkfile`; any new file with `arm64` in its path.
+`mk` wedged with a compiler at 100% CPU; `ps` showing `7c`/`cpp` in a malloc spin; build log stopping mid-file with no error.
 
 **Phase to address:**
-Toolchain phase, first task (before any 7c import). Cheap now, expensive after references accumulate.
+USERSPACE Wave 0 (preemptive; it is a known bug with a known fix — cheapest critical pitfall in this document to close).
 
 ---
 
-### Pitfall 5: Boot-protocol mismatch — multiboot does not exist on aarch64
+### Pitfall 5: ape scope creep
 
 **What goes wrong:**
-The k10 kernel's entry contract is x86 multiboot: `main(u32int ax, u32int bx)` at `sys/src/9k/k10/main.c:145`, reached via `l32p.s` (protected mode) → `l64v.s` (long mode), normally chain-loaded by the EFI loader (`sys/src/boot/efi/`) or a multiboot loader. On qemu aarch64 there is no multiboot. `-kernel` offers exactly two contracts (QEMU virt doc): an **ELF file** loads as "bare-metal" — jumped to at its ELF entry with the DTB placed at the start of RAM (`0x40000000`); a **raw non-ELF image** must carry the arm64 Linux boot protocol header (`ARM\x64` magic at offset 0x38, `text_offset`, entered with MMU off, DTB pointer in `x0`). A Harvey aarch64 kernel built as a flat Plan 9 a.out will be treated as a raw Image and fail the magic check (or worse, jump into header bytes).
+"All of `sys/src/cmd`" quietly becomes "all of `sys/src`" and someone drags `sys/src/ape` into a tier. ape is a second libc with its own per-arch syscall stubs, its own arch config, and ~200 ported unix programs never exercised outside 386/amd64 — it is a separate PORT, not a directory. The Phase-2 deferred list already shows ape-specific bit-rot (`ape/lib/{mp,sec}/port/reduce`'s `bind -ac` silently failing in the Linux namespace build, disabling the port-cull).
 
 **Why it happens:**
-"Boot the kernel" means something different per architecture; the k10 flow's assumptions (multiboot params, `plan9.ini` via CONFADDR — the `sys/src/9k/k10/crap.c` parser) have no aarch64 analog until one is designed.
+"Full userspace" reads as "everything users can see"; ape dirs live adjacent to real cmd dirs in tooling mental-models.
 
 **How to avoid:**
-Decide the contract *in the plan*: simplest is ELF via `-kernel` (7l already emits ELF with `-H5` on amd64 — verify 7l supports the same on aarch64), DTB read from `0x40000000`, entry at EL1/EL2 with MMU off per QEMU's ELF boot. Defer `plan9.ini` parsing; pass a fixed boot line initially. Write the entry asm (`l64`-equivalent) to: mask interrupts, read `CurrentEL`, drop EL2→EL1 if needed, set up a stack, clear BSS, then call C `main()`.
+Milestone-explicit decision: ape is OUT for v2.0 (the milestone text says `sys/src/cmd` + remaining libraries — hold that line), documented in the phase plan with the rationale (its syscall layer needs its own measured-trace cycle; GUI deliverable doesn't need it). If a requirement genuinely needs an ape program, that requirement names the program and pays for the ape arch layer explicitly.
 
 **Warning signs:**
-qemu exits instantly or spins with `-d int` showing no guest instruction progress; "magic" check failures for raw images.
+A tier list containing `ape/`; a build fix touching `sys/src/ape/lib/9/`; "we'll need diff/patch anyway" reasoning (plan9port on the HOST already provides these for build use).
 
 **Phase to address:**
-Kernel bring-up phase — this is its first design decision, not an implementation detail.
+USERSPACE planning gate (the exclusion is written into the phase goal, not implied).
 
 ---
 
-### Pitfall 6: qemu `-M virt` defaults actively mislead
+### Pitfall 6: virtio feature-negotiation landmines — "ping works but TCP hangs"
 
 **What goes wrong:**
-Two defaults burn newcomers (QEMU virt doc, confirmed): (1) **default CPU is `cortex-a15`, a 32-bit CPU** — an aarch64 kernel simply won't run and the symptom is "nothing happens"; you must pass e.g. `-cpu cortex-a72`. (2) `virt` is a *versioned* board: device addresses other than RAM (`0x40000000`) and flash (`0x0`) may move between QEMU releases, and GIC version defaults shift (`gic-version` 2 vs 3; v2 caps at 8 CPUs). Hardcoding UART/GIC/virtio-mmio addresses from one qemu's `dumpdtb` produces a kernel that breaks on the next nix bump.
+The r9 driver negotiates offload features it doesn't implement (or implements partially): VIRTIO_NET_F_CSUM / HOST_TSO4 / GUEST_CSUM / MRG_RXBUF. Symptoms are the classic verified-in-the-wild split: ICMP echo and small UDP work (small packets, often checksummed anyway), while TCP establishes then stalls or corrupts — segments flagged checksum-offload get dropped by the peer, or >MTU TSO packets arrive that the stack can't reassemble. MRG_RXBUF additionally changes the `virtio_net_hdr` from 10 to 12 bytes — an off-by-2 header parse yields garbage frames that look like "intermittent corruption."
 
 **Why it happens:**
-`virt` is designed for Linux guests that read the DTB; bare-metal porters tend to hardcode addresses from a tutorial written against one qemu version.
+Feature bits are advertised by qemu and the driver must *subset* them; copying a reference driver's feature mask (or accepting the device's full set) imports obligations. Offload bugs are invisible in smoke tests because smoke traffic is small and symmetric.
 
 **How to avoid:**
-Pin qemu via the nix flake (already the project's mechanism) and pin `-cpu` and `-machine virt,gic-version=2` (GICv2 matches both the bcm64 reference code and the simplest programming model). Parse the DTB for PL011/GIC/virtio-mmio addresses — DTB parsing is a small, well-understood amount of code and pays for itself the first time qemu moves a window. Keep `dumpdtb` output in-tree as a test fixture for the exact pinned qemu version.
+- Bring-up feature mask: MAC + STATUS only. Split virtqueues, no EVENT_IDX, no CSUM, no TSO/GSO, no MRG_RXBUF, no CTRL_VQ. Software-checksum everything; the guest TCP stack must emit fully-checksummed packets.
+- The acceptance gate is a LONG-LIVED TCP flow with large transfers both directions (e.g. 9P drawterm session + a `dd`-sized file pull), not ping. Add the ping-vs-TCP triage to the runbook: ping green + TCP hang ⇒ offload/MTU/PMTU class, not routing.
+- Only after the plain path is proven, consider EVENT_IDX as an optimization behind its own gate (notification-suppression races cause lost RX interrupts that look like random stalls).
 
 **Warning signs:**
-"Works on my qemu" divergence between darwin-aarch64 (HVF) and linux (KVM/TCG) hosts; boot breaks after nix flake bump.
+TCP connects (SYN/SYN-ACK/ACK visible in a host-side capture) then stalls; throughput collapses or corrupts only past ~1 packet of payload; works with `virtio-net-pci` on slirp but not tap or vice versa (slirp is forgiving — Pitfall 9).
 
 **Phase to address:**
-Kernel bring-up phase (run-script design) — but the `-cpu` gotcha should land in the *earliest* qemu smoke test, even before the kernel exists (boot a known-good ELF like a 9front arm64 kernel to validate the harness).
+NETDRV (the zero-offload mask is the driver's Day-1 config; the long-flow TCP gate is the phase's exit criterion, not ping).
 
 ---
 
-### Pitfall 7: MMU/VA layout and cache maintenance — hang before the first print
+### Pitfall 7: Virtqueue memory-ordering races on aarch64
 
 **What goes wrong:**
-k10 links at `-T0xfffffffff0110000` (`sys/src/9k/k10/mkfile:21`) and its mmu.c builds x86 page tables. aarch64 needs the whole model redesigned: TTBR0/TTBR1 split (kernel high half), TCR/MAIR attribute setup, granule choice (4K), and — the classic silent killer — **cache maintenance**: writes to page tables and freshly-written instructions need `DC CVAC` / `IC IVAU` + barriers (`DSB`/`ISB`) or the MMU/CPU sees stale data. Early boot code that "should work" produces a hung core with zero output. Plan 9's allocator and driver code also assume a simple cached/uncached split that on arm64 is expressed via MAIR attributes, not address windows.
+aarch64 is weakly ordered: descriptor-table writes are not guaranteed visible to the device before the avail-ring index store without an explicit barrier (`dmb`/`dsb` variants per the virtio spec's device/driver ordering rules). Missing or mis-scoped barriers pass every smoke test (TCG single-vCPU timing is gentle) and corrupt descriptors under load — the rio-over-drawterm session is exactly the sustained bidirectional load that exposes it.
 
 **Why it happens:**
-x86 is cache-coherent and forgiving; arm64 is not. Porters bring x86 assumptions to TLB/page-table code.
+x86 reference code "works without" visible barriers; the bug is timing-dependent, so it survives bring-up and detonates during the DESKTOP phase where it's misdiagnosed as a 9P/rio bug.
 
 **How to avoid:**
-Steal the sequence, not the instructions: follow 9front bcm64's `mmu.c`/`l.s` boot order (they solved MAIR/TCR/TTBR for a GIC-400/PL011 machine — the closest analog to `virt,gic-version=2`). Bring up **UART before MMU** (PL011 is 4 registers, polling mode), get `print()` working physical-only, then enable MMU. Instrument with qemu `-d int,guest_errors` and an early `wfi`-less spin loop marker.
+- Write the ring code barrier-first: descriptor fill → store-store barrier → avail idx → (notification check) → kick; used-side read barrier before trusting descriptor contents. Treat the virtio 1.x spec's ordering section as the contract, not x86 folklore.
+- Add a load gate to NETDRV's exit: parallel large transfers + concurrent small RPCs for N minutes, with descriptor-integrity counters (seq numbers in a debug build) rather than eyeballing.
 
 **Warning signs:**
-Boot proceeds until MMU-enable (`SCTLR_EL1.M=1`) then instant halt; or works under TCG but not HVF/KVM (cache/CoI differences expose missing barriers).
+Corruption that moves when logging is added (heisenbug); failures only above a packet rate; works on `-smp 1` TCG, fails on multi-vCPU or HVF.
 
 **Phase to address:**
-Kernel bring-up phase — the core of it. Needs deeper phase-specific research (bcm64 mmu.c walkthrough).
+NETDRV (barrier audit is part of driver review; the load gate is phase exit).
 
 ---
 
-### Pitfall 8: The console/interrupt/timer triple (PL011 + GIC + ARM generic timer)
+### Pitfall 8: GICv2 virtio interrupt plumbing — INTx, level trigger, ISR ack, and the MSI mirage
 
 **What goes wrong:**
-Until three machine services work, the kernel is undebuggable and dead: PL011 UART (console out), GIC distributor+CPU interface (any interrupt), and the ARM generic timer (`CNTPCT_EL0`/`CNTP_EL0` + per-CPU timer PPI) replacing k10's i8254/APIC clock (`sys/src/9k/k10/i8254.c`, `apic.c`). x86 brings these up in a different order with different probing; arm64 has no BIOS/ACPI tables on the default virt boot unless you add EDK2 — device discovery is DTB or nothing. A partial bring-up (UART yes, timer no) looks like a scheduler bug in `sys/src/9k/port/proc.c` and sends debugging in the wrong direction.
+Four sub-failures, all verified against primary sources:
+1. **Hardcoded IRQ numbers.** PCI legacy INTx on qemu virt are level-sensitive SPIs whose IDs are *implementation-defined* and published only in the DTB pci node's `interrupt-map` (with the slot/pin swizzle). Hardcoding the number from one qemu's dumpdtb breaks on the next qemu or the next slot.
+2. **Wrong trigger type.** Programming the SPI edge-triggered (copying the PL011/timer pattern) loses or sticks interrupts — PCI legacy IRQs are LEVEL.
+3. **Missing ISR read-to-ack.** virtio's ISR register byte must be read to deassert the INTx line; skipping it wedges the line asserted (interrupt storm) or never-reasserts (silent RX stall).
+4. **The MSI mirage.** GICv2 has NO native PCI MSI support (ARM BSA: v2 needs the GICv2m extension frame; qemu virt+gicv2 does expose a v2m node, but it's a separate driver path). A driver written MSI-first against a GICv3 mental model has no interrupts at all on the milestone's gic-version=2 machine.
 
 **Why it happens:**
-The three are separable but their *absence* has identical symptoms (hang after banner).
+r9's existing devices (PL011, timer) are DTB-adjacent and simple; PCI INTx routing via `interrupt-map` is the first nontrivial interrupt plumbing, and most online virtio examples are MSI/MSI-X on x86 or GICv3+ITS.
 
 **How to avoid:**
-Stage-gate explicitly: (1) polled UART print, (2) timer interrupt firing at known Hz (print a counter), (3) GIC passing a virtio-mmio or UART IRQ, (4) only then `procinit0`/scheduling. Keep k10's defensive pattern (`2022-01-26 rdmsr: Don't panic on user GPF`) — log-and-continue over panic during bring-up.
+- INTx-first, DTB-driven: parse `interrupt-map` from the committed DTB (v1.0 precedent: committed `virt-gicv2.dts` is the contract), program the SPI level-triggered, read the virtio ISR byte in the handler's first instruction.
+- Keep MSI/v2m as a documented non-goal for this milestone — INTx at qemu virtio rates is not the bottleneck.
+- Gate: RX-under-load interrupt accounting (interrupts ≈ packets within a factor, no storm, no stall) in the NETDRV exit suite.
 
 **Warning signs:**
-Banner prints then silence; `sched()` never reached; interrupts arrive at wrong EL.
+`info irq`-style counters flatlining after the first packet; handler entered exactly once; storm (handler re-entered with no work); works when the device lands on a different PCI slot (slot-dependent IRQ).
 
 **Phase to address:**
-Kernel bring-up phase, ordered before any driver/port work.
+NETDRV (Wave-0: the DTB `interrupt-map` parser + level-trigger programming is a spike before the virtqueue code, exactly the v1.0 tracer-first shape).
 
 ---
 
-### Pitfall 9: Porting 7c from Harvey's stale 5c lineage
+### Pitfall 9: slirp masks L2 bugs — mode confusion between user-mode and tap networking
 
 **What goes wrong:**
-The obvious move — copy `sys/src/cmd/5c` (32-bit ARM) into `7c` and widen it — re-imports every bug 9front fixed while *writing and then maintaining* their arm64 7c (2016-present): 64-bit constant folding, register allocation around call clobbers, floating-point ABI, linker relocations for ADRP/ADD+ldr pairs. Harvey's `5c` diverged from Bell's in 2015-era and shares the common frontend `sys/src/cmd/cc/` (whose `everything:V` target lists `CURCC=5c 6c 8c qc vc` — note **no 7c**, line 26). The shared `cc` frontend itself has the yacc-generation fragility of Pitfall 1.
+Bring-up happens on qemu slirp (`-netdev user`) because it's zero-privilege and hermetic. slirp's built-in ARP/DHCP forgive guest L2 mistakes — it answers ARP for the gateway itself, accepts marginal frames, NATs everything. The driver/stack then "works" until the tap/bridge leg, where real L2 exposes: ARP request/reply handling bugs, broadcast handling, MAC filtering, MTU edge cases. The inverse confusion also bites: ndb/drawterm args hardcoded to slirp's 10.0.2.x (guest .15, host .2) silently wrong on the bridge subnet.
 
 **Why it happens:**
-In-tree code feels safer than an import ("we control it"), but here the in-tree version is the *older, buggier* one for this architecture.
+slirp is the path of least resistance and the milestone legitimately wants it as the darwin default (Pitfall 10) — the pitfall is treating slirp-green as networking-done.
 
 **How to avoid:**
-Vendor 9front's `7c/7a/7l` (and their `cc/` frontend diffs if any) as the starting point — the same vendor-and-own strategy already proven with `sys/src/cmd/unix/9cc/` (9-cc `iar` subset, logged decision). Check license headers on import (9front is Lucent/MIT-lineage like Harvey, but verify file-by-file). Add `7c` to `cc/mkfile`'s CURCC only after it builds. Budget: the compiler is the *largest single chunk* of the toolchain phase — treat as the phase's critical path, not a warm-up.
+- Declare tap/bridge on linux CI the **L2-truth leg** (extends the v1.0 "CI green = linux leg" convention): the NETDRV exit gate runs on tap, even though darwin dev iterates on slirp+hostfwd.
+- Never hardcode slirp addresses: the guest's `/lib/ndb/local` entry and the drawterm `-h/-a` args are parameterized per mode at bake/launch time; the flake app prints the actual guest IP + connect line.
+- Bring-up order inside the guest follows Plan 9's: devether → devip (`/net`) → ipconfig (DHCP on `/net/ether0`) → cs → dns, each with its own marker in the gate log.
 
 **Warning signs:**
-Miscompiled `setjmp`/`notejmp` or varargs code at `-O`-equivalent levels; hello-world works but `libthread` corrupts stacks (classic code-generator edge).
+"Networking done" claimed with only slirp evidence; ARP table never populated on the host side of a tap; drawterm args containing 10.0.2.x in a tap-mode run.
 
 **Phase to address:**
-Toolchain phase — critical path. Needs deeper phase-specific research (diff 9front 7c vs Harvey 5c; import plan).
+HOSTNET owns the mode matrix (slirp default on darwin; tap default on linux; CI exercises tap). NETDRV's exit gate must include the tap leg.
 
 ---
 
-### Pitfall 10: libc arch-dir minimal contract — "links but doesn't run"
+### Pitfall 10: darwin vmnet entitlement wall + privileges can't be hermetic
 
 **What goes wrong:**
-`sys/src/libc/mkfile:8-12` builds `$PORTDIRS $objtype` — so `sys/src/libc/aarch64/` must exist and be *correct* before any userland links. The minimal set (per the riscv64 skeleton, which at least shows the shape): `argv0.s`, `atom.s`, `getcallerpc.s`, `getfcr.s`, `main9.s`, `main9p.s`, `setjmp.s`, `tas.s`, `_seek.c`, `notejmp.c`. The dangerous two: **`tas.s`** (test-and-set underpins every `qlock`/refcount — on arm64 must use `LDAXR`/`STLXR` with correct acquire/release semantics; weak-memory-order bugs here are intermittent corruption under SMP, not clean failures) and **`notejmp.c`/`setjmp.s`** (must match the kernel's `Ureg` layout exactly — see Pitfall 11). `main9.s` sets up the argc/argv ABI and ` Tos`/profiling hand-off; a wrong register convention makes `main(argc, argv)` see garbage *sometimes*.
+On macOS, qemu's `vmnet-*` backends require the `com.apple.vm.networking` entitlement; ad-hoc-signed binaries don't get it (qemu's own issue tracker shows the unsigned binary dying `killed: 137`, and the entitled failure mode "general failure (possibly not enough privileges)" even under sudo). **nixpkgs qemu is ad-hoc signed** — so a flake that adds `-netdev vmnet-bridged` to its nix-provided qemu fails on every stock macOS machine, and no amount of sudo fixes it. Separately: privileged setup (tap creation, bridge membership, socket_vmnet daemon, entitlement signing) can never live inside a nix derivation — the store is read-only, setuid is impossible from store paths, and qemu's own `-netdev bridge` helper is a setuid binary that nix cannot ship.
 
 **Why it happens:**
-These files are small (10–40 lines of asm), so they're treated as trivial; they are actually the ABI.
+"One command boots the full system" pressure pushes setup into the flake app; the entitlement/sandbox walls are invisible until the first fresh-mac run (v1.0's lima `/bin/rc` lesson: environment conveniences not codified in scripts get discovered by the fresh host, at CI cost).
 
 **How to avoid:**
-Port `tas`/`setjmp`/`notejmp`/`main9` from 9front's `libc/arm64` (verified-working ABI) rather than writing from ARM docs. Test `tas` under qemu with `-smp 4` hammering a lock before trusting it. Keep mem*/str* in portable C initially (riscv64 pattern) — hand asm memcpy is a later optimization.
+- darwin default: **slirp + hostfwd** (`hostfwd=tcp:127.0.0.1:17010-:17010`) — hermetic, zero-privilege, and sufficient for the drawterm deliverable (host connects to localhost). The real-L2 deliverable on darwin is a documented opt-in (socket_vmnet — likely already present via the project's lima install — or manually signed qemu with an Apple dev cert), scripted as a **doctor-style checker** in the flake app that verifies and prints the exact sudo/signing lines, never performs them silently.
+- linux default: tap via documented `ip tuntap`/bridge commands, same doctor pattern; the app checks `/dev/net/tun` access, tap existence, bridge membership, and nftables/firewalld FORWARD policy, and prints the fix lines.
+- The flake app takes `--net=slirp|tap|vmnet` explicitly; there is no "auto" mode that silently downgrades.
 
 **Warning signs:**
-Intermittent hangs only under `-smp`; `libthread` channels losing messages; faults in `noted`.
+vmnet "general failure" on a stock mac; CI green but a contributor's linux laptop blackholes the guest (their nftables default-drops the bridge); a setup step that "worked" because someone ran it by hand last month (lima-rc class).
 
 **Phase to address:**
-Toolchain phase (second half, after 7c can compile them).
+HOSTNET + FLAKE (the doctor-checker is the deliverable; hermetic-by-default, privileged-by-documentation).
 
 ---
 
-### Pitfall 11: `u.h`/`ureg.h` — the kernel↔libc ABI contract
+### Pitfall 11: Auth first-boot chicken-and-egg — no NVRAM on r9
 
 **What goes wrong:**
-Each arch root dir carries `include/u.h` (types, `jmp_buf` layout, FP control bits — see `riscv64/include/u.h` for the pattern) and `include/ureg.h` (trap frame). The kernel's `trap.c`/`l*.s` build a `Ureg` on trap/syscall; libc's `notejmp.c` and `libmach` decode it; `sys/src/9k/k10/mkfile:46-51` shows the amd64 kernel compiles against `/$objtype/include/ureg.h`. If the assembler stub's stack layout and the struct disagree by even one field, notes corrupt state and `rfork` children return with wrong registers — the hardest class of bug in the tree to diagnose.
+Classic p9sk1 bootstrap assumes: `auth/wrkey` stores the machine key + hostowner + hostdomain in NVRAM; `keyfs` decrypts `/adm/keys` with that NVRAM key; `authsrv` answers on tcp/567. r9 has no NVRAM device and no console-attached secure storage. Consequences cascade: keyfs with no machine key fails or prompts at boot (non-interactive gate wedges); a baked `/adm/keys` encrypted under a different key than the baked "nvram" serves undecryptable garbage and EVERY auth fails identically; `changeuser` for the first user needs hostowner-on-the-auth-server, which needs... an authenticated session. And `convkeys` with keyfs running corrupts the DB (man-page BUGS, verified).
 
 **Why it happens:**
-Two files, written at different times, both "obviously" matching a mental model.
+Physical Plan 9 auth servers were brought up interactively by an operator at a console; the reproducible-from-clean-checkout constraint deletes the operator.
 
 **How to avoid:**
-Write `ureg.h` and the trap-entry asm *in the same commit*, with a static assertion (`typedef char uregcheck[(sizeof(Ureg)==EXPECTED)?1:-1]`) and a comment pinning field offsets; boot-test `rfork`+notes as the first userland milestone after shell. 9front `arm64/include/ureg.h` + `bcm64/trap.c` are the reference pair — port them together.
+- Bake-time authority: ONE host-side tool (extend the std-only `build/harness/` binary — v1.0's harness decision) generates the demo domain as a single unit: machine key, `/adm/keys` encrypted under it, hostowner, authdom, ndb entries, plus the nvram-substitute file — hash-paired so keyfs can verify the pairing at start and fail loudly instead of serving garbage.
+- The milestone ships a DEMO auth domain (documented: reproducible credentials, not a security boundary — the hostowner password is in the repo by design for the demo, with the real `wrkey`/`changeuser` operator flow documented for anyone deploying for real).
+- r9 device surface: the nvram-substitute is a file in bootfs surfaced read-only to auth tools (devroot node), NOT a new syscall/device family.
+- Gate: keyfs starts non-interactively in the boot-test; `auth/debug` (verified to exist — it tries each p9sk1 key in factotum and prints progress) runs green inside the guest BEFORE drawterm is ever attempted.
 
 **Warning signs:**
-`sys: trap:` notes with nonsense PC; `await`/`wait` returning corrupted status; acid stack traces that don't terminate.
+keyfs boot prompt in the serial log; "authentication failed" for every user including hostowner; `/adm/keys` mtime newer than the nvram-substitute (pair drift).
 
 **Phase to address:**
-Kernel bring-up phase (trap path) — but the *headers* land in the toolchain phase with libc. Sequence them as one logical unit.
+AUTH Wave 0 (the bake-time keydb generator is the phase's first deliverable; nothing else in AUTH can be tested without it).
 
 ---
 
-### Pitfall 12: The reference port (9front bcm64) doesn't match Harvey's kernel tree layout
+### Pitfall 12: p9sk1 "authentication failed" opacity — the authdom/hostowner/speaksfor triangle
 
 **What goes wrong:**
-9front's arm64 kernel is `sys/src/9/bcm64` — the **legacy-tree** layout. Harvey's canonical kernel is `sys/src/9k/` with its own config→codegen machinery (`sys/src/9k/mk/parse` awk emitting `devtab`, `systab` from `/sys/src/libc/9syscall/sys.h`, `rootdir` embedding, `+dev` section tags, `dbgflg` tables — see `k10cpu` and `parse:284-463`). A bcm64 file dropped into a 9k mach dir does not compile: header triad differs (`dat.h`/`fns.h`/`mem.h` split), `Ar0` syscall ABI differs (9k's `syscall.c` uses `Ar0`/va_list per `parse:199-271`), error handling uses 9k's `error.h` strings.
+p9sk1's client-visible failure is a single string. The real causes live server-side and are enumerable: (a) **authdom mismatch** — the `authdom=` in the guest's ndb, the `dom=` attribute on factotum keys, and drawterm's `-a`/authdom notion must all agree; (b) **server-side key missing** — the cpu server's factotum must hold the *server's* (hostowner/machine) key for the domain, not just the user's — ticket decryption fails otherwise; on a loopback auth+cpu machine one factotum holds both roles' keys and it's easy to load only one; (c) **speaksfor missing** — `/lib/ndb/auth` must grant the hostowner speaks-for the users, else tickets validate but uid mapping is refused; (d) **name resolution** — `auth=` naming a DNS name with no working dns/cs yet → "can't reach auth server" (use numeric IPs in `/lib/ndb/local` for the demo domain).
 
 **Why it happens:**
-"It's all Plan 9" — but 9front's port layer and Harvey's 9k port layer diverged in 2015-2016.
+Four independent configs must agree; each fails with the same client string; operators debug by guessing. Also note a **red herring to retire early**: clock skew is NOT a p9sk1 failure mode — the tickets carry no timestamps. Skew only bites if someone reaches for 9front drawterm's TLS rcpu path (Pitfall 13), where cert validity windows apply (and the guest RTC is unset under r9). Don't let "check the clock" consume a debugging cycle on the p9sk1 path.
 
 **How to avoid:**
-Port *concepts and sequences* from bcm64 (boot order, GIC programming, mmu setup), but write 9k-native files: new mach dir (e.g. `sys/src/9k/virt/` or `sys/src/9k/aarch64/`), its own config file following `k10cpu`'s grammar, `port/` reused unchanged. Expect the `port/` layer to need a small number of arch hooks (it already assumes some x86-isms — audit `port/` for `amd64` conditionals early).
+- Serial-visible auth logging from Day 1: authsrv/keyfs log to the serial console (or `/sys/log` readable over serial) — the out-of-band channel that survives the session being debugged.
+- The AUTH phase gate includes a guest-side loopback auth probe (`auth/debug` + a local p9sk1 handshake to 127.0.0.1:567) BEFORE any host drawterm attempt — loopback-green is the entry criterion for DESKTOP.
+- Bake the four configs from the same generator (Pitfall 11's tool) so they agree by construction; the gate asserts the agreement (authdom string equality across ndb/keydb/factotum-seed).
 
 **Warning signs:**
-Import attempt dies on missing `ureg` fields or `Ar0` mismatch; `#ifdef` arch tangles appearing in `port/` files.
+"authentication failed" with nothing on the serial auth log (logging not wired — fix that first); works for hostowner but not the demo user (speaksfor class); works by IP but not name (cs/dns class).
 
 **Phase to address:**
-Kernel bring-up phase — plan the mach-dir skeleton explicitly; don't "import bcm64."
+AUTH (loopback gate + serial logging are phase-exit criteria; DESKTOP may not start without them).
 
 ---
 
-### Pitfall 13: TLS/security debt (out of scope but booby-trapped)
+### Pitfall 13: 9front drawterm defaults to rcpu/TLS/17019 + dp9ik — protocol mismatch with Harvey's p9sk1/17010
 
 **What goes wrong:**
-Not this milestone's deliverable — but the port will touch `libsec` (assembly accel?), and there's a documented trap: TLS ceiling is 1.2 (`sys/src/libsec/port/tlshand.c:143-147`), kernel TLS device accepts **SSL 3.0** (`sys/src/9k/port/devtls.c:27-33`), and NULL/RC4/DES/3DES suites are live (`tlshand.c:200-267`, NULL-MD5 enabled at line 1522). The risk *this milestone* is inadvertent: presenting the aarch64 userland as "working" while `webfs`/`hget` silently negotiate garbage, or wiring chacha (present but unhooked) wrongly.
+Verified from the 9front-drawterm man page: it defaults to the TLS-based `rcpu(1)` protocol and dp9ik authentication; classic `cpu(1)`/p9sk1 (what Harvey speaks, on tcp/17010) requires the `-O` flag. A flake that packages 9front drawterm and invokes it bare gets a TLS handshake against Harvey's non-TLS 17010 listener — hang/reset with no useful error on either side. Additional traps from the same man page: `$cpu`/`$auth`/`$USER`/`$PASS` environment variables silently override flags and suppress the password prompt — a 9front-using developer's shell env hijacks the demo; the `-e` crypt/hash default (`rc4_256 sha1`) applies only to old cpu and must match what Harvey's cpu service offers (`clear` is the bring-up-safest).
 
 **Why it happens:**
-Deferred concerns leak back in through "just make it connect" debugging.
+"drawterm is drawterm" — the fork drift (9fans/rsc original = p9sk1-native; 9front = dp9ik/rcpu-first) is invisible until interop fails. Both forks' devdraw serving is compatible for rio's purposes; the AUTH and transport layers are what diverged.
 
 **How to avoid:**
-Milestone rule: no security claims, no cipher changes, no "fixes" to libsec in the port phases; log any TLS oddity to the backlog for the hardening milestone. If aarch64 needs libsec asm primitives, port C-only.
+- Decide the drawterm provenance as a FLAKE decision with the vendor-and-own discipline (Phase-2 D-10 precedent): either 9fans/rsc drawterm (protocol-fidelity with 4e lineage, no `-O` needed) or 9front drawterm with a wrapper that ALWAYS passes `-O -e clear` (or the negotiated crypt) and scrubs `$cpu`/`$auth`/`$PASS` from the environment before exec.
+- The wrapper, not the user's memory, owns: `-h <guest ip> -a <guest ip> -u <user>` printed from the same launch pipeline that baked ndb (Pitfall 9's parameterization).
+- Interop gate: DESKTOP's exit criterion includes a scripted drawterm run (text mode `-G` first for CI — headless, no cocoa/X needed; graphical rio session human-accepted on darwin/linux legs, same as v1.0's TCG banner acceptance).
 
 **Warning signs:**
-A "quick" commit bumping a cipher list riding along with port work.
+drawterm connects and instantly hangs pre-prompt; guest serial shows a TCP connection with garbage first bytes (TLS ClientHello hitting the p9sk1 listener); auth works in `-G` text mode but the user's interactive run fails (env-var class).
 
 **Phase to address:**
-None this milestone — explicitly. Document the boundary in the roadmap so phase planners don't absorb it.
+FLAKE (provenance + wrapper) gates DESKTOP (interop proof); the decision lands in the FLAKE phase plan, not at the drawterm invocation site.
 
 ---
 
-### Pitfall 14: mk quirks and generated-file hygiene
+### Pitfall 14: rio started in the wrong script + fonts/draw prerequisites
 
 **What goes wrong:**
-The 9k build uses mk's pipe-include: `<| awk -f ../mk/parse $CONF` (`sys/src/9k/k10/mkfile:11`) — the *wrong awk* (host gawk vs Plan 9 awk semantics in rc scripts like `../mk/mkenum`) silently misgenerates `${objtype}l.h`. Generated files with inconsistent nuke coverage: `amd64l.h`/`sipi.h` (nuked via `k10.nuke`, mkfile:93-94), `$CONF.c`, `y.tab.h`, `ycbcr.h`, `$CONF.root.s`. `sipi.h` is built by *linking then hexdumping* (`mkfile:76-83`) — a pattern that breaks under parallel mk. `-DKERNDATE=`{date -n}` (mkfile:20) embeds a timestamp → kernels are never bit-reproducible by default, which will trip the milestone's "reproducible from clean checkout" requirement if that means bit-identical artifacts. `cputype=unix` + `unix/mkfile` (`CC=9c`, `O=o`) is a loaded footgun for any `$cputype`-derived logic (Pitfall 1 shows it firing).
+rio needs `/dev/draw`, which exists ONLY inside the drawterm cpu session (drawterm serves `#i`/`#m`/`#b` over 9P; r9 deliberately has no framebuffer/GPU driver). Starting rio in `cpurc` runs it once at guest boot where `/dev/draw` doesn't exist — rio exits or wedges, and every drawterm session inherits a rio-less desktop. The correct site is the connecting user's `lib/profile` (drawterm runs it with `$service=cpu`) or an equivalent per-session stanza. Second: rio needs a font — `$font` or `/lib/font/...` from the GUEST filesystem; Harvey's bootfs never needed fonts before (fonts live in the dist/ISO layer that v1.0 scoped out), so a bootfs without `/lib/font` yields `rio: can't open font` or a blank screen. Third: drawterm `-B` disables kbdfs → dead keyboard in rio; wrapper must not pass it.
 
 **Why it happens:**
-mkfiles grew organically on self-hosting Plan 9; the Unix-hosted flow re-executes them in an environment they weren't written for.
+cpurc-vs-termrc-vs-profile semantics are the classic Plan 9 newcomer trap; the r9 design (no graphics driver, draw arrives over 9P) makes the ordering constraint absolute rather than convention.
 
 **How to avoid:**
-Inventory generated files per phase (`git status --ignored` after build = the list); make `nuke` delete exactly that set; guard `sipi.h`-style recipes against parallelism; decide the KERNDATE policy for reproducibility (pin via env or accept timestamp variance in the requirement's wording); keep `$cputype` usages on a grep-watchlist.
+- Ship a known-good `lib/profile` + `cpurc` pair in bootfs (based on `cfg/example/` templates), with the rio start gated on `$service` — and a boot-test marker that proves rio did NOT start at guest boot.
+- Extend mkimage's manifest assertion (the v1.0 staged-pollution guard) to cover `/lib/font/**`, `/lib/ndb/local`, `/lib/namespace`, the profile/cpurc pair, and the baked auth DB — one manifest, every baked file accounted for.
+- DESKTOP gate sequence: `-G` text-mode drawterm → rc prompt over cpu (proves auth+cpu without the draw stack) → graphical session → rio banner/rect assertion via devdraw interaction or human acceptance.
 
 **Warning signs:**
-Second build differs from first; `mk nuke && mk` fixes a weird error; parallel build flakes.
+guest serial shows rio starting at boot; drawterm window opens blank/black; rio runs but no keyboard (`-B` class) or no font error scrolled past on serial.
 
 **Phase to address:**
-Build-revival phase (hygiene) + a later reproducibility phase (KERNDATE policy).
+DESKTOP (profile/cpurc/fonts are deliverables with manifest assertions); USERSPACE must have shipped rio + libdraw family + fonts into the image first (ordering dependency for the roadmap).
 
 ---
+
+### Pitfall 15: Debugging the TCP stack through the session that rides it
+
+**What goes wrong:**
+Once the workflow is drawterm-over-TCP, a TCP/driver bug wedges the very channel used to observe it — no console, no shell, no logs. This is how driver bugs get misattributed to rio/9P/drawterm and burn days.
+
+**Why it happens:**
+The serial console stops being exercised once the desktop lands; qemu packet capture isn't wired by default; the smoke gate asserts end-state, not the failure forensic trail.
+
+**How to avoid:**
+- PL011 serial console remains a first-class output forever: auth log, ip stack debug (behind flag variables per repo convention), and the panic path all keep writing to it; the boot-test harness keeps asserting on serial markers even in the desktop era.
+- Wire host-side packet capture into the harness from NETDRV day one: qemu `-object filter-dump` (or tap-side `tcpdump` in the doctor script) with the capture path printed per run.
+- The triage runbook (committed doc): ping-green/TCP-hang ⇒ offload/MTU (Pitfall 6); ARP-empty ⇒ L2/tap (Pitfall 9); TCP-hang-mid-session ⇒ virtqueue race class (Pitfall 7); connect-refused ⇒ listener/namespace; auth-failed ⇒ Pitfall 12.
+
+**Warning signs:**
+Any debugging session that begins with "restart it and watch drawterm"; missing serial lines that used to appear (console regressed); no capture artifact next to a networking bug report.
+
+**Phase to address:**
+NETDRV (capture wiring + serial discipline) and DESKTOP (runbook lands with the session gate).
+
+---
+
+### Pitfall 16: Cross-repo drift — qemu flags, pin-vs-HEAD, and staged-bake pollution (v2.0 amplification)
+
+**What goes wrong:**
+Three v1.0-proven classes amplify with networking's new surface:
+1. **qemu flag duplication across repos.** r9's xtask `[qemu]` TOML owns its boot-test launches; Harvey's flake apps own composed boots. virtio-net adds netdev/device stanzas BOTH need (driver gate in r9; composed session in Harvey). Drift example: r9 tests against `virtio-net-pci-non-transitional` while Harvey composes the transitional default (the v1.0 donor finding: transitional ID 0x1000 vs modern 0x1041 match failure) — driver green in r9, dead in compose.
+2. **Pin-vs-HEAD.** v2.0 adds r9 features continuously (driver, /net, devices); the carried-over rule stands: pin bump = its own commit + fresh hosted CI leg, never bundled with the Harvey-side feature that needs it (bisectability + the push-before-pin ordering).
+3. **Staged-supply-chain pollution.** v1.0 caught a staged init baked into the image via the mkimage manifest guard; v2.0's bootfs gains keys/ndb/fonts/profiles — each new baked file is a new silent-pollution vector, and `out/` ownership races widen as more stages write it (lima rsync-back + native legs + bake steps).
+
+**Why it happens:**
+Two repos, two qemu launch paths, one image supply chain — each individually disciplined in v1.0, but the v2.0 feature set touches all three at once.
+
+**How to avoid:**
+- Single source for the netdev/machine stanza: r9's platform TOML carries it as data (the v1.0 "platforms as data" decision extends naturally); Harvey's flake app consumes the same fragment rather than restating flags. Any flag change lands r9-first with its gate, Harvey records the SHA (D-13 ordering unchanged).
+- Pin-bump discipline as a named rule in every NETDRV/AUTH/DESKTOP plan that crosses the boundary: r9 commits → r9 gates → push → Harvey pin-bump commit → hosted CI → Harvey feature commit that relies on it.
+- Extend mkimage's manifest assertion to the FULL bake set (Pitfall 14); one-writer rule for `out/` per stage with the harness asserting freshness (mtimes vs inputs) rather than assuming.
+
+**Warning signs:**
+A driver behavior difference between `cargo xtask boot-test` and `nix run .#boot-r9`; a Harvey commit whose message mentions both "bump r9" and a feature; a bootfs whose ndb/keys differ from the generator's output without a regeneration commit.
+
+**Phase to address:**
+All — this is the milestone's process pitfall; the roadmap should put the netdev-flag single-sourcing in NETDRV's first plan and the manifest extension in the earliest USERSPACE/AUTH plan that adds a baked file.
+
+---
+
+## Moderate Pitfalls
+
+### Pitfall M1: Half-kernel/half-userspace IP stack confusion
+
+**What goes wrong:** The FEATURES/architecture research decides where TCP lives (r9 kernel devip-style vs a no_std userspace/stack crate). Either way, the contract is the `/net` file ABI — clone files, per-conversation `ctl`/`data`/`status`, announce/listen via writes — because ipconfig/cs/dns AND the cpu listener all speak it. The pitfall: implementing "a TCP path" that bypasses the ABI (fast-path ioctl-ish shortcuts) and discovering ipconfig/dns/17010 can't ride it. Chicken-egg sub-trap: DHCP needs raw ethernet before IP is configured — the raw-frame channel must exist before the IP path, in whichever layer owns it.
+**Prevention:** the NETDRV plan's first milestone is `/net/ether0` + clone/ctl semantics with ipconfig running unmodified; TCP data plane second. Note the leverage: Plan 9 networking needs **zero new syscalls** — announce/listen/dial are file ops — so any plan that grows the syscall table for networking is a red flag (the measured-set rule generalizes to devices).
+
+### Pitfall M2: Linux tap/bridge distro drift + firewall eating the guest
+
+**What goes wrong:** `ip tuntap` + bridge setup differs across NetworkManager/systemd-networkd/netplan hosts; nftables default-drop or firewalld zones silently drop host↔guest frames on the bridge (ARP works — L2 — but TCP SYNs vanish, looking like a guest TCP bug). qemu-bridge-helper is setuid and cannot come from the nix store.
+**Prevention:** the doctor-checker (Pitfall 10) asserts: tap exists, bridge membership, FORWARD policy, `/dev/net/tun` perms — and prints exact remediation per detected distro tooling; the flake app uses explicit `-netdev tap,ifname=...,script=no,downscript=no` against the pre-made tap, never `-netdev bridge`.
+
+### Pitfall M3: MTU/PMTU mismatches
+
+**What goes wrong:** 1500-vs-overlay-underlay mismatches on bridged setups blackhole large packets: small pings and interactive echo fine, bulk transfer stalls — same symptom family as Pitfall 6, different cause.
+**Prevention:** the triage runbook's second step after offload: large-ping sweep (`ping -s` equivalents) across the path; keep guest MTU at 1500 to match qemu defaults; document the symptom split.
+
+### Pitfall M4: drawterm devdraw/9P semantics under load
+
+**What goes wrong:** full-screen refreshes are bulk transfers over the cpu 9P session; if r9's devmnt caps `msize` small, rio is glacial-but-correct (perf, not correctness); long-lived idle connections probe TCP keepalive/RST corners in a freshly-written stack (abortive-close handling).
+**Prevention:** negotiate a real msize (≥64 KiB) in the cpu session; the NETDRV long-flow gate (Pitfall 6) includes a multi-hour idle-then-active cycle to exercise RST/keepalive; perf expectations documented (local VM latency, not LAN).
+
+### Pitfall M5: libthread-era programs exercise unmeasured kernel corners
+
+**What goes wrong:** rio/acme/sam are libthread programs; the v1.0 measured set covered the shell path only. GUI programs are the first likely callers of corners like RENDEZ(2) and richer note interaction; assuming "shell runs ⇒ GUI runs" ships a rio that walls on an unimplemented loud-None mid-demo.
+**Prevention:** the measure-first trace on the donor kernel (Pitfall 1) explicitly includes the Tier-3 GUI binaries' boot-to-window syscall footprint BEFORE the DESKTOP phase commits to r9 support; r9's loud-unimplemented default stays loud (v1.0 rule) so gaps name themselves in the serial log.
+
+### Pitfall M6: Games/excluded-dirs re-entry pressure
+
+**What goes wrong:** late-milestone "just one more dir" commits pull `games/`, `gs`, or ape programs into the sweep without their gates, re-breaking the default build.
+**Prevention:** the allowlist (Pitfall 1) is append-only-via-gate; exclusions are named in the phase goal; a completion audit diffs the allowlist against the phase plan.
+
+## Minor Pitfalls
+
+| Pitfall | What goes wrong | Prevention |
+|---------|-----------------|------------|
+| drawterm screen geometry | `-g` mismatch → default-size rio window; cosmetic confusion | wrapper passes a deliberate `-g`; document |
+| drawterm audio (`#A`) | host audio probing spews warnings on headless CI | use `-G` text mode in CI; audio never gated |
+| `$PASS`/`$cpu`/`$auth` host env leaks | drawterm skips prompts / dials the wrong server | wrapper scrubs env (Pitfall 13) |
+| kbdfs disabled (`-B`) | dead keyboard in rio | never pass `-B` in the wrapper |
+| guest time unset (no RTC read / no ntp) | log timestamps nonsense; fossil-less so mostly cosmetic; TLS only if Pitfall 13 path taken | set `#c/time` from host at boot (bake or boot-line); don't chase "clock skew" on p9sk1 failures (Pitfall 12 red herring) |
+| keyfs DB admin after bake | `convkeys` with keyfs running corrupts the DB (man-page BUGS) | runbook: admin ops only with keyfs down; prefer regenerating via the bake tool |
 
 ## Technical Debt Patterns
 
 | Shortcut | Immediate Benefit | Long-term Cost | When Acceptable |
 |----------|-------------------|----------------|-----------------|
-| Commit arch headers/mkfile before toolchain (riscv64 pattern) | Feels like progress, easy PR | Dead scaffolding, false signal, broken `installall` | **Never** — this is the project's own cautionary tale |
-| Hardcode qemu virt device addresses from dumpdtb | Skip DTB parser (~200 lines) | Breaks on qemu version bump; darwin/linux divergence | Early bring-up only, with a TODO gate before phase exit |
-| Portable-C `mem*`/`str*` in libc/aarch64 (skip asm) | Port unblocked sooner | Slower libc; fine | Acceptable — riscv64 precedent; optimization later |
-| C-only libsec for aarch64 (skip asm accel) | No per-arch crypto asm audit | Slow RSA/AES | Acceptable this milestone |
-| Keep dual `9`/`9k` trees untouched | Zero-risk this milestone | Fixes continue diverging (`tcp.c:2049` duplicated TODO) | Acceptable now (logged Out of Scope); schedule dedup milestone |
-| Skip Go programs on aarch64 image | No Go port needed | Image lacks edwood/gopls/acme-lsp/muscle on aarch64 | Forced — Go has no plan9/arm64; document as known gap |
+| Negotiate virtio offloads "for performance" before the plain path is proven | Faster transfers on paper | Pitfall 6's phantom TCP bugs baked into the driver's foundation | **Never** — zero-offload is the milestone config |
+| Hardcode ECAM base / virtio IRQ SPIs from dumpdtb | Skip DTB parsing work | Breaks on qemu bump (11.1.2 already moved ECAM once — v1.0 evidence) | Never; the committed DTB is the contract |
+| Bake demo auth keys into the repo | Reproducible demo auth | A real deployment reuses demo credentials | Acceptable ONLY as a loudly-documented demo domain; the operator flow (wrkey/changeuser) must exist in docs |
+| slirp-only networking evidence | Zero-privilege CI simplicity | L2 bugs ship to the tap leg undetected | darwin iteration yes; milestone exit NO (tap leg required) |
+| Defer the `gethunk` ×2 fixes until they fire | One fewer Wave-0 task | A hung build mid-wave, diagnosed from scratch | Never — known bug, known fix, certain trigger |
+| Skip per-tier donor-kernel execution, gate on r9 only | Fewer harnesses to maintain | 7c-miscompile vs r9-gap confounded in every failure | Never — the donor harness exists and is the known-good reference |
+| Grow r9 syscall table by reading man pages | Skip a trace cycle | Handlers without callers; ABI drift (v1.0's measured-set rule exists because of this) | Never — measure-first on the donor chain |
+| Text-mode-only drawterm gate (`-G`) for CI | Headless CI works | rio/devdraw path unproven at ship | Acceptable for CI; milestone exit needs a human-accepted graphical leg on both host OSes (v1.0 TCG-banner precedent) |
 
 ## Integration Gotchas
 
 | Integration | Common Mistake | Correct Approach |
 |-------------|----------------|------------------|
-| qemu `-kernel` (aarch64) | Assuming multiboot/`plan9.ini` flow from k10 | ELF bare-metal: entry at ELF entry, DTB at 0x40000000; design new boot-line mechanism |
-| qemu `-M virt` | Accepting default `-cpu` (32-bit cortex-a15) | Always `-cpu cortex-a72` (or a53); pin `gic-version=2` |
-| 9front bcm64 reference | File-copying into `sys/src/9k/` | Port sequences/concepts; write 9k-native mach dir |
-| plan9port host tools | `$PLAN9/bin` early in PATH (shadows util-linux `mount`) | Keep `$PLAN9/bin` LAST (per BUILD_ON_UNIX; logged decision) |
-| lima VM (darwin hosts) | virtiofs subdirectory binds (silently empty) | rsync to guest-local disk (logged decision — don't regress) |
-| Go toolchain in image | Expecting GOARCH=arm64 to work | Go unsupported on plan9/arm64 — exclude Go cmds from aarch64 image |
+| 9front drawterm | Bare invocation → rcpu/TLS/17019/dp9ik against p9sk1/17010 | Wrapper pins `-O` (+ negotiated `-e`), scrubs `$cpu`/`$auth`/`$PASS`, OR choose 9fans drawterm (FLAKE decision) |
+| qemu on darwin | `-netdev vmnet-*` on nixpkgs (ad-hoc-signed) qemu | slirp+hostfwd default; vmnet/socket_vmnet documented opt-in with doctor-check |
+| qemu on linux | `-netdev bridge` (setuid helper can't come from nix store) | pre-made tap + `-netdev tap,ifname=X,script=no` + doctor-asserted bridge/nftables |
+| Guest ndb | Hardcoded 10.0.2.x (slirp) baked into bootfs | ndb entry generated per net-mode at bake/launch; numeric IPs, not DNS names, for the demo domain |
+| p9sk1 auth server | Name-resolved `auth=` with no dns/cs yet | numeric `auth=` in `/lib/ndb/local`; loopback guest probe before any host client |
+| cpu service | Assuming announce/listen need new r9 syscalls | They're file ops on `/net/tcp` — zero new syscalls; the listener is `aux/listen` + `/rc/bin/service/tcp17010` |
+| r9 device growth | Adding virtio-gpu/devdraw "while we're here" | r9 needs NO graphics driver this milestone — draw arrives via drawterm's `#i`; anti-feature, guard the scope |
+| Harvey↔r9 qemu flags | Netdev stanzas restated in both repos' launchers | r9 TOML carries the stanza as data; Harvey's app consumes it (Pitfall 16) |
 
 ## Performance Traps
 
 | Trap | Symptoms | Prevention | When It Breaks |
 |------|----------|------------|----------------|
-| `qmalloc` single-lock allocator (`sys/src/9k/port/qmalloc.c`) | SMP scaling cliff | Defer; note per-CPU magazine backlog item | Many CPUs — irrelevant on 1-4 vCPU qemu |
-| TCG (no HVF/KVM) bring-up on x86_64-linux hosts | Boot tests 10-50× slower; timeouts misread as hangs | Require aarch64 host (HVF/KVM) for bring-up CI; TCG only for smoke | Immediately on non-ARM CI runners |
-| 32-bit-DMA driver assumptions (`ethervgbe.c:875` style) | Bounce-buffer hacks creep into new virtio code | Write virtio-mmio drivers 64-bit-clean from day 1 | When RAM >4GB configured |
+| TCG-only networking legs | Tap/auth/desktop gates take minutes; timeouts misread as hangs | Keep TCG leg timeouts generous; HVF/KVM legs where available (darwin HVF rejects GICv2 on qemu 11.1.2 — v1.0 finding: accel chain ends at tcg, so darwin legs are TCG by design) | Immediately on hosted CI (x86_64-linux has no KVM in the dev fleet — v1.0 accepted TCG for gates) |
+| Small `msize` on the cpu 9P session | rio refreshes crawl (5 MB screen ÷ 8 KiB messages) | Negotiate ≥64 KiB; note devmnt's mntchk bounds discipline scales with msize | First full-screen rio redraw |
+| INTx interrupt coalescing absent | One IRQ per packet at high pps | Acceptable at demo scale; EVENT_IDX/MSI are post-milestone optimizations | Sustained bulk transfer benchmarks, not the deliverable |
+| Full-cmd sweep build time (dual-arch, lima rsync) | Default `nix run .#build` slows for every workstream | Tier allowlist keeps the sweep proportional; per-tier dirs enter only when gated | As tiers land — monitor; v1.0's dual-arch default was the right call, keep it |
 
 ## Security Mistakes
 
 | Mistake | Risk | Prevention |
 |---------|------|------------|
-| "Port makes TLS work" claims | Silently shipping SSL3/NULL ciphers on a new arch | Milestone rule: zero libsec/devtls changes; backlog for hardening milestone |
-| Kernel `strcpy`/`sprintf` (76 hits in 9k) | New aarch64 code copies the idiom (`devsrv.c:170`, `chan.c:892`) | New code uses `kstrcpy`/`snprint`; don't propagate idiom |
-| Bootstrap ISO without checksum (`build/build.bash:6-10`) | Supply-chain trust in revival path | Already bypassed by Nix flow; keep it dead — don't resurrect |
+| Demo auth domain mistaken for a security boundary | Anyone on the bridge owns the guest | Docs + boot banner label it DEMO; operator key flow documented; no real secrets ever baked |
+| keyfs/nvram pairing unverifiable | Garbage keydb serves uniform "authentication failed" (Pitfall 11) | Bake-time pairing hash asserted at keyfs start — fail loud, not opaque |
+| `hostfwd` bound to 0.0.0.0 on slirp | Guest's cpu/auth ports exposed to the LAN | Bind hostfwd to 127.0.0.1 in the flake app |
+| TLS-era libsec changes sneaking in with auth work | Re-opening the v1.0-declared TLS debt (out of scope) | Milestone rule stands: zero libsec/devtls modernization; p9sk1's DES/RC4 surface unchanged; audit at ship (v1.0 Pitfall 13 carries forward) |
+| drawterm `-e clear` left as the shipped default | Session traffic plaintext on the bridge | Bring-up default clear, ship default negotiated crypt (`rc4_256 sha1` matches Harvey's libsec); wrapper owns the flag, docs explain |
 
 ## "Looks Done But Isn't" Checklist
 
-- [ ] **9k amd64 "green":** k10cpu building ≠ done — verify `k10cpuf` **and** `k10f` (embedded-root variants) link; they fail at `mkrootall` if `/amd64/bin/ip/ipconfig` or `/amd64/bin/auth/factotum` missing (Pitfalls 1-2).
-- [ ] **cmd chain "completed":** mk returning 0 ≠ everything installed — DIRS iteration can skip aborts; verify `venti`, `ip/ipconfig`, `auth/factotum` binaries exist, not just "no error."
-- [ ] **7c compiles hello.c:** ≠ toolchain done — verify `7l` links against a `libc.a` archive built by `iar` (archive format compat is separate from codegen correctness).
-- [ ] **libc/aarch64 exists:** ≠ userland builds — `main9.s` ABI, `notejmp`/`Ureg` match, and `tas` correctness under `-smp 4` each need a dedicated smoke test (Pitfalls 10-11).
-- [ ] **Kernel prints banner:** ≠ kernel works — stage-gate: UART poll → timer IRQ → GIC-passed device IRQ → scheduler → rfork → exec of `boot` from embedded root (Pitfall 8).
-- [ ] **Boots once:** ≠ reproducible — `-DKERNDATE=date -n` embeds time; decide the policy before claiming "reproducible from clean checkout" (Pitfall 14).
-- [ ] **aarch64 userland "builds":** ghostscript's x86 MMX asm (`pnggccrd.c`/`pngvcrd.c`) and APE dirs will break a full `mk install` — prune/exclude before claiming green (CONCERNS.md).
+- [ ] **"cmd builds":** mk exit status is ALWAYS 0 in the namespace build (Phase-2 deferred item) — the gate is artifact existence + per-tier donor-kernel execution markers, never rc.
+- [ ] **"libdraw family ported":** portable C compiles ≠ mkfiles correctly skip per-arch asm for aarch64 — verify the mkfile guards, then a binary that actually links libmemdraw.
+- [ ] **"virtio-net works":** ping green ≠ TCP works — the exit gate is a sustained bidirectional TCP flow (Pitfall 6) on the TAP leg (Pitfall 9), with interrupt accounting (Pitfall 8) and a load soak (Pitfall 7).
+- [ ] **"auth works":** drawterm login green ≠ the domain is sound — verify the loopback guest probe, keyfs pairing assertion, and speaksfor for a NON-hostowner demo user.
+- [ ] **"drawterm connects":** text-mode `-G` green ≠ desktop — rio running under the session's `/dev/draw`, keyboard live (kbdfs not `-B`'d), fonts resolved from the guest, rio NOT started at guest boot (serial marker proves absence).
+- [ ] **"networking reproducible":** works on the dev mac ≠ works from clean checkout — the doctor-checker must pass on a fresh linux host (CI leg) and the darwin slirp path on a fresh mac (documented-manual leg, v1.0 D-13 convention).
+- [ ] **"flake supplies drawterm":** `nix run .#drawterm` exists ≠ correct invocation — the wrapper's flags/env-scrub are the deliverable; proven by the scripted interop gate, not by launching it once by hand.
+- [ ] **"bootfs baked":** image builds ≠ contents right — the mkimage manifest asserts every new baked file (keys/ndb/fonts/profiles), extending the v1.0 staged-pollution guard.
 
 ## Recovery Strategies
 
 | Pitfall | Recovery Cost | Recovery Steps |
 |---------|---------------|----------------|
-| Generator cross-compile mess (1) | LOW | Switch generator to host `pcc`, `mk nuke` the dir, rebuild |
-| Embedded-root ordering (2) | LOW | Install missing cmds, re-run kernel `mk` — no code change |
-| Scaffolding-first port (3) | MEDIUM | Quarantine dirs, rebuild toolchain-first; the riscv64 cleanup is itself a task |
-| Naming collision (4) | LOW (now) | Rename before references accumulate; cost grows with every import |
-| Boot protocol wrong (5) | MEDIUM | Rebuild entry asm + link flags; no portable-code impact |
-| qemu defaults (6) | LOW | Fix run script; pin in flake |
-| MMU/cache bugs (7) | HIGH | Bisect boot sequence with qemu `-d int,guest_errors`, single-step bring-up; this is the schedule risk |
-| Stale compiler lineage (9) | HIGH | Re-vendor from 9front 7c — costs the port work twice; avoid by choosing 9front-first |
-| tas/Ureg ABI bugs (10/11) | HIGH | Rewrite ABI files as a set, re-run SMP/note smoke tests |
+| 1 (whack-a-mole) | MEDIUM | Stop flag-flip; re-baseline to the tier allowlist; triage failing dirs by bug class (Pitfall 3 table) rather than by build order |
+| 2 (generators) | LOW | Per-dir fix: generator → host toolchain; the Wave-0 audit lists all sites up front so recovery is never needed twice |
+| 4 (gethunk hang) | LOW | Kill the wedged compiler; apply the known 7l-pattern fix; synthetic repro as the gate |
+| 6/7 (virtio negotiation/races) | MEDIUM | Drop to zero-offload mask + barrier audit; reproduce under the load gate, not interactively |
+| 8 (IRQ plumbing) | MEDIUM | QMP/gdbstub inspect GIC registers + DTB interrupt-map re-read (v1.0's GICR_WAKER forensic recipe is the template); never guess SPI numbers |
+| 11/12 (auth bootstrap/opacity) | MEDIUM | Regenerate the whole domain with the bake tool (single source); add serial auth logging first if missing — do not debug p9sk1 blind |
+| 13 (drawterm protocol) | LOW | Add `-O`/scrub env or swap provenance; interop gate proves it in CI text mode |
+| 14 (rio ordering/fonts) | LOW | Move rio to profile; add fonts + manifest; no code changes |
+| 10 (vmnet wall) | LOW | Fall back to slirp+hostfwd (the default); pursue entitlement/socket_vmnet as the documented opt-in |
+| 16 (cross-repo drift) | LOW-MEDIUM | Realign flag single-source; split any bundled pin+feature commit into two (bisectable) |
 
 ## Pitfall-to-Phase Mapping
 
-| Pitfall | Prevention Phase | Verification |
-|---------|------------------|--------------|
-| 1. Compile-and-run generators | Build revival (9k amd64 green) | Clean checkout → full cmd install; `ycbcr.h`/`proctab.c` regenerated by host tools; preflight asserts ipconfig/factotum present |
-| 2. Embedded-root ordering | Build revival | `mk CONF=k10cpuf install` and `k10f` link green in same run |
-| 3. Scaffolding-first (riscv64) | Build revival (quarantine) + Toolchain (gate) | riscv64 quarantined; aarch64 dirs committed only after 7a/7l hello-world |
-| 4. arm64/aarch64 naming | Toolchain, first task | No `arm64` paths remain; `objtype=aarch64` build wiring works |
-| 9. 7c from stale 5c | Toolchain | 9front 7c vendored; hello-world + libthread smoke under qemu user/system |
-| 10/11. libc ABI contract | Toolchain (headers/libc) + Bring-up (trap path) | `tas` SMP stress; note/rfork smoke; static assert on Ureg size |
-| 14. mk hygiene | Build revival | `mk nuke` removes all generated files; two consecutive builds identical modulo KERNDATE |
-| 5/6/7/8. Boot/qemu/MMU/console | Kernel bring-up | Stage-gated: ELF entry → UART print → timer IRQ → GIC IRQ → sched → shell on `-M virt` |
-| 12. bcm64≠9k layout | Kernel bring-up | New mach dir follows `k10cpu` config grammar; `port/` unmodified or minimally hooked |
-| 13. TLS boundary | (Deferred milestone) | Zero libsec/devtls diffs this milestone (audit at ship) |
-| 15. Go/arm64 gap | Toolchain/image | aarch64 image build excludes `cmd/go` commands; documented |
+| Pitfall | Prevention Phase Area | Verification |
+|---------|----------------------|--------------|
+| 1 whack-a-mole / 5 ape / 6-dir notoriousness | USERSPACE (tier design) | Tier allowlist append-only; per-tier donor+r9 execution markers; exit = all tiers green, ape/gs excluded by name |
+| 2 cross generators | USERSPACE Wave 0 | Audit list committed; CI red on target-magic generator artifacts |
+| 3 bug-class catalog | USERSPACE Wave 0 + every tier | Grep-audit findings filed per dir; class-fixes land as single atomic commits |
+| 4 gethunk landmines | USERSPACE Wave 0 | Both sites fixed preemptively with synthetic large-input repros |
+| 6 negotiation / 7 barriers | NETDRV | Zero-offload mask in driver config; long-flow TCP gate + load soak at phase exit |
+| 8 IRQ plumbing / ECAM | NETDRV Wave 0 | DTB-driven interrupt-map parser spike before virtqueues; level-trigger + ISR-ack in handler; interrupt accounting green |
+| 9 slirp masks L2 | HOSTNET | Tap leg is the L2-truth exit gate (linux CI); slirp is darwin-default dev loop only |
+| 10 vmnet/hermetic privileges | HOSTNET + FLAKE | Doctor-checker output on fresh hosts; no setuid/entitlement assumption in any derivation |
+| 11 auth bootstrap | AUTH Wave 0 | Bake-time domain generator; keyfs non-interactive start + pairing assertion in boot-test |
+| 12 auth opacity | AUTH | Serial auth logging; loopback p9sk1 probe green pre-drawterm; non-hostowner speaksfor gate |
+| 13 drawterm protocol | FLAKE | Wrapper flags/env-scrub; scripted `-G` interop gate in CI |
+| 14 rio ordering/fonts | DESKTOP | Serial marker proves rio absent at boot; profile-driven rio; font manifest assertion; graphical leg human-accepted per host OS |
+| 15 debug-through-TCP | NETDRV + DESKTOP | Serial discipline maintained; filter-dump capture path printed per run; triage runbook committed |
+| 16 cross-repo drift | all (process rule) | netdev stanza single-sourced; pin-bump commits isolated + CI'd; mkimage manifest covers full bake set |
 
 **Research flags for phase planners:**
-- Toolchain phase needs a **RESEARCH.md** deep-dive: diff 9front `7c/7a/7l` + `cc/` vs Harvey's `5?` + `cc/`; license check; iar archive-format compat with 7l objects.
-- Kernel bring-up phase needs a **RESEARCH.md** deep-dive: bcm64 boot/mmu/trap walkthrough mapped onto 9k's parse/portmkfile machinery; qemu virt DTB fixture for the pinned qemu version.
-- Build-revival phase: standard patterns (fix generators, ordering, hygiene) — unlikely to need research, but see Pitfall 1 grep list.
+- NETDRV likely needs its own phase-level RESEARCH: where TCP lives (the "resolved in research" kernel-vs-userspace decision) must be FINAL before the driver plan, because it determines whether Pitfall M1's ABI work lands kernel-side or user-side.
+- USERSPACE needs no new domain research (the bug classes and landmines are enumerated here); it needs the Wave-0 audits scheduled as real tasks.
+- AUTH/DESKTOP are well-covered by 4e-era docs + this file; the open question is which drawterm provenance (FLAKE decision) — everything else follows from it.
+- HOSTNET's darwin L2 opt-in (socket_vmnet vs signed-qemu-vmnet) deserves a small decision spike inside its phase, not a research phase.
 
-## Cautionary Tales (failed/abandoned attempts)
+## Cautionary Tales (from this repo's v1.0, applied forward)
 
-1. **Harvey's own riscv64 port (in-tree):** headers + mkfile referencing a never-committed `jc/jl/ja` toolchain; no kernel, no compiler; libc skeleton with mem*.s commented out. The milestone's explicit cautionary precedent — the ordering failure (scaffolding before toolchain), not a technical dead-end.
-2. **Harvey upstream itself (2022-03 dormancy):** the project's existence proof that host-environment assumptions kill dormant Plan 9 trees first — EOL Ubuntu 21.10 Dockerfile (apt mirrors gone), expect+qemu prompt-matching bootstrap against an archived org's release artifact, CI that pattern-matched boot prompts. The Nix flow exists precisely because this path rotted.
-3. **9legacy's survival model:** 9legacy persists as a *curated patch queue* on the frozen 4e release — evidence that the sustainable posture for a small team is minimal diffs + active host-tool maintenance (they also run Go's plan9 builders), not heroic rewrites.
-4. **Go on plan9/arm64:** doesn't exist upstream; Harvey's image ships Go programs (edwood, gopls, acme-lsp, muscle) for amd64 only. Any aarch64 image plan that assumes feature parity with amd64 userland will over-promise.
-5. **Plan 9 arm ports that died at "headers + partial kernel":** Harvey's tree contains the fossils — `arm/`, `mips64/`, `power64/`, `sparc*/`, `spim64/` dirs are header-and-fragment ports; `sys/src/9/kw/cga.c` has `#define inb(x) 0 /* TODO */` stubs compiled into a "working" kernel port. Partial ports don't degrade gracefully; they just lie there.
+1. **The pswt.c lesson, generalized:** a compiler bug class thought "mostly clean" (7c is 9front-vendored) was only proven on 16 commands. The full tree is a different distribution of inputs — Wave-0 fixes the KNOWN live landmines (gethunk ×2) before the distribution shifts.
+2. **The staged-init wedge (05-07):** a stale artifact baked into bootfs wedged the gate and cost a debugging cycle; v2.0 bakes secrets and configs — the manifest guard grows or the same class returns with worse symptoms (wrong key = indistinguishable from auth bug).
+3. **The lima `/bin/rc` masking (G-05-1):** an undocumented environment convenience masked a gap until the first fresh host. v2.0's equivalent: any host networking step performed by hand and not codified in the doctor-checker will be discovered by the first fresh linux CI host or contributor mac.
+4. **Transitional-vs-modern virtio (donor boot, 02-04):** qemu's default `virtio-net-pci` is transitional (0x1000); the donor driver matched only modern (0x1041). Pin the device variant in the TOML/flags BEFORE writing r9's driver — the two variants have different register layouts, and porting between them wastes a week.
+5. **qemu 11.1.2 ECAM move (02-04):** the virt ECAM base moved once already (0x3F000000 → 0x40100000). Anything hardcoding PCI addresses instead of reading the committed DTB re-fights this on the next qemu bump.
 
 ## Sources
 
-- **In-tree (HIGH confidence, direct reads):** `sys/src/cmd/jpg/mkfile:56-68`, `sys/src/cmd/awk/mkfile:42-50`, `sys/src/cmd/cc/mkfile:26`, `sys/src/cmd/4a/mkfile`, `sys/src/cmd/mkfile:34-38`, `sys/src/mkfile.proto:6`, `unix/mkfile`, `nix/build.sh:12-13`, `build/scripts/build:76-80`, `build/scripts/linux-build:63-67`, `build/mkdirs:264`, `riscv64/` + `riscv64/include/u.h` + `sys/src/libc/riscv64/`, `sys/src/9k/k10/mkfile` (incl. sipi.h recipe, KERNDATE), `sys/src/9k/k10/k10cpu` (rootdir), `sys/src/9k/mk/parse` (mkrootrules/mksystab/mkdevc), `arm64/` (empty bbin), `.planning/codebase/CONCERNS.md` (TLS, dual-tree, TCP TODOs)
-- **QEMU official documentation (HIGH):** "'virt' generic virtual platform" — default cortex-a15 (32-bit), DTB at RAM start (0x40000000) for bare-metal/ELF boots, x0=DTB for Linux protocol, versioned machine types, gic-version option, PL011/virtio-mmio inventory (qemu-project.gitlab.io/qemu/system/arm/virt.html, fetched 2026-10-30)
-- **9front (MEDIUM-HIGH):** `arm64/mkfile` (`CC=7c LD=7l AS=7a O=7`) via git.9front.org; bcm64 port location/lineage (Richard Miller RPi port) via 9fans topicbox + multiple setup guides; arm64 QCOW2 image boots under QEMU on ARM hosts
-- **Ecosystem (MEDIUM):** 9legacy patch-queue model (9legacy.org, github.com/0intro/9legacy); Go plan9 maintenance/bus-factor (golang/go#58011); plan9port issue tracker activity
-- **Compiler suite background (MEDIUM):** Thompson, "Plan 9 C Compilers" (9p.io/sys/doc/compiler.html); RV64GC compiler talk (YouTube) confirming the add-an-arch pattern for the ken suite
-- Seam confidence note: the research-store seam rated all cached digests LOW (unverified-web provenance); the in-tree and QEMU-doc claims above are nonetheless primary-source and are treated as HIGH in this document.
+- **In-repo v1.0 artifacts (HIGH):** `.planning/milestones/v1.0-phases/02-*/deferred-items.md` (gethunk ×2 unfixed sites, hswal, ECAM move, transitional ID, GICR WAKER, pswt.c lineage); `05-*/deferred-items.md` (staged-bake pollution, fid/mntchk discipline); `.planning/RETROSPECTIVE.md` (boot-test rule, measure-first rule, fresh-host lesson); `PROJECT.md` (known upstream breakage list; carried-over pin-bump rule; 9k/ape context); `.planning/research/PITFALLS.md` v1.0 (Pitfalls 1, 13, 14 carried forward).
+- **Primary docs fetched (HIGH for the claims cited):** drawterm(1) 9front man page via Debian manpages (rcpu/TLS/dp9ik default, `-O`, `-G`/`-B`, `$cpu`/`$auth`/`$USER`/`$PASS` env, `-e` crypt scope, rsc-original p9sk1 lineage); Plan 9 auth(8) man page via 9p.io (authsrv tcp/567, wrkey→NVRAM, keyfs/convkeys rules incl. the keyfs-down BUGS note, `/lib/ndb/auth` speaksfor, `auth/debug` behavior); ARM Base System Architecture DEN0094C (GICv2 = no native PCIe MSI, v2m extension maps MSI→SPI, PCI legacy INTA–D are level-sensitive SPIs with implementation-defined IDs).
+- **Vendor/community trackers (MEDIUM, pattern confirmation):** qemu GitLab #1364 + qemu-devel vmnet patch threads (vmnet entitlement requirement; ad-hoc signing insufficient; root-or-entitlement; `killed 137` evidence); libvirt-users/Red Hat bz 814898/netgate/virtio-win threads (checksum/TSO offload "ping works, TCP hangs" class); ARM char-unsigned ABI confirmation (LWN + embedded references).
+- **Seam confidence note:** the research-store seam rated all web digests LOW (unverified provenance); per the v1.0 convention, the man-page/spec/tracker claims above are primary-source and treated as HIGH, the offload symptom-pattern corroboration as MEDIUM.
 
 ---
-*Pitfalls research for: Harvey OS build revival + aarch64 port*
-*Researched: 2026-10-30*
+*Pitfalls research for: Harvey OS v2.0 — Full System & Drawterm*
+*Researched: 2026-11-04*

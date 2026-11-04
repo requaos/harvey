@@ -1,130 +1,162 @@
-# Stack Research
+# Technology Stack
 
-**Domain:** Plan 9-family OS porting — aarch64 (ARM64) toolchain + reference kernel ecosystem for Harvey OS
-**Researched:** 2026-10-30
-**Confidence:** HIGH for locations/contents (verified by direct fetch of primary source trees: 9front git mirror, 0intro/9-cc, 9fans/plan9port). Provider-seam tier for all web evidence is LOW (no curated docs DB configured for this domain), but every load-bearing claim below was confirmed against actual file contents in the canonical repos, not search-result summaries. Jehanne/9legacy negative findings are absence-of-evidence (MEDIUM).
+**Project:** Harvey OS v2.0 "Full System & Drawterm" — stack additions for new capabilities only
+**Researched:** 2026-11-04
+**Confidence:** HIGH for all in-tree facts (verified by direct read of Harvey + r9 sources); MEDIUM for web-sourced package/crate facts (websearch seam tier, cross-verified against docs.rs / raw nixpkgs + 9front sources). No LOW-tier claim is load-bearing.
 
 ## Executive Answer
 
-**Import everything from 9front.** It is the only Plan 9-family tree with a maintained, shipping aarch64 toolchain (`7a`/`7c`/`7l`), the only maintained Plan 9 aarch64 libc, a working libmach arm64 backend, *and* an in-tree qemu `-M virt` reference kernel (`CONF=qemu`). Harvey's build conventions (BUILD scripts compiling Plan 9 sources with plan9port `9c`/`9l`) already match the shape of 9front's sources — the import is mostly mechanical, with known drift surfaces enumerated below. All donor code is MIT or MIT-compatible; Harvey itself is MIT (see license section — the milestone brief's "GPL tree" assumption is outdated).
+Almost everything server-side **already exists in-tree**; the genuinely new code is confined to r9 (PCI/ECAM + virtio-net + a devip-compatible `/net`) and host-side plumbing (qemu netdev tiers + nixpkgs drawterm). The one real stack *decision*: **Harvey ships a kernel TCP/IP stack (`sys/src/9k/ip/`, ~15.4k lines C) plus userspace *clients* of it (`sys/src/cmd/ip/`) — there is no Harvey userspace TCP/IP stack to reuse**, so r9 implements `/net` semantics over **smoltcp** rather than porting devip C to Rust.
 
 ## Recommended Stack
 
-### Core Technologies (import sources)
+### 1. Full aarch64 userspace — no new imports, build-scope change only
 
-| Technology | Version | Purpose | Why Recommended |
-|------------|---------|---------|-----------------|
-| **9front `sys/src/cmd/7a`** | branch `front` @ HEAD (pin SHA at import; e.g. `9front/9front` mirror commit for a.y `a5b1f96…` blob) | ARM64 assembler (Plan 9 syntax) | Canonical, actively maintained. File layout (`a.h`, `a.y`, `lex.c`, `mkfile`) is identical in shape to Harvey's `6a` — Harvey's `6a/BUILD` pattern (`yacc -D1 -d a.y; 9c *.c; 9l -o 7a`) applies unchanged. |
-| **9front `sys/src/cmd/7c`** | branch `front` @ HEAD | ARM64 C compiler (ken-cc lineage) | The only living Plan 9 arm64 compiler. Files: `cgen.c enam.c gc.h list.c machcap.c mul.c peep.c reg.c sgen.c swt.c txt.c 7.out.h`, mkfile with `T=7`, `HFILES=gc.h 7.out.h ../cc/compat.h ../cc/cc.h`, includes `../cc/mkfile.port`. Slots into `sys/src/cmd/7c/` where Harvey's `build_arm64` (`build/scripts/linux-build:63`, `build/scripts/build:76`) already globs `/sys/src/cmd/7?`. |
-| **9front `sys/src/cmd/7l`** | branch `front` @ HEAD | ARM64 linker/loader | Companion to 7c; produces Plan 9 a.out (`R_MAGIC`, per 9front `bcm64/dat.h` `AOUT_MAGIC (R_MAGIC)`). Note: `7l` has `dyn.c` (dynamic-linking support) and depends on `../cc/compat` — see Version Compatibility. |
-| **9front `sys/src/libc/arm64/`** | branch `front` @ HEAD | Per-arch libc (setjmp, tas, atomics, memmove, main9) | The only maintained Plan 9 arm64 libc. Full file set confirmed: `_seek.c argv0.s atom.s atomic.s atomic64.s cycles.s fabs.s floor.s getcallerpc.s getfcr.s lock.c main9.s main9p.s memmove.s memset.s notejmp.c setjmp.s sqrt.s tas.s mkfile`. Harvey already has `libc/{port,9sys,fmt}` shared code — only this per-arch dir is missing (`sys/src/libc/` has 386/amd64/arm/…/riscv64 but no arm64). |
-| **9front `arm64/mkfile` + `arm64/include/`** | branch `front` @ HEAD | objtype wiring | `arm64/mkfile` is `CC=7c LD=7l AS=7a O=7` + `</sys/src/mkfile.proto` — byte-for-byte the pattern of Harvey's `amd64/mkfile` (`CC=6c LD=6l AS=6a O=6`). `arm64/include/` carries `u.h` (per-arch types) and `ureg.h` (trap frame — also included by libmach `7.c` as `/arm64/include/ureg.h`), plus `ape/` (skip unless APE is wanted). Harvey's `arm64/` dir currently contains only an empty `bbin/`. |
-| **9front `sys/src/libmach`: `7.c`, `7db.c`, `7obj.c`** | branch `front` @ HEAD | arm64 object/executable/debug support for `nm`, `acid`, `aout2uimage` | Harvey's `sys/include/mach.h` already has the `MARM64` enum (line 40) but **no** `7.c/7obj.c/7db.c` and no `arm64` entry in `setmach.c` — so nothing in Harvey can parse a 7l binary today. 9front's setmach entry is `{ "arm64", FARM64, FARM64B, AARM64, &marm64, &arm64mach }`; `7.c` defines `Mach marm64` (kzero `0xFFFFFFFF80000000`, page size 0x10000, reg list incl. `setSB`); `7db.c` is a complete arm64 disassembler; `7obj.c` parses 7-object streams (`_is7`/`_read7`, includes `7c/7.out.h`). **Collision warning:** Harvey's libmach still wires the *retired Alpha* toolchain under letter 7 (`alpha/7.out.h`, `alphaobj.c`, `alphadb.c`, setmach entry `"alpha"`). 9front deleted Alpha entirely. Decide whether to retire Harvey's alpha libmach entries before importing — both trees call their header `7.out.h`. |
-| **9front `sys/src/9/arm64/` (reference kernel)** | branch `front` @ HEAD | Portable arm64 kernel layer **with `CONF=qemu`** | This is the qemu `-M virt` reference kernel: `l.s main.c mem.c mmu.c trap.c fpu.c clock.c sysreg.c/h bootargs.c cache.v8.s init9.s rebootcode.s devrtc.c gic.c uartqemu.c pciqemu.c qemu mkfile dat.h mem.h fns.h io.h`. Produces `9qemu` + `9qemu.u`. Harvey's 9k port should adapt this into 9k conventions (9k has `sys/src/9k/port` + `sys/src/9k/k10`; expect `sys/src/9k/arm64` + a machine dir). |
-| **9front `sys/src/cmd/aux/aout2uimage.c`** | branch `front` @ HEAD | Wrap 7l a.out kernel as u-boot uImage for `qemu -kernel` | qemu's arm boot path (`load_uimage`) accepts legacy uImages; 9front's arm64 mkfile does `aux/aout2uimage -Z$kzero 9qemu` → `9qemu.u`. Requires working libmach `crackhdr` for MARM64 (hence the libmach import above). Harvey has `sys/src/cmd/aux/` but no `aout2uimage`. |
-| **qemu `qemu-system-aarch64`** | ≥ 8.x host package (nixpkgs `qemu`) | Target emulator, `-M virt` | Matches the 9front `CONF=qemu` reference exactly: RAM at `0x40000000` (DTBADDR), PL011 UART at `0x09000000`, GIC, PCIe ECAM, virtio-1.0. Stable across darwin (hvf) and linux (kvm/tcg); `-M virt` is versioned (`virt-8.x`) for reproducibility. |
+Everything compiles from what's already vendored (9front 7a/7c/7l pin `350266104f`, libc/aarch64, v1.0 green libs). The GUI stack needs **zero assembly work**: `libdraw`/`libmemdraw` ship portable `.c` next to stale committed `.6`/`.8` **binary objects** (verified: `alloc.6` is a compiled 6c object, not source), and `mksyslib`'s `%.$O: %.c` rule builds the portable C on aarch64 (`$O=7`, no `.7` files exist).
 
-### Supporting Libraries (import when the phase needs them)
+| Component | Status | Action |
+|-----------|--------|--------|
+| libc, libbio, libregexp, libndb, libString, libthread, lib9p, libip, libmp, libsec, libauth, libauthsrv | aarch64-green (v1.0) | none |
+| libdraw, libmemdraw, libmemlayer, libframe, libcontrol, libplumb, libhtml, libhttpd, libflate, libdisk, libstdio, libaml, libscribble, libgeometry, libavl, libbin, libcomplete, libdynld, liboventi, libventi, libsunrpc, liblex, libmach | in-tree, **zero per-arch `.s`** (verified full sweep) | flip `build_aarch64` subset → full `LIBS`/`CMDS` in `build/scripts/build` + `linux-build`; rio needs libdraw+libframe+libthread+libplumb+libc (`cmd/rio/mkfile`) |
+| ~262 cmd targets (132 top-level `.c`/`.y` + 130 dirs) | in-tree | build via existing `cmd/mkfile` DIRS loop; exclude `NOTSYS`/`BUGGERED` (`unix`, `old`) as today |
+| **APE (`APEDIRS`: awk bzip2 compress cvs eqn grap gs lp pic postscript spin tex troff)** | **no aarch64 support** — `ape/lib/ap/` has 386/amd64/arm/mips*/power*/riscv*/sparc* but no arm64/aarch64 (verified) | **exclude from aarch64 scope** (see What NOT to Add) |
+| Known upstream breakage | `cmd/jpg/mkfile` derives nonexistent `oc` and aborts the DIRS loop before `ip/`+`venti/` (PROJECT.md); `4a` rfork lex.c; mahjongg cpp | in-tree fixes (upstream dormant; this repo is the maintained fork) |
 
-| Library | Version | Purpose | When to Use |
-|---------|---------|---------|-------------|
-| 9front `sys/src/9/port/ethervirtio10.c`, `sdvirtio10.c`, virtio-1.0 helpers | branch `front` | virtio-net / virtio-block for qemu | After boot-to-shell: networking/storage on `-M virt`. The qemu CONF already links `ethervirtio10 pci virtio10mem` and `sdvirtio10 pci sdscsi virtio10mem`. |
-| 9front `sys/src/9/bcm64/` | branch `front` | RPi3/4 kernel (GIC, mini-UART/pl011, sdhc, genet ether, spin-table SMP) | Only when hardware Pi targets come back in scope (currently Out of Scope). Also a second worked example of the shared-arm64 + machine-dir pattern. |
-| 9front `sys/src/9/lx2k/` | branch `front` | LX2160A (Honeycomb) kernel | Best *structural* analog for a from-scratch virt machine layer: GIC + PL011 + PCIe ECAM + generic timers, no Pi-firmware weirdness (no mailbox, no spin tables). |
-| **0intro/9-cc** `src/cmd/{7a,7c,7l}` | `main` @ HEAD (Harvey already vendors a subset at `634e7371`, 2022-04-04) | Same toolchain, already host-ported to unix | Fallback/diff reference if 9front sources hit Plan 9-isms that Harvey's `9c`+lib9 host build can't digest. Also the provenance of Harvey's vendored `iar` (`sys/src/cmd/unix/9cc/`), so its conventions are already proven in this tree. Its libmach lacks 7-object support — do **not** take libmach from here. |
+Runtime payload additions for the r9 initrd/paqfs: rio + fonts (`lib/font/`), `cmd/auth/*`, `cmd/ip/ipconfig`, `cmd/aux/{listen,listen1}`, `cmd/exportfs`, `cmd/ndb/{cs,dns}`, `lib/ndb/{local,common,auth}`, `rc/bin/service{,.auth}`, cpurc/profile templates.
 
-### Development Tools (already in Harvey's stack — no change)
+### 2. r9 guest networking (the milestone's only greenfield kernel code)
 
-| Tool | Purpose | Notes |
-|------|---------|-------|
-| plan9port (`9fans/plan9port`) | host `mk`, `rc`, `9c`/`9l`, `yacc`, `lex`, lib9 | Confirmed: ships **no** target compilers (src/cmd has zero `?a/?c/?l` dirs) — it cannot be a 7a/7c/7l donor. Keep `$PLAN9/bin` LAST in PATH (existing PROJECT.md decision). |
-| Vendored `9-cc` subset (`sys/src/cmd/unix/9cc/`) | host `iar` archiver | If 7-format archives ever need inspection, this vendored libmach also lacks `7obj` — but `ar`/`iar` don't parse objects, so no change needed for the milestone. |
-| Nix flake devshell | reproducible host env | Add `qemu` (aarch64 system target) to the flake for the boot phases; lima VM path unchanged for the namespace build. |
+| Technology | Version/Pin | Purpose | Why |
+|------------|-------------|---------|-----|
+| **virtio-drivers** (rcore-os) | crates.io `0.13.0` (docs.rs 2026-09-15) | virtio-net device driver + PCI/ECAM transport, no_std | Only maintained Rust no_std virtio stack. `VirtIONet<H,T,QUEUE_SIZE>` (alloc feature) pre-allocates rx buffers, exposes `mac_address`, IRQ ack/enable. PCI transport is **memory-mapped CAM/ECAM only — exactly qemu `-M virt` aarch64**. `transport::pci::bus` ships full enumeration: `PciRoot`, `MmioCam` (16MiB CAM/256MiB ECAM), `BusDeviceIterator`, `CapabilityIterator`, `BarInfo` — r9 does not write a PCI enumerator. Deps (bitflags, safe-mmio, thiserror, zerocopy, log) all no_std. Caveat: `VIRTIO_F_VERSION_1` negotiation marked TODO upstream — works against qemu modern devices in practice (rCore boots it on `-M virt`); keep the donor's `virtio-non-transitional` qemu habit and gate on a boot-test. |
+| **smoltcp** | crates.io `0.14.0` (docs.rs 2026-09/10) | TCP/UDP/ICMP/IPv4 behind a devip-compatible `/net` | The standard bare-metal Rust TCP/IP. no_std, heap-free capable, MSRV stable 1.91 (r9's nightly-2026-01-30 clears it). `default-features=false`, enable `medium-ethernet`, `proto-ipv4`, `socket-tcp`, `socket-udp`, `socket-icmp`, `alloc` (r9 has a kernel heap: `port/globalalloc.rs`); `proto-dhcpv4`/`socket-dhcpv4` later for DHCP. Feature `compile_error!` guards force ≥1 socket-* + ≥1 medium-*. |
+| Reference C (read-only) | in-tree `sys/src/9k/386/ethervirtio.c` (686 lines, legacy PCI); 9front `sys/src/9/port/ethervirtio10.c` (donor pin `350266104f`) | register-layout/ring-protocol references | Harvey's own is virtio-1.0-spec **legacy** register layout; 9front's `ethervirtio10` is the modern-capability model matching virtio-drivers' PCI transport. Read both; import neither. |
+| Semantics reference | in-tree `sys/src/9k/ip/` (15,395 lines; `tcp.c` 3,486) | the file-interface contract for `/net` | Defines what Harvey userland expects: `/net/ipifc`, `/net/tcp|udp|icmp/{clone,N/{ctl,data,status,local,remote}}`, `/net/arp`, `/net/ndb`, `ethermedium` binding to `/net/ether0`. **Do not port this C** (see What NOT to Add) — implement its interface over smoltcp. |
 
-## Installation
+**What r9 must implement** (none exists today — verified: no PCI/ECAM/virtio code in r9 kernel, only xtask qemu args):
 
-```bash
-# Donor checkout (pin to a SHA at import time; 'front' is 9front's mainline)
-git clone https://github.com/9front/9front.git /tmp/9front   # canonical: git.9front.org/plan9front/plan9front
-cd /tmp/9front && git rev-parse front > /tmp/9front.PIN
+1. **PCI/ECAM platform glue** (aarch64 virt): ECAM window at `0x4010000000` from the committed DTB, map device-nGnRE, `PciRoot::new(MmioCam::new(.., Cam::Ecam))`, enumerate vendor `0x1AF4`. GIC SPI routing per DTB `interrupt-map` (legacy SPIs; MSI optional).
+2. **`Hal` impl** over r9 `pagealloc`/`kmem`: `dma_alloc/dealloc`, phys↔virt. qemu `-M virt` without SMMU is cache-coherent in practice; Hal's `flush`/`invalidate` hooks default no-op — document the assumption, add DSB/ISB barriers per `aarch64-cpu` where the spec requires.
+3. **devether** (port crate, `devether.rs` after the `devpipe.rs` pattern): Plan 9 ether layout `/net/ether0/{addr,clone,stats,type,ifstats,N/{ctl,data,listen,local,status,type}}` backed by `VirtIONet`. Required because `ipconfig` opens `/net/ether0` by default (`cmd/ip/ipconfig/main.c:406`).
+4. **devip** (port crate): devip-compatible device over smoltcp — `tcp/udp/icmp` clone/ctl/data files, `ipifc` ctl (`add`/`remove` static config first), `arp` thin shim (smoltcp's medium-ethernet does ARP internally), `/net/ndb` in-memory file. libc contract (verified in-tree): `dial.c` opens `/net/cs` if present else falls back to `/net/<proto>/clone` + `connect` ctl (numeric addrs need no cs); `announce.c`/`listen.c` drive `announce` ctl. **cs/dns stay userspace** (`cmd/ndb/{cs,dns}` over 9P via existing devmnt/devsrv) — r9 needs no kernel resolver.
+5. xtask/flake: qemu already has the pattern — riscv64 path passes `-netdev type=user,id=net0 -device virtio-net-device`; aarch64 virt profile gains `-device virtio-net-pci` (PCI path per milestone) + tier-selected netdev (§3). Harvey `flake.lock` r9 pin must advance past the networking commits (pin currently `9549cee`; carried-over v1.0 item).
 
-# Import into Harvey (target layout):
-#   sys/src/cmd/7a  sys/src/cmd/7c  sys/src/cmd/7l     <- sys/src/cmd/{7a,7c,7l}
-#   sys/src/libc/arm64/                               <- sys/src/libc/arm64
-#   sys/src/libmach/{7.c,7db.c,7obj.c} + setmach/machdata wiring
-#   arm64/mkfile  arm64/include/{u.h,ureg.h}
-#   sys/src/cmd/aux/aout2uimage.c                      (add to aux/BUILD)
-#   sys/src/9k/arm64/ + sys/src/9k/<virt>/             (adapted from sys/src/9/arm64/, not copied verbatim)
+**Static-first IP config** (recommended for the milestone core): boot rc writes `add <ip> <mask> <gw>` to `/net/ipifc/0/ctl`; guest IP fixed per netdev tier (slirp `10.0.2.15`, socket_vmnet DHCP range, tap per-bridge). DHCP-via-ipconfig needs `/net/udp` broadcast + ether binding fidelity — **flag for phase research**, smoltcp's dhcpv4 socket is the fallback.
 
-# Host deps (already present via flake): plan9port, qemu (add qemu-system-aarch64)
-```
+### 3. Host tap/bridge networking — three tiers, one privileged-setup doc per host OS
 
-## License Compatibility
+| Tier | Host | qemu args | Privilege | Use for |
+|------|------|-----------|-----------|---------|
+| 0 (default, CI) | any | `-netdev user,id=n0,hostfwd=tcp::17010-:17010` (+ `hostfwd=tcp::567-:567` if auth server enabled) | none (slirp) | smoke gates, hosted CI, first drawterm connect — p9sk1/9P ride TCP so L2 is not required for the core value |
+| 1 (real L2) | darwin | `socket_vmnet_client /var/run/socket_vmnet qemu... -netdev socket,id=n0,fd=3 -device virtio-net-pci,netdev=n0` | one-time: root daemon (launchd) | macOS dev machines |
+| 1 (real L2) | linux | `-netdev bridge,id=n0,br=br0,helper=<qemu-bridge-helper> -device virtio-net-pci,netdev=n0,mac=52:54:00:…` (unique MAC mandatory) | one-time: setuid helper + `/etc/qemu/bridge.conf` `allow br0` + `br0` exists | linux dev machines |
+| 2 (optional) | darwin | `-netdev vmnet-bridged,id=n0[,ifname=en0]` | **sudo qemu** (nix qemu is unsigned; `com.apple.vm.networking` is a restricted Apple entitlement) | cross-machine drawterm |
 
-| Source | License | Evidence | Compatible with Harvey (MIT)? |
-|--------|---------|----------|-------------------------------|
-| **Harvey itself** | **MIT** (Plan 9 Foundation, 2021) | Top-level `LICENSE` read directly. `LICENSE.gpl` applies **only** to ghostscript printer fonts (`/sys/lib/ghostscript/font`); `LICENSE.old` is historic LPL 1.02. | — |
-| 9front | MIT | Plan 9 relicensed to MIT by Plan 9 Foundation 2021-03-23 (covers all pre-2021 Plan 9 code); 9front project statement on 9fans: "9front kept licensing with MIT". No top-level LICENSE file in the repo (404) — weaker evidence for post-2021 additions; treat as MIT with NOTICE retention. | ✓ |
-| 0intro/9-cc | MIT-grant NOTICE (Lucent/Vita Nuova/C H Forsyth copyrights) | `NOTICE` file fetched directly — verbatim MIT permission text. | ✓ |
-| 9legacy | MIT (same 2021 relicense basis) | 9legacy.org (absence-of-evidence tier). Irrelevant — not a donor. | ✓ (n/a) |
-| plan9port | MIT (post-2021) | 9fans/plan9port. Not a donor for this work. | ✓ (n/a) |
+Key facts (verified): qemu's builtin `vmnet-host/shared/bridged` netdevs (≥7.1, macOS 11+) **require root or the restricted entitlement** — nixpkgs qemu will never have it, so the unprivileged darwin path is **lima-vm/socket_vmnet v1.2.2** (Apache-2.0; daemon runs as root via launchd, qemu stays unprivileged, guest gets macOS bootpd DHCP and is host-reachable). **socket_vmnet is in nixpkgs** (`pkgs/by-name/so/socket-vmnet`, name `socket-vmnet`) and homebrew (keg-only). Linux: `qemu-bridge-helper` ships setuid-able in distro qemu packages (on NixOS wire via `security.wrappers`); the ACL file defaults deny-all. Lima's `lima-privileged-net` pattern (privileged `ip tuntap add user=$UID`, tap fd handed to unprivileged qemu) is the alternative if a setuid helper is unacceptable.
 
-**Action:** retain a `NOTICE`/`COPYRIGHT` line in each imported dir crediting Bell Labs/Lucent, Vita Nuova, C H Forsyth, and 9front. No copyleft conflicts exist; the milestone brief's "Harvey (GPL)" framing is stale — Harvey relicensed to MIT in 2021.
+### 4. In-guest p9sk1 auth domain — 100% in-tree binaries, configuration work
+
+All components exist in `sys/src/cmd/auth/` (verified mkfile TARG): `authsrv`, `keyfs`, `login`, `passwd`, `changeuser`, `newns`, `factotum/` (apop/chap/httpdigest/p9any/p9sk1…), `secstore/`. Deps (libauth, libauthsrv, libsec, libmp, libndb, libbio) are all aarch64-green. `keyfs.c` includes only libc/ctype/authsrv/fcall/bio/mp/libsec — no new lib work.
+
+Wiring (all templates already in-tree):
+
+| Piece | In-tree location | v2.0 action |
+|-------|------------------|-------------|
+| auth service scripts | `rc/bin/service.auth/{authsrv.tcp567,authsrv.il566}` | rename to enable (per 9p.io standalone-cpu-server guide) |
+| cpurc template | `rc/bin/cpurc:39-51` commented `auth/keyfs -wp -m /mnt/keys /adm/keys`, `auth/cron`, `aux/listen -q -t /rc/bin/service.auth -d /rc/bin/service tcp` | enable for the guest cpu/auth profile |
+| port names | `lib/ndb/common:255,291` — `tcp=ticket port=567`, `tcp=ncpu port=17010` | nothing |
+| ndb entries | `lib/ndb/local` | add `authdom=<dom> auth=<guestip> sys=<name> ip=<guestip>` |
+| speakfor db | `lib/ndb/auth` (commented template) | add `hostid=<hostowner>` + `uid=*` |
+| key database | `/adm/keys` via `auth/keyfs` + `auth/changeuser` | seed script in initrd build (hostowner + user with p9sk1 password) |
+
+**Sequencing shortcut (verified, 9p.io wiki "instant cpu server"):** the milestone can land drawterm login **before** the full auth server: `ip config; auth/factotum; echo 'key proto=p9sk1 dom=D user=U !password=P' >/mnt/factotum/ctl; aux/listen1 -t tcp!*!ncpu /bin/cpu -R &` — drawterm's `mkservertickets()` fallback (direct auth, `authid==hostid`) authenticates without any AS. Full keyfs+authsrv then lands as its own phase.
+
+### 5. cpu server + drawterm protocol path — server in-tree, client from nixpkgs
+
+Server side (verified in-tree): `rc/bin/service/tcp17010` is literally `#!/bin/cpu -R`; `aux/listen` scans `/bin/service`; `cmd/cpu.c` server (`-R`) does p9any→p9sk1 (`p9authproto="p9any"`, `ealgs="rc4_256 sha1"`), then `fversion` 64k, `mount(fd,-1,"/mnt/term",MCREATE|MREPL,"")`, opens `/mnt/term/dev/cons` as fd 0/1/2, execs `rc -li` with `service=cpu`. `sys/src/9k/root/profile:9-11` binds `/mnt/term/dev/{cons,consctl}` and `bind -a /mnt/term/dev /dev` — the imported `/dev/draw`, `/dev/mouse`, `/dev/kbd`, `/dev/snarf` appear automatically; rio opens `/dev/snarf` + draw/mouse from there. `cmd/exportfs/` exists (libc/fcall/auth/libsec only). **r9 implication: devmnt must mount 9P over a stream fd** (Tversion/Tattach on the socket) — same machinery as Phase 5's srv mounts, new transport; `pushssl`-equivalent lives in libsec userspace (`cpu.c` uses it), not the kernel.
+
+Client side — **use the 9front fork via nixpkgs**, not 9fans and not Harvey's stale in-tree copy (`sys/src/cmd/unix/drawterm`, rsc vintage):
+
+| Fact | Value (verified against raw nixpkgs `package.nix` + 9front drawterm `cpu.c`) |
+|------|------|
+| nixpkgs package | `pkgs.drawterm` = 9front fork, `fetchFrom9Front` rev `3aa7ce0c084089def7e721d7eb8ab091ab95318e` (`0-unstable-2026-10-12`), MIT, maintainer moody (9front dev), platforms incl. **aarch64-darwin, aarch64-linux, x86_64-linux** |
+| darwin backend | `CONF=osx-cocoa`, `CC=clang` + lld → native Cocoa `drawterm.app` + `bin/drawterm` symlink. **No X11/XQuartz** |
+| linux backends | default `CONF=unix` = X11 (libx11+libxt, padsp-wrapped); `pkgs.drawterm-wayland` = `CONF=linux` + wayland/libxkbcommon/libdecor/pipewire |
+| p9sk1 retained? | **Yes** — `p9any()` accepts `p9sk1@dom` from the server's offer list; `gettickets()`→AS with `mkservertickets()` direct fallback; `ncpu()` dials service `ncpu`, speaks `p9 rc4_256 sha1` + pushssl — exactly Harvey's server |
+| rcpu-first behavior | without `-O`, drawterm tries rcpu (dp9ik/TLS) first, **falls back to ncpu on dial failure**; recommend `-O` to skip the dead attempt |
+| invocation | `drawterm -O -h <guest> -a <guest> -u <user>` (or `$cpu`/`$auth` env) |
+
+Flake integration: `apps.drawterm` wraps `pkgs.drawterm` (per-system: cocoa on darwin, X11 on linux; expose `drawterm-wayland` as a second app), so `nix run .#drawterm -- -O -h 10.0.2.15 -a 10.0.2.15` works from a clean checkout. No custom derivation needed.
 
 ## Alternatives Considered
 
-| Recommended | Alternative | When to Use Alternative |
-|-------------|-------------|-------------------------|
-| 9front `sys/src/cmd/{7a,7c,7l}` | 0intro/9-cc `src/cmd/{7a,7c,7l}` | If 9front sources need shims for unix-host building that Harvey's existing `9c`+lib9 pattern doesn't already provide. 9-cc's versions are pre-ported (its repo builds with host cc + mk on Linux/MacOSX). Same code lineage, slightly older; Harvey already vendors 9-cc for `iar`, so bumping that vendor pin and widening the subset is a low-friction Plan B. |
-| qemu `-M virt` (CONF=qemu reference) | qemu `-M raspi3b` (bcm64/pi3 reference) | Only if the port were pivoted to Raspberry Pi hardware. raspi3b emulation exists to run bcm64 kernels (BCM2835 peripherals, Pi spin tables, firmware mailbox) — none of that transfers to a clean virt port, and PROJECT.md already targets virt. |
-| 9front `sys/src/libc/arm64` | Harvey's `libc/arm` (32-bit) as skeleton + hand-write asm | Never. 32-bit ARM asm (setjmp/tas/memmove) does not translate mechanically to A64 (different register file, calling convention, atomics via LDXR/STXR). Importing 9front's is strictly less work and battle-tested. |
-| uImage via `aout2uimage` | Teach 7l to emit ELF, boot ELF directly via `qemu -kernel` | Possible (qemu arm boot accepts ELF; Harvey's amd64 flow already produces `.elf`), but it means patching 7l — a worse trade than importing one 3.6KB aux tool. Revisit only if ELF boot becomes a requirement (e.g., for a future bootloader chain). |
+| Category | Recommended | Alternative | Why Not |
+|----------|-------------|-------------|---------|
+| r9 TCP/IP | smoltcp 0.14 behind devip-compatible `/net` | Port `sys/src/9k/ip` (15.4k lines C) to Rust | Deep coupling to C-kernel internals (Queue/Block/Fs/Rendez/ipifc tables); a rewrite, not a port — months, and discards a maintained stack |
+| r9 TCP/IP | smoltcp | Port lwip/embedded C stack as Harvey userspace 9P server | No Harvey userspace TCP stack exists to start from; C port + new server framework > smoltcp in-kernel; splits the stack across the syscall boundary |
+| virtio transport | PCI/ECAM via virtio-net-pci (milestone text) | virtio-mmio (`virtio-net-device`, DTB nodes at 0xa000000+) | MMIO is simpler (no PCI enum) and supported by the same crate — keep as **fallback** if ECAM bring-up slips; PCI matches the milestone, the DTB's existing ECAM window, and Harvey's PCI-based C reference |
+| drawterm source | nixpkgs `pkgs.drawterm` (9front fork) | 9fans/drawterm (rsc) | Unmaintained by comparison (164 vs 607 commits), no wayland backend, gui-osx instead of maintained gui-cocoa; nixpkgs doesn't package it |
+| drawterm source | nixpkgs | Harvey in-tree `sys/src/cmd/unix/drawterm` | Stale ("sometimes out of date" per its own README); would need bespoke flake build for cocoa; zero upside |
+| darwin L2 | socket_vmnet daemon + `-netdev socket,fd=3` | qemu builtin `-netdev vmnet-shared/host/bridged` | Requires sudo qemu or a restricted Apple entitlement nix builds can't carry — fine as optional tier 2, unacceptable as the default |
+| darwin L2 | socket_vmnet | tuntaposx / vde_vmnet | Dead kext approach / superseded by socket_vmnet (its own successor) |
+| guest address | static ipifc ctl (milestone core) | DHCP via `ip/ipconfig` | Needs `/net/udp` broadcast + ether-medium fidelity; defer to a follow-up with smoltcp dhcpv4 as fallback |
+| auth | p9sk1 (Harvey native) + 9front drawterm `-O`/fallback | dp9ik/rcpu/TLS server-side | Harvey's authsrv is p9sk1; TLS modernization is explicitly Out of Scope |
 
-## What NOT to Use
+## What NOT to Add
 
-| Avoid | Why | Use Instead |
-|-------|-----|-------------|
-| **9legacy** as toolchain donor | No arm64 support at all — 386/amd64 focus, no `7a/7c/7l`, no `libc/arm64` (absence-of-evidence, MEDIUM). | 9front |
-| **plan9port** as toolchain donor | Ships zero target compilers (verified: full `src/cmd` listing has no `?a/?c/?l`). It stays in the stack only as the host-tool provider it already is. | 9front |
-| **Jehanne** as port reference | Harvey-derived sibling, but no completed aarch64 port surfaced (absence-of-evidence, MEDIUM). | 9front `sys/src/9/arm64` |
-| Writing `7c` from scratch / adapting `5c` by hand | 9front's 7c is a decade of maintained, shipped correctness (RPi3/4, i.MX8, LX2K, qemu all build with it). Re-deriving A64 codegen from 5c is a multi-month detour with silent-miscompilation risk. | Import 9front 7c |
-| Harvey's retired Alpha "7" files (`sys/src/libmach/alpha/7.out.h`, `alphaobj.c`) coexisting blindly with arm64 7 imports | Both claim letter 7 and the filename `7.out.h`; 9front solved this by deleting Alpha. Harvey must either retire alpha's libmach entries or namespace one of them, or `setmach`/`mkfile` rules will collide. | Decide in the toolchain phase; follow 9front (retire alpha) unless there's a stated reason to keep it |
-| qemu `-M raspi4` | Newer and less complete than raspi3b in qemu; only relevant to Pi hardware, which is Out of Scope this milestone. | `-M virt` |
+| Avoid | Why |
+|-------|-----|
+| APE aarch64 port (`ape/lib/ap` has no arm64 dir) | POSIX shim layer; nothing in the rio/drawterm path needs it. Gate `APEDIRS` out of aarch64 builds and say so in the phase plan |
+| Framebuffer/virtio-gpu/virtio-input in r9 | Milestone design: `/dev/draw` + `/dev/mouse` arrive via drawterm over 9P. Adding GPU drivers violates the core constraint and doubles r9 scope |
+| dp9ik/TLS/rcpu server-side | Out of Scope (TLS hardening is a separate milestone) |
+| Go userland | Unsupported on plan9/arm64 (PROJECT.md) |
+| 9k C-kernel aarch64 port | Superseded by r9 adoption (PROJECT.md) |
+| e1000/other NIC models | virtio-net only; one device class, one driver |
+| Homebrew/MacPorts drawterm or socket_vmnet as *required* deps | nixpkgs covers both; brew path may be documented as convenience only |
+| `.7` binary objects committed for libdraw/libmemdraw | The committed `.6`/`.8` are stale binary artifacts; aarch64 must compile the portable `.c` — don't cargo-cult the artifact pattern |
 
-## Stack Patterns by Variant
+## Installation / Wiring
 
-**If building the toolchain as host tools (the Harvey pattern):**
-- Model `sys/src/cmd/7c/BUILD` on `sys/src/cmd/6c/BUILD`: plan9port `yacc` for `cc.y`, `9c -I../cc …` over the shared `../cc/*.c` frontend + 7c's own files, `9l -o 7c`, install to `$HARVEY_LINUX_BIN` (and the per-OS/arch hostbin dirs per the existing `.build/hostbin-<os>-aarch64` convention).
-- Because 9front's 7c mkfile lists `../cc/compat.h` and Harvey's `cc` has a `compat` **directory** + `compat.c`, expect a small reconciliation here (see Version Compatibility).
-- 7a's BUILD mirrors 6a's trivially (`yacc a.y; 9c *.c; 9l`).
+```bash
+# r9 (sibling repo) — aarch64 or port Cargo.toml:
+virtio-drivers = { version = "0.13", default-features = false, features = ["alloc"] }
+smoltcp = { version = "0.14", default-features = false,
+            features = ["medium-ethernet", "proto-ipv4", "socket-tcp",
+                        "socket-udp", "socket-icmp", "alloc"] }
+# r9 flake: cargo vendor hash refresh; then Harvey flake.lock inputs.r9 pin bump (push-before-pin)
 
-**If the namespace (in-VM) build compiles the arm64 target:**
-- `build_arm64` in `build/scripts/linux-build:63` and `build/scripts/build:76` already does `for(i in /sys/src/cmd/7?)` + `objtype=arm64 mk install` — importing into `sys/src/cmd/7{ a,c,l }` + `arm64/mkfile` + `sys/src/libc/arm64` plugs straight into existing wiring. No new build plumbing needed beyond the aux tool and the kernel dir.
-
-**If booting the kernel on qemu:**
-- Follow 9front's arm64 mkfile link line: `$LD -o 9qemu -T$loadaddr -l …` with `kzero=0xffffffff80000000`, `loadaddr=0xffffffffc0100000`, then `aux/aout2uimage -Z$kzero 9qemu` → `9qemu.u`; boot `qemu-system-aarch64 -M virt -kernel 9qemu.u -serial stdio`. Single CPU first — 9front's bcm64 SMP uses Pi spin tables (`SPINTABLE` + `sev()`); on virt the clean mechanism is PSCI from the qemu DTB, which is a phase-level research item, not a milestone blocker.
+# Harvey flake.nix:
+#   apps.drawterm         = pkgs.drawterm            # cocoa on darwin, X11 on linux
+#   apps.drawterm-wayland = pkgs.drawterm-wayland    # linux wayland hosts
+#   devshell += [ pkgs.socket-vmnet ]  (darwin only)
+#   nix/boot-r9.sh: R9_NET=user|vmnet|tap selects netdev tier
+#     user: -netdev user,id=n0,hostfwd=tcp::17010-:17010 -device virtio-net-pci,netdev=n0
+#     vmnet: exec socket_vmnet_client /var/run/socket_vmnet … -netdev socket,id=n0,fd=3 …
+#     tap:  -netdev bridge,id=n0,br=br0,helper="$QEMU_BRIDGE_HELPER" …
+# Documented one-time setup (per host, in docs + nix/net-setup-*.sh):
+#   darwin: sudo launchd daemon for socket_vmnet (plist ships with the package)
+#   linux:  br0 + setuid qemu-bridge-helper + /etc/qemu/bridge.conf "allow br0"
+```
 
 ## Version Compatibility
 
-| Package A | Compatible With | Notes |
-|-----------|-----------------|-------|
-| 9front `cmd/7c` | Harvey `sys/src/cmd/cc` frontend | **Drift surface #1.** 9front 7c's mkfile requires `../cc/compat.h` and `../cc/mkfile.port`; Harvey's cc has `compat.c` + a `compat/` dir and its own `cc.h`. Reconcile before expecting 7c to build — either sync 9front's cc pieces or adapt 7c to Harvey's frontend. Harvey's 6c additionally has `div.c`/`sys.c` that 9front 7c lacks — file-list diffs are expected, not a defect. |
-| 9front `cmd/7l` | Harvey `../cc/compat` | **Drift surface #2.** 7l mkfile has `compat.$O: ../cc/compat` and a `dyn.c` (dynamic linking). If Harvey's 6l lacks `dyn.c`, either drop `dyn.$O` from 7l's OFILES (Harvey links statically) or import the cc/compat support it needs. |
-| 9front `libmach` 7 files | Harvey libmach alpha "7" | **Collision.** Both use `7.out.h`. 9front deleted Alpha; Harvey still has `alpha/7.out.h`, `alphaobj.c`, `alphadb.c`, and the setmach `"alpha"` entry. Retire or namespace before import. |
-| 9front `arm64/include/ureg.h` | 9front libmach `7.c` (`#include "/arm64/include/ureg.h"`) | Absolute include from repo root — works only if the header lands at exactly `arm64/include/ureg.h`. Keep that path. |
-| `aout2uimage` | Harvey libmach | Needs `crackhdr` to recognize MARM64 (`archtab[MARM64] = IH_ARCH_ARM64`) — i.e., depends on the libmach import landing first. Sequence phases accordingly. |
-| 9front `libc/arm64` asm | Harvey `libc/port` conventions | 9front libc has accumulated 9front-only APIs (e.g., its own `atomic.s` helpers). Expect a handful of symbols with no Harvey counterpart; audit against Harvey's `sys/include/libc.h` during the libc phase. MEDIUM confidence — not diffed file-by-file here. |
+| A | B | Notes |
+|---|---|-------|
+| smoltcp 0.14 MSRV stable 1.91 | r9 nightly-2026-01-30 | clears it |
+| virtio-drivers 0.13 PCI transport | qemu `-M virt` ECAM | "memory-mapped CAM only" per crate docs — exact match; `VIRTIO_F_VERSION_1` TODO upstream → gate with boot-test, keep `virtio-non-transitional` qemu habit |
+| 9front drawterm (nixpkgs rev `3aa7ce0c`) | Harvey p9sk1 `cpu -R` | verified protocol match (ncpu + p9any/p9sk1 + rc4_256/sha1); use `-O` |
+| nixpkgs drawterm | Harvey flake nixpkgs pin | requires a nixpkgs pin new enough to carry `0-unstable-2026-*` drawterm + `socket-vmnet` — check pin age in the phase |
+| qemu host ≥7.1 | vmnet netdevs | any nixpkgs-current qemu qualifies; vmnet needs macOS 11+ |
 
 ## Sources
 
-- `github.com/9front/9front` (branch `front`; mirror of canonical `git.9front.org/plan9front/plan9front`) — direct directory/file fetches: `sys/src/cmd/7a`, `sys/src/cmd/7c/mkfile`, `sys/src/cmd/7l/mkfile`, `sys/src/libc/arm64/`, `sys/src/libmach/{7.c,7db.c,7obj.c,setmach.c}`, `sys/src/9/arm64/{mkfile,qemu,mem.h,uartqemu.c,main.c…}`, `sys/src/9/bcm64/{mkfile,main.c,dat.h}`, `sys/src/9/lx2k/`, `sys/src/cmd/aux/aout2uimage.c`, `arm64/include/` — primary evidence (seam tier: LOW provider, content directly verified).
-- `github.com/0intro/9-cc` — `src/cmd/` listing (confirms host-ported 7a/7c/7l), `src/cmd/7c/` listing, `src/libmach/` listing (no 7-object support), `NOTICE` (MIT text) — primary evidence.
-- `github.com/9fans/plan9port` — `src/cmd/` listing (no target compilers) — primary evidence.
-- Harvey tree (local): `LICENSE`, `LICENSE.gpl`, `LICENSE.old`, `sys/src/cmd/` listing, `sys/src/cmd/6c/BUILD`, `6a/BUILD`, `sys/src/BUILDTOOLCHAIN`, `sys/src/libc/`, `sys/src/libmach/` (+ `alpha/7.out.h`, `setmach.c`), `sys/include/mach.h` (`MARM64`), `arm64/` (empty `bbin/`), `amd64/mkfile`, `build/scripts/linux-build` (`build_arm64`), `build/scripts/build`, `sys/src/cmd/unix/9cc/README` — primary evidence.
-- Wikipedia "Plan 9 from Bell Labs" — 2021 MIT relicense timeline (corroborating, MEDIUM).
-- 9fans Topicbox "licence question" — 9front MIT statement (corroborating, MEDIUM).
-- 9fans Topicbox "RPi in QEMU" — mixed results booting Pi kernels under qemu (corroborating the virt-over-raspi recommendation, LOW).
+- **In-tree (HIGH, direct reads):** Harvey `sys/src/cmd/` (274 entries; 132 `.c`/`.y` + 130 dirs), `cmd/mkfile` (NOMK/APEDIRS), `libmemdraw`/`libdraw` mkfiles + `alloc.6` (binary artifact check), `cmd/mksyslib` (`%.$O: %.c` fallback), `cmd/rio/mkfile`, `cmd/auth/mkfile` + `keyfs.c` includes, `cmd/cpu.c` (authmethods, /mnt/term flow), `cmd/exportfs/`, `cmd/aux/{listen,listen1}.c`, `rc/bin/service/tcp17010`, `rc/bin/service.auth/`, `rc/bin/cpurc:39-51`, `lib/ndb/{common:255,291,local,auth}`, `sys/src/9k/root/profile:9-11`, `sys/src/9k/ip/` (15,395 lines), `sys/src/9k/386/ethervirtio.c`, `sys/src/9k/k10/k10cpu` (ethervirtio + ipconfig embedding), `sys/src/ape/lib/ap` (no arm64), `libc/9sys/{dial,announce}.c`, `cmd/ip/ipconfig/main.c:406`, `cmd/ndb/{cs,dns}.c`, `nix/boot-r9.sh`, `flake.nix`. r9: `Cargo.toml` (workspace lints), `aarch64/Cargo.toml`, `port/src/` device modules, `rust-toolchain.toml` (nightly-2026-01-30), `xtask/src/main.rs:671-672` (riscv64 netdev pattern).
+- **docs.rs (MEDIUM, cross-verified):** virtio-drivers 0.13.0 README/crate/transport::pci/bus pages; smoltcp 0.14.0 features/lib.rs (MSRV 1.91, feature guards).
+- **Raw primary (MEDIUM):** nixpkgs `pkgs/by-name/dr/drawterm/package.nix`; 9front drawterm `cpu.c` (p9any p9sk1 acceptance, mkservertickets, ncpu); nixpkgs `socket-vmnet` existence (pkgs/by-name + brew formula 1.2.2).
+- **qemu-devel patches + Apple vmnet docs (MEDIUM):** vmnet netdevs ≥qemu 7.1, macOS 11+, root-or-restricted-entitlement; socket_vmnet README (root daemon + unprivileged qemu via `socket_vmnet_client` + `-netdev socket,fd=3`); lima managed-networking docs.
+- **Guix cookbook / OpenWrt qemustart (MEDIUM):** qemu-bridge-helper setuid + `/etc/qemu/bridge.conf` allow-list + unique-MAC requirement.
+- **9p.io/plan9.io wikis + authsrv(6) (MEDIUM, corroborated by in-tree files):** standalone cpu server setup, instant-cpu-server listen1 trick, p9sk1 ticket exchange.
 
 ---
-*Stack research for: Plan 9-family aarch64 porting (Harvey OS)*
-*Researched: 2026-10-30*
+*Stack research for: Harvey OS v2.0 — full aarch64 userspace, r9 networking, auth domain, cpu/drawterm, host tap/bridge*
+*Researched: 2026-11-04*
