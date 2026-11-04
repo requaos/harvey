@@ -7,14 +7,16 @@
  * real a.out load/exec path, prints its alive-ness via write(2), then
  * rforks child A (exec /hello — the committed Phase-2 ABI bisect
  * binary), child B (exec /smokefork — the rfork/fd-ops smoke), child
- * C (exec /smokenote — the notes smoke) and child D (exec /stacksmoke
- * — 05-01's D-15 stack-growth smoke) through the real RFORK/EXEC
- * paths, posts the note to C via unmodified libc postnote (a write to
- * /proc/N/note on devproc-lite), and awaits all four exit records via
- * AWAIT.  The early markers stay byte-identical to 04-06 ("init: r9 EL0
- * alive", the hello print) so the virtexec profile's assertions remain
- * satisfiable as a subset; 04-07's smoke markers likewise for virtmulti.
- * The trailing prints/exits keep every failure path loud.
+ * C (exec /smokenote — the notes smoke), child D (exec /stacksmoke
+ * — 05-01's D-15 stack-growth smoke) and child E (exec /smokesleep —
+ * 261104-b4p item 6's interruptible-sleep smoke) through the real
+ * RFORK/EXEC paths, posts the note to C via unmodified libc postnote
+ * (a write to /proc/N/note on devproc-lite), and awaits all five exit
+ * records via AWAIT.  The early markers stay byte-identical to 04-06
+ * ("init: r9 EL0 alive", the hello print) so the virtexec profile's
+ * assertions remain satisfiable as a subset; 04-07's smoke markers
+ * likewise for virtmulti.  The trailing prints/exits keep every failure
+ * path loud.
  */
 void
 main(int, char*[])
@@ -97,6 +99,26 @@ main(int, char*[])
 	}
 
 	/*
+	 * Child E (261104-b4p, item 6): the interruptible-sleep smoke.
+	 * alarm(300) interrupts its sleep(30000) — the note posts, the
+	 * sleeper wakes early and fails -1 "interrupted", and the handler
+	 * runs at the return boundary (NCONT resumes main).  Its marker is
+	 * "smokesleep: interrupted"; any other outcome is a loud
+	 * sleep-not-interrupted exit.  Additive like child D.
+	 */
+	switch(rfork(RFPROC|RFMEM)){
+	case 0:
+		argv[0] = "/smokesleep";
+		argv[1] = nil;
+		exec("/smokesleep", argv);
+		print("init: child E exec returned\n");
+		exits("exec-fail");
+	case -1:
+		print("init: rfork E failed: %r\n");
+		exits("rfork-fail");
+	}
+
+	/*
 	 * D-16 ordering: the child must have notify() installed BEFORE the
 	 * postnote lands — a note delivered to a handlerless process kills
 	 * it (the donor pexit shape), and exec clears the handler.  No
@@ -116,7 +138,7 @@ main(int, char*[])
 		exits("postnote-fail");
 	}
 
-	for(n = 0; n < 4; n++){
+	for(n = 0; n < 5; n++){
 		if(await(buf, sizeof buf - 1) < 0){
 			print("init: await failed: %r\n");
 			exits("await-fail");

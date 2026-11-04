@@ -7,8 +7,8 @@
 # build/aarch64/smoke-out/, and copy the committed hello.7.out in verbatim
 # (the ABI bisect binary rides the initrd from 04-06 on).  r9's
 # `cargo xtask initrd` then bakes smoke-out/{init,hello,smokefork,smokenote,
-# stacksmoke} into target/bootfs.paq via mkpaqfs.  Every staged binary
-# is R_MAGIC (0x8C47, BE) verified here before the rsync-back is
+# stacksmoke,smokesleep} into target/bootfs.paq via mkpaqfs.  Every staged
+# binary is R_MAGIC (0x8C47, BE) verified here before the rsync-back is
 # trusted.
 #
 # 261103-p64 (the smoke/bootchain split): the smoke stage now owns
@@ -37,7 +37,8 @@ LOG="${STAGE_BUILD_LOG:-$HARVEY/.build/stage-build.log}"
 OUT="$HARVEY/build/aarch64/smoke-out"
 
 # The C sources this script stages: NAME.c -> smoke-out/NAME (7c/7l).
-STAGE_SRCS="init smokefork smokenote stacksmoke"
+# 261104-b4p: smokesleep joins (item 6's interruptible-sleep smoke).
+STAGE_SRCS="init smokefork smokenote stacksmoke smokesleep"
 
 err() { echo "error: $*" >&2; exit 1; }
 
@@ -80,7 +81,7 @@ set -e
 
 fail() { echo "STAGE-BUILD-FAIL: $1" >&2; exit 1; }
 
-STAGE_SRCS="init smokefork smokenote stacksmoke"
+STAGE_SRCS="init smokefork smokenote stacksmoke smokesleep"
 STAGE="$HARVEY/build/aarch64/smoke-out"
 
 echo "== stage build provenance (Harvey's vendored toolchain):"
