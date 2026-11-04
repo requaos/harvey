@@ -1304,8 +1304,26 @@ gethunk(void)
 		diag("out of memory");
 		errorexit();
 	}
-	hunk = h;
-	nhunk = nh;
+	/*
+	 * Merge with the current hunk when contiguous (consecutive sbrk
+	 * calls return contiguous addresses while nothing else interleaves
+	 * the break) — REQUIRED for malloc()'s `while(nhunk < n)` loop to
+	 * terminate for n larger than the largest single hunk (25L*NHUNK
+	 * = 2.5MB here).  Without the merge each call RESETS nhunk to nh,
+	 * so nhunk never reaches n and malloc loops gethunk until sbrk
+	 * fails — a silent hang-class link failure on any single
+	 * allocation larger than the ceiling (observed class: the arm64
+	 * donor-kernel link allocating 3.7MB for the embedded bootfs data;
+	 * here the proven trigger is a >2.5MB archive symbol table —
+	 * objfile bangs __.SYMDEF into memory with one malloc;
+	 * build/aarch64/gethunk-repro-6l.sh is the timeout-gated repro).
+	 */
+	if(h == hunk + nhunk)
+		nhunk += nh;
+	else {
+		hunk = h;
+		nhunk = nh;
+	}
 	thunk += nh;
 }
 
