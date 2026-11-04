@@ -1,19 +1,16 @@
 ---
 gsd_state_version: "1.0"
-milestone: v1.0
-status: Awaiting next milestone
-stopped_at: Phase 05 complete — all phases complete
-last_updated: "2026-11-04T15:53:59.020Z"
+milestone: v2.0
+milestone_name: Full System & Drawterm
+status: planning
+last_updated: "2026-11-04T18:50:22.260Z"
 last_activity: 2026-11-04
-last_activity_desc: Milestone v1.0 completed and archived
-state_head: ac6f0dbf82c0a9eb6f79b93dc122384c40fd303a
 progress:
-  total_phases: 5
-  completed_phases: 5
-  total_plans: 38
-  completed_plans: 38
-  percent: 100
-current_phase: 05
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -27,10 +24,11 @@ See: .planning/PROJECT.md (updated 2026-11-04)
 
 ## Current Position
 
-Phase: Milestone v1.0 complete
+Phase: Not started (defining requirements)
 Plan: —
-Status: Awaiting next milestone
-Last activity: 2026-11-04 — Milestone v1.0 completed and archived; quick task 261104-cms comment hygiene sweep
+Status: Defining requirements
+Last activity: 2026-11-04 — Milestone v2.0 started
+
 
 ## Performance Metrics
 

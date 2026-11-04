@@ -8,6 +8,18 @@ Harvey OS is a Plan 9 4th Edition derivative operating system (C, mk-based build
 
 Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
 
+## Current Milestone: v2.0 Full System & Drawterm
+
+**Goal:** One command — `nix run .#boot-r9` — brings up a complete Harvey system (full aarch64 userspace, in-guest p9sk1 auth, tap/bridge networking) that a host drawterm connects to for an interactive rio desktop session.
+
+**Target features:**
+- Full aarch64 userspace: ALL of `sys/src/cmd` + remaining libraries compile for aarch64, GUI stack included (libdraw/libmemdraw/libmemlayer/libframe, rio)
+- r9 virtio-net driver + TCP/IP path for the guest (kernel devether/devip vs Harvey userspace ip stack — resolved in research)
+- tap/bridge host networking: real L2 virtio-net; documented per-host privileged setup (darwin vmnet, linux tap)
+- In-guest p9sk1 auth: auth server + keyfs + factotum + ndb; drawterm logs in with user/password
+- cpu server service: guest listens on tcp/17010, drawterm serves /dev/draw + mouse back over 9P, guest runs rio on it (r9 needs NO framebuffer/gpu driver — the draw device arrives via drawterm)
+- Host-side drawterm supplied by the flake (e.g. `nix run .#drawterm`) so the whole session is reproducible from clean checkouts
+
 ## Requirements
 
 ### Validated
@@ -33,6 +45,16 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 - ✓ r9 unsafe surface minimized + gated: static mut → 0, per-process usermem model locked, forbid(unsafe_code) across port/ except two named shims, 160-site audit reconciled — quick task 261103-p64
 
 ### Active
+
+Milestone v2.0 headline scope (decomposed into REQ-IDs in REQUIREMENTS.md):
+
+- [ ] Full aarch64 userspace build: all of `sys/src/cmd` + remaining libraries compile and install under `/aarch64/`
+- [ ] r9 guest networking: virtio-net device + a working TCP/IP path, plumbed to a host tap/bridge
+- [ ] In-guest p9sk1 auth domain: auth server, keyfs, factotum, ndb populated for the guest
+- [ ] cpu service on tcp/17010: drawterm connects, authenticates, and lands in an interactive rio desktop
+- [ ] Flake-supplied host drawterm + documented per-host tap/bridge setup (darwin vmnet, linux tap)
+
+Carried over from v1.0:
 
 - [ ] Advance the harvey flake.lock r9 pin past the review-fix + unsafe-elimination commits (pin currently at 9549cee; r9 main carries the hardened kernel) — milestone-completion decision; a pin bump needs a fresh hosted CI run to stay honest
 - [ ] Re-test the Phase 1 9k-amd64 embedded-root `bad magic` pool panic against the LP64-fixed 6c (same signature as the pswt.c bug fixed in Phase 2) — deferred-items.md #8
@@ -132,4 +154,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-04 after Phase 5*
+*Last updated: 2026-11-04 at milestone v2.0 start (Full System & Drawterm)*
