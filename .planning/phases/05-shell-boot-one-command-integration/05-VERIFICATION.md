@@ -1,10 +1,11 @@
 ---
 phase: 05-shell-boot-one-command-integration
-verified: 2026-11-03T17:30:00Z
-status: human_needed
-score: 4/5 must-haves verified
+verified: 2026-11-04T12:31:26Z
+status: passed
+score: 5/5 must-haves verified
 covered_files:
   - .github/workflows/r9-shell.yml
+  - .planning/debug/DEBUG-G-05-1.md
   - .planning/phases/05-shell-boot-one-command-integration/05-01-PLAN.md
   - .planning/phases/05-shell-boot-one-command-integration/05-01-SUMMARY.md
   - .planning/phases/05-shell-boot-one-command-integration/05-02-PLAN.md
@@ -33,39 +34,66 @@ covered_files:
   - .planning/phases/05-shell-boot-one-command-integration/05-13-SUMMARY.md
   - .planning/phases/05-shell-boot-one-command-integration/05-EVIDENCE.md
   - .planning/phases/05-shell-boot-one-command-integration/05-REVIEW-DISPOSITION.md
+  - .planning/phases/05-shell-boot-one-command-integration/05-REVIEW-FIX.md
   - .planning/phases/05-shell-boot-one-command-integration/05-REVIEW.md
+  - .planning/phases/05-shell-boot-one-command-integration/05-SECURITY.md
+  - .planning/phases/05-shell-boot-one-command-integration/05-UAT.md
   - build/REPRODUCIBILITY.md
   - build/aarch64/drive-r9.expect
   - build/aarch64/init.c
   - build/aarch64/mkimage.sh
+  - build/aarch64/nsrun.sh
   - build/aarch64/run-r9.sh
   - build/aarch64/smoke-r9.expect
+  - build/aarch64/smoke-r9.log
   - build/aarch64/stacksmoke.c
+  - build/aarch64/stage-build.sh
   - build/aarch64/subset-build.sh
+  - build/harness/Cargo.lock
+  - build/harness/Cargo.toml
+  - build/harness/src/console.rs
+  - build/harness/src/drive9.rs
+  - build/harness/src/gdbpoke9.rs
+  - build/harness/src/main.rs
+  - build/harness/src/mkfs9.rs
+  - build/harness/src/regex.rs
+  - build/harness/src/srv9.rs
+  - build/harness/src/trace.rs
   - flake.lock
   - flake.nix
   - nix/boot-r9.sh
   - nix/smoke-r9.sh
   - sys/src/9k/boot/bootr9.c
   - sys/src/9k/boot/mkfile.aarch64
-covered_digest: "v2:sha256:519c97aa0721f38fe21021f7905a4eab05eb2d92469db2c254ddf125d750afb5"
+covered_digest: "v4:sha256:ee506a564447fa788c02b67be871e764ed6ac23dad829a654e7f761f0578c283"
 behavior_unverified: 0
 overrides_applied: 0
-human_verification:
-  - test: "Push harvey master to origin (217 commits pending) and observe the first hosted run of .github/workflows/r9-shell.yml on ubuntu-latest"
-    expected: "The workflow's single step `nix run .#boot-r9-smoke` exits 0 — the run log carries 'smoke-r9: ALL STAGES PASS — boot, echo, ls/ps/cat sweep, DEL safety, restart'. Record the run URL in 05-EVIDENCE.md (the PENDING FIRST PUSH slot)."
-    why_human: "External-service integration (GH Actions) — pushing to origin was prohibited during phase execution, so no hosted run exists to verify. This is also the FIRST execution of the pipeline on x86_64-linux anywhere (ubuntu-latest's arch): darwin-aarch64 and aarch64-linux are proven by committed clean-clone logs, but the x86_64-linux package set has never been evaluated/run. 05-EVIDENCE.md flags this sub-case honestly ('runs natively for the first time on the GH runner at first push'). Until that run is green, ROADMAP SC#3's CI leg (as amended by 05-CONTEXT D-13: CI = linux) is unmet."
-  - test: "Optional live-interactive sanity: `nix run .#boot-r9` on this host, type `echo hi`, `ls /bin`, `ps`, `exit` at the % prompt"
-    expected: "Commands answer correctly; `exit` returns to a fresh % prompt via init's restart loop. NOTE: typed input has no console echo this era (documented in deferred-items.md — the donor's cooked-mode echo is deliberately absent; commands execute, input is invisible). Judge whether that is acceptable for the milestone's 'interactive shell' headline."
-    why_human: "The expect drivers prove machine interactivity (send/expect round-trips), but no human has watched the live prompt; the no-echo era delta is a UX judgment automation cannot make."
+re_verification:
+  previous_status: human_needed
+  previous_score: 4/5
+  gaps_closed:
+    - "SC#3 CI leg: hosted GH Actions run 41825728636 is GREEN (conclusion=success, headSha 68c49ebcc — ancestor of HEAD, zero code drift since) — verified via gh API this run"
+    - "G-05-1 (CI failure): root-caused (/bin/rc absent in fresh-host namespace), fixed d758c2071, diagnosis committed in .planning/debug/DEBUG-G-05-1.md, fix verified present in nsrun.sh:103-105"
+    - "Live-interactive sanity: user-confirmed 2026-11-04 (UAT test 2) — echo/ls/ps answer at the live % prompt, exit restarts rc; no-echo era delta accepted"
+  gaps_remaining: []
+  regressions: []
+advisory:
+  - finding: "flake.lock still pins r9 at 9549cee — 22 commits behind r9 HEAD (e4a50c3); the 05 review-fix series (a244ba2..d8496d3) and the 261103-p64 unsafe elimination are gated green in r9 main but are NOT in the pinned kernel"
+    category: other
+    reason: "Intentional pin discipline (D-13 dev-flow override for local gates; the pin moves deliberately and the CI-green evidence at run 41825728636 is pin-specific — a pin bump invalidates it and needs a fresh hosted run). No success criterion requires pin freshness; SC#5 requires a pinned git rev, which holds. Track the pin bump as a milestone-completion decision alongside the already-triaged CR-01/CR-02 closure."
+    evidence_status: "verified facts (pin value, commit counts, gate logs); the bump decision itself is project judgment"
+  - finding: "Quick-261103-p64's harvey-side smoke gate (D8: 'three consecutive nix run .#boot-r9-smoke') names no --override-input, and /nix/store carries no realized r9-kernel-virt package for 286bb4d/e4a50c3 — so those runs most plausibly exercised the flake-PINNED kernel (9549cee), proving harvey-pipeline non-regression rather than the shell chain on the redesigned allocator"
+    category: other
+    reason: "Recorded for honesty only. The redesigned allocator IS behaviorally proven by gates that build the local r9 tree (verifier-run cargo test -p port green on e4a50c3 incl. the byte-verbatim pin tests; five qemu boot profiles attested), and the pre-refactor fixed kernel's real shell chain was proven by the review-fix era's override-smoke 3/3 at d8496d3 (store paths r9-kernel-virt-{065a358,36dcc39,ec8833c,d8496d3} realized). The phase-05 criteria concern the pinned integration and are unaffected either way."
+    evidence_status: "store-path enumeration + plan text; the runs' actual invocation is not recorded"
 ---
 
-# Phase 5: Shell Boot + One-Command Integration — Verification Report
+# Phase 5: Shell Boot + One-Command Integration — Verification Report (Re-verification)
 
 **Phase Goal:** The Core Value is delivered — one command, on either host OS, from clean checkouts of both repos, boots r9 plus the Harvey aarch64 userland to an interactive `/bin/rc` shell. Work spans both repos plus the flake glue.
-**Verified:** 2026-11-03T17:30:00Z
-**Status:** human_needed
-**Re-verification:** No — initial verification
+**Verified:** 2026-11-04T12:31:26Z
+**Status:** passed
+**Re-verification:** Yes — prior report (2026-11-03T17:30:00Z, 4/5, human_needed on the SC#3 CI leg) went stale: the G-05-1 fix landed, the hosted CI ran green, the 05 review-fix series and two quick tasks (261103-giq harness rewrite, 261103-p64 unsafe elimination) changed covered sources, and UAT completed 2/2.
 
 ## Goal Achievement
 
@@ -73,141 +101,128 @@ human_verification:
 
 | # | Truth | Status | Evidence |
 |---|-------|--------|----------|
-| 1 | A single command (`nix run` app or `cargo xtask`) boots r9 + Harvey aarch64 userland to an interactive `/bin/rc` prompt over the PL011 console in qemu | ✓ VERIFIED | `flake.nix:109` declares `boot-r9`; `nix/boot-r9.sh` (166 lines) composes: userland build → mkpaqfs bake → fdtput DTB patch → qemu argv. `05-11-compose-gate.log:1727` shows the actual argv with the kernel ONLY from the flake-input store path (`…-r9-kernel-virt-9549cee/kernel-virt.elf`), `:1738` banner, `:2471` `paqfs...`, `:2543` `init: starting /bin/rc`, `:2609` stacksmoke, then `% `. That store path exists in `/nix/store` and is a real `ELF 64-bit LSB executable, ARM aarch64` (21.9 MB) — verifier-checked. Interactivity proven by `05-08-drive-r9.log`: `r9shell7` echo answer (:938), `r9delok` DEL-safety answer (:952), `init: starting /bin/rc` restart (:957). |
-| 2 | At the prompt, rc builtins and external binaries (`ls`, `cat`, `echo`, `ps`) execute correctly | ✓ VERIFIED | `build/aarch64/smoke-r9.expect` asserts each by name (echo exact-string round-trip; `ls /bin` word-anchored presence of rc/ls/cat/echo/ps; `ps` ≥3 `glenda \d+` process lines incl rc; `cat /lib/namespace` containing `bind -c #e /env`). `05-12-smoke.log` byte-verified by grep: `r9shell7` (:936), the 17-entry `/bin/*` listing (:960–1000 incl `/bin/cat /bin/echo /bin/ls /bin/ps /bin/rc`), four ps lines init/paqfs/rc/ps (:1017–1020), `bind -c #e /env` (:1050), `r9delok` (:1070), restart `init: starting /bin/rc` (:1075 — the second occurrence; boot occurrence at :816). rc itself executes as the shell driving all of the above. |
-| 3 | Expect-style smoke passes on darwin-aarch64 and linux hosts — CI green on both (amended by 05-CONTEXT D-13: CI = linux-only; darwin documented-manual) | ? UNCERTAIN → human | darwin leg: VERIFIED — two consecutive green `nix run .#boot-r9-smoke` runs (05-12's gate), run 2's capture committed (`05-12-smoke.log`). linux leg: VERIFIED NATIVELY — `05-13-linux-clean-clone.log` byte-verified: `clone HEAD: dc8299575…` (:2), `host: Linux 6.8.0-147-generic aarch64` (:3), `SUBSET-BUILD-OK` (:2076), bake PASS with paqfs magics (:2091), `ALL STAGES PASS` (:3229), `exit: 0` (:3231). **CI leg: NOT RUN** — `.github/workflows/r9-shell.yml` exists, is valid YAML, pins nix-installer-action to a 40-char SHA, leaves harvey.yml untouched (git log empty in window) — but harvey is 217 commits ahead of origin/master (verifier-checked: `git log @{u}..HEAD`), so no hosted run exists. The GH runner arch (x86_64-linux) has never executed the pipeline anywhere. D-13's amendment was user-approved in CONTEXT.md, but even the amended criterion requires the linux CI run, which is pending first push. |
-| 4 | From clean checkouts of both repos, the documented commands reproduce the boot with pinned toolchains/qemu — honoring Phase 1's KERNDATE/reproducibility policy | ✓ VERIFIED | `build/REPRODUCIBILITY.md:86–146` INT-03 section: process-level policy, KERNDATE derived from checkout HEAD host-side, named pins (r9 rev+narHash, nixpkgs, rust-toolchain.toml via rust-overlay, qemu via nixpkgs), explicit NOT-claimed (bit-identical images), per-host derivation, non-default overrides. Clean-checkout evidence: darwin pristine clone @ `dc8299575` → green (`05-13-darwin-clean-clone.log`, 1116 lines, full sweep markers); linux pristine clone @ `dc8299575` → green (`05-13-linux-clean-clone.log`, in-log provenance header). Pins resolve from a clean clone: verifier confirmed flake.lock's r9 rev `9549cee…` IS `origin/main` HEAD in the r9 repo (`git merge-base --is-ancestor` → YES) and `nix flake metadata` resolves `r9: github:requaos/r9/9549cee`. Caveat: x86_64-linux clean-checkout leg unexecuted (folded into human item 1). |
-| 5 | Harvey's `flake.nix` consumes r9 as a flake input (pinned git rev) — no `../r9` relative-path or submodule glue (INT-04) | ✓ VERIFIED | `flake.nix:11` `inputs.r9.url = "github:requaos/r9"`; `flake.lock` locks rev `9549cee63d86a0c6d9b4d04ed8860b2efabcd3e6` + narHash `sha256-g9OBd1Mwll2bx5bNjzxkuREB0X3H7uTPTyQ62PGrzQc=` (matches 05-EVIDENCE.md). No `.gitmodules` exists. `grep -vE '^\s*#' nix/boot-r9.sh \| grep -c '../r9'` → 0; same for `nix/smoke-r9.sh` → 0. Kernel/DTB arrive only via `R9_KERNEL_PKG` store path (`flake.nix:84,94`), presence-validated in boot-r9.sh:67–82. The `9549cee..cbbc8e4` delta is docs-only (HowItWorks.md + README.md, 32 insertions — verifier `git diff --stat`), so the pin's kernel equals the evidence kernel. |
+| 1 | A single command (`nix run` app or `cargo xtask`) boots r9 + Harvey aarch64 userland to an interactive `/bin/rc` prompt over the PL011 console in qemu | ✓ VERIFIED | Pipeline intact on current tree: `flake.nix:99-125` (bootR9Pkg/smokeR9Pkg, `R9_KERNEL_PKG` from `r9.packages.${system}.kernel-virt`), `nix/boot-r9.sh` compose. Boot proven three independent ways on current code: (a) hosted CI run 41825728636 GREEN (gh API, this verification); (b) UAT test 2 — user typed `echo hi`/`ls /bin`/`ps`/`exit` at the live `% ` prompt 2026-11-04, commands answered, exit restarted rc; (c) committed captures `05-12-smoke.log` / `05-REVIEW-FIX-smoke.log` / `build/aarch64/smoke-r9.log` each carry banner → paqfs → `init: starting /bin/rc` → stacksmoke → `% `. |
+| 2 | At the prompt, rc builtins and external binaries (`ls`, `cat`, `echo`, `ps`) execute correctly | ✓ VERIFIED | `build/aarch64/smoke-r9.expect` asserts each by name (unchanged). Current-tree post-refactor capture `build/aarch64/smoke-r9.log` (1117 lines) byte-verified: `r9shell7` echo round-trip (:935), `/bin/cat /bin/echo /bin/ls /bin/ps /bin/rc` in the ls listing (:970-980), four `glenda` ps rows incl init/paqfs/rc (:1016-1017+), `bind -c #e /env` from `cat /lib/namespace` (:1049), `r9delok` DEL-safety answer (:1069), restart `init: starting /bin/rc` (:1074, second occurrence; boot occurrence :816). |
+| 3 | Expect-style smoke passes on darwin-aarch64 and linux hosts — CI green (per 05-CONTEXT D-13: CI = linux leg) | ✓ VERIFIED | **The prior report's sole UNCERTAIN component is now closed.** Hosted leg: `gh run view 41825728636 --repo requaos/harvey` → `{"conclusion":"success","headSha":"68c49ebcc7367d410a157f78b0b3e38910260544","status":"completed"}` (verifier-run this session). `git merge-base --is-ancestor 68c49ebcc HEAD` → YES; `git diff 68c49ebcc..HEAD --stat` → 3 planning docs only (05-EVIDENCE/05-SECURITY/05-UAT), zero code/config drift — the green run covers HEAD's code exactly, including the giq harness rewrite and the G-05-1 fix. darwin leg: two consecutive green runs (05-12 gate, committed log). Native aarch64-linux leg: `05-13-linux-clean-clone.log` (byte-verified prior report). EVIDENCE.md slot filled with the real run values (:97-104). |
+| 4 | From clean checkouts of both repos, the documented commands reproduce the boot with pinned toolchains/qemu (Phase 1 KERNDATE policy) | ✓ VERIFIED | `build/REPRODUCIBILITY.md:86-146` INT-03 section intact (process-level policy, KERNDATE from checkout HEAD, named pins, NOT-claimed bit-identity, per-host derivation). Clean-checkout proofs: `05-13-darwin-clean-clone.log` + `05-13-linux-clean-clone.log` (pristine clones @ dc8299575, both rc=0) — and the hosted run 41825728636 is itself a clean-checkout reproduction of the CURRENT code on x86_64-linux (GH runner fresh clone @ 68c49ebcc ≡ HEAD's code), closing the sub-case the prior report folded into its human item. flake.lock pins verified current: r9 `9549cee…` + narHash, nixpkgs `31ecbaca1bde`, rust-overlay `c85ccd343087`. |
+| 5 | Harvey's `flake.nix` consumes r9 as a flake input (pinned git rev) — no `../r9` relative-path or submodule glue (INT-04) | ✓ VERIFIED | `flake.nix:11` `inputs.r9.url = "github:requaos/r9"` (unchanged); `flake.lock` locks r9 rev `9549cee63d86a0c6d9b4d04ed8860b2efabcd3e6` + narHash (json-parsed this session). No `.gitmodules` exists. `grep -vE '^\s*#' nix/boot-r9.sh \| grep -c '../r9'` → 0; same for `nix/smoke-r9.sh` → 0. Kernel/DTB arrive only via the `R9_KERNEL_PKG` store path (`flake.nix:100,110`). The giq harness addition (`flake.nix:42-46` buildRustPackage, committed zero-dep Cargo.lock) introduced no sibling-path glue. Pin-vs-HEAD delta: see advisory #1. |
 
-**Score:** 4/5 truths verified (0 present-but-behavior-unverified; SC#3 is UNCERTAIN on the CI component and routes to human verification)
+**Score:** 5/5 truths verified (0 present-but-behavior-unverified)
 
-### Plan-Level Must-Have Spot-Checks (13 plans)
+### Staleness-Cause Audit (what changed since the prior run — each verified goal-preserving)
 
-Verified beyond the roadmap SCs (the load-bearing plan truths):
-
-- **05-01 (D-14 note-race):** fix commit `83cbbbe` exists on r9 main with the root-cause mechanism in its message ("trap_return tail clobbered restored x9 with the CURKSTACK load"); pre-fix failure captures committed under `05-01-evidence/`; 40/40 burial claim recorded in 05-01-SUMMARY. The smoke's DEL-safety stage re-exercises the fix on every run.
-- **05-02 (supply chain):** `sys/src/9k/boot/bootr9.c` + `mkfile.aarch64` exist and are substantive (hand-written bootconf: embed method first, `/rootfs.img` arg, cpuflag=0). `mkimage.sh` enforces the manifest incl. the D-02 prohibition at bake time (`[ ! -e "$STAGE/boot/factotum" ] || err`) and the paqfs magics (529ab12b/6b46e688). `bootfs.paq` gitignored (`.gitignore:97`). amd64 shared boot files untouched in the phase window (git log empty for boot.c/embed.c/init.c/rcmain).
-- **05-03 (measured set):** `05-03-trace.txt` substantive — donor pin, rig, honest coverage-boundary header, 26-syscall measured set (verified the header + counts exist; matches 05-EVIDENCE.md's quote).
-- **05-04..05-09 (kernel growth):** all port devices exist in `/Users/neilskinner/code/r9/port/src/` (namec, pgrp, devenv, devpipe, devdup, devsrv, devmnt, devproc, devroot, fdgrp — real file sizes 5.5–34 KB); all syscall handlers present in `aarch64/src/syscall.rs` (bind:588, chdir:631, unmount:662, fversion:712, mount:759, stat:844, fstat:879, pipe:1070, dup:1118, create:1155, fd2path:1250, seek:1380, sleep:1471, alarm:1501). Gate logs byte-verified: 05-04 PIPE wall (`syscall 21 unimplemented` at :730 after `exec: entering EL0 … path=/boot/boot`), 05-06 FVERSION wall (`version...syscall 40 unimplemented` :778), 05-07 hinge (`% ` prompts + init restarts), 05-08 interactive gate, 05-09 full sweep.
-- **05-10 (D-10 inversion):** `r9/flake.nix:81–103` `packages.kernel-virt` builds via `cargo xtask build --arch aarch64 --config virtshell` and ships `kernel-virt.elf` + `aarch64/lib/virt-gicv2.dtb` (the store-path contract Harvey reads). `xtask/src/uregcheck.rs:52–61`: `R9_HARVEY_DIR` required, loud named error when unset, NO `../harvey` default anywhere in xtask code. `aarch64/lib/config_virtshell.toml` exists with the virt/cortex-a72/gicv2/TCG shape.
-- **05-11 (compose):** see SC#1/SC#5.
-- **05-12 (packaged smoke):** `boot-r9-smoke` app at `flake.nix:110`; `nix/smoke-r9.sh` (187 lines) fresh-capture hygiene (rm -f before launch), per-stage named timeouts, group-kill teardown; two-consecutive-run gate recorded.
-- **05-13 (CI + clean-clone + evidence):** workflow authored/valid/pinned; REPRODUCIBILITY.md INT-03; 05-EVIDENCE.md consolidated with live-gated SHAs; r9 docs tour landed (HowItWorks.md namespace-core + flake-package sections — verified present at lines 112–151; README rows).
+1. **G-05-1 fix (harvey `d758c2071`).** `build/aarch64/nsrun.sh:103-105` verified present: fail-hard `$PLAN9/bin/rc` executability check, touch-mountpoint, `mount --bind "$PLAN9/bin/rc" /bin/rc` — the Dockerfile:42 precedent inside the private namespace. Diagnosis committed (`DEBUG-G-05-1.md`, status resolved): raw CI log showed the real failure (membername `#!/bin/rc` shebang ENOENT → empty libboot.a7 → 7l undefineds → SUBSET-BUILD-FAIL boot(8)); pre-fix byte-identical repro in an emulated x86_64 container, post-fix full ALL STAGES PASS, aarch64 lima non-regression. The hosted re-run (41825728636) is the external proof.
+2. **Hosted CI leg GREEN.** See SC#3. First hosted run 41750071242 failed (the G-05-1 trigger), was diagnosed, fixed, and the re-run is green. EVIDENCE.md + UAT.md record it; gh API confirms it independently.
+3. **Review-fix series (r9 `a244ba2..d8496d3` + harvey `0f70588e7`).** All 10 in-scope findings verified in the CURRENT r9 tree (e4a50c3): CR-01 four-string stat records (`devcons.rs:315` `need = 41 + (2 + name.len()) + 3 * (2 + 6)`, `:332` muid fourth string); CR-02 stat/fstat cold-buffer residency — now STRUCTURAL: `sys_stat`/`sys_fstat` (`syscall.rs:840,871`) build their output buffers via `UserSliceMut::new`, the usermem fused constructor that runs `validate_user_range` + `fault::ensure_user_resident` (`usermem.rs:44-46`) — the refactor made the review fix un-forgettable, comments cite T-05-06; WR-03 `pending_eof` (`devcons.rs:602`); WR-04 `chain_snapshot` (`pgrp.rs:202`, consulted at `namec.rs:163,222` — no pgrp lock across devmnt RPCs); WR-07 per-run `-name` tag (`nix/smoke-r9.sh:137` `R9_RUN_TAG="r9smoke-$$-$(date +%s)"`, bracket-fixed pkill keyed per-run); WR-08 devroot dir listings (`devroot.rs` read_dir/write_entry, /rootfs.img synthesized node). Gate-surfaced latent fixes verified present: QuickFit unlink (ec8833c) and the tick's direct FIFO poll (d8496d3) — `timer.rs` tick() calls `pl011::cons_rx_poll()` under `#[cfg(dev_exec)]` with the 05-REVIEW-FIX comment before the wake check. Gate capture `05-REVIEW-FIX-smoke.log` (113,162 bytes) byte-verified: boot+restart rc (:817,:1106), r9shell7 (:967), r9delok (:1101), zero wedgedbg/tripwire/panic lines.
+4. **Quick 261103-giq (Python → Rust harness).** `build/harness/` exists (Cargo.toml + committed zero-dep Cargo.lock + 8 std-only src modules incl. the CPS regex engine and the 9P2000 srv9); `flake.nix:42-46` wires `packages.harness`; the five `.py` tools are deleted (`git ls-files 'build/**/*.py'` → empty); the four shell callers rewired. Not on the boot-r9/smoke-r9 path (dev-time donor tooling) — and the hosted green run includes these commits, proving the rewired tree end-to-end.
+5. **Quick 261103-p64 (maximal unsafe elimination, r9 `32babaf..e4a50c3`).** Current-tree facts: `static mut` in `port/src` + `aarch64/src` → **0** (grep); `aarch64/src/usermem.rs` exists with the fused validate+reside constructors; `port/src/lib.rs` carries `#[forbid(unsafe_code)]` on every module except the two named floor modules (globalalloc + mcslock); `UNSAFE-AUDIT.md` reconciliation table verified (129 aarch64 + 21 port lint-visible = 150 SAFETY annotations; 10 test-only blocks; 12 unsafe fns documented separately). **Behavioral gate run by THIS verifier:** `nix develop --command cargo test -p port` on r9 HEAD e4a50c3 ran to completion green — cargo aborts at the first failing target by default, and the run reached the final suites (namespace 9/9, paqfs 5/5, doc-tests) with `0 failed` throughout. Smoke capture `build/aarch64/smoke-r9.log` (the retained p64-era run) byte-verified per SC#2. Kernel-provenance nuance of that gate: advisory #2.
+6. **UAT 2/2.** `05-UAT.md` frontmatter `status: complete`, total 2 / passed 2; test 1 resolved with the run URL + headSha; test 2 resolved with the user's 2026-11-04 live-prompt confirmation (no-echo era delta judged acceptable for the milestone headline).
 
 ### Required Artifacts
 
 | Artifact | Expected | Status | Details |
 |----------|----------|--------|---------|
-| `flake.nix` (harvey) | inputs.r9 + boot-r9/boot-r9-smoke apps | ✓ VERIFIED | lines 11, 108–111; hasAttr-gated per-system |
-| `flake.lock` (harvey) | r9 rev+narHash pin | ✓ VERIFIED | 9549cee…; == r9 origin/main HEAD |
-| `nix/boot-r9.sh` | compose pipeline | ✓ VERIFIED | 166 lines; R9_KERNEL_PKG required; fdtput two-cell patch; qemu argv assembly |
-| `nix/smoke-r9.sh` | packaged smoke wrapper | ✓ VERIFIED | 187 lines; fresh capture; EXIT-trap teardown |
-| `build/aarch64/smoke-r9.expect` | full D-09 sweep driver | ✓ VERIFIED | 209 lines; stage-named failures; all sweep assertions present |
-| `build/aarch64/drive-r9.expect` | dev interactive driver | ✓ VERIFIED | 187 lines |
-| `sys/src/9k/boot/bootr9.c` + `mkfile.aarch64` | additive aarch64 boot build | ✓ VERIFIED | hand-written bootconf; embed method; `/rootfs.img` contract |
-| `build/aarch64/{subset-build,mkimage,run-r9}.sh`, `stacksmoke.c`, `init.c`, root-tree skeleton | supply chain | ✓ VERIFIED | all present, substantive |
-| `build/REPRODUCIBILITY.md` INT-03 section | policy + pins + derivation | ✓ VERIFIED | lines 86–146 |
-| `.github/workflows/r9-shell.yml` | linux CI leg | ⚠️ PRESENT, NEVER RUN | valid YAML; SHA-pinned installer; pending first push |
-| `../r9/port/src/*.rs` device set | namespace/pipe/9P/env/cons/proc | ✓ VERIFIED | 11 files, substantive sizes |
-| `../r9/aarch64/src/syscall.rs` handlers | measured-set dispatch | ✓ VERIFIED | 15 handlers located by grep |
-| `../r9/flake.nix` packages.kernel-virt | kernel store-path contract | ✓ VERIFIED | lines 81–103; realized in /nix/store |
-| `../r9/aarch64/lib/config_virtshell.toml` | shell-chain profile | ✓ VERIFIED | present with correct qemu shape |
+| `flake.nix` (harvey) | inputs.r9 + boot-r9/boot-r9-smoke apps + harness pkg | ✓ VERIFIED | lines 11, 42-46, 99-125 |
+| `flake.lock` (harvey) | r9 rev+narHash pin | ✓ VERIFIED | 9549cee… (json-parsed); unchanged since 05-11 (`git log --follow` shows the pin set once, in 58d1b1077) |
+| `nix/boot-r9.sh` / `nix/smoke-r9.sh` | compose + packaged smoke | ✓ VERIFIED | WR-07 per-run -name tag present; zero `../r9` |
+| `build/aarch64/smoke-r9.expect` / `drive-r9.expect` | sweep drivers | ✓ VERIFIED | unchanged, markers proven in captures |
+| `build/aarch64/nsrun.sh` | G-05-1 /bin/rc bind | ✓ VERIFIED | lines 103-105 |
+| `build/aarch64/stage-build.sh` | smoke-out/ split (4150a3034) | ✓ VERIFIED | smoke-out/{init,hello,smokefork,smokenote,stacksmoke} staged separately from out/ |
+| `build/harness/` (Rust, std-only) | giq replacement for 5 Python tools | ✓ VERIFIED | 8 modules; .py files deleted; flake-wired |
+| `sys/src/9k/boot/bootr9.c` + `mkfile.aarch64` | aarch64 boot build | ✓ VERIFIED | 1470 / 2041 bytes, substantive |
+| `build/REPRODUCIBILITY.md` | INT-03 policy + pins | ✓ VERIFIED | lines 86-146 |
+| `.github/workflows/r9-shell.yml` | linux CI leg | ✓ VERIFIED, NOW RUN GREEN | unchanged since dc8299575; run 41825728636 success |
+| `../r9/port/src/*.rs` device set | namespace/pipe/9P/env/cons/proc | ✓ VERIFIED | all 10 present post-refactor (namec, pgrp, devenv, devpipe, devdup, devsrv, devmnt, devproc, devroot, fdgrp) |
+| `../r9/aarch64/src/syscall.rs` handlers | measured-set dispatch | ✓ VERIFIED | 26 `fn sys_*` handlers; stat/fstat on the fused usermem constructor |
+| `../r9/aarch64/src/usermem.rs` | p64 single entry point | ✓ VERIFIED | UserSlice/UserSliceMut fused validate+reside |
+| `../r9/UNSAFE-AUDIT.md` | reconciled inventory | ✓ VERIFIED | 150 SAFETY + 10 test-only; counting rule + scope line explicit |
+| `../r9/flake.nix` packages.kernel-virt | kernel store-path contract | ✓ VERIFIED | lines 81-99; realized store paths for every gated rev present |
 
 ### Key Link Verification
 
 | From | To | Via | Status | Details |
 |------|----|-----|--------|---------|
-| harvey flake | r9 flake input | `inputs.r9` → `r9.packages.${system}.kernel-virt` → `R9_KERNEL_PKG` env → boot-r9.sh | ✓ WIRED | store path realized on this host; compose log argv proves consumption |
-| boot-r9.sh | bake | `mkimage.sh` → host mkpaqfs → bootfs.paq (magics asserted) | ✓ WIRED | bake PASS lines in both clean-clone logs |
-| boot-r9.sh | qemu | fdtput `/chosen` initrd cells + `-device loader,@0x48000000` | ✓ WIRED | compose log :143–154 script, :1727 argv |
-| smoke-r9.expect | composed pipeline | spawns qemu over -nographic stdio; asserts markers | ✓ WIRED | smoke log contains every asserted marker |
-| r9 kernel | Harvey userland | paqfs initrd → devroot/exec → pid 1 /boot/boot | ✓ WIRED | 05-04/05-07 logs: EL0 entry naming /boot/boot, init, rc prompt |
-| devmnt | userspace paqfs | connectembed pipe → FVERSION/MOUNT → mounted union | ✓ WIRED | 05-06/05-07 gate logs (fversion wall → mounted boot completion) |
-| GH workflow | the pipeline | `nix run .#boot-r9-smoke` on ubuntu-latest | ✗ NOT WIRED (never run) | file correct; hosted execution pending first push |
+| harvey flake | r9 flake input | `inputs.r9` → `kernel-virt` → `R9_KERNEL_PKG` | ✓ WIRED | store path realized; CI green consumes it |
+| boot-r9.sh | bake | mkimage.sh → host mkpaqfs → bootfs.paq | ✓ WIRED | bake PASS lines in clean-clone logs; D-02 factotum-absence assert at mkimage.sh:73 intact |
+| smoke-r9.expect | composed pipeline | qemu stdio markers | ✓ WIRED | current-tree capture carries every asserted marker |
+| r9 kernel | Harvey userland | paqfs initrd → devroot/exec → /boot/boot | ✓ WIRED | all committed captures: `init: starting /bin/rc` |
+| GH workflow | the pipeline | `nix run .#boot-r9-smoke` on ubuntu-latest | ✓ WIRED, RUN GREEN | run 41825728636 (the prior report's one NOT-WIRED link — now closed) |
+| nsrun.sh | fresh-host /bin/rc | bind-mount of $PLAN9/bin/rc | ✓ WIRED | G-05-1 fix; hosted x86_64 run is the external proof |
 
 ### Data-Flow Trace (Level 4)
 
 | Artifact | Data Variable | Source | Produces Real Data | Status |
 |----------|---------------|--------|--------------------|--------|
-| boot-r9.sh kernel path | `R9_KERNEL_PKG` | flake-input store path | ✓ real ELF in /nix/store | ✓ FLOWING |
-| smoke log markers | expect `expect_out(buffer)` | live qemu serial (pty) | ✓ committed logs byte-verified | ✓ FLOWING |
-| ps output | devproc PROC_TABLE | live kernel proc list | ✓ 4 real procs in log | ✓ FLOWING |
-| ls /bin | devmnt → paqfs → baked image | Harvey's own mkpaqfs bake | ✓ 17 real entries | ✓ FLOWING |
+| boot-r9.sh kernel path | `R9_KERNEL_PKG` | flake-input store path | ✓ real ELF per gated rev in /nix/store | ✓ FLOWING |
+| smoke markers | expect buffer | live qemu serial | ✓ 3 committed captures byte-verified | ✓ FLOWING |
+| ps output | devproc PROC_TABLE | live kernel | ✓ 4 glenda rows in current capture | ✓ FLOWING |
+| ls /bin | devmnt → paqfs → baked image | Harvey's own bake | ✓ 17-entry listing in current capture | ✓ FLOWING |
+| GH run conclusion | Actions API | hosted execution | ✓ gh API this session | ✓ FLOWING |
 
 ### Behavioral Spot-Checks
 
 | Behavior | Command | Result | Status |
 |----------|---------|--------|--------|
-| flake.lock r9 pin == claimed rev | `python3 json load` | 9549cee… + narHash match EVIDENCE | ✓ PASS |
-| pinned rev fetchable from clean clone | `git merge-base --is-ancestor 9549cee origin/main` (r9 repo) | ancestor of origin/main (== HEAD) | ✓ PASS |
-| pinned kernel realized on this host | `file /nix/store/…-r9-kernel-virt-9549cee/kernel-virt.elf` | ELF 64-bit ARM aarch64, 21.9 MB | ✓ PASS |
-| flake resolves with r9 input | `nix flake metadata` | r9: github:requaos/r9/9549cee | ✓ PASS |
-| smoke markers in committed log | grep 05-12-smoke.log | all markers at quoted lines | ✓ PASS |
-| linux clean-clone PASS in log | grep 05-13-linux-clean-clone.log | ALL STAGES PASS + exit: 0 | ✓ PASS |
-| workflow YAML validity | `yaml.safe_load` | valid | ✓ PASS |
-| no `../r9` in shipped scripts | grep -c | 0, 0 | ✓ PASS |
-| r9 host suites (`cargo test -p port`) | — | cargo not on host PATH (nix devshell only); not re-run — committed EVIDENCE matrix + per-plan summaries attest; test files present (15 files incl. 5 red-evidence JSONs) | ? SKIP |
-| qemu boot-test profiles (5) | — | not re-run by verifier (TCG minutes each; committed gate logs 05-04..05-09 byte-verified instead) | ? SKIP |
+| Hosted CI green | `gh run view 41825728636 --json conclusion,headSha,status,url` | success / 68c49ebcc… / completed | ✓ PASS |
+| headSha covers HEAD's code | `git merge-base --is-ancestor` + `git diff 68c49ebcc..HEAD --stat` | ancestor; 3 docs files only | ✓ PASS |
+| G-05-1 fix present | read nsrun.sh:103-105 | bind + fail-hard present | ✓ PASS |
+| flake.lock pin parses | python3 json load | 9549cee… + narHash | ✓ PASS |
+| No `../r9` glue | grep -c on shipped scripts | 0, 0; no .gitmodules | ✓ PASS |
+| static mut eliminated | grep `static mut` in r9 port/src + aarch64/src | 0 | ✓ PASS |
+| CR-01 4-string stat | grep devcons.rs | `3 * (2 + 6)` + muid write | ✓ PASS |
+| CR-02 residency (new shape) | read syscall.rs:829-884 + usermem.rs:44-46 | UserSliceMut::new fuses validate+reside | ✓ PASS |
+| WR-04 no-lock-across-RPC | grep chain_snapshot | pgrp.rs:202, consulted namec.rs:163/222 | ✓ PASS |
+| Tick FIFO drain (d8496d3) | read timer.rs tick() | `pl011::cons_rx_poll()` under cfg(dev_exec) | ✓ PASS |
+| p64 port gate on current r9 | `nix develop --command cargo test -p port` | full suite green (run to completion; cargo aborts on first failing target — final suites reached, 0 failed) | ✓ PASS |
+| Current-tree smoke capture markers | grep build/aarch64/smoke-r9.log | all markers incl. restart + bind line | ✓ PASS |
+| Five qemu boot-test profiles | — | not re-run (TCG minutes each; r9-side committed gates + the verifier-run port suite + 3 byte-verified smoke captures attest) | ? SKIP |
 
 ### Requirements Coverage
 
 | Requirement | Source Plan | Description | Status | Evidence |
 |-------------|-------------|-------------|--------|----------|
-| INT-01 | 05-11 | One command boots to interactive /bin/rc over PL011 | ✓ SATISFIED | SC#1 row |
-| INT-02 | 05-12, 05-13 | Expect smoke on darwin + linux | ⚠️ SATISFIED-PENDING-CI | darwin (2× green, committed log) + native aarch64-linux (committed log) proven; the GH-hosted leg pending first push (human item 1) |
-| INT-03 | 05-13 | Clean-checkout reproducibility, pinned toolchains | ✓ SATISFIED | SC#4 row; x86_64-linux sub-case folded into human item 1 |
+| INT-01 | 05-11 | One command boots to interactive /bin/rc over PL011 | ✓ SATISFIED | SC#1 row (CI + UAT + captures) |
+| INT-02 | 05-12, 05-13 | Expect smoke on darwin + linux | ✓ SATISFIED | SC#3 row — all three legs green incl. hosted |
+| INT-03 | 05-13 | Clean-checkout reproducibility, pinned toolchains | ✓ SATISFIED | SC#4 row |
 | INT-04 | 05-10, 05-11 | flake input (pinned rev), no relative-path/submodule glue | ✓ SATISFIED | SC#5 row |
 
-No orphaned requirements: REQUIREMENTS.md maps exactly INT-01..04 to Phase 5; plans claim exactly INT-01..04 (grep-verified across all 13 PLAN frontmatters).
+No orphaned requirements: REQUIREMENTS.md maps exactly INT-01..04 to Phase 5, all marked Complete; plans claim exactly INT-01..04.
 
 ### Anti-Patterns Found
 
 | File | Line | Pattern | Severity | Impact |
 |------|------|---------|----------|--------|
-| `../r9/port/src/devcons.rs` | 41, 61 | `// XXX: Just for testing.` markers on the shipped console print path | ⚠️ Warning | Tracked as IN-10 in 05-REVIEW.md + disposition ledger — auditable follow-up exists; not an untracked debt marker |
-| `../r9/HowItWorks.md` | 58 | stale doc: says ureg-check has "default `../harvey`" — the 05-10 inversion removed it | ℹ️ Info | Code is correct (loud error, no default); docs-tour commit missed this Phase-4-era sentence; cosmetic drift |
-| `nix/smoke-r9.sh:137`, `drive-r9.expect:71` | — | pkill teardown keyed on kernel-name class, not run identity (WR-07) | ⚠️ Warning | Can kill a developer's concurrent interactive boot-r9; smoke header acknowledges the assumption; CI-single-runner safe today |
+| `nix/smoke-r9.sh:130`, `stage-build.sh:63` | — | `mktemp -d …XXXXXX` template matched the XXX grep | ℹ️ False positive | mktemp placeholder syntax, not a debt marker |
+| `../r9/aarch64/src/platform/raspi3b/mailbox.rs` | 86, 330 | two `FIXME` comments | ℹ️ Info | Pre-existing since phase 03-02 (count 2 before and after the review/refactor series — `git show a244ba2~1:…` == HEAD); raspi3b platform code outside the p64 elimination scope; not phase-05 debt |
+| `../r9/port/src/devcons.rs` | 43, 63 | `// XXX: Just for testing.` | ⚠️ Warning (tracked) | IN-10 in 05-REVIEW-DISPOSITION.md — open info-tier finding with an auditable ledger entry; not untracked debt |
 
-### 05-REVIEW.md Findings vs the Phase GOAL
+No blockers. No new debt markers introduced by the G-05-1 fix, review-fix series, or either quick task.
 
-All 23 findings are disposition-open (ledger untouched). I re-verified the two criticals directly against the code:
+### Deferred Items
 
-- **CR-01 (six devices serve 3-string stat records): CONFIRMED REAL** — `devcons.rs:310-329` writes name/uid/gid only (`need = 41 + (2+name) + (2+6) + (2+6)`), same shape in the five siblings; `devproc.rs` is the one correct device. **Goal impact: NONE on the verified criteria.** The gated sweep never dirreadall's those devices: `ls /bin` rides devmnt→paqfs (proper 4-string records), `ps` rides devproc (correct), `cat /lib/namespace` rides the mounted tree. `ls /dev`, `ls /env`, `ls /fd`, `ls /srv` WOULD fail, and `dirstat` on those devices returns uninitialized string pointers. Latent, pre-documented in deferred-items.md before the review found it. **Does not defeat the goal; must be triaged before milestone ship.**
-- **CR-02 (sys_stat/sys_fstat skip ensure_user_resident): CONFIRMED REAL** — `syscall.rs:844–897` validate range but omit the `fault::ensure_user_resident` call that 8 sibling buffer-writing handlers carry (verified by grep: lines 300/372/723/1078/1258/1391/1437/1534). A cold brk_-grown heap page under a stat buffer → EL1h abort → kernel halt. Reachable in principle via rc's own dirstat probes; never hit in the gated flows. **Does not defeat the goal as evidenced; a one-line-per-handler fix; must be triaged before milestone ship.**
-- WR-01..WR-08: real, era-shaped or latent; none falsify any success criterion. WR-03 (^D EOF never yields) and WR-04 (pgrp lock across blocking RPCs — also deferred-items.md) are the most consequential for the next phase.
-- The known 05-09 input-wedge flake: documented-not-fixed, 4/4 clean in 05-12/05-13 runs — consistent with the logs I verified (no wedge markers).
+None applicable — no gaps to defer. (Phase-era `deferred-items.md` remains as the milestone backlog; two of its open entries — the pgrp-lock hazard and the 3-string stat records — were since FIXED by WR-04/CR-01 in the review series. The file not being re-synced is cosmetic; the disposition ledger carries current state.)
+
+### Advisory (New Scope / Honesty Record)
+
+See frontmatter `advisory:` — (1) the r9 flake pin at 9549cee vs r9 HEAD e4a50c3 (22 commits: review fixes + unsafe elimination gated in r9 main, not yet pinned; pin bump is a milestone-completion decision that will need a fresh hosted CI run); (2) the p64 harvey-side smoke gate's kernel provenance (most plausibly the pinned kernel — integration non-regression — with the redesigned allocator proven by the r9-local gates). Neither affects any success criterion.
 
 ### Human Verification Required
 
-#### 1. First hosted CI run of r9-shell.yml (the amended SC#3's CI leg)
-
-**Test:** Push harvey master to origin (217 commits pending — includes the workflow at `dc8299575` and the evidence commits), then watch the first run: `gh run list --workflow r9-shell.yml`.
-**Expected:** Green — the run log carries `smoke-r9: ALL STAGES PASS — boot, echo, ls/ps/cat sweep, DEL safety, restart`; record the run URL in 05-EVIDENCE.md's PENDING FIRST PUSH slot.
-**Why human:** External-service integration; pushing was prohibited during execution, and this is additionally the first-ever execution of the pipeline on x86_64-linux (ubuntu-latest's arch — the one linux sub-case no committed log covers; 05-EVIDENCE.md flags it honestly). If the run fails on an x86_64-specific evaluation issue (r9's kernel-virt IFD is the named suspect), that becomes a real gap for a follow-up plan.
-
-**Override path (if the project accepts the native substitute as sufficient):** the deviation is intentional (orchestrator no-push rule) and a same-pipeline native aarch64-linux pristine-clone proof exists. To accept formally, add to this file's frontmatter:
-
-```yaml
-overrides:
-  - must_have: "An expect-style smoke test asserting the rc prompt passes on darwin-aarch64 and linux hosts — CI green on both (D-13: CI = linux)"
-    reason: "The exact pipeline the workflow encodes ran green natively on aarch64-linux from a pristine clone carrying the workflow commit (05-13-linux-clean-clone.log, exit 0); the hosted x86_64-linux run is structurally identical and lands at first push, which was policy-prohibited during execution"
-    accepted_by: "<name>"
-    accepted_at: "<ISO timestamp>"
-```
-
-#### 2. Live interactive sanity (optional but recommended)
-
-**Test:** `nix run .#boot-r9`; type `echo hi`, `ls /bin`, `ps`, `exit` at the `% ` prompt.
-**Expected:** Commands answer; exit restarts to a fresh `% `. NOTE: typed input has NO echo this era (documented era delta in deferred-items.md — commands execute, keystrokes are invisible). Judge whether that is acceptable under the milestone's "interactive shell" headline or should be scheduled.
-**Why human:** Expect drivers prove machine interactivity; no human has watched the prompt; echo-absence is a UX judgment.
+None. Both prior human items are resolved and recorded in 05-UAT.md (2/2 pass): the hosted CI run is green (independently confirmed via gh API this session) and the live-interactive prompt check was user-confirmed on 2026-11-04.
 
 ### Gaps Summary
 
-No code gaps. The single unmet criterion component is the **hosted CI run** (SC#3 as amended by user-approved D-13): the workflow exists, is valid and pinned, and the pipeline it encodes is proven green by committed clean-clone logs on darwin-aarch64 and aarch64-linux — but the GH Actions execution itself is pending the first push, which also covers the never-executed x86_64-linux arch. Everything else about the phase goal is delivered and byte-verified against committed evidence: one command (`nix run .#boot-r9`) boots the flake-pinned r9 kernel plus Harvey's own baked aarch64 userland to an interactive `/bin/rc` shell; echo/ls/cat/ps execute correctly at the prompt; DEL is safe; exit restarts the shell; the integration is flake-input-only with zero relative-path or submodule glue.
+No gaps. All five success criteria hold on the CURRENT tree, byte-verified against committed evidence and live external state:
 
-Two critical kernel defects (CR-01 malformed stat records in six devices; CR-02 missing cold-buffer residency in sys_stat/sys_fstat) are confirmed real, latent in all gated flows, and tracked open in 05-REVIEW-DISPOSITION.md. They do not falsify any success criterion as written, but they are user-reachable and must be triaged (fix or accept) before the milestone ships — recommended as the first item of milestone-completion audit or a small follow-up phase.
+1. The one-command boot pipeline is intact and proven — by the hosted CI run, by the user's live-prompt session, and by three committed serial captures.
+2. The command sweep (echo/ls/cat/ps, rc builtins, DEL safety, exit-restart) is asserted by the smoke and present in the current-tree capture.
+3. The CI leg the prior report flagged as never-run is now GREEN (run 41825728636, gh-API-confirmed, headSha covering HEAD's code exactly).
+4. Clean-checkout reproducibility stands — now additionally backed by the hosted run itself being a clean-checkout execution of current code.
+5. The flake-input contract is untouched by the refactor waves: pinned git rev, zero relative-path or submodule glue.
+
+The phase goal — the project's Core Value — is delivered and verified end to end.
 
 ---
 
-_Verified: 2026-11-03T17:30:00Z_
+_Verified: 2026-11-04T12:31:26Z_
 _Verifier: the agent (gsd-verifier)_
