@@ -5,7 +5,8 @@
   # Harvey's flake owns the composition — the r9 kernel arrives
   # as a proper flake input (exact rev + narHash pinned in flake.lock), never
   # a sibling-checkout path or submodule.  Consumed: r9.packages.<system>.kernel-virt
-  # (the kernel-virt.elf + aarch64/lib/virt-gicv2.dtb store-path contract).
+  # (the kernel-virt.elf + aarch64/lib/virt-gicv{2,3}.dtb store-path contract —
+  # the boot apps default to gicv3, with -accel hvf -cpu host on darwin-aarch64).
   # Dev flow against a local r9 checkout: nix run .#boot-r9
   # --override-input r9 git+file:///path/to/r9 — dev-only, never the default.
   inputs.r9.url = "github:requaos/r9";

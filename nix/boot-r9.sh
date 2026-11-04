@@ -1,6 +1,6 @@
 # nix/boot-r9.sh — THE one command: compose the
 # pinned r9 kernel — Harvey's flake input's packages.kernel-virt store
-# paths (kernel-virt.elf + aarch64/lib/virt-gicv2.dtb)
+# paths (kernel-virt.elf + aarch64/lib/virt-gicv{2,3}.dtb)
 # — with Harvey's aarch64 userland, and boot to the interactive rc
 # prompt on the qemu virt machine.  The pipeline, each step loud on
 # failure:
@@ -14,17 +14,20 @@
 #   2. bake — build/aarch64/mkimage.sh → build/aarch64/bootfs.paq
 #      (Harvey's own mkpaqfs; r9's xtask is never invoked).
 #   3. DTB patch: a throwaway copy
-#      of the package's virt-gicv2.dtb gets /chosen linux,initrd-start/
-#      -end as two 32-bit BE cells, high word first (dtc has no 8-byte
-#      property type).  Mirrors r9's xtask/src/config.rs
-#      prepare_initrd_dtb.
-#   4. launch — qemu argv values from r9's aarch64/lib/
-#      config_virtexec.toml [qemu] (carried-forward locked shape):
-#        qemu-system-aarch64 -M virt,gic-version=2 -cpu cortex-a72
-#          -smp 1 -m 1024M -accel tcg -kernel <r9 ELF>
+#      of the package's selected DTB (virt-gicv3.dtb by default) gets
+#      /chosen linux,initrd-start/-end as two 32-bit BE cells, high word
+#      first (dtc has no 8-byte property type).  Mirrors r9's
+#      xtask/src/config.rs prepare_initrd_dtb.
+#   4. launch — qemu argv from the selection below (the r9 kernel
+#      dispatches its GIC driver on the DTB's compatible string, so one
+#      kernel-virt.elf serves both machine shapes):
+#        qemu-system-aarch64 -M virt,gic-version=3 -cpu $R9_CPU
+#          -smp 1 -m 1024M -accel $R9_ACCEL -kernel <r9 ELF>
 #          -dtb <patched copy>
 #          -device loader,file=<bootfs.paq>,addr=0x48000000 -nographic
-#      qemu runs in the FOREGROUND with stdio inherited — the user's
+#      Default: gicv3 everywhere; -accel hvf -cpu host on darwin-aarch64
+#      (hvf rejects gicv2), TCG + cortex-a72 elsewhere.  qemu runs in the
+#      FOREGROUND with stdio inherited — the user's
 #      terminal IS the console (ctrl-a x to quit).  A foreground child
 #      rather than exec so the EXIT trap reclaims the mktemp DTB dir
 #      (same console semantics: qemu is the group's foreground process).
@@ -38,6 +41,10 @@
 #                  kernel path is exec'd; presence is validated before
 #                  launch).  No sibling-checkout path appears here by
 #                  design.
+#   R9_ACCEL       auto (default) | hvf | kvm | tcg — auto picks hvf on
+#                  darwin-aarch64 when qemu supports it, tcg otherwise.
+#   R9_GICV2       =1 restores the v1.0 reference shape (gic-version=2,
+#                  cortex-a72, tcg) — a bisection escape hatch.
 #   R9_SKIP_BUILD  =1 skips step 1 (iteration hatch; see above).
 #   KERNDATE       pinned-build timestamp override; derived
 #                  from the HARVEY checkout's git log otherwise.
@@ -74,15 +81,46 @@ if [ ! -f "$R9_KERNEL" ]; then
 fi
 [ -n "$R9_KERNEL" ] && [ -f "$R9_KERNEL" ] || err "kernel-virt.elf not found under $R9_KERNEL_PKG"
 
-R9_DTB="$R9_KERNEL_PKG/aarch64/lib/virt-gicv2.dtb"
-if [ ! -f "$R9_DTB" ]; then
-	R9_DTB=$(find "$R9_KERNEL_PKG" -name 'virt-gicv2.dtb' -type f 2>/dev/null | head -1 || true)
+# --- step 0b: machine/accel selection ---------------------------------
+# gicv3 is the default machine shape everywhere (the kernel dispatches
+# on the DTB compatible string; virtexec3 gates gicv3-under-TCG);
+# accel prefers hvf on darwin-aarch64 (hvf rejects gicv2 on qemu
+# 11.1.2) and falls back to TCG.  R9_ACCEL forces the accelerator;
+# R9_GICV2=1 restores the whole v1.0 reference shape for bisection.
+
+if [ "${R9_GICV2:-0}" = "1" ]; then
+	R9_ACCEL=tcg
+	R9_MACHINE="virt,gic-version=2"
+	R9_CPU=cortex-a72
+	R9_DTB_NAME=virt-gicv2.dtb
+else
+	R9_ACCEL="${R9_ACCEL:-auto}"
+	if [ "$R9_ACCEL" = "auto" ]; then
+		R9_ACCEL=tcg
+		if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ] \
+			&& qemu-system-aarch64 -accel help 2>/dev/null | grep -qx 'hvf'; then
+			R9_ACCEL=hvf
+		fi
+	fi
+	R9_MACHINE="virt,gic-version=3"
+	R9_DTB_NAME=virt-gicv3.dtb
+	case "$R9_ACCEL" in
+		hvf|kvm) R9_CPU=host ;;
+		tcg) R9_CPU=cortex-a72 ;;
+		*) err "R9_ACCEL=$R9_ACCEL: want auto|hvf|kvm|tcg" ;;
+	esac
 fi
-[ -n "$R9_DTB" ] && [ -f "$R9_DTB" ] || err "virt-gicv2.dtb not found under $R9_KERNEL_PKG"
+
+R9_DTB="$R9_KERNEL_PKG/aarch64/lib/$R9_DTB_NAME"
+if [ ! -f "$R9_DTB" ]; then
+	R9_DTB=$(find "$R9_KERNEL_PKG" -name "$R9_DTB_NAME" -type f 2>/dev/null | head -1 || true)
+fi
+[ -n "$R9_DTB" ] && [ -f "$R9_DTB" ] || err "$R9_DTB_NAME not found under $R9_KERNEL_PKG"
 
 echo "== r9 kernel package: $R9_KERNEL_PKG"
 echo "   kernel: $R9_KERNEL"
 echo "   dtb:    $R9_DTB"
+echo "   shape:  $R9_MACHINE accel=$R9_ACCEL cpu=$R9_CPU"
 
 # --- provenance (KERNDATE; the nix/build.sh discipline) -------------
 # Pinned build timestamp; override with KERNDATE=<epoch>.
@@ -119,7 +157,7 @@ INITRD="$HARVEY/build/aarch64/bootfs.paq"
 
 # --- step 3: DTB patch + qemu launch ---------------------------------
 # (the Phase-4 fdtput recipe — two 32-bit BE cells, high word first —
-# and the locked virt argv; see the header for the r9 citations)
+# and the step-0b-selected virt argv; see the header)
 
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/boot-r9.XXXXXX")
 # shellcheck disable=SC2329  # invoked via trap below
@@ -147,7 +185,7 @@ fdtput -t x "$DTB" /chosen linux,initrd-end "$HI" "$LO" \
 	|| err "fdtput linux,initrd-end patch failed"
 
 set -- qemu-system-aarch64 \
-	-M virt,gic-version=2 -cpu cortex-a72 -smp 1 -m 1024M -accel tcg \
+	-M "$R9_MACHINE" -cpu "$R9_CPU" -smp 1 -m 1024M -accel "$R9_ACCEL" \
 	-kernel "$R9_KERNEL" \
 	-dtb "$DTB" \
 	-device "loader,file=$INITRD,addr=0x48000000" \

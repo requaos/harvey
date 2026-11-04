@@ -15,12 +15,14 @@
 #   2. bake — build/aarch64/mkimage.sh → build/aarch64/bootfs.paq
 #      (Harvey's own mkpaqfs; r9's xtask is never invoked).
 #   3. DTB patch: a throwaway copy
-#      of the package's virt-gicv2.dtb gets /chosen linux,initrd-start/
-#      -end as two 32-bit BE cells, high word first (dtc has no 8-byte
-#      property type).  Mirrors r9's xtask/src/config.rs
-#      prepare_initrd_dtb.
+#      of the package's selected DTB (virt-gicv3.dtb by default) gets
+#      /chosen linux,initrd-start/-end as two 32-bit BE cells, high word
+#      first (dtc has no 8-byte property type).  Mirrors r9's
+#      xtask/src/config.rs prepare_initrd_dtb.
 #   4. smoke — build/aarch64/smoke-r9.expect spawns qemu with serial on
-#      stdio (-nographic, the build/build.bash-proven shape; A6) and
+#      stdio (-nographic, the build/build.bash-proven shape; A6) and the
+#      step-0b-selected shape (gicv3 everywhere; hvf on darwin-aarch64,
+#      TCG elsewhere) and
 #      asserts: banner → boot prints → stacksmoke → the %  prompt →
 #      echo r9shell7 → ls /bin subset → ps → cat /lib/namespace → DEL
 #      safety → exit → restart.  Markers are the ONLY proof — the
@@ -40,6 +42,10 @@
 #                  into the phase dir as retained evidence by the plan's
 #                  gate task).
 #   R9_QEMU        default qemu-system-aarch64.
+#   R9_ACCEL       auto (default) | hvf | kvm | tcg — auto picks hvf on
+#                  darwin-aarch64 when qemu supports it, tcg otherwise.
+#   R9_GICV2       =1 restores the v1.0 reference shape (gic-version=2,
+#                  cortex-a72, tcg) — a bisection escape hatch.
 #   KERNDATE       pinned-build timestamp override; derived
 #                  from the HARVEY checkout's git log otherwise.
 #
@@ -81,15 +87,45 @@ if [ ! -f "$R9_KERNEL" ]; then
 fi
 [ -n "$R9_KERNEL" ] && [ -f "$R9_KERNEL" ] || err "kernel-virt.elf not found under $R9_KERNEL_PKG"
 
-R9_DTB_SRC="$R9_KERNEL_PKG/aarch64/lib/virt-gicv2.dtb"
-if [ ! -f "$R9_DTB_SRC" ]; then
-	R9_DTB_SRC=$(find "$R9_KERNEL_PKG" -name 'virt-gicv2.dtb' -type f 2>/dev/null | head -1 || true)
+# --- step 0b: machine/accel selection (same as boot-r9.sh) ------------
+# gicv3 is the default machine shape everywhere; accel prefers hvf on
+# darwin-aarch64 (hvf rejects gicv2 on qemu 11.1.2), TCG elsewhere.
+# R9_ACCEL forces the accelerator; R9_GICV2=1 restores the v1.0
+# reference shape (gic-version=2 + cortex-a72 + tcg) for bisection.
+
+if [ "${R9_GICV2:-0}" = "1" ]; then
+	R9_ACCEL=tcg
+	R9_MACHINE="virt,gic-version=2"
+	R9_CPU=cortex-a72
+	R9_DTB_NAME=virt-gicv2.dtb
+else
+	R9_ACCEL="${R9_ACCEL:-auto}"
+	if [ "$R9_ACCEL" = "auto" ]; then
+		R9_ACCEL=tcg
+		if [ "$(uname -s)" = "Darwin" ] && [ "$(uname -m)" = "arm64" ] \
+			&& qemu-system-aarch64 -accel help 2>/dev/null | grep -qx 'hvf'; then
+			R9_ACCEL=hvf
+		fi
+	fi
+	R9_MACHINE="virt,gic-version=3"
+	R9_DTB_NAME=virt-gicv3.dtb
+	case "$R9_ACCEL" in
+		hvf|kvm) R9_CPU=host ;;
+		tcg) R9_CPU=cortex-a72 ;;
+		*) err "R9_ACCEL=$R9_ACCEL: want auto|hvf|kvm|tcg" ;;
+	esac
 fi
-[ -n "$R9_DTB_SRC" ] && [ -f "$R9_DTB_SRC" ] || err "virt-gicv2.dtb not found under $R9_KERNEL_PKG"
+
+R9_DTB_SRC="$R9_KERNEL_PKG/aarch64/lib/$R9_DTB_NAME"
+if [ ! -f "$R9_DTB_SRC" ]; then
+	R9_DTB_SRC=$(find "$R9_KERNEL_PKG" -name "$R9_DTB_NAME" -type f 2>/dev/null | head -1 || true)
+fi
+[ -n "$R9_DTB_SRC" ] && [ -f "$R9_DTB_SRC" ] || err "$R9_DTB_NAME not found under $R9_KERNEL_PKG"
 
 echo "== r9 kernel package: $R9_KERNEL_PKG"
 echo "   kernel: $R9_KERNEL"
 echo "   dtb:    $R9_DTB_SRC"
+echo "   shape:  $R9_MACHINE accel=$R9_ACCEL cpu=$R9_CPU"
 
 # --- provenance (KERNDATE; the nix/build.sh discipline) -------------
 # Pinned build timestamp; override with KERNDATE=<epoch>.
@@ -183,6 +219,8 @@ echo "== capture: $R9_SMOKE_LOG"
 export R9_KERNEL R9_INITRD R9_SMOKE_LOG R9_QEMU
 R9_DTB="$DTB"
 export R9_DTB
+# The selected machine shape for the expect driver's spawn argv.
+export R9_MACHINE R9_CPU R9_ACCEL
 
 set +e
 expect "$HARVEY/build/aarch64/smoke-r9.expect"
