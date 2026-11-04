@@ -12,7 +12,13 @@
 
   outputs = { self, nixpkgs, r9 }:
     let
-      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" "x86_64-darwin" ];
+      # PROJECT.md scope: darwin-aarch64 (primary dev), linux aarch64/
+      # x86_64.  x86_64-darwin is OUT of scope (its nixpkgs pin-era eval
+      # throws — and Harvey never ships for it); r9 also ships no package
+      # for the tuple, so dropping it from the systems list fixes
+      # `nix flake show --all-systems` AND keeps the boot-r9 hasAttr
+      # gating truthful (05-11's comment).
+      systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
       pkgsFor = system: nixpkgs.legacyPackages.${system};
 
@@ -118,9 +124,11 @@
           iso = mkApp isoPkg;
           default = mkApp setupPkg;
           # boot-r9 exists only where r9 ships packages.kernel-virt (its
-          # flake systems: aarch64-darwin, aarch64-linux, x86_64-linux —
-          # x86_64-darwin is out of project scope, PROJECT.md).  The
-          # hasAttr gate keeps this attrset's evaluation lazy there.
+          # flake systems: aarch64-darwin, aarch64-linux, x86_64-linux).
+          # x86_64-darwin is doubly absent: r9 ships no package for it AND
+          # Harvey dropped the tuple from the systems list (261104-b4p,
+          # PROJECT.md scope) — the hasAttr gate keeps this attrset's
+          # evaluation lazy where the package is absent.
         } // nixpkgs.lib.optionalAttrs (builtins.hasAttr system r9.packages) {
           boot-r9 = mkApp bootR9Pkg;
           boot-r9-smoke = mkApp smokeR9Pkg;

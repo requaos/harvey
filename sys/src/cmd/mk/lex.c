@@ -63,11 +63,20 @@ eof:
 
 /*
  *	assemble a back-quoted shell command into a buffer
+ *
+ *	261104-b4p (Phase-2 deferred item 5 — the 9front donor pin
+ *	350266104f's depth counter, ported verbatim): an rc-style `{...}`
+ *	backquote nests braces (`{if(true) { echo ok }}`); the naive
+ *	first-`}` scan ended early and the leftover text corrupted the
+ *	mkfile parse.  Count the nesting depth: `{` increments (rc style
+ *	only), the terminator decrements, and the command executes when
+ *	the count reaches zero.  Harvey's execsh signature and error
+ *	paths are unchanged.
  */
 static int
 bquote(Biobuf *bp, Bufblock *buf)
 {
-	int c, line, term;
+	int c, line, term, depth;
 	int start;
 
 	line = mkinline;
@@ -80,9 +89,12 @@ bquote(Biobuf *bp, Bufblock *buf)
 	} else
 		term = '`';		/* sh style */
 
+	depth = 1;
 	start = buf->current-buf->start;
 	for(;c > 0; c = nextrune(bp, 0)){
-		if(c == term){
+		if(c == '{' && term == '}')
+			depth++;
+		if(c == term && --depth == 0){
 			insert(buf, '\n');
 			insert(buf,0);
 			buf->current = buf->start+start;
