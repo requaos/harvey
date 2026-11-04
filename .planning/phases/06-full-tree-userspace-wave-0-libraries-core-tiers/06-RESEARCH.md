@@ -792,21 +792,26 @@ exit $bad
 | A7 | Plan 9 bc's exact float output string (leading-zero behavior) | Tier-1 table | bc canary assertion needs one empirical check at plan time; awk (mandatory canary) is unaffected |
 | A8 | GitHub `ubuntu-latest` /dev/kvm availability persists through workflow authoring | USPACE-10 leg | TCG fallback (-cpu qemu64, 600s budget) documented in the same job — degradation, not blockage |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
-1. **mk double-rule semantics for virtual targets (A1)**
+All three questions were consumed at plan time; dispositions name the consuming tasks.
+
+1. **mk double-rule semantics for virtual targets (A1)** — RESOLVED at plan time.
    - What we know: mkmany defines `all:V: $PROGS`; ip/mkfile re-defines `all:V: $DIRS`; both outcomes appear in amd64/bin/ip.
    - What's unclear: the exact mk rule-resolution semantics (both-run vs first/last-wins with V-target special-casing).
    - Recommendation: one plan-time spike (tiny mkfile experiment, 5 minutes) before locking the filter design; the uniform keep-rule works under either answer but the container-mkfile edit set changes.
+   - **Disposition:** consumed by 06-02 — Task 1 runs the A1/A6 spike (the verdict line is recorded in the D-02 hygiene commit body) and Task 2's `checkpoint:decision` selects the container-mkfile edit set from it (planned-layout assumes both-run; last-wins would be presented, not silently switched).
 
-2. **The guest build chain's execution markers beyond the canary**
+2. **The guest build chain's execution markers beyond the canary** — RESOLVED at plan time.
    - What we know: D-11 locks 7a/7c/7l in-guest proof; cpp/mk/yacc/lex need execution evidence too (tier-1 membership).
    - What's unclear: fixed inputs per tool (tiny grammar for yacc, tiny mkfile for mk, `-D` smoke for cpp).
    - Recommendation: planner assigns per-tool fixed inputs (discretion area); all run in the guest's /tmp writable scratch.
+   - **Disposition:** consumed by 06-06 Task 1 — per-tool fixed inputs assigned and committed: `tiny.y` (yacc → y.tab.c), `tiny.l` (lex → lex.yy.c greps `yylex`), `tiny.mk` (mk -f), sweep-generated `-D` smoke (cpp); all four execute in-guest on the donor with T1-OK execution markers — no chain member lands artifact-only (SC#5's literal chain).
 
-3. **Whether tier-build absorbs subset-build or supersedes it**
+3. **Whether tier-build absorbs subset-build or supersedes it** — RESOLVED at plan time.
    - What we know: mkimage.sh + smoke-r9.sh call subset-build.sh by name; the 16-subset ⊂ tier-1.
    - Recommendation: evolve subset-build.sh in place (name stable, loops become tier-driven) — one less call-site change; record in the plan.
+   - **Disposition:** consumed by 06-03 — subset-build.sh/subset-exec.sh evolve in place (names stable; the hardcoded loops became tier-file loops); the promotion is recorded in 06-02's `assumption_delta_decision` block.
 
 ## Environment Availability
 
