@@ -114,17 +114,70 @@ Explicitly excluded from v2.0. Documented to prevent scope creep.
 
 ## Traceability
 
-Populated during roadmap creation. Each requirement maps to exactly one phase.
+Each requirement maps to exactly one phase. Populated 2026-11-04 at roadmap creation (v2.0 = Phases 6–12, continuing v1.0 numbering).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| (filled by roadmapper) | — | Pending |
+| USPACE-01 | Phase 6 | Pending |
+| USPACE-02 | Phase 6 | Pending |
+| USPACE-03 | Phase 6 | Pending |
+| USPACE-04 | Phase 6 | Pending |
+| USPACE-05 | Phase 6 | Pending |
+| USPACE-06 | Phase 6 | Pending |
+| USPACE-07 | Phase 10 | Pending |
+| USPACE-08 | Phase 10 | Pending |
+| USPACE-09 | Phase 10 | Pending |
+| USPACE-10 | Phase 6 | Pending |
+| NETDRV-01 | Phase 7 | Pending |
+| NETDRV-02 | Phase 7 | Pending |
+| NETDRV-03 | Phase 7 | Pending |
+| NETDRV-04 | Phase 7 | Pending |
+| NETIP-01 | Phase 8 | Pending |
+| NETIP-02 | Phase 8 | Pending |
+| NETIP-03 | Phase 8 | Pending |
+| NETIP-04 | Phase 8 | Pending |
+| NETIP-05 | Phase 8 | Pending |
+| NETIP-06 | Phase 8 | Pending |
+| NETIP-07 | Phase 8 | Pending |
+| NETIP-08 | Phase 8 | Pending |
+| HNET-01 | Phase 9 | Pending |
+| HNET-02 | Phase 9 | Pending |
+| HNET-03 | Phase 9 | Pending |
+| HNET-04 | Phase 9 | Pending |
+| HNET-05 | Phase 9 | Pending |
+| AUTH-01 | Phase 11 | Pending |
+| AUTH-02 | Phase 11 | Pending |
+| AUTH-03 | Phase 11 | Pending |
+| AUTH-04 | Phase 11 | Pending |
+| AUTH-05 | Phase 11 | Pending |
+| AUTH-06 | Phase 11 | Pending |
+| AUTH-07 | Phase 11 | Pending |
+| AUTH-08 | Phase 11 | Pending |
+| AUTH-09 | Phase 11 | Pending |
+| CPU-01 | Phase 12 | Pending |
+| CPU-02 | Phase 12 | Pending |
+| CPU-03 | Phase 12 | Pending |
+| CPU-04 | Phase 12 | Pending |
+| DESK-01 | Phase 12 | Pending |
+| DESK-02 | Phase 12 | Pending |
+| DESK-03 | Phase 10 | Pending |
+| DESK-04 | Phase 12 | Pending |
+| DESK-05 | Phase 12 | Pending |
+| DESK-06 | Phase 12 | Pending |
+| DESK-07 | Phase 12 | Pending |
+| INT-05 | Phase 12 | Pending |
+| INT-06 | Phase 12 | Pending |
+| INT-07 | Phase 12 | Pending |
 
 **Coverage:**
 - v2.0 requirements: 50 total
-- Mapped to phases: 0 (roadmap pending)
-- Unmapped: 50 (roadmap pending)
+- Mapped to phases: 50 ✓
+- Unmapped: 0
+
+**Mapping notes:**
+- DESK-03 (bootfs fonts/profile/ndb payload) maps to Phase 10, not Phase 12 — research stages the payload with the GUI tier so Phases 11–12 never block on it; Phase 12 consumes it.
+- USPACE-10 (v1.0 carry-over pool-panic re-test) rides Phase 6's Wave 0 — cheapest known-signature verification, alongside the gethunk landmine fixes.
 
 ---
 *Requirements defined: 2026-11-04*
-*Last updated: 2026-11-04 after milestone v2.0 definition*
+*Last updated: 2026-11-04 — traceability populated at v2.0 roadmap creation*

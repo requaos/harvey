@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Full System & Drawterm
 status: planning
-last_updated: "2026-11-04T18:50:22.260Z"
+last_updated: "2026-11-04T19:27:06Z"
 last_activity: 2026-11-04
 progress:
-  total_phases: 0
+  total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -20,14 +20,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-04)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Planning next milestone (v1.0 Boot Revival shipped 2026-11-04)
+**Current focus:** Phase 6: Full-Tree Userspace — Wave 0 + Libraries/Core Tiers (v2.0 roadmap created 2026-11-04)
 
 ## Current Position
 
-Phase: Not started (defining requirements)
+Phase: 6 of 12 (Full-Tree Userspace — Wave 0 + Libraries/Core Tiers) — v2.0 spans Phases 6–12
 Plan: —
-Status: Defining requirements
-Last activity: 2026-11-04 — Milestone v2.0 started
+Status: Ready to plan (v2.0 roadmap created — 7 phases, 50/50 requirements mapped)
+Last activity: 2026-11-04 — Milestone v2.0 roadmap created
+
+Progress: [░░░░░░░░░░] 0% (v2.0)
 
 
 ## Performance Metrics
