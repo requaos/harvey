@@ -1,18 +1,18 @@
 ---
 gsd_state_version: "1.0"
-current_phase: 05
-status: completed
+status: Awaiting next milestone
 stopped_at: Phase 05 complete — all phases complete
-last_updated: "2026-11-04T13:53:09.902Z"
+last_updated: "2026-11-04T13:58:45.520Z"
 last_activity: 2026-11-04
-last_activity_desc: Phase 05 complete
-state_head: b1d600114867b858d0b464cb8b7d8f283d668cd3
+last_activity_desc: Milestone v1.0 completed and archived
+state_head: abaa27638fb9729d54fbb1a76c01ecb4ed3b0f81
 progress:
   total_phases: 5
   completed_phases: 5
   total_plans: 38
   completed_plans: 38
   percent: 100
+current_phase: 05
 ---
 
 # Project State
@@ -26,12 +26,10 @@ See: .planning/PROJECT.md (updated 2026-11-04)
 
 ## Current Position
 
-Phase: 05
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-11-04 — Phase 05 complete; quick task 261104-b4p resolved 8 deferred items
-
-Progress: [██████████] 100%
+Phase: Milestone v1.0 complete
+Plan: —
+Status: Awaiting next milestone
+Last activity: 2026-11-04 — Milestone v1.0 completed and archived
 
 ## Performance Metrics
 
@@ -228,9 +226,6 @@ None yet.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
-| 261103-giq | Reimplement the five Python harness tools in build/aarch64/ as one std-only Rust `harness` binary (srv9/drive9/gdbpoke9/mkfs9/trace-syscalls subcommands); callers rewired; flake gains packages.harness + devshell Rust; all 5 equivalence gates green; .py originals deleted | 2026-11-03 | c42726256 | [261103-giq-reimplement-the-five-python-harness-tool](./quick/261103-giq-reimplement-the-five-python-harness-tool/) |
-| 261103-p64 | Maximal unsafe elimination in r9: static mut→0, usermem module (per-process TTBR0-live route — locked model rule), MMIO register blocks, index/arena allocator, forbid(unsafe_code) across port/ except globalalloc+mcslock shims, 160-site audit reconciled; all gates green (port 75/75, 5 profiles, smoke ×3) | 2026-11-03 | 4150a3034 | [261103-p64-maximal-unsafe-elimination-in-the-r9-ker](./quick/261103-p64-maximal-unsafe-elimination-in-the-r9-ker/) |
-| 261104-b4p | Resolved 8 deferred items pre-milestone: console cooked echo + #c/pid pin, mk bquote depth counter, exit fd-group sweep, Arc'd devmnt fid lifecycle, interruptible sys_sleep (smokesleep e2e), HowItWorks namespace-core flip, x86_64-darwin systems drop; +2 evidence flips (WR-04 wedge, CR-01 muid). Gates: port 80/80, 5 profiles, sweep ×2, override-input smoke green | 2026-11-04 | b1d600114 | [261104-b4p-resolve-eight-deferred-items-before-the-](./quick/261104-b4p-resolve-eight-deferred-items-before-the-/) |
 
 ## Deferred Items
 
@@ -261,3 +256,7 @@ Items acknowledged and deferred at milestone close, most recent first:
 Last session: 2026-11-04T12:35:00Z
 Stopped at: Phase 05 complete — milestone ready to close (all 5 phases, 38/38 plans)
 Resume file: None
+
+## Operator Next Steps
+
+- Start the next milestone with /gsd-new-milestone
