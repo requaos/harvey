@@ -1,11 +1,12 @@
 ---
 gsd_state_version: "1.0"
+milestone: v1.0
 status: Awaiting next milestone
 stopped_at: Phase 05 complete — all phases complete
-last_updated: "2026-11-04T13:58:45.520Z"
+last_updated: "2026-11-04T15:53:59.020Z"
 last_activity: 2026-11-04
 last_activity_desc: Milestone v1.0 completed and archived
-state_head: abaa27638fb9729d54fbb1a76c01ecb4ed3b0f81
+state_head: ac6f0dbf82c0a9eb6f79b93dc122384c40fd303a
 progress:
   total_phases: 5
   completed_phases: 5
@@ -29,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-04)
 Phase: Milestone v1.0 complete
 Plan: —
 Status: Awaiting next milestone
-Last activity: 2026-11-04 — Milestone v1.0 completed and archived
+Last activity: 2026-11-04 — Milestone v1.0 completed and archived; quick task 261104-cms comment hygiene sweep
 
 ## Performance Metrics
 
@@ -226,6 +227,7 @@ None yet.
 
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
+| 261104-cms | Comment hygiene sweep: planning-artifact citations removed from source comments + narrative headers compressed across r9 (56 files) and harvey (47 files); why preserved sans citations; comment-only proven by diff-invariant + full gates (port 80/80, 5 profiles, toolchain+namespace builds) | 2026-11-04 | ac6f0dbf8 | [261104-cms-comment-hygiene-sweep-across-harvey-r9-r](./quick/261104-cms-comment-hygiene-sweep-across-harvey-r9-r/) |
 
 ## Deferred Items
 
