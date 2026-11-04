@@ -238,7 +238,23 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
-| *(none)* | | | | |
+| deferred_items | 02-1: bare `sh BUILDTOOLCHAIN` link fails on darwin (9l shim only via nix driver) | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 02-2: 9cc libmach LP64 hswal stride beyond commonllp64 (adotout/crackhdr paths) | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 02-4: guest toolchain ensure re-runs full setup despite sentinels (benign, minutes) | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 02-6: gethunk reset-not-accumulate in 6l/obj.c + cc/macbody (7l fixed; untriggered) | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 02-8: re-test 9k-amd64 bad-magic pool panic with pswt.c-fixed 6c | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 02-9: libc mkfile `everything` hardcoded object glob lacks `.7` | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 02-10: ar member staleness — no pruning of removed sources | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 02-11: ape reduce bind fails in linux namespace (port-cull silently off; harmless today) | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 02-12: `nix run .#build` exit status always 0 (break-glass bash tail swallows failures) | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 03-1: upstream raspi3b-on-qemu-11.1.2 boot defect (A/B-proven pre-existing; accepted) | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 04-4: miniz-inflate heisenbug exposure-eliminated by construction, root cause unisolated | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 05: input-wedge watch item (~1/6 early sweep runs; never reproduced under the cons watchdog; tick-FIFO-drain fix d8496d3 likely closed the class) | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 01-1: dormant-arch toolchain siblings share the LP64 wide-constant bug class | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 05 review Info tier: 13 open Info findings (05-REVIEW-DISPOSITION.md) — doc/comment/hardening nits | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 05: hosted CI has exactly one green run (r9-shell.yml) — history accumulates on master pushes | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 05: flake.lock r9 pin behind r9 main — bump with a fresh hosted run at next milestone open | acknowledged | 2026-11-04 | v1.0 |
+| deferred_items | 05: exit-time fd-group sweep landed (261104-b4p) but server-lifecycle consumers remain future work | acknowledged | 2026-11-04 | v1.0 |
 
 ## Session Continuity
 
