@@ -53,14 +53,30 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. The cross-compiled-generator audit artifact lists every build-then-run generator in swept mkfiles with host-toolchain proof (7c output never runs on the host), and CI reds on any `.7`-magic generator artifact (USPACE-03)
   4. Tiered allowlist machinery is live: per-dir append-only allowlist growth (never a flag-flip), per-tier execution gates run on the 9front donor kernel FIRST then r9 via measure-first traces, and artifact+execution markers are committed as the only gates — namespace-build mk exit status is never trusted (USPACE-04)
   5. Tier-0/1 are green with committed markers: all 22 outstanding libraries (libdraw/libmemdraw/libmemlayer/libframe, libcontrol, libhtml, libhttpd, libdisk, libflate, libgeometry, liblex, libplumb, libventi/liboventi, …) compile for aarch64 via the mksyslib portable-C fallback (no cargo-culted stale `.6`/`.8` objects), and shell/coreutils + the guest build chain (7a/7c/7l/cc/cpp/mk/yacc/lex as aarch64 binaries) execute on the donor kernel (USPACE-05, USPACE-06)
+
 **Plans:** 8 plans
+**Wave 1**
 - [ ] 06-01-PLAN.md — Wave-0 landmines: gethunk ×2 fixes + teeth-proven repro gates + FPdbleword uint fix (USPACE-01, D-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 06-02-PLAN.md — Append-only tier allowlist machinery: D-02 hygiene, A1 spike, D-13 checkpoint, objtype-gated mk filter, build_aarch64 filtered sweep (USPACE-04)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 06-03-PLAN.md — Tracer: libavl + awk + float canary end-to-end through the donor gate stack; ledgers started (USPACE-04, D-07/D-10/D-14)
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 06-04-PLAN.md — Dir-coverage report + generator audit + .7-magic scan (USPACE-02, USPACE-03, D-15)
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 06-05-PLAN.md — Tier-0 wave: 22 libraries compile fresh via mksyslib portable-C; libdynld rename verdict; documented exclusions (USPACE-05, D-05..D-08)
+
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 06-06-PLAN.md — Tier-1: build chain + ~32 coreutils + guest self-host canary on the donor (USPACE-06, D-09/D-11)
+
+**Wave 7** *(blocked on Wave 6 completion)*
 - [ ] 06-07-PLAN.md — r9 venue: measure-first dispatch growth, push-before-pin, boot-r9-tier1 gate (USPACE-04, USPACE-06, D-12)
+
+**Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 06-08-PLAN.md — CI pipeline: phase6.yml four jobs incl. x86_64 pool-panic verdict leg (USPACE-10, D-04/D-16)
 
 ### Phase 7: r9 PCI/ECAM + virtio-net + devether
@@ -73,6 +89,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   2. The virtio-net driver negotiates the zero-offload feature mask (MAC+STATUS only) from Day 1 over split virtqueues with barrier-first aarch64 ring code, and the provenance decision (virtio-drivers crate vs from-scratch `port/src/virtio.rs`) is recorded in-repo (NETDRV-02)
   3. devether `#l` presents `/net/ether0` per netif.h with live RX/TX packet counters, and the guest's ARP request is observable in a host-side capture (NETDRV-03)
   4. Interrupt accounting is proven under load: INTx level-triggered plumbing with ISR read-to-ack, and a sustained packet blast shows guest and host counters reconciling with no silent virtqueue wedge (NETDRV-04)
+
 **Plans**: TBD
 
 ### Phase 8: r9 TCP/IP Path — devip-Compatible /net
@@ -86,6 +103,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. TCP is debuggable without the NIC: `ping 127.0.0.1`, udp echo, and in-guest tcp/7 echo over loopback all pass as committed expect gates (NETIP-03)
   4. The guest takes an address and is reachable: arp + ethermedium bound to devether, static ipconfig assigns IPv4, DHCP works via ipconfig `/net/udp` broadcast fidelity (or the recorded smoltcp dhcpv4 fallback), and the devip ip6 tree + ipconfig IPv6 configuration are demonstrated (NETIP-04, NETIP-05, NETIP-06)
   5. The networking exit gate is green: sustained bidirectional TCP flow + load soak **on the tap leg** (slirp evidence explicitly not accepted — it forgives L2 bugs), with aan available for cpu connections (NETIP-07, NETIP-08)
+
 **Plans**: TBD
 
 ### Phase 9: Host Networking + boot-r9 Net Modes
@@ -99,6 +117,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. The linux tap/bridge leg (qemu-bridge-helper + br0) is documented per-distro and tested — the guest is reachable at L2 from the host, providing the L2-truth venue for Phase 8's exit gate (HNET-03)
   4. The darwin real-L2 decision spike (socket_vmnet root daemon + fd handoff vs signed-qemu vmnet — builtin vmnet is entitlement-walled on nixpkgs qemu) is recorded, and the chosen leg is documented as opt-in with a volunteer-run validation log (HNET-04)
   5. A doctor-style checker diagnoses privileged host setup and prints exact sudo/bridge/firewall remediation commands (HNET-05)
+
 **Plans**: TBD
 
 ### Phase 10: Userspace Services + GUI Tiers + Bootfs Payload
@@ -111,6 +130,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   2. The GUI stack compiles for aarch64 (libdraw family + rio + acme + sam + plumb), and donor-kernel syscall traces for rio/acme/sam are captured and committed — the measure-first input for any r9 kernel growth the desktop needs (USPACE-08)
   3. The long tail is swept: upas + lp + the remaining cmd dirs compile; fossil + venti are compile-gated and documented as runtime-unverifiable this milestone (no block device in r9); gs (753 files) is included (USPACE-09)
   4. The bootfs payload is staged with manifest assertions: `/lib/font/bit/*`, a glenda-style lib/profile, and a `/lib/ndb/local` template are present in the baked image (DESK-03)
+
 **Plans**: TBD
 **UI hint**: yes
 
@@ -125,6 +145,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. keyfs starts non-interactively over the baked `/adm/keys`, authsrv listens on tcp/567, and the guest domain's ndb content (authdom, hostid, sys, ether) is staged in the image (AUTH-04, AUTH-05)
   4. The in-guest loopback p9sk1 probe is green BEFORE any drawterm attempt: auth/debug completes a full handshake over loopback, the non-hostowner speaksfor gate passes, and serial-visible auth logging has been present since day one (AUTH-06, AUTH-07)
   5. secstore is available for persistent key storage beyond the baked keys, and the writable-`/adm` + nvram-substitute scoping is decided and documented (in-phase decision spike: baked+paired for CI; host-9P `/adm` mount for real use) (AUTH-08, AUTH-09)
+
 **Plans**: TBD
 
 ### Phase 12: CPU Service + Drawterm + rio Desktop
@@ -138,6 +159,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. The flake drawterm app exists (`nix run .#drawterm`) with its provenance decision recorded (research recommends nixpkgs 9front drawterm + wrapper); the wrapper pins `-O`, scrubs `$cpu`/`$auth`/`$PASS`, and prints the exact connect line; the `-G` text-mode interop gate is green in CI via hostfwd (DESK-01, DESK-06)
   4. rio starts only in-session: profile `case cpu` binds /mnt/term/dev over /dev and execs rio (a serial marker proves rio did NOT start at boot); plumb runs in the drawterm session; and r9 devssl `#D` (rc4_256/sha1) is available for encrypted sessions via pushssl, with `-e clear` as the documented fallback (DESK-02, DESK-04, DESK-05)
   5. The graphical leg is human-accepted on darwin AND linux (window opens, mouse works, typed input lands); boot-r9-smoke is extended to the full chain; the r9 flake.lock pin advances past the networking commits as its OWN commit with a fresh hosted CI run (push-before-pin, never bundled); and the whole v2.0 chain reproduces from clean checkouts on darwin-aarch64 and linux (DESK-07, INT-05, INT-06, INT-07)
+
 **Plans**: TBD
 **UI hint**: yes
 
