@@ -862,7 +862,23 @@ gethunk(void)
 		yyerror("out of memory");
 		errorexit();
 	}
-	hunk = h;
-	nhunk = nh;
+	/*
+	 * Merge with the current hunk when contiguous (consecutive sbrk
+	 * calls return contiguous addresses while nothing else interleaves
+	 * the break) — REQUIRED for the while(nhunk < n) caller loops
+	 * (macdef's allocn growth, dodefine, the expansion machinery) to
+	 * terminate when n exceeds the largest single hunk (10L*NHUNK =
+	 * 500000 bytes here).  Without the merge each call RESETS nhunk to
+	 * nh, so nhunk never reaches n and the caller loops gethunk until
+	 * sbrk fails — a silent hang-class compile failure on any single
+	 * macro larger than the ceiling (build/aarch64/gethunk-repro-cc.sh
+	 * is the timeout-gated repro).
+	 */
+	if(h == hunk + nhunk)
+		nhunk += nh;
+	else {
+		hunk = h;
+		nhunk = nh;
+	}
 	thunk += nh;
 }
