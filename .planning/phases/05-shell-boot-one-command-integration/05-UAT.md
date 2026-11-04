@@ -3,7 +3,7 @@ status: testing
 phase: 05-shell-boot-one-command-integration
 source: [05-VERIFICATION.md]
 started: 2026-11-03T17:35:00Z
-updated: 2026-11-03T17:35:00Z
+updated: 2026-11-03T18:40:00Z
 ---
 
 ## Current Test
@@ -31,7 +31,9 @@ expected: |
   (05-13-linux-clean-clone.log, ALL STAGES PASS at dc8299575) in lieu of the hosted
   run, mark this test passed with that rationale — 05-VERIFICATION.md includes the
   override suggestion.
-result: [pending]
+result: issue
+reported: "Hosted run FAILED on ubuntu-latest (x86_64-linux — the never-before-executed arch leg): guest subset build died entering libString. Log tail: '== subset lib: libString' with zero mk output after it; driver reports 'error: guest subset build failed (rc=1)'; NO 'SUBSET-BUILD-FAIL: <dir>' line present in the log, so the guest script died without reaching its own fail() — suspicious of set -e kill or mk instant failure. Host toolchain bootstrap (6a/6c/.../7l via host gcc into hostbin-linux-x86_64) succeeded; libc/libbio/libregexp/libip/libndb/libmp/libsec all built green in the sudo-unshare namespace; failure is exactly at libString's mk invocation. darwin-aarch64 + aarch64-linux legs pass identically."
+severity: blocker
 
 ### 2. Optional live-interactive sanity: run `nix run .#boot-r9` on this host and type at the % prompt
 expected: |
@@ -47,9 +49,18 @@ result: [pending]
 
 total: 2
 passed: 0
-issues: 0
-pending: 2
+issues: 1
+pending: 1
 skipped: 0
 blocked: 0
 
 ## Gaps
+
+- gap_id: G-05-1
+  truth: "`nix run .#boot-r9-smoke` exits 0 on ubuntu-latest (x86_64-linux) with the ALL STAGES PASS marker in the run log"
+  status: failed
+  reason: "User reported: hosted run failed — guest subset build died entering libString with zero mk output; no SUBSET-BUILD-FAIL line emitted; rc=1. x86_64-linux-specific (darwin-aarch64 and aarch64-linux pass)."
+  severity: blocker
+  test: 1
+  artifacts: []
+  missing: []
