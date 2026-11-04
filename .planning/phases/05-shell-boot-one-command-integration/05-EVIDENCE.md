@@ -94,17 +94,16 @@ gate-enforced by the plan's verify) → `nix run .#boot-r9-smoke` on
 ubuntu-latest, 90-minute budget, alongside the untouched legacy
 harvey.yml.
 
-**GH run status: PENDING FIRST PUSH.** Execution policy for this
-consolidation prohibited pushing harvey to origin, so no hosted run
-exists to quote at consolidation time; the run URL/id lands here from
-the first green run (`gh run list --workflow r9-shell.yml` /
-`https://github.com/requaos/harvey/actions/runs?workflow=r9-shell.yml`
-— deliberately left blank, never fabricated). In its place, the EXACT
-pipeline the workflow encodes was executed natively on linux from a
-clean checkout: a pristine clone at `dc8299575` (carrying the workflow)
-ran `nix run .#boot-r9-smoke` on aarch64-linux (the lima guest: native
-`sudo unshare` namespace build, TCG qemu) to ALL STAGES PASS —
-`05-13-linux-clean-clone.log` (committed), quoted:
+**GH run status: GREEN — run 41825728636 (2026-11-04).**
+`https://github.com/requaos/harvey/actions/runs/41825728636` —
+conclusion: success, headSha `68c49ebcc` (the push carrying the G-05-1
+fix `d758c2071`: nsrun.sh binds `$PLAN9/bin/rc` at `/bin/rc` so the
+`#!/bin/rc` `membername` recipe resolves on a fresh host — the lima VM's
+undocumented manual `/bin/rc` had masked the gap on every prior leg; see
+`.planning/debug/DEBUG-G-05-1.md`). The first hosted run
+(`41750071242`, failure) found the gap; the second run is green.
+The native aarch64-linux substitute evidence below stands as the
+pre-push proof of the same pipeline:
 
 ```
 2:=== clone HEAD: dc82995758c24c52aca7feba019c0206a65315bb
