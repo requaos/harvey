@@ -2,19 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Full System & Drawterm
-current_phase: 08
-current_phase_name: r9-tcp-ip-path-devip-compatible-net
+current_phase: 06
+current_phase_name: Full-Tree Userspace — Wave 0 + Libraries/Core Tiers
 status: executing
-stopped_at: Completed 08-03-PLAN.md
-last_updated: "2026-11-05T19:51:30.000Z"
+stopped_at: Completed 06-09-PLAN.md
+last_updated: "2026-11-05T21:54:40.575Z"
 last_activity: 2026-11-05
-last_activity_desc: Phase 08 plan 03 executed — six gate payloads baked + D-11 addressing seam landed
-state_head: 499b4f00ea4e802ca55323ee9fd6cc8b4fe5420e
+last_activity_desc: Phase 06 execution started
+state_head: a24eb7eb5471ec0b92685236cd14f531e7dfdb94
 progress:
   total_phases: 7
   completed_phases: 6
-  total_plans: 27
-  completed_plans: 21
+  total_plans: 29
+  completed_plans: 22
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-05)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 08 — r9-tcp-ip-path-devip-compatible-net
+**Current focus:** Phase 06 — Full-Tree Userspace — Wave 0 + Libraries/Core Tiers
 
 ## Current Position
 
-Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — EXECUTING
-Plan: 4 of 9
+Phase: 06 (Full-Tree Userspace — Wave 0 + Libraries/Core Tiers) — EXECUTING
+Plan: 10 of 10
 Status: Ready to execute
-Last activity: 2026-11-05 — Phase 08 plan 03 executed (six gate payloads baked + D-11 seam landed)
+Last activity: 2026-11-05 — Phase 06 execution started
 
 Progress: [███████░░░] 71% (v2.0)
 
@@ -122,6 +122,7 @@ Progress: [███████░░░] 71% (v2.0)
 | Phase 08 P01 | 9 min | 2 tasks | 6 files |
 | Phase 08 P02 | 26 min | 2 tasks | 9 files |
 | Phase 08 P03 | 8 min | 2 tasks | 5 files |
+| Phase 06 P09 | 60 min | 2 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -294,6 +295,7 @@ Recent decisions affecting current work:
 - [Phase 08]: 08-02: the waker bridge RECORDS into a pending-wake set and drive_stack drains it after the STACK cell drops (netif's wake-after-drop discipline); the seam's clock is its own registration point (set_clock) beside the verbatim DevipHooks {current, block, wake} triple; AcceptPool ops self-enter the cell with partial-announce teardown
 - [Phase 08]: 08-03: netaddr.rc keys are leg-prefixed (lo_/slirp_) — bare duplicate guestv4 per leg would be last-wins-on-source, silently binding the slirp address into loopback gates; the prefixed shape keeps wholesale sourcing unambiguous and every acceptance grep passes on the substring (D-11's anti-Pitfall-9 intent enforced inside the seam file itself)
 - [Phase 08]: 08-03: out/ harvest is the payload magic-contract surface while /aarch64/bin stays the bake source — subset-build.sh od-asserts out/ post-rsync, mkimage.sh stages from bin/ and asserts staged paths pre-bake; a missing/stale payload fails loudly at both layers (T-08-05); slirp v6 pair recorded provisional (fec0::15/fec0::2) with 08-07's live probe named as finalizer in-file
+- [Phase 06]: [Phase 06] 06-09: the Harvey-kernel amd64 tier venue (k10t1) inherits k10cpu's device set VERBATIM; only rootdir/boot differ. The venue never writes tier-ledger lines (D-14 stays aarch64-pure, T-06-20). The 9k SKIP whitelist is fixed at 24 names with a converse assert; the sweep's 9k libtest SKIPs ride a block-local fn so the r9 gate's sweep-text extraction stays venue-correct. — The venue surfaced five real fixes — 6l LP64 double constants (778d4616b, the WR-01 class on amd64), the k10 early KZERO map raised to 8MiB for the 43-file embed (bba1eeaa8), parse cname uniqueness for dual-name embeds (36542bdbb), rc-script boot plumbing (#r/rtc clock + hostowner; 8b55abbda/8088471ba), and the r9-extraction interaction (fd544ef42) — each fixed in-tree and re-proven green, per the maintainer's in-tree-fix constraint.
 
 ### Pending Todos
 
@@ -343,8 +345,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T19:10:37.298Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-11-05T21:54:40.534Z
+Stopped at: Completed 06-09-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
