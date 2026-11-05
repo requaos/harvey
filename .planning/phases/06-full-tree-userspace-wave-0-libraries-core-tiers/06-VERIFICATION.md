@@ -53,7 +53,8 @@ covered_files:
   - .github/workflows/phase6.yml
   - .gitignore
   - aarch64/include/u.h
-covered_digest: "v4:sha256:db72faf5f976fb0fdcb4fa7de8042b6c13ba3934f2557769ec9c8d854159792c"
+
+covered_digest: "v2:sha256:a66d1a5a8518a5cfdeab826f9b66cb87009914b6e3b6559072a011a5dbac6f8f"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
