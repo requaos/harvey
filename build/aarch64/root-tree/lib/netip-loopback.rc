@@ -1,0 +1,86 @@
+#!/bin/rc
+# netip-loopback.rc — the NETIP-03 loopback gate fixture (08-04): ping
+# 127.0.0.1 and the udp echo round-trip over the devip #I tree through
+# the loopback medium (attach #I → ipifc bind loopback → add → the
+# proto legs).  Sourced by the gate harness, never typed at a prompt
+# (the sourced-not-typed discipline — net-sweep.rc's precedent).
+#
+# Addresses come from /lib/netaddr.rc (the D-11 seam) — the lo_ leg.
+# NO hardcoded 127.0.0.1 outside that seam (Pitfall 9's discipline
+# holds on the loopback leg too).
+#
+# Every failed step prints `netip: FAIL <stage>' to stderr and exits
+# non-nil (rc's || idiom per command; `test -e` before every redirect
+# open — a redirect OPEN failure is an uncatchable rc Xerror that would
+# abort the script without the named FAIL line).  Success legs print
+# their ok markers (`netip: ping ok`, `netip: udp echo ok`) and the run
+# ends with the NETIP-DONE marker.  No timing assumptions, no sleeps —
+# the ping leg's bound comes from ping's own -n count and its internal
+# alarm discipline; the udp leg's read is alarm-bounded.
+
+# the D-11 seam (test -e first: a failed source is uncatchable)
+test -e /lib/netaddr.rc || {
+	echo netip: FAIL seam >[1=2]
+	exit seam
+}
+. /lib/netaddr.rc
+
+# attach the #I device tree at /net
+bind -a '#I' /net || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+
+# ipifc: clone a conversation, bind the loopback medium, add the
+# loopback-leg address.  The ctl file is re-opened per write (the
+# binding persists across close — loopbackmedium's unbindonclose is 0).
+conv=`{cat /net/ipifc/clone} || {
+	echo netip: FAIL clone >[1=2]
+	exit clone
+}
+~ $#conv 1 || {
+	echo netip: FAIL clone >[1=2]
+	exit clone
+}
+
+test -e /net/ipifc/$conv/ctl || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+echo bind loopback > /net/ipifc/$conv/ctl || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+echo add $lo_guestv4 255.0.0.0 > /net/ipifc/$conv/ctl || {
+	echo netip: FAIL add >[1=2]
+	exit add
+}
+
+# /net/ipselftab must now carry the loopback address line — word-wise
+# exact match (the rc ~ dialect lesson: quoting disables wildcarding,
+# multi-star spans are unreliable; a plain literal compare is neither)
+selftab=`{cat /net/ipselftab} || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+found=0
+for(w in $selftab){
+	if(~ $w $lo_guestv4)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+
+# the ping leg (NETIP-03's first leg): ping's own -n count; replies
+# arrive over the loopback medium through the real file tree (icmp
+# clone/connect/data).  ping exits non-nil on any lost message.
+ip/ping -n 3 $lo_guestv4 || {
+	echo netip: FAIL ping >[1=2]
+	exit ping
+}
+echo netip: ping ok
+
+echo netip: NETIP-DONE
+exit ''

@@ -91,6 +91,8 @@ done
 [ -f "$BIN/aan" ] || err "$BIN/aan missing — run sh build/aarch64/subset-build.sh first"
 [ -f "$HARVEY/rc/lib/rcmain" ] || err "rc/lib/rcmain missing (ships verbatim)"
 [ -f "$HARVEY/adm/timezone/local" ] || err "adm/timezone/local missing (the repo's tz data)"
+# 08-04: the D-11 addressing seam bakes at /lib/netaddr.rc
+[ -f "$HARVEY/build/aarch64/netaddr.rc" ] || err "build/aarch64/netaddr.rc missing (08-03's seam)"
 
 # 06-07 (D-12, USPACE-06): the tier-1 payload — the full sweep-referenced
 # h* binary set (the 41 r9-runnable + 20 write-flow members; the write-flow
@@ -183,6 +185,9 @@ done
 #    truth; timezone: the repo's data, consumed by init's cpenv)
 cp "$HARVEY/rc/lib/rcmain" "$STAGE/rc/lib/rcmain"
 cp "$HARVEY/adm/timezone/local" "$STAGE/adm/timezone/local"
+# 08-04: the D-11 addressing seam is baked verbatim at /lib/netaddr.rc
+# (single source of truth — the root-tree netip sweeps source it)
+cp "$HARVEY/build/aarch64/netaddr.rc" "$STAGE/lib/netaddr.rc"
 
 # 5. pre-bake manifest: every mandated path exists, and /boot/factotum
 #    is ABSENT (auth-stub-by-absence)
@@ -196,6 +201,11 @@ done
 #     baked — the committed-skeleton tar copy carries the lib/ files,
 #     and these asserts make an absent payload fail the bake loudly
 for p in lib/test/arp.req lib/net-sweep.rc; do
+	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
+done
+# 08-04 (NETIP-03): the loopback gate fixture + the D-11 seam it
+# sources must be baked (same loudly-failing assert shape)
+for p in lib/netip-loopback.rc lib/netaddr.rc; do
 	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
 done
 [ -f "$STAGE/aarch64/bin/netblast" ] || err "manifest: aarch64/bin/netblast missing from staged tree"
