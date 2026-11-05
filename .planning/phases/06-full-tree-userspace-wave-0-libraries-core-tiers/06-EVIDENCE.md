@@ -518,3 +518,63 @@ fault run's log).  Green standing gate:
   gate-ran machinery (`cebb127ae`).  8-field lint green.
 - **Regression:** `nix run .#boot-r9-smoke` GREEN over the tier-1-laden
   image (the v1.0 gate, byte-untouched expect).
+
+## 06-08 D-16 CI workflow + local validation record (Task 1)
+
+- **Commit:** authored at base `3003b050c` (the workflow file + this
+  record land in the 06-08 Task-1 commits; validation ran on the
+  working tree at that base).
+- **Workflow:** `.github/workflows/phase6.yml` — the phase-6
+  full-pipeline CI (D-16).  `name: phase6-userspace`;
+  `on: [push, pull_request]`; `permissions: contents: read`;
+  `concurrency: { group: phase6-${{ github.ref }}, cancel-in-progress:
+  true }` (T-06-18).  Three jobs: `wave0-host` (fast, 45m — host
+  toolchain, gethunk ×2 archive+verify repro gates, coverage regen +
+  `git diff --exit-code`, generator .7-magic scan, grep-hygiene gate,
+  FPdbleword assert), `tier-donor` (slow, 90m — subset-build.sh +
+  subset-exec.sh on the native-linux venue, donor pin 350266104f
+  host-side, TCG aarch64), `tier-r9` (slow, 90m — `nix run
+  .#boot-r9-tier1`).  r9-shell.yml + harvey.yml byte-untouched.
+- **Supply chain (T-06-16):** EVERY action pinned by 40-char SHA —
+  actions/checkout `11d5960a326750d5838078e36cf38b85af677262` (v4) and
+  actions/upload-artifact `ea165f8d65b6e75b540449e92b4886f43607fa02`
+  (v4), both resolved via the GitHub API `git/refs/tags/<tag>` at
+  authoring time (2026-11-05); DeterminateSystems/nix-installer-action
+  `3138316df39ed29be04236d7ffc686fa525866aa` (v23, the 05-13 pin).
+  Pin gate: PINS-OK 8/8.
+- **Hosted run: PENDING FIRST PUSH** (the 05-13 substitution
+  precedent — harvey master is never pushed from this session): the
+  workflow is authored + locally validated; the first hosted run
+  happens at first push.  Watch: `gh run list --workflow
+  phase6.yml` / the repo's Actions tab.  Nothing fabricated.
+- **Local validation matrix (2026-11-05, darwin-aarch64 host, inside
+  `nix develop`):**
+
+  | wave0-host step | Venue | Result |
+  |---|---|---|
+  | YAML parse + job assertion | host python3 (PyYAML 6.0.3) | JOBS-OK |
+  | SHA-pin grep gate | host | PINS-OK 8/8 |
+  | gethunk-repro-cc archive+verify | host | TEETH-OK 6c/7c (gethunk ENOMEM terminus from PREREF df4b1cb4…), GREEN 6c/7c — 4/4 TAP |
+  | gethunk-repro-6l archive+verify | host | TEETH-OK 6l, GREEN 6l (PREREF 2e3b3702…) — 2/2 TAP |
+  | coverage regen + `git diff --exit-code` | lima guest (linux-aarch64 namespace, darwin leg) | COVERAGE-SWEEP-OK (206 visited / 15 excluded / universe 221; jpg BLOCKER-CHECK host-ELF ×2); report byte-identical — COVERAGE-DIFF-CLEAN |
+  | generator-scan | host probes the freshly swept guest tree | GENERATOR-SCAN-OK (G1-G5 host ELF, G7 `#!`, G9 NOTE, G6/G8 guarded-skip, whitelist armed on 7.genarch — absent as expected) |
+  | grep-hygiene gate | host | GREP-HYGIENE-OK (no absolute-path grep CALL shape in build/aarch64/*.sh) |
+  | FPdbleword region assert | host | FPDBL-OK (exactly the uint lo/hi members; no ulong in the union) |
+  | tier-donor / tier-r9 job commands | not re-run by this plan | the encoded pipeline is exactly the 06-06 donor gate + 06-07 r9 gate machinery, both green locally in those plans (their records above); the hosted legs run them on ubuntu-latest |
+  | x86_64-poolpanic job | — | Task 2's record below |
+
+- **Retained logs:**
+  [evidence/06-08-gethunk-verify.log](evidence/06-08-gethunk-verify.log)
+  (both archive-mode teeth proofs + fixed-pair greens),
+  [evidence/06-08-generator-scan.log](evidence/06-08-generator-scan.log),
+  [evidence/06-08-coverage-log.txt](evidence/06-08-coverage-log.txt)
+  (the regen's VISIT/EXIT/SECOND-CHANCE reach log; the compile flood
+  stays gitignored per convention).
+- **Ledger lines appended:** none (this plan owns CI + verdict
+  evidence, not tier markers).
+- **Host-class watch item (honest):** the committed coverage report's
+  venue line claims host-independence from a linux-aarch64 build host;
+  the hosted wave0-host runner is linux-x86_64.  If any per-dir build
+  row proves host-dependent, the D-15 diff reds on first push — the
+  gate working as designed; the report header's re-baseline standing
+  rule applies.
