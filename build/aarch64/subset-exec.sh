@@ -525,7 +525,10 @@ done
 # not the working tree).  Idempotent: the substitution normalizes any
 # prior value, so a fresh clone converges on the next run.
 DEVROOT="$DONOR/sys/src/9/port/devroot.c"
-sed -i 's/Nbootfiles = [0-9][0-9]*/Nbootfiles = 128/' "$DEVROOT"
+# plan9-dialect-safe in-place edit: the devshell's hostbin sed is
+# Harvey's (Plan 9 dialect — no -i; measured 2026-11-05), so filter to
+# a temp file and mv
+sed 's/Nbootfiles = [0-9][0-9]*/Nbootfiles = 128/' "$DEVROOT" > "$DEVROOT.t1" && mv "$DEVROOT.t1" "$DEVROOT"
 grep -q 'Nbootfiles = 128' "$DEVROOT" || {
 	echo "error: donor devroot Nbootfiles raise did not land" >&2
 	exit 1
