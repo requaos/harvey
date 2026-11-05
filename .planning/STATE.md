@@ -22,10 +22,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-04)
+See: .planning/PROJECT.md (updated 2026-11-05)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 07 — r9 PCI/ECAM + virtio-net + devether
+**Current focus:** Phase 6 — Full-Tree Userspace (Wave 0 + Libraries/Core Tiers); Phase 8 (r9 devip TCP/IP path) is Phase 7's direct successor
 
 ## Current Position
 
@@ -276,6 +276,11 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-10: the rx_chain_tests pin covers the Ring<->pci.rs seam ONLY — deliberately NOT a full rx_ingress/pop_frame drive: netif::publish is once-per-process and devether_tests' conv_close pin already consumes it in this test binary; the slice->rx_ingress leg stays host-covered by 07-09's synthetic drive and the end-to-end confirmation is the guest UAT re-run (verify-work's)
 - [Phase 07]: 07-10: push-before-pin executed at the fix HEAD — r9 1c16193..a5b1b42 (2 commits) pushed to requaos/r9 BEFORE the flake.lock advance; the pin commit 91f6ab9aa names flake.lock ALONE; locked rev == live HEAD == origin/main, owner requaos; hosted r9-shell run 42058021884 SUCCESS at headSha 1dca03c25 (and 42058871366 SUCCESS at the subsequent tip 0f10a351 carrying these commits)
 
+- [Phase 07]: From-scratch virtio transport in r9 port/ (D-01: virtio-drivers crate rejected) — unsafe-free, host-testable negotiation/ring state machine; the device-is-untrusted boundary stays auditable; provenance recorded in r9 HowItWorks.md
+- [Phase 07]: Test delivery, not just counters — every automated gate stayed green while inbound frames were counted-but-never-enqueued (pci.rs RX slice off by VIRTIO_NET_HDR_LEN on two-descriptor chains); only the conversational UAT blocked-read caught it. Chain-faithful pin (rx_chain_tests) now covers the Ring↔drain seam
+- [Phase 07]: netif scopes `connect` by conversation open lifetime (donor netif.c:446 last-close typ reset) — pinned as intentional by devether_tests; test/protocol procedures must hold a reference across connect
+- [Phase 07]: Push-before-pin discipline extended to fixes: every r9 landing pushes to requaos/r9, then flake.lock advances as its own structural-assert-gated commit with fresh hosted CI (07-08/09/10; CI runs 41955568449/42043430592/42058021884)
+
 ### Pending Todos
 
 None yet.
@@ -287,6 +292,7 @@ None yet.
 - ~~Phase 5: harness qemu cleanup (phase-04 deferred #2)~~ RESOLVED — D-16 fresh-log + process-group teardown; WR-07 keyed survivor sweeps
 - ~~Phase 5: cold-pointer syscall aborts (phase-04 deferred #3)~~ RESOLVED — eager data+bss at exec (05-04) + usermem fused validate+reside + CR-02 stat/fstat
 - Phase 5 residue: 13 open Info findings (05-REVIEW-DISPOSITION.md) + the input-wedge note (never reproduced under the cons watchdog; tick-FIFO-drain fix d8496d3 likely closed the class) + hosted CI has exactly one green run — none goal-blocking
+- Phase 7 residue: 13 open review findings (07-REVIEW-DISPOSITION.md — WR-01..08 hardening gaps incl. the cap-walk loud-abort holes + WR-05 WaitSet-16-vs-MAX_PROCS-64 + WR-06 used-id slot-liveness; IN-01..05 hygiene) + proc-table reaping fix + vm-run.sh race (phase-07 deferred-items.md); none goal-blocking — WR-05/WR-06 are the ones to weigh before Phase 8 load
 - Pin advisory: harvey flake.lock r9 pin (9549cee) is behind r9 main (review fixes + unsafe elimination) — bump at milestone completion with a fresh hosted run (verifier advisory, 2026-11-04)
 - 9k-amd64 post-banner `bad magic` pool panic — same signature as the pswt.c LP64 bug fixed in Phase 2; re-test with the fixed 6c (deferred-items.md #8) before relying on the harness for deeper smoke signals
 - Hygiene debt: Phase 1 review items (01-REVIEW-DISPOSITION.md) + Phase 2's 13 open Info findings (02-REVIEW-DISPOSITION.md) + Phase 3's 5 open warnings / 10 open Info (03-REVIEW-DISPOSITION.md) + upstream raspi3b-on-qemu-11.1.2 defect (phase-03 deferred-items.md #1, human-accepted A/B evidence); none goal-blocking
@@ -323,8 +329,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T16:01:39.417Z
-Stopped at: Phase 07 complete, ready to verify Phase 6
+Last session: 2026-11-05T16:45:00Z
+Stopped at: Phase 07 complete (10/10 plans, UAT 2/2, threats 23/23 closed) — Phase 6 verifying in its own session
 Resume file: None
 
 ## Operator Next Steps
