@@ -1,0 +1,67 @@
+# tier1-cmds.txt — D-13 append-only aarch64 command allowlist (USPACE-04).
+#
+# Plain data, one entry per line, sys/src-relative.  Consumers: the
+# objtype-gated mk filters (sys/src/mkfile CMDS/SUBSYS, sys/src/cmd/mkfile
+# TARG/DIRS, and the container mkfiles cmd/ip, cmd/auth, cmd/auth/factotum),
+# all reading through the $HARVEY-absolute path, and the tier drivers
+# (build/aarch64 subset/tier scripts, 06-03+).
+#
+# APPEND-ONLY: growth is appending a line, after the entry's per-tier gate
+# passes.  Never reorder, edit, or delete existing lines — later tiers
+# (Phase 10) append, and the coverage report + CI diff assert against this
+# file (D-13 is rated one-way).
+#
+# Entry forms:
+#   cmd/<single>           single-file command in cmd/ (cmd/cat)
+#   cmd/<dir>              whole dir recursed by the sweep (cmd/rc)
+#   cmd/<container>/<dir>  nested dir inside a container (cmd/ip/ipconfig)
+#   cmd/<dir>:<target>     the dir is kept in the sweep (its mk recursion
+#                          builds the dir's TARG); the <target> qualifier is
+#                          consumed by the tier drivers (per-target
+#                          `mk <target>.install`, never whole-dir) and by
+#                          filter-equipped leaf mkfiles (cmd/auth/factotum
+#                          drops fgui this way)
+#   9k/boot, stage/<name>  driver-only: never seen by the mk sweep
+#                          (9k/boot builds via 9k/boot/mkfile.aarch64;
+#                          stage/* are harvested by the subset/stage scripts)
+#
+# Keep-rule (uniform across all five filter mkfiles): a candidate survives
+# iff its name is the first path component after that mkfile's prefix in
+# some entry below — member (cmd/rc keeps rc), container (cmd/ip/ipconfig
+# keeps ip here and ipconfig in cmd/ip), and dir:target (cmd/paqfs:paqfs
+# keeps paqfs here and only paqfs in a filter-equipped leaf).  `#` lines and
+# trailing comments never match: the extraction keeps only lines starting
+# [a-z0-9] and cuts at the first whitespace.
+#
+# Seeded 2026-11-04 with the 24-entry v1.0-inherited baseline so the default
+# build never regresses: the v1.0 16-subset, the boot chain, and the guest
+# build chain's already-green members.
+# --- v1.0 16-subset: directory commands (subset-build green) ---
+cmd/rc
+cmd/grep
+# --- v1.0 16-subset: single-file commands (subset-build green) ---
+cmd/cat
+cmd/cp
+cmd/date
+cmd/echo
+cmd/ls
+cmd/mkdir
+cmd/mv
+cmd/ps
+cmd/rm
+cmd/sed
+cmd/test
+cmd/wc
+# --- v1.0 16-subset: nested container members (subset-build green) ---
+cmd/ip/ipconfig
+cmd/auth/factotum:factotum	# fgui excluded: needs the out-of-tier graphics stack (libdraw/libcontrol)
+# --- boot chain (v1.0 donor/r9 image gates) ---
+9k/boot				# driver-only: sys/src/9k/boot/mkfile.aarch64, harvested to build/aarch64/out
+stage/init			# driver-only: cmd/init.c via per-target init.install, harvested from /aarch64/init
+stage/stacksmoke		# driver-only: build/aarch64/stacksmoke.c compiled by the subset script
+cmd/paqfs:paqfs			# mkpaqfs stays host-only: only the host bakes images; drivers install paqfs per-target
+# --- guest build chain (v1.0-green aarch64 target toolchain) ---
+cmd/7a
+cmd/7c
+cmd/7l
+cmd/cc				# shared frontend; tier evidence is the cc.a7 archive the 7c build links

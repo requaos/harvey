@@ -1,7 +1,17 @@
 </$objtype/mkfile
 
-TARG=factotum\
+ALLTARG=factotum\
 	fgui\
+
+# D-13/USPACE-04 tier allowlist filter, dir:target level (the uniform
+# keep-rule comment lives in sys/src/mkfile): a cmd/auth/factotum:<target>
+# tier1 entry keeps only <target> here — fgui needs the out-of-tier graphics
+# stack (libdraw/libcontrol).  Passthrough for every other objtype and under
+# COVERAGE_SWEEP=1.
+TIER1=$HARVEY/build/aarch64/tiers/tier1-cmds.txt
+T1KEEPT=`{awk '/^cmd\/auth\/factotum:/{ sub(/^cmd\/auth\/factotum:/,""); sub(/[\/: 	].*$/,""); print }' $TIER1}
+
+TARG=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEPT) echo $i; if not echo $ALLTARG}
 
 PROTO=\
 	apop.$O\

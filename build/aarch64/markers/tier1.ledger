@@ -1,0 +1,10 @@
+# tier1.ledger — D-14 append-only marker ledger for tier-1 commands.
+#
+# Line format (fixed field order, space-separated key=value):
+#   tier=1 dir=<sys/src-rel> bin=<name> sha256=<64hex> exec=<marker[,marker]> evidence=<path> commit=<40hex> date=<YYYY-MM-DD>
+#
+# Append-only: new lines land in their own commits with the gate evidence.
+# Supersede semantics: last line per dir wins (a later line redefines an
+# earlier one for the same dir).  `#` lines are comments; consumers strip
+# them.  sha256 is the artifact at gate time (evidence, not a
+# reproducibility oracle — artifacts are gitignored build outputs).

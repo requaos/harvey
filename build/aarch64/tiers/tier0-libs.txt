@@ -1,0 +1,34 @@
+# tier0-libs.txt — D-13 append-only aarch64 library allowlist (USPACE-04).
+#
+# Plain data, one entry per line: the bare lib dir name (sys/src-relative),
+# `libname` entry form.  Consumers: the objtype-gated LIBS filter in
+# sys/src/mkfile (backquote read through the $HARVEY-absolute path — live
+# under unshare -m; /build is never bound in the namespace) and the tier
+# drivers (build/aarch64 subset/tier scripts).
+#
+# APPEND-ONLY: growth is appending a line, after the lib's per-tier gate
+# passes.  Never reorder, edit, or delete existing lines — later tiers
+# (Phase 10) append, and the coverage report + CI diff assert against this
+# file (D-13 is rated one-way).
+#
+# Comment safety: the mk keep-rule extraction keeps only lines starting
+# [a-z0-9] and cuts each at the first whitespace, so `#` full-line comments
+# and trailing `#` provenance notes can never match a candidate name.
+#
+# Seeded 2026-11-04 with the 13 v1.0-inherited libs (subset-build.sh's green
+# loop), in the v1.0 subset order (libc first).  The mk filter emits the
+# sweep in ALLLIBS on-disk order, not in this file's order; libc's primacy
+# is carried by build_aarch64's explicit libc bootstrap line, which stays.
+libc		# v1.0 gate: subset-build green; also linux-build's explicit nuke/install/clean bootstrap
+libbio		# v1.0 gate: subset-build green (ls/ps/sed/wc/grep closure)
+libregexp	# v1.0 gate: subset-build green (sed closure)
+libip		# v1.0 gate: subset-build green (ipconfig closure)
+libndb		# v1.0 gate: subset-build green (ipconfig closure)
+libmp		# v1.0 gate: subset-build green (factotum transitive)
+libsec		# v1.0 gate: subset-build green (factotum transitive)
+libString	# v1.0 gate: subset-build green (factotum closure)
+libthread	# v1.0 gate: subset-build green (factotum closure)
+lib9p		# v1.0 gate: subset-build green (factotum closure)
+libauth		# v1.0 gate: subset-build green (factotum closure)
+libauthsrv	# v1.0 gate: subset-build green (factotum closure)
+libflate	# v1.0 gate: subset-build green (paqfs closure; flate.h #pragma lib)

@@ -1,9 +1,8 @@
 </$objtype/mkfile
 
-TARG=`{ls *.[cy] | sed '/\.tab\.c$/d;s/..$//'}
+ALLTARG=`{ls *.[cy] | sed '/\.tab\.c$/d;s/..$//'}
 HFILES=/$objtype/include/u.h /sys/include/libc.h /sys/include/bio.h
 BIN=/$objtype/bin
-PROGS=${TARG:%=$O.%}
 LDFLAGS=
 YFLAGS=-d
 
@@ -14,9 +13,30 @@ OUTOFDATE=old
 NOMK=$NOTSYS|$BUGGERED|$OUTOFDATE
 
 cpuobjtype=`{sed -n 's/^O=//p' /$cputype/mkfile}
-DIRS=`{ls -l | sed '/^d/!d; s/.* //; /^('$NOMK')$/d'}
+ALLDIRS=`{ls -l | sed '/^d/!d; s/.* //; /^('$NOMK')$/d'}
 APEDIRS=awk bzip2 compress cvs eqn grap gs lp pic postscript spin \
 	tex troff
+
+# D-13/USPACE-04 append-only tier allowlist filter (the uniform keep-rule
+# comment lives in sys/src/mkfile).  This mkfile's prefix is cmd: a
+# TARG/DIRS candidate survives under objtype=aarch64 iff some tier1 entry
+# names cmd/<candidate> or a path under it (dir:target entries count by
+# their dir).  ALLTARG/ALLDIRS stay unfiltered so checkall's coverage sweep
+# visits every dir on every objtype (Pitfall P6-1); COVERAGE_SWEEP=1
+# disengages the filter even under aarch64.  Single-line, brace-free rc: the
+# plan9port mk backquote lexer stops at the first unquoted `}' and rejects
+# literal newlines inside backquotes.
+TIER1=$HARVEY/build/aarch64/tiers/tier1-cmds.txt
+T1KEEP=`{awk '/^cmd\//{ sub(/^cmd\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1}
+
+TARG=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEP) echo $i; if not echo $ALLTARG}
+DIRS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEP) echo $i; if not echo $ALLDIRS}
+
+PROGS=${TARG:%=$O.%}
+# same empty-TARG phantom guard as mkmany's (plan9port mk expands
+# ${TARG:%=$O.%} on an empty TARG to the phantom target `$O.'):
+# non-empty TARG yields the identical value; empty yields empty.
+PROGS=`{if(~ $#TARG 0) echo; if not echo $PROGS}
 
 none:VQ:
 	echo usage: mk cmds, dirs, all, install, installall, '$O'.cmd, cmd.install, or cmd.installall
@@ -40,10 +60,12 @@ dirs:V:
 # report-all diagnostic: visit every dir, collect failures, print the
 # full list at the end; dirs/all keep strict abort-on-first-failure semantics
 # NOTE: brace group (not @{}) so the fail=() accumulator survives; explicit
-# exit 0 because a false final if-condition would otherwise exit 1 on green
+# exit 0 because a false final if-condition would otherwise exit 1 on green.
+# Iterates $ALLDIRS (never filtered $DIRS) on every objtype: the USPACE-02
+# coverage proof must reach the whole tree, not the allowlist (P6-1).
 checkall:V:
 	fail=()
-	for(i in cc $DIRS) {
+	for(i in cc $ALLDIRS) {
 		cd $i
 		echo mk $i
 		if(! mk $MKFLAGS all)

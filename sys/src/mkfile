@@ -2,7 +2,7 @@
 
 BADLIBS=\
 
-LIBS=\
+ALLLIBS=\
 	lib9p\
 	libString\
 	libaml\
@@ -40,12 +40,39 @@ LIBS=\
 	libventi\
 
 
-CMDS=cmd\
+ALLCMDS=cmd\
 	nboot\
 	games\
 
-SUBSYS=ape\
+ALLSUBSYS=ape\
 	/acme\
+
+# D-13/USPACE-04 append-only tier allowlists (data: build/aarch64/tiers/).
+# Under objtype=aarch64 the sweep sets below are filtered through the tier
+# files; every other objtype passes the ALL* lists through unchanged, and
+# COVERAGE_SWEEP=1 (set only by the 06-04 coverage sweep) forces the full
+# sets even under aarch64 — the sweep certifies the whole tree, never the
+# allowlist to itself (Pitfall P6-1).  Tier files are addressed
+# $HARVEY-absolute: host paths stay live under unshare -m while /build is
+# never bound in the namespace (Pitfall P6-2).
+# Keep-rule (uniform across the filter mkfiles): a candidate survives iff
+# its name is the first path component after this mkfile's sys/src-relative
+# prefix in some tier entry — member (cmd/rc keeps rc), container
+# (cmd/ip/ipconfig keeps ip here, ipconfig in cmd/ip), and dir:target
+# (cmd/paqfs:paqfs keeps paqfs; the :target qualifier is consumed by
+# filter-equipped leaf mkfiles and the tier drivers).  `#` comments never
+# match: the awk extraction keeps only lines starting [a-z0-9] and cuts each
+# at the first whitespace.  The plan9port mk backquote lexer stops at the
+# first UNQUOTED `}' and rejects literal newlines inside backquotes, so the
+# filters are single-line, brace-free rc with the awk program single-quoted.
+TIER0=$HARVEY/build/aarch64/tiers/tier0-libs.txt
+TIER1=$HARVEY/build/aarch64/tiers/tier1-cmds.txt
+T0KEEP=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER0}
+T1KEEP=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1}
+
+LIBS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not echo $ALLLIBS}
+CMDS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEP) echo $i; if not echo $ALLCMDS}
+SUBSYS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEP) echo $i; if not echo $ALLSUBSYS}
 
 none:VQ:
 	echo mk all, install, clean, nuke, release, kernels, or libs

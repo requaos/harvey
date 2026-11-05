@@ -2,7 +2,7 @@
 #
 #		programs
 #
-TARG=\
+ALLTARG=\
 	as\
 	asn12dsa\
 	asn12rsa\
@@ -36,9 +36,20 @@ TARG=\
 	warning\
 	wrkey\
 
-DIRS=lib\
+ALLDIRS=lib\
 	factotum\
 	secstore\
+
+# D-13/USPACE-04 tier allowlist filter, prefix cmd/auth (the uniform
+# keep-rule comment lives in sys/src/mkfile): a TARG/DIRS candidate survives
+# under objtype=aarch64 iff some tier1 entry names cmd/auth/<candidate> or a
+# path under it (cmd/auth/factotum:factotum keeps factotum by its dir).
+# Passthrough for every other objtype and under COVERAGE_SWEEP=1.
+TIER1=$HARVEY/build/aarch64/tiers/tier1-cmds.txt
+T1KEEP=`{awk '/^cmd\/auth\//{ sub(/^cmd\/auth\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1}
+
+TARG=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEP) echo $i; if not echo $ALLTARG}
+DIRS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEP) echo $i; if not echo $ALLDIRS}
 
 OTHEROFILES=\
 	challenge.$O\
