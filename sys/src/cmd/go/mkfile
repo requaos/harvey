@@ -11,10 +11,12 @@ all:V:	$DIRS
 $DIRS:V:
 	if (test -e /bin/go) {
 		for (i in $DIRS) @{
-			echo BUILD $i
-			ls $i
-			cd $i
-			GOARCH=$objtype go build
+			if (test -d $i) {
+				echo BUILD $i
+				cd $i
+				GOARCH=$objtype go build
+			}
+			if not echo skip $i - not fetched
 		} 
 	}
 	if not {
@@ -26,10 +28,12 @@ install:V:	installdirs
 installdirs:V:
 	if (test -e /bin/go) {
 		for (i in $DIRS) @{
-			echo INSTALL $i
-			ls $i
-			cd $i
-			GOARCH=$objtype go build -o /$objtype/bin/ .
+			if (test -d $i) {
+				echo INSTALL $i
+				cd $i
+				GOARCH=$objtype go build -o /$objtype/bin/ .
+			}
+			if not echo skip $i - not fetched
 		}
 	}
 	if not {
