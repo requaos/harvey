@@ -263,17 +263,17 @@ if(~ $"strout *'alpha bravo charlie'*) echo T1-OK strings
 if not echo T1-FAIL strings
 
 # xd: 4-byte hex dump (-4x) of the sentinel — the byte-order words are
-# deterministic on the fixed input: 'alph' → 616c7068, 'vo c' →
-# 766f2063 (xd prints bytes in memory order per unit, NOT
-# endian-composed values; and 'alpha' is FIVE letters — both mistakes
-# in the first assert measured against T1-XDOBS 06-06).  The -c char
+# deterministic on the fixed input: 'alph' → 616c7068, 'char' →
+# 63686172 (xd prints bytes in memory order per 4-byte unit, NOT
+# endian-composed values — anchors are the 4-byte-aligned words;
+# both mistakes in the first asserts measured against T1-XDOBS 06-06).  The -c char
 # format spaces every character, so a substring assert cannot work
 # there.  T1-XDOBS records the raw dump in the retained log
 # (observation marker, same class as T1-BCOBS)
 xdout=`{/boot/hxd -4x /boot/sentinel.txt}
 echo T1-XDOBS $xdout
 xdok=0
-if(~ $"xdout *616c7068*) if(~ $"xdout *766f2063*) xdok=1
+if(~ $"xdout *616c7068*) if(~ $"xdout *63686172*) xdok=1
 if(~ $xdok 1) echo T1-OK xd
 if not echo T1-FAIL xd
 
