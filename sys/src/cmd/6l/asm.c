@@ -250,6 +250,7 @@ datblk(long s, long n)
 	long l, fl, j;
 	vlong o;
 	int i, c;
+	int fhw[2];
 
 	memset(buf.dbuf, 0, n+Dbufslop);
 	for(p = datap; p != P; p = p->link) {
@@ -294,7 +295,26 @@ datblk(long s, long n)
 				}
 				break;
 			case 8:
-				cast = (uchar*)&p->to.ieee;
+				/*
+				 * Harvey LP64 fix (06-09, the amd64 venue's
+				 * float canary): emit the two 32-bit halves
+				 * explicitly.  On LP64 hosts long is 64-bit, so
+				 * struct ieee {long l; long h;} is 16 bytes and
+				 * the struct-address emit writes l's low half
+				 * then l's zero high half — h never reaches the
+				 * binary, and double constants land with hi=0
+				 * (the 06-09 k10t1 tier venue: awk's %0.3f of 1/3
+				 * printed as a division-by-zero abort, seq died
+				 * with "zero increment" — measured on Harvey's
+				 * own kernel under qemu TCG).  On Plan 9 long is
+				 * 32-bit and Ieee is 8 bytes; two ints give the
+				 * same packed layout on every host.  Same class
+				 * as 7l's 06-03 fix (2bbca81ed); 6l's variant
+				 * embeds the struct (no pointer).
+				 */
+				fhw[0] = p->to.ieee.l;
+				fhw[1] = p->to.ieee.h;
+				cast = (uchar*)fhw;
 				if(debug['a'] && i == 0) {
 					Bprint(&bso, pcstr, l+s+INITDAT);
 					for(j=0; j<c; j++)
