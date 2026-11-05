@@ -1,0 +1,41 @@
+#!/boot/rc -m /boot/rcmain
+# k10t1.rc — the embedded /boot/boot of the 06-09 tier venue kernel
+# (G-06-1; Harvey's own kernel as the amd64 tier venue, maintainer
+# direction 2026-11-05).  initcode.c pre-binds #c->/dev, #e/#ec->/env,
+# #s->/srv and opens cons on fds 0/1/2 before exec'ing this script —
+# never re-bind those here.
+#
+# The -m flag on the shebang is NOT optional: rc sources an rcmain on
+# EVERY invocation (exec.c:130-156's loadboot fabricates
+# `. <rcmain> $*; exit`), and the compiled-in default /rc/lib/rcmain
+# does not exist in devroot (rootreset creates only bin/dev/env/fd/mnt/
+# net/net.alt/proc/root/srv).  Without -m /boot/rcmain the bootstrap's
+# execdot Xerrors, rc exits, pid 1 dies, and the kernel panics 'boot
+# process died'.  The child rc below carries the same -m for the same
+# reason.
+
+# path FIRST: rcmain's fallback default is (. /bin), and /bin is
+# devroot's empty bin dir until the bind below.  With /boot first, every
+# bare command in this script and in the sweep (echo, bind, rc — none of
+# them are rc Builtins; plan9.c's table has only cd whatis eval exec
+# exit shift wait . finit flag rfork) resolves to the embedded set.  The
+# child rc inherits path via /env, and rcmain keeps an already-set path.
+path=(/boot /bin .)
+
+# namespace setup — bare binds resolve to /boot/bind via the path just
+# set (k10root.rc's own idiom; devroot's root has a bin dir from
+# rootreset).
+bind '#p' /proc
+bind '#d' /fd
+bind -b /boot /bin
+
+# run the tier-1 sweep in a CHILD rc so its trailing `exit` never kills
+# init.  The child also needs the explicit -m (same devroot rcmain
+# absence), and the embedded rcmain's `eval $cflag` path is what runs
+# the command.
+rc -m /boot/rcmain -c '. /boot/tier1-sweep.rc 9k'
+
+# init must never exit (an exiting init panics the kernel and would foul
+# the harness's zero-fault-lines assertion with a post-DONE panic line)
+# — k10root.rc:114's idiom.
+while(~ 1 1){ . -i '#d/0' }

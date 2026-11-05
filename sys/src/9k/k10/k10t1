@@ -1,0 +1,238 @@
+# k10t1 — the Harvey-kernel tier-1 venue config (06-09, G-06-1).
+#
+# Maintainer direction 2026-11-05 (06-UAT.md): on amd64/x86_64 the tier
+# donor evidence comes from Harvey's OWN kernel, not 9front.  This config
+# boots STANDALONE under plain qemu-system-x86_64 (D-03: no minimega, no
+# network, no srv9, no 9front tree) with the amd64 tier-1 read-only set
+# plus the D-10 sweep embedded in devroot, and runs the sweep from the
+# embedded root at boot (the k10root standalone-boot shape: an rc script
+# IS /boot/boot — initcode.c:26-29's "could be a shell script" contract).
+#
+# The device/dbgflg/mach/port/dir/lib sections are k10cpu's set VERBATIM
+# (the poolpanic leg proved this exact set boots past the v1.0 pool
+# panic) — DO NOT PRUNE: changing the device set risks new breakage for
+# zero venue benefit.  The deliberate deltas vs k10cpu are ONLY:
+#   rootdir — the 43-entry venue embed set below (35 swept h* binaries
+#             + rc/echo/bind/rcmain + the boot script + 3 staged files;
+#             devroot.c's Nbootfiles is raised 32 -> 64 for this);
+#   conf    — k10root's proven-compiling `int cpuserver = 1;` line
+#             (semantically inert without boot.c).
+# The boot section keeps k10cpu's `boot cpu` / `tcp` pair verbatim (it
+# only feeds the boot$CONF.out rule, which nothing in this venue builds;
+# k10root carries the same lines with an rc script as /boot/boot).
+
+dev +dev
+	root
+	cons
+	arch
+	env
+	pipe
+	proc
+	mnt
+	srv
+	dup
+	rtc
+	ssl
+	tls
+	cap
+	kprof
+	acpi
+
+	ether		netif
+	ip		arp chandial ip ipv6 ipaux iproute netlog nullmedium pktmedium ptclbsum
+
+	uart
+
+uart +dev
+	uarti8250
+	uartpci		pci
+
+ip +dev
+	tcp
+	udp
+	ipifc
+	icmp
+	icmp6
+
+link +dev
+	ether8139	pci
+	ether8169	pci ethermii
+	ether82557	pci
+	ether82563	pci
+	ether82598	pci
+	etherigbe	pci ethermii
+	etherm10g	pci
+	ethervirtio	pci
+	ethermedium
+	loopbackmedium
+	netdevmedium
+
+#	acpi		hpet
+#	ht
+
+misc +dev
+	cache
+	mp		apic ioapic pci sipi mpacpi
+
+#
+#boot cpu
+#	int cpuflag = 1;
+#boot cpu boot $3
+#	int cpuflag = 1;
+#	char* bootdisk = "$3";
+#boot rootdir $3
+#	char* rootdir = "$3";
+#boot (bboot|romboot|dosboot)
+#	int cpuflag = 1;
+#	char* bootprog = $2;
+#boot boot $3
+#	char* bootdisk = "$3";
+#
+boot cpu
+	tcp
+
+rootdir
+	/amd64/bin/echo hecho
+	/amd64/bin/ls hls
+	/amd64/bin/cat hcat
+	/amd64/bin/grep hgrep
+	/amd64/bin/sed hsed
+	/amd64/bin/wc hwc
+	/amd64/bin/date hdate
+	/amd64/bin/test htest
+	/amd64/bin/rc hrc
+	/amd64/bin/ps hps
+	/amd64/bin/awk hawk
+	/amd64/bin/sort hsort
+	/amd64/bin/tr htr
+	/amd64/bin/uniq huniq
+	/amd64/bin/tail htail
+	/amd64/bin/basename hbasename
+	/amd64/bin/sleep hsleep
+	/amd64/bin/cmp hcmp
+	/amd64/bin/sum hsum
+	/amd64/bin/md5sum hmd5sum
+	/amd64/bin/sha1sum hsha1sum
+	/amd64/bin/dc hdc
+	/amd64/bin/units hunits
+	/amd64/bin/cal hcal
+	/amd64/bin/fmt hfmt
+	/amd64/bin/seq hseq
+	/amd64/bin/time htime
+	/amd64/bin/read hread
+	/amd64/bin/pr hpr
+	/amd64/bin/strings hstrings
+	/amd64/bin/xd hxd
+	/amd64/bin/du hdu
+	/amd64/bin/comm hcomm
+	/amd64/bin/join hjoin
+	/amd64/bin/nm hnm
+	/amd64/bin/rc rc
+	/amd64/bin/echo echo
+	/amd64/bin/bind bind
+	/rc/lib/rcmain rcmain
+	./root/k10t1.rc boot
+	./.tier1-stage/tier1-sweep.rc tier1-sweep.rc
+	./.tier1-stage/sentinel.txt sentinel.txt
+	./.tier1-stage/nm-input.7 nm-input.7
+
+conf
+	int cpuserver = 1;
+
+#
+#dbgflg
+#	chan		'c'
+#	apic		'A'
+#	acpi		'C'
+#	hpet		'H'
+#	ht		'H'
+#	ioapic		'I'
+#	mp		'M'
+#	pci		'P'
+#	arch		'V'
+#
+dbgflg
+	apic		'A'
+	devacpi		'C'
+	hpet		'H'
+	ht		'H'
+	ioapic		'I'
+	mp		'M'
+	arch		'V'
+	archk10		'V'
+	sysproc		'E'
+	main		'x'
+	mmu		'm'
+	asm		'a'
+	sipi		'y'
+
+amd64 +dev
+	l32p
+	l64v
+	l64idt
+	l64syscall
+	l64fpu
+	l64cpuid
+	arch
+	archk10
+	asm
+	cga
+	crap
+	fpu
+	i8254
+	i8259
+	kbd
+	main
+	map
+	mmu
+	multiboot
+	qmalloc
+	random
+	syscall
+	trap
+	vsvm
+
+port
+	alarm
+	allocb
+	chan
+	dev
+	devtab
+	edf
+	fault
+	image
+	latin1
+	page
+	parse
+	pgrp
+	portclock
+	print
+	proc
+	ps
+	qio
+	qlock
+	rebootcmd
+	segment
+	sysauth
+	sysfile
+	sysproc
+	sysseg
+	systab
+	taslock
+	tod
+	watermarks
+
+#
+#dir
+# pc		-.I.
+#
+dir
+	386
+	ip
+	port
+
+lib
+	libip
+	libsec
+	libmp
+	libc

@@ -11,7 +11,7 @@ enum
 	Qboot = 0x1000,
 
 	Nrootfiles = 32,
-	Nbootfiles = 32,
+	Nbootfiles = 64,	/* 06-09: the k10t1 tier venue embeds 43 boot files */
 };
 
 typedef struct Dirlist Dirlist;
