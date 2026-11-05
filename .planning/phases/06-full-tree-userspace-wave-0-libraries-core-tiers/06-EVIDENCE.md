@@ -136,6 +136,38 @@ claim without serial-marker evidence.)
 - **Ledger lines appended:** none (06-04 owns committed reports, not
   tier markers).
 
+## 06-04 generator audit + .7-magic scan run record (USPACE-03)
+
+- **Commit:** the run executed against base `f4ce2326872414a464ac9fffd22fc4dd5ed2e2c0`
+  plus the 06-04 machinery (the Task-1 + Task-2 commits land it).
+- **Audit:** `build/aarch64/generator-audit.txt` — exactly 9 `G<n>
+  site=` rows (G1-G9, re-confirmed against the live mkfiles at
+  authoring) + the `not-swept:` section (linker self-checks, compiler
+  t:/x: manual targets, test targets, ip/httpd trial, jtagfs rtest,
+  cmd/mkfile compilers:V, 9k/mk/parse).  Two plan-text corrections from
+  live-mkfile re-confirmation: G5's artifact is `o.pcode`
+  (cpuobjtype=`o` via /unix/mkfile's O=o), and G6's genarch is
+  **pcc-built native-only** (gs/mkfile:163-164's build guard) — the
+  plan's "$CC-built BUT guarded" described the older shape; the guard
+  proof stands (run guard :149, build guard :164).
+- **Scan:** `sh build/aarch64/generator-scan.sh` — GREEN on the swept
+  tree: G1-G5 host ELF (7f454c46), G7 `#!/b…` (23212f), G9 ed-script
+  text (6564202d, NOTE), G6/G8 skipped (guarded), whitelist armed on
+  exactly 7.genarch (not present — expected under the current gs
+  guard), zero exec-format lines in the sweep log.
+  [evidence/06-04-generator-scan.log](evidence/06-04-generator-scan.log)
+- **Teeth proof:** planted the sweep-built `sys/src/cmd/va/7.out`
+  (R_MAGIC 00008c47, od-verified) as `sys/src/cmd/jpg/7.rgbycc` in the
+  guest tree → scan exit 1 with
+  `RED: target-built generator in the tree: sys/src/cmd/jpg/7.rgbycc`
+  + `GENERATOR-SCAN-FAIL`; plant removed; re-run green.
+  [evidence/06-04-generator-scan-teeth.log](evidence/06-04-generator-scan-teeth.log)
+- **darwin probing:** on darwin the scan checks the tree the sweep
+  built (the lima guest's rsync copy) over ssh with `</dev/null` on
+  every probe — ssh consumes the caller's stdin otherwise (measured:
+  the rows loop processed only G1 before the fix); on linux the local
+  tree is the build tree (namespace binds it).
+
 ## Format note for later plans (06-04..06-08 appends)
 
 One section per gated run: commit SHA (the machinery state that ran),

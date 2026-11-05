@@ -1,0 +1,52 @@
+# generator-audit.txt — USPACE-03 (06-04): every build-then-run generator
+# in the swept mkfiles, with its host-toolchain proof.  The invariant:
+# 7c (target) output never RUNS on the host — a cross-compiled generator
+# cannot execute at build time, so every generator must build with the
+# host toolchain (objtype=$cputype mk → 9c/9l, pcc, or a host script).
+#
+# Committed data, verified against the tree by
+# build/aarch64/generator-scan.sh: every runs=always artifact's first 4
+# bytes must not be 00008c47 (R_MAGIC .7); the negative sweep reds on any
+# 7.{rgbycc,rgbrgbv,maketab,genrtab,pcode} file in the tree and
+# whitelists exactly 7.genarch (G6's guarded row).  A NEW build-then-run
+# generator without a row here reds the scan (a missing runs=always
+# artifact is an audit-drift error); add the next G number in the same
+# commit as its host-toolchain proof.
+#
+# row grammar (fixed field order, diff-stable):
+#   G<n> site=<file:line> generator=<name> artifact=<name> built-by=<how> runs=<when> proof=<kind>
+#
+# site= names the line where the built generator RUNS.  artifact= names
+# the generator program itself (the thing that must not be .7-magic),
+# not its generated output.  Rows re-confirmed against the live mkfiles
+# at 06-04 authoring (2026-11-05).
+
+G1 site=sys/src/cmd/awk/mkfile:43 generator=maketab artifact=unix.maketab built-by=objtype-$cputype-mk(9c/9l) runs=always proof=host-magic
+G2 site=sys/src/cmd/jpg/mkfile:61 generator=rgbycc artifact=unix.rgbycc built-by=objtype-$cputype-mk(9c/9l) runs=always proof=host-magic(Phase-1-fix-7be7e98c8)
+G3 site=sys/src/cmd/jpg/mkfile:71 generator=rgbrgbv artifact=unix.rgbrgbv built-by=objtype-$cputype-mk(9c/9l) runs=always proof=host-magic(Phase-1-fix-7be7e98c8)
+G4 site=sys/src/cmd/jtagfs/mkfile:45 generator=genrtab artifact=unix.genrtab built-by=objtype-$cputype-mk(9c/9l) runs=always proof=host-magic(Phase-1-fix-f90918777)
+G5 site=sys/src/cmd/spell/mkfile:19 generator=pcode artifact=o.pcode built-by=objtype-$cputype-mk(9c/9l) runs=always proof=host-magic(5c78cae6e-const-fix)+also-runs-at-line-22
+G6 site=sys/src/cmd/gs/mkfile:150 generator=genarch artifact=7.genarch built-by=pcc-native-only runs=never-for-aarch64 proof=guard-lines-149+164(gs-tier-excluded)
+G7 site=sys/src/cmd/usb/usbd/mkfile:38 generator=mkdev artifact=mkdev built-by=host-rc-script runs=always proof=script-shebang-rc
+G8 site=sys/src/cmd/upas/bayes/mkfile:17 generator=regen artifact=7.regen built-by=$CC-target-but-guarded runs=never-cross proof=guard-line-16(committed-classify.re-used)
+G9 site=sys/src/cmd/7l/mkfile:36 generator=mkcname artifact=mkcname built-by=host-sh+ed-script runs=every-7l-build proof=script-text(ed-script)
+
+# not-swept: build-then-run shapes outside the swept all/install path
+# (manual/test targets, host-side kernel config tooling) — listed so the
+# inventory is complete; none are reachable from `mk all`/`mk install`.
+not-swept: sys/src/cmd/4l/mkfile:34 — test:V linker self-check (./xxx $OFILES relink-compare); toolchain letters are host tools via BUILDTOOLCHAIN, never aarch64 targets
+not-swept: sys/src/cmd/5l/mkfile:33 — x:V linker self-link check ($O.out -la -o/dev/null x.5); same host-tool class
+not-swept: sys/src/cmd/vl/mkfile:37 — test:V linker self-check (./xxx $OFILES); same
+not-swept: sys/src/cmd/il/mkfile:39 — test:V linker self-check (./xxx $OFILES); same
+not-swept: sys/src/cmd/9c/mkfile:36 — t:V compiler smoke target (manual); same host-tool class
+not-swept: sys/src/cmd/kc/mkfile:35 — t:V compiler smoke target (manual); same
+not-swept: sys/src/cmd/4c/mkfile:41 — t:V compiler smoke target (manual); same
+not-swept: sys/src/cmd/5c/mkfile:35 — t:V compiler smoke target (manual); same
+not-swept: sys/src/cmd/vc/mkfile:35 — t:V compiler smoke target (manual); same
+not-swept: sys/src/cmd/bzip2/mkfile:21 — test:V builds + round-trips sample files (manual)
+not-swept: sys/src/cmd/spell/mkfile:43 — test:V (spell's swept generator is G5 above)
+not-swept: sys/src/cmd/ptrace/mkfile:29 — T:V test target (manual)
+not-swept: sys/src/cmd/ip/httpd/mkfile:51 — trial/trial2 targets (manual)
+not-swept: sys/src/cmd/jtagfs/mkfile:54 — rtest:V (jtagfs's swept generator is G4 above)
+not-swept: sys/src/cmd/mkfile:166 — compilers:V manual target
+not-swept: sys/src/9k/mk/parse — awk kernel-config generator (kernel-side, host awk), not the userspace sweep
