@@ -24,7 +24,9 @@
 #        qemu-system-aarch64 -M virt,gic-version=3 -cpu $R9_CPU
 #          -smp 1 -m 1024M -accel $R9_ACCEL -kernel <r9 ELF>
 #          -dtb <patched copy>
-#          -device loader,file=<bootfs.paq>,addr=0x48000000 -nographic
+#          -device loader,file=<bootfs.paq>,addr=0x48000000
+#          -netdev user,id=n0 -device virtio-net-pci-non-transitional,netdev=n0
+#          -nographic
 #      Default: gicv3 everywhere; -accel hvf -cpu host on darwin-aarch64
 #      (hvf rejects gicv2), TCG + cortex-a72 elsewhere.  qemu runs in the
 #      FOREGROUND with stdio inherited — the user's
@@ -184,11 +186,16 @@ LO=$(printf '0x%x' $((END & 0xffffffff)))
 fdtput -t x "$DTB" /chosen linux,initrd-end "$HI" "$LO" \
 	|| err "fdtput linux,initrd-end patch failed"
 
+# D-10: the standard boot speaks Ethernet — the always-on NIC rides every
+# composed boot (the flag shape Phase 9's HNET-02 single-sources into
+# platform TOML; no filter-dump object here — capture stays a gate feature).
 set -- qemu-system-aarch64 \
 	-M "$R9_MACHINE" -cpu "$R9_CPU" -smp 1 -m 1024M -accel "$R9_ACCEL" \
 	-kernel "$R9_KERNEL" \
 	-dtb "$DTB" \
 	-device "loader,file=$INITRD,addr=0x48000000" \
+	-netdev user,id=n0 \
+	-device virtio-net-pci-non-transitional,netdev=n0 \
 	-nographic
 
 # always print the assembled argv so captured gate logs are

@@ -30,10 +30,12 @@
 #                   evidence)
 #
 # qemu argv (values from ../r9/aarch64/lib/config_virtexec.toml's
-# [qemu] — carried-forward locked shape):
+# [qemu] — carried-forward locked shape; the netdev stanza is D-10's
+# always-on NIC):
 #   qemu-system-aarch64 -M virt,gic-version=2 -cpu cortex-a72 -smp 1
 #     -m 1024M -accel tcg -kernel $R9_KERNEL -dtb <patched copy>
 #     -device loader,file=$R9_INITRD,addr=0x48000000
+#     -netdev user,id=n0 -device virtio-net-pci-non-transitional,netdev=n0
 #
 # Hygiene: fresh log per --log run; on exit the spawned qemu's
 # process group is killed (setsid leg) with a lone-pid fallback.  Gate
@@ -113,11 +115,15 @@ fdtput -t x "$DTB" /chosen linux,initrd-start \
 fdtput -t x "$DTB" /chosen linux,initrd-end \
 	$(printf '0x%x' $((END >> 32))) $(printf '0x%x' $((END & 0xffffffff)))
 
+# D-10: the dev launcher speaks Ethernet too — the same always-on NIC
+# stanza the composed boot (nix/boot-r9.sh) carries.
 set -- "$QEMU_BIN" \
 	-M virt,gic-version=2 -cpu cortex-a72 -smp 1 -m 1024M -accel tcg \
 	-kernel "$R9_KERNEL" \
 	-dtb "$DTB" \
-	-device "loader,file=$R9_INITRD,addr=0x48000000"
+	-device "loader,file=$R9_INITRD,addr=0x48000000" \
+	-netdev user,id=n0 \
+	-device virtio-net-pci-non-transitional,netdev=n0
 if [ -n "$LOG" ]; then
 	set -- "$@" -display none -serial "file:$LOG"
 else
