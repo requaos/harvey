@@ -120,3 +120,21 @@ current task's changes (executor scope boundary — logged, not fixed).
   text defect.
   **Status:** open — the next planning pass should repair the gate text
   (latest-line-per-dir form).
+
+- rc argv-stack discipline: residual drain sites beyond Xbackq (06-07)
+  status: open
+  **Found during:** 06-07 Task 2 (the r9 tier-1 gate — the FIRST time
+  the full sweep ran under Harvey's OWN rc; the donor gate drives
+  9front's rc)
+  **What:** rc's Xbackq parent arm poplist()ed the split word's list
+  without a guaranteed list below; at a top-level backquote assignment
+  the stack drained to argv==0 and the next op crashed ("pushword but
+  no argv!").  06-07 fixed the Xbackq site (cebb127ae — verified: the
+  sweep-killing cascade gone, 10/10 T1-DONE, the gate's capture clean).
+  The RESIDUAL class: any OTHER opcode path that could drain the argv
+  stack (the panic text was observed on rare occasions post-fix in
+  helper subshells, never eating a marker).  Present unchanged in
+  plan9port's rc; 9front rewrote the path.  A Phase-10 per-dir audit
+  item: audit rc's pushlist/poplist balance across every op (Xsubshell,
+  Xpipefd, Xassign, Xqdol, ...).
+  **Status:** open — Phase-10 checklist.

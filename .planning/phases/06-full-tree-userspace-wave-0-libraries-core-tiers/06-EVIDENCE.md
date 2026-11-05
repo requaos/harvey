@@ -431,3 +431,90 @@ fault run's log).  Green standing gate:
 - **Ledger lines appended:** none by this record (the r9-venue ledger
   lines — `exec=T1-OK:r9` / `exec=SKIP:r9-no-writable-fs` — land with
   the 06-07 Task-2 gate evidence; PENDING-CHAIN:06-07 resolves there).
+
+## 06-07 Task 2 — the r9 venue record (D-12, USPACE-04's second venue)
+
+- **Commits:** gate machinery `79e09967a` (mkimage payload +
+  tier1-r9.expect + nix/tier1-r9.sh + flake.nix + tier1-sweep.rc venue
+  prefixes); rc fix `cebb127ae` (Xbackq — see below); r9 substrate
+  `2a1f29b` (NSEC + RENDEZVOUS), `76e54ce` (MAX_PROCS 64→512), `c82c8a3`
+  + `46a2ed2` (devmnt contention wait + exit-sweep heap payloads;
+  sys_seek SEEK_END + stream rejection) — all pushed to requaos/r9 main
+  BEFORE the pins; pins `f8723ec51` → `dc0699339` → `5c261786a` (each
+  its OWN flake.lock-only commit; the final pin names 46a2ed2 =
+  origin/main).
+- **Host:** darwin-aarch64 (lima guest builds; host qemu — the gate's
+  default darwin leg is gicv3+hvf).
+- **The gate (`nix run .#boot-r9-tier1`)**: GREEN —
+  [evidence/06-07-tier1-r9.log](evidence/06-07-tier1-r9.log): 37 T1-OK +
+  23 T1-SKIP + T1-DONE, zero T1-FAIL, zero panic/Unhandled-interrupt,
+  `T1-OK float-d01` on r9 (D-01's gate holds on BOTH kernels).  The
+  driver typed ONE line at the % prompt (`rc /lib/tier1-sweep.rc r9` —
+  r9's devcons serves reads, the 05-03 finding; the donor's
+  sourced-sweep accommodation does not carry).
+- **Marker parity donor↔r9 (USPACE-04):** the donor re-verify of the
+  edited sweep (06-07's venue-prefix + guard edits):
+  [evidence/06-07-tier1-donor-reverify.log](evidence/06-07-tier1-donor-reverify.log)
+  — 61 T1-OK + 0 SKIP (the donor runs everything).  Extracted sets:
+  EVERY r9-runnable T1-OK name matches a donor T1-OK (parity), and the
+  r9 SKIP set equals exactly the donor-guarded list (23 names) — the
+  donor emits zero SKIPs.
+- **The measured r9-era reclassifications (USPACE-04 transparency — a
+  SKIP is declared, never silent; never an unearned T1-OK):**
+  - **ed** → donor-guard (the 06-07 trace caught its mktemp
+    create+remove, ed.c:159/930/1092 — /tmp-writable, hidden by the
+    read-only block);
+  - **ipconfig** → donor-guard (opens /dev/random at startup; r9 has no
+    devrandom this era — a PRNG masquerading as /dev/random is threat
+    surface, never a shim);
+  - **factotum** → donor-guard (startup needs FAUTH + the devproc
+    protect/noswap ctl verbs + a devsrv-service mount — r9's sys_mount
+    is pipe-9P-only this era, and the image's auth stub-by-absence
+    already means no factotum on r9).
+  The driver's expected SKIP set is EXTRACTED verbatim from the sweep
+  file (never a second hardcoded list), so the gate asserts equality
+  against the living source.
+- **r9-side substrate the gate measured and grew (all in the pushed
+  pins):** the measured dispatch delta {NSEC(53), RENDEZVOUS(34)} (Task
+  1) PLUS the gate-found correctness work the tier-scale sweep needed:
+  - **devmnt RPC contention**: the one-outstanding-RPC rule (05-07)
+    erred loudly on concurrency; the sweep's pipelines exec two children
+    through the shared mount session CONCURRENTLY — the first measured
+    concurrent caller.  Contention now blocks-and-retries at ~1-tick
+    granularity (the injected hook + proc's mnt_contention_wait;
+    sys_sleep's shape — never a spin, never a lost wake).
+  - **exit-sweep heap payloads**: the proc-table slots are never reaped
+    this era, so husk payloads (a fresh ~6 KB fd table per exit + argv +
+    queues) rode forever — ~200 fork+exec+exit cycles exhausted the
+    4 MiB heap arena (oom panic).  exit_tail now drops the payloads +
+    shares ONE empty fd group per husk; the sweep completes at the
+    ORIGINAL arena size.
+  - **MAX_PROCS 64 → 512**: the sweep's measured 201 born-traced forks
+    (the donor trace) walled the 64-slot boot-session fork budget.
+  - **sys_seek SEEK_END + the stream-device rejection**: tail -1's
+    length probe + join.c:148's random-access check need SEEK_END (the
+    chan's stat length, the donor's case-2 shape); a pipe end is never
+    seekable (the donor sseek's dc=='|' → Eisstream — tail.c's
+    isseekable probe keys on it).
+  - **exec MAX_ARGS 16 → 32** (exec.rs's seed-page pre-cap, matching
+    sys_exec's MAX_EXEC_ARGS): the sweep's `echo T1-XDOBS $xdout` builds
+    17 argv entries — 16 was too small.
+- **The rc finding (Harvey in-tree, pre-existing, exposed by the r9
+  venue running the sweep under Harvey's OWN rc — the donor gate runs
+  9front's):** rc's Xbackq parent arm poplist()ed the split word's list
+  without a guaranteed list below; at a top-level backquote assignment
+  the stack drained to argv==0 and the next op crashed ("pushword but
+  no argv!").  ~50% of sweep runs ate 1-2 markers pre-fix; ~15% killed
+  the sweep's shell.  Fixed `cebb127ae` (restore the invariant: Xbackq
+  leaves a list on the stack) — verified 10/10 consecutive T1-DONE runs
+  + the gate's clean capture (zero rc crash prints).  The SAME latent
+  shape is in plan9port's rc unchanged (9front rewrote the path); the
+  residual class (any OTHER op that could drain the stack) is filed in
+  deferred-items as a Phase-10 rc-audit item.
+- **Ledger lines appended (D-14):** 59 r9-venue lines — 36 ×
+  `exec=T1-OK:r9`, 21 × `exec=SKIP:r9-no-writable-fs`, 1 ×
+  `SKIP:r9-no-devrandom` (ipconfig), 1 × `SKIP:r9-no-auth-era`
+  (factotum) — evidence = the retained r9 gate log, commit = the
+  gate-ran machinery (`cebb127ae`).  8-field lint green.
+- **Regression:** `nix run .#boot-r9-smoke` GREEN over the tier-1-laden
+  image (the v1.0 gate, byte-untouched expect).
