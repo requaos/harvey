@@ -126,7 +126,31 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   4. The guest takes an address and is reachable: arp + ethermedium bound to devether, static ipconfig assigns IPv4, DHCP works via ipconfig `/net/udp` broadcast fidelity (or the recorded smoltcp dhcpv4 fallback), and the devip ip6 tree + ipconfig IPv6 configuration are demonstrated (NETIP-04, NETIP-05, NETIP-06)
   5. The networking exit gate is green: sustained bidirectional TCP flow + load soak **on the tap leg** (slirp evidence explicitly not accepted — it forgives L2 bugs), with aan available for cpu connections (NETIP-07, NETIP-08)
 
-**Plans**: TBD
+**Plans:** 9 plans
+**Wave 1**
+- [ ] 08-01-PLAN.md — D-03 contract doc (full devip surface enumeration) + smoltcp 0.14.0 pin/lockfile + cfg(dev_ip) + NETIP-01 provenance record (NETIP-01, NETIP-02; D-01..D-04)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 08-02-PLAN.md — event-driven seam (stack/waker/phyadapt) + host pins incl. OQ-1 DHCP-shaped exchange FIRST + UNSAFE-AUDIT entry (NETIP-02, NETIP-05; D-05)
+- [ ] 08-03-PLAN.md — Harvey gate payloads: ipconfig/ping/udpecho/aan + tcpblast/tcpecho + D-11 addressing seam + bake asserts (NETIP-03..08; D-11, D-12)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+- [ ] 08-04-PLAN.md — TRACER: ping 127.0.0.1 over loopback end-to-end (#I device + conv + mediums + icmp + kernel wiring + virtip profile) + udp echo (NETIP-02, NETIP-03)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+- [ ] 08-05-PLAN.md — tcp proto (accept pool, blocking connect, listen/err, close/hangup mapping) + tcp/7 echo + netlog/stats/iproute/ipselftab/ndb (NETIP-02, NETIP-03; D-07)
+
+**Wave 5** *(blocked on Wave 4 completion)*
+- [ ] 08-06-PLAN.md — D-17 /dev/random + /dev/urandom, ethermedium + EtherDev + snoop-fed /net/arp + gratuitous ARP + static ipconfig gate on slirp (NETIP-02, NETIP-04; D-17)
+
+**Wave 6** *(blocked on Wave 5 completion)*
+- [ ] 08-07-PLAN.md — DHCP via unmodified ipconfig over /net/udp broadcast fidelity + IPv6 (icmpv6 full-packet bridge, add6/ra6/try) (NETIP-05, NETIP-06; D-06, D-09, D-10)
+
+**Wave 7** *(blocked on Wave 6 completion)*
+- [ ] 08-08-PLAN.md — aan scripted drop-and-resume on loopback + tcpblast bidirectional soak machinery on slirp + documented manual soak command (NETIP-07, NETIP-08; D-14, D-15, D-16)
+
+**Wave 8** *(blocked on Wave 7 completion)*
+- [ ] 08-09-PLAN.md — composed net smoke + CI net-smoke job + 08-EVIDENCE.md + push-before-pin + flake.lock advance (D-13, D-16)
 
 ### Phase 9: Host Networking + boot-r9 Net Modes
 
@@ -199,7 +223,7 @@ Two parallel tracks from the v1.0 foundation: userspace {6 → 10} ∥ networkin
 | 5. Shell Boot + One-Command Integration | v1.0 | 13/13 | Complete | 2026-11-04 |
 | 6. Full-Tree Userspace — Wave 0 + Libraries/Core | v2.0 | 8/8 | In Progress|  |
 | 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 10/10 | Complete    | 2026-11-05 |
-| 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | - | Not started | - |
+| 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | 0/9 | Planned | - |
 | 9. Host Networking + boot-r9 Net Modes | v2.0 | - | Not started | - |
 | 10. Userspace Services + GUI Tiers + Bootfs | v2.0 | - | Not started | - |
 | 11. In-Guest p9sk1 Auth Domain | v2.0 | - | Not started | - |
