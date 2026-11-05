@@ -37,7 +37,7 @@ bind -b /boot /bin
 # hostownerwrite; with eve="" every process's /proc status line carries
 # an EMPTY user field, tokenize yields 11 fields not 12, and ps(1)
 # silently returns per process — the venue's T1-FAIL ps).
-hcat /dev/rtc > /dev/time
+hcat '#r/rtc' > /dev/time
 echo -n sys > '#c/hostowner'
 
 # run the tier-1 sweep in a CHILD rc so its trailing `exit` never kills
