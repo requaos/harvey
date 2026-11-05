@@ -54,7 +54,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   4. Tiered allowlist machinery is live: per-dir append-only allowlist growth (never a flag-flip), per-tier execution gates run on the 9front donor kernel FIRST then r9 via measure-first traces, and artifact+execution markers are committed as the only gates — namespace-build mk exit status is never trusted (USPACE-04)
   5. Tier-0/1 are green with committed markers: all 22 outstanding libraries (libdraw/libmemdraw/libmemlayer/libframe, libcontrol, libhtml, libhttpd, libdisk, libflate, libgeometry, liblex, libplumb, libventi/liboventi, …) compile for aarch64 via the mksyslib portable-C fallback (no cargo-culted stale `.6`/`.8` objects), and shell/coreutils + the guest build chain (7a/7c/7l/cc/cpp/mk/yacc/lex as aarch64 binaries) execute on the donor kernel (USPACE-05, USPACE-06)
 
-**Plans:** 8/8 plans executed
+**Plans:** 8/8 plans executed (+ 2 gap-closure plans planned for G-06-1)
 **Wave 1**
 - [x] 06-01-PLAN.md — Wave-0 landmines: gethunk ×2 fixes + teeth-proven repro gates + FPdbleword uint fix (USPACE-01, D-01)
 
@@ -78,6 +78,12 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [x] 06-08-PLAN.md — CI pipeline: phase6.yml four jobs incl. x86_64 pool-panic verdict leg (USPACE-10, D-04/D-16)
+
+**Wave 9** *(gap closure G-06-1 — maintainer direction 2026-11-05: x86_64 CI donor evidence from Harvey's own kernel)*
+- [ ] 06-09-PLAN.md — Harvey-kernel tier venue: k10t1 embedded-root config + devroot raise + build driver + sweep harness, local green proof with teeth (USPACE-04, USPACE-06)
+
+**Wave 10** *(gap closure G-06-1, blocked on Wave 9)*
+- [ ] 06-10-PLAN.md — phase6.yml: tier-9k job in, tier-donor leg retired + venue-pin assertion; dir-coverage venue wording (USPACE-02, USPACE-04)
 
 ### Phase 7: r9 PCI/ECAM + virtio-net + devether
 
