@@ -42,12 +42,24 @@ pub fn load_sysh(text: &str) -> HashMap<String, u32> {
 }
 
 /// Resolve a traced syscall name to (number, sys.h name): try name,
-/// name+'_', '_'+name (the donor's "brk" is Harvey's BRK_).
+/// name+'_', '_'+name, and the leading-underscore strip (the donor's
+/// sysctab print table is Harvey's sys.h lowercased, trailing-underscore
+/// stripped — and with two baked renames: `_nsec` ↔ Harvey NSEC(53), and
+/// `Rendez` ↔ Harvey RENDEZVOUS(34); same numbers, name-only divergence,
+/// the Phase-2 D-09 NMOUNT-ledger class — 06-07 measured both).
 pub fn resolve(defines: &HashMap<String, u32>, name: &str) -> Option<(u32, String)> {
+    let lower = name.to_lowercase();
+    let stripped = lower.strip_prefix('_').unwrap_or(&lower);
+    let alias = match lower.as_str() {
+        "rendez" => "rendezvous",
+        _ => lower.as_str(),
+    };
     for cand in [
-        name.to_string(),
-        format!("{}_", name),
-        format!("_{}", name),
+        lower.clone(),
+        format!("{}_", lower),
+        format!("_{}", lower),
+        stripped.to_string(),
+        alias.to_string(),
     ] {
         if let Some(n) = defines.get(&cand) {
             return Some((*n, cand));
@@ -2242,7 +2254,7 @@ exit $RC
 
 fn preconditions_t1(cfg: &Cfg) -> Result<(), String> {
     preconditions(cfg)?;
-    for (rel, name) in STAGE_T1 {
+    for (rel, _) in STAGE_T1 {
         if rel.starts_with("$TMPD/") {
             continue; // generated at run time
         }
@@ -2253,8 +2265,11 @@ fn preconditions_t1(cfg: &Cfg) -> Result<(), String> {
                 p.display()
             ));
         }
-        // the staged executables are 7l aarch64 binaries (R_MAGIC)
-        if name.starts_with('h') || *name == "tracesup" {
+        // the staged executables are 7l aarch64 binaries (R_MAGIC);
+        // keyed on the HOST path — build/aarch64/{hello.c,tiny.*,
+        // nm-input.7,tier1-sweep.rc} ride as data (hello.c starts with
+        // 'h' too; measured: the name-keyed check was wrong)
+        if rel.starts_with("aarch64/bin/") || rel.starts_with("build/aarch64/out/") {
             let magic = std::fs::read(&p).map_err(|e| e.to_string())?;
             if magic.len() < 4 || magic[..4] != [0x00, 0x00, 0x8c, 0x47] {
                 return Err(format!(
@@ -2764,12 +2779,16 @@ pub struct T1Data {
 /// named T1-SKIP lines there): the write-flow round-trips, the build-chain
 /// fixed inputs, and the self-host canary.  `hello` is the canary's
 /// in-guest product; `bind` is the donor's own /bin/bind serving bc's
-/// /bin/dc union shim (donor-guarded).  Everything else measured is
-/// r9-runnable (the read-only block + libtest-tdraw + stacksmoke run on
-/// both venues).
+/// /bin/dc union shim (donor-guarded).  `hed` joined the class on measured
+/// evidence: the 06-07 trace caught ed's mktemp create+remove pair
+/// (ed.c:159/930/1092 — /tmp/eXXXXX unconditionally), a /tmp-writable
+/// dependency the read-only block hid; r9's root is read-only this era.
+/// Everything else measured is r9-runnable (the read-only block +
+/// libtest-tdraw + stacksmoke run on both venues).
 pub const T1_WRITEFLOW_BINS: &[&str] = &[
     "hmkdir", "hcp", "hmv", "hrm", "hbc", "hdd", "htar", "htee", "hchmod", "htouch", "hsplit",
     "hlook", "hcpp", "hyacc", "hlex", "hmk", "h7a", "h7c", "h7l", "hdisktest", "hello", "bind",
+    "hed",
 ];
 
 pub fn t1_class(name: &str) -> &'static str {
@@ -2919,6 +2938,10 @@ pub fn artifact_t1(
     s.push_str("#     tar tee chmod touch split look cpp yacc lex mk 7a 7c 7l\n");
     s.push_str("#     selfhost-compile/selfhost (binaries h7c h7l h7a + the hello\n");
     s.push_str("#     product) libtest-disktest; the bc shim's bind is the donor's own.\n");
+    s.push_str("#     ed joined the class on THIS run's evidence: the trace caught\n");
+    s.push_str("#     ed's unconditional mktemp create+remove (ed.c:159/930/1092,\n");
+    s.push_str("#     /tmp/eXXXXX) — a /tmp-writable dependency the read-only block\n");
+    s.push_str("#     hid; r9's root is read-only this era, so ed T1-SKIPs on r9.\n");
     s.push_str("#   name caveat: a born-traced child's pre-exec fragments carry its\n");
     s.push_str("#     parent's text name — the \"rc\" bucket aggregates the sweep\n");
     s.push_str("#     shell, hrc invocations, and rc fork/backquote shims.\n");
@@ -3098,6 +3121,17 @@ fn main_t1(cfg: &Cfg) -> Result<(), String> {
     Ok(())
 }
 
+/// Iteration hatch: re-run ONLY the parse against the surviving srvroot
+/// fragment files — a completed sweep leaves them in place (the prep
+/// cleanup runs only at the start of a full run).  For parser iteration
+/// on measured data; never the gate path.
+fn main_t1_parse_only(cfg: &Cfg) -> Result<(), String> {
+    eprintln!("== tier-1 parse-only: reading the surviving fragment files (no re-trace)");
+    parse_and_write_t1(cfg, &[])?;
+    eprintln!("== PASS: tier-1 parse complete");
+    Ok(())
+}
+
 pub fn run(args: &[String]) -> i32 {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         eprint!("{}", USAGE);
@@ -3106,6 +3140,8 @@ pub fn run(args: &[String]) -> i32 {
     let cfg = cfg();
     let r = if args.iter().any(|a| a == "--boot-chain") {
         main_bc(&cfg)
+    } else if args.iter().any(|a| a == "--tier1-parse-only") {
+        main_t1_parse_only(&cfg)
     } else if args.iter().any(|a| a == "--tier1") {
         main_t1(&cfg)
     } else {
