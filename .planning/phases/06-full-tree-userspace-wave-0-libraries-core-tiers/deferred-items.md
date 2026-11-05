@@ -68,3 +68,55 @@ current task's changes (executor scope boundary — logged, not fixed).
   in-tree precedent.
   **Status:** open — needs a decision by the first mass tier wave after
   any toolchain change.
+
+- libmemdraw drawtest + arctest fault on aarch64 (Pitfall-3 class) —
+  Phase-10 per-dir checklist
+  status: open
+  **Found during:** 06-05 Task 2 (the tier-0 wave's D-06 lib test runs
+  on the 9front donor)
+  **What:** the in-tree tests compiled and ran but FAULT on aarch64:
+  drawtest abort()s its own stochastic memimagedraw pixel verification
+  (fault pc 0x1ab50 symbolizes inside abort() — the null read is abort's
+  mechanism; the verification detected a real pixel mismatch), and
+  arctest takes a wild-pointer write (fault write addr=0x1c001374bc)
+  with the pc inside libmemdraw's memsetl (LP64-fossil signature).
+  Evidence: 06-EVIDENCE.md Phase-10 checklist +
+  evidence/06-05-libtest-donor.log.  Filed per the phase's no-drive-by
+  rule (Pitfall-3 classes are Phase-10 audit work, not sweep drive-bys);
+  both tests rejoin the standing sweep when the lib is fixed.
+  **Status:** open — Phase 10's libmemdraw pixel-path LP64/struct-punning
+  audit owns this.
+
+- stale mkfile test targets reference absent sources (liboventi,
+  libmemdraw)
+  status: open
+  **Found during:** 06-05 Task 2 (lib test-binary discovery)
+  **What:** liboventi's `$O.vttest` + `test:` targets reference a
+  `vttest.c` that does not exist; libmemdraw's `$O.test` references a
+  `test.c` that does not exist (only drawtest.c/arctest.c are real).
+  Harmless unless the targets are invoked.
+  **Status:** open — Phase 10 decides: remove the targets or restore the
+  sources.
+
+- libdynld dynld.c:128 "useless or misleading comparison: ULONG < 0"
+  (7c note)
+  status: open
+  **Found during:** 06-05 Task 1 (the dynld-aarch64 rename probe build)
+  **What:** the only compiler diagnostic of the 22-lib wave; the lib
+  archived green.  A real Pitfall-3-class suspicion (unsigned compares)
+  for the Phase-10 per-dir audit.
+  **Status:** open — Phase-10 checklist.
+
+- 06-05-PLAN's literal Task-2 no-PENDING-CLASSIFY grep contradicts its
+  own Task-1 seed step under the ledger's append-only rule
+  status: open
+  **Found during:** 06-05 Task 2 (classification)
+  **What:** Task 1 step 5 mandates exec=PENDING-CLASSIFY seed lines and
+  D-14 makes the ledger append-only, so superseded seeds remain as
+  history; Task 2's verify greps the WHOLE file for zero
+  PENDING-CLASSIFY and can never pass after a seeded run.  The intent
+  gate (latest line per dir per the ledger's own last-line-wins rule)
+  passes and is what 06-05 ran.  Same class as 06-02's recorded gate-2
+  text defect.
+  **Status:** open — the next planning pass should repair the gate text
+  (latest-line-per-dir form).
