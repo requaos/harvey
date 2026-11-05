@@ -244,19 +244,24 @@ SHIM
 			[ "$(uname -s)" = "Linux" ] || { echo "error: amd64/lib/libc.a missing; run 'nix run .#build' once first" >&2; exit 2; }
 			command -v sudo >/dev/null || { echo "error: amd64/lib/libc.a missing and no sudo for the namespace build" >&2; exit 2; }
 			[ -x /bin/rc ] || sudo cp "$PLAN9/bin/rc" /bin/rc
+			# NB: at this point the script's own HARVEY_LINUX_BIN is the
+			# SCRATCH fixed-bin override (build_pair set it) — the real
+			# hostbin must be recomputed from HARVEY_ROOT, never read from
+			# the variable (runner evidence: pre-check resolved to
+			# .build/gethunk-repro-6l/fixed-bin, which holds only 6c/6l).
 			_ha=$(uname -m); [ "$_ha" = "arm64" ] && _ha=aarch64
-			_HBIN="${HARVEY_LINUX_BIN:-$HARVEY_ROOT/.build/hostbin-linux-$_ha/bin}"
-			if [ ! -x "$_HBIN/ar" ]; then
-				echo "error: $_HBIN/ar missing — the toolchain's vendored 9cc leg installs iar as hostbin ar; without it mk's bare \`ar\` resolves to GNU ar and libc.a provisioning fails" >&2
-				echo "hostbin contents: $(ls "$_HBIN" 2>/dev/null | tr '\n' ' ')" >&2
+			NS_HBIN="$HARVEY_ROOT/.build/hostbin-linux-$_ha/bin"
+			if [ ! -x "$NS_HBIN/ar" ]; then
+				echo "error: $NS_HBIN/ar missing — the toolchain's vendored 9cc leg installs iar as hostbin ar; without it mk's bare \`ar\` resolves to GNU ar and libc.a provisioning fails" >&2
+				echo "hostbin contents: $(ls "$NS_HBIN" 2>/dev/null | tr '\n' ' ')" >&2
 				exit 2
 			fi
+			export NS_HBIN
 			NSLIBC="$(mktemp "${TMPDIR:-/tmp}/ns-libc.XXXXXX.sh")"
 			printf '%s\n' \
 				'cd /sys/src' \
 				'. buildnamespace' \
-				'_a=$(uname -m); [ "$_a" = "arm64" ] && _a=aarch64' \
-				'PATH="${HARVEY_LINUX_BIN:-$HARVEY/.build/hostbin-linux-$_a/bin}:$PATH"' \
+				'PATH="$NS_HBIN:$PATH"' \
 				'export PATH' \
 				'cd libc' \
 				'objtype=amd64 mk install' > "$NSLIBC"
