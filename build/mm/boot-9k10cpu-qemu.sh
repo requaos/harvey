@@ -40,8 +40,11 @@
 #   - Signature set (the recorded 01-04 incident): "bad magic",
 #     "panic", "suicide: sys: trap".  ("pool panic" does NOT exist
 #     verbatim in the 9k tree — the robust set is used.)
-#   - Healthy continuation markers: boot.c's "argc=" (boot.c:69) and
-#     "version..." (boot.c:139) lines.
+#   - Healthy continuation markers — the prints the PRODUCTION boot
+#     binary actually emits past the 01-04 panic point: "root is from"
+#     (boot.c:342's method prompt — the panicked boot died before it),
+#     "version..." (boot.c:139, after a rootfs connection), "argc="
+#     (boot.c:69, DEBUG-gated builds only).  Any one suffices.
 #   - Verdicts: PASS no-panic-signature (boot-continues|banner-only) /
 #     FAIL pool-panic-signature / FAIL no-banner.
 #
@@ -95,6 +98,18 @@ for c in gdate /bin/date date; do
 done
 [ -n "$DATE" ] || DATE="unknown"
 
+# healthy_continuation <log>: true iff the log carries a marker that
+# boot.c ran PAST the 01-04 panic point (the production build's prints:
+# the "root is from" method prompt; "version..." post-connection;
+# "argc=" only in DEBUG builds).
+healthy_continuation() {
+	_log=$1
+	"$GREP" -qF 'root is from' "$_log" 2>/dev/null && return 0
+	"$GREP" -q 'version\.\.\.' "$_log" 2>/dev/null && return 0
+	"$GREP" -q 'argc=' "$_log" 2>/dev/null && return 0
+	return 1
+}
+
 # classify_log <log> <accel>: scan the WHOLE log, write the verdict
 # file, print the verdict.  Returns 0 iff a verdict was produced
 # (banner seen + classification written); 1 when no banner appeared
@@ -116,7 +131,7 @@ classify_log() {
 				sigs="${sigs}${sigs:+; }$sig"
 			fi
 		done
-		if "$GREP" -q 'argc=' "$_log" && "$GREP" -q 'version\.\.\.' "$_log"; then
+		if healthy_continuation "$_log"; then
 			healthy=yes
 		fi
 	fi
@@ -239,8 +254,8 @@ if [ "$found" -eq 0 ]; then
 			echo "== signature line observed at +${celapsed}s"
 			break
 		fi
-		if "$GREP" -q 'argc=' "$LOG" 2>/dev/null && "$GREP" -q 'version\.\.\.' "$LOG" 2>/dev/null; then
-			echo "== healthy continuation markers observed at +${celapsed}s"
+		if healthy_continuation "$LOG"; then
+			echo "== healthy continuation marker observed at +${celapsed}s"
 			break
 		fi
 		if ! kill -0 "$QEMU_PID" 2>/dev/null; then
