@@ -344,3 +344,90 @@ fault run's log).  Green standing gate:
   commits — **unchanged** (the plan's members are single-file targets or
   already-ok dirs; no dir-level build rows flipped), `git diff
   --exit-code` green; no re-baseline commit needed.
+
+## 06-07 measure-first tier-1 trace + r9 dispatch delta record (USPACE-04)
+
+- **Commits:** trace rig `d542d727b` (tracesup.c + harness
+  `--tier1`); the parser/venue fixes land beside this record; r9 delta
+  `2a1f29b9355527aa07b72740fe51e619b9e76f77` (requaos/r9 main, PUSHED
+  before the pin); pin bump `f8723ec51` (flake.lock ALONE;
+  locked-rev == live-HEAD == origin/main verified at commit time).
+- **Host:** darwin-aarch64 (lima guest for the in-guest 7c/7l compile +
+  donor rebake; host qemu TCG for the traced boot).
+- **The rig (the 05-03 rig with the tier-1 sweep as the traced
+  payload):** the staged termrc override runs the sweep SOURCED
+  (`venue=donor`) inside a spin-windowed, stop-armed subshell, and the
+  NEW in-guest supervisor `build/aarch64/tracesup.c` step-traces it AND
+  every born-traced descendant (donor sysproc.c:155 procctl
+  inheritance).  The 05-03 rc traceloop/fragprint shape moved into one C
+  program: no per-fragment forks (the rc cat|sed pair per fragment would
+  dominate at tier scale), one newline-framed fragment file per pid on
+  the srv9 writable prefix (`/tmp/t1trace`, read host-side off the served
+  root — no serial flood, no mid-line gluing, so no __GSD_FRAG_ tags).
+  Root armed write-first (the Proc_stopme stop has no pending fragment);
+  born-traced children armed read-first (pidwait.c's traceloop1 rule).
+  Venue = subset-exec.sh's 06-06 donor gate exactly (the donor's own
+  chain, writable prefixes, srvroot /sys+aarch64 staging, devroot
+  Nbootfiles=128, self-healing CONF block) with the trace added.
+- **The run:** boot → traced sweep → `T1-DONE` + `__T1_TRACE_DONE__` →
+  init's restart → shell proof.  Zero T1-FAIL, zero panic|trap:.  201
+  traced pids; **8581 entry fragments; 0 malformed**.  Artifact:
+  [evidence/06-07-trace.txt](evidence/06-07-trace.txt) (per-binary
+  multisets + classification + the delta section).  Serial log:
+  `.build/9front-dist/tier1-trace-run.log` (gitignored transient).
+- **The measured set (r9-runnable union, 19 names):** chdir, close,
+  dup, exec, exits, open, rfork, pipe, create, fd2path, brk_, notify,
+  rendezvous, seek, stat, await, pread, pwrite, nsec.  **The delta vs
+  r9's dispatch = exactly {RENDEZVOUS(34) ×1 (hfactotum's libthread
+  start), NSEC(53) ×2 (hdate, hipconfig — libc time() = nsec()/1e9)}** —
+  expected-small confirmed by measurement, never assumed.  The
+  write-flow union (donor-only; r9 T1-SKIPs it) is the artifact's second
+  table: remove ×8, wstat ×3, fwstat ×1 fired there — **the measured
+  evidence RATIFIES r9's loud-None for REMOVE/WSTAT/FWSTAT this era**
+  (their only callers are write-flow binaries r9 cannot serve), and
+  OSEEK never fired anywhere.
+- **The ed finding (measured, reclassified):** the trace caught hed's
+  unconditional `create("/tmp/eXXXXX")` + exit-time `remove`
+  (ed.c:159/1092/930) — a /tmp-writable dependency the read-only block
+  hid.  ed MOVED into the sweep's donor-venue guard with a named
+  `T1-SKIP ed` on r9 (USPACE-04 transparency: never an unearned T1-OK);
+  the SKIP set's "known list" gains ed by measured evidence.
+- **r9-side implementation (exactly the delta):** NSEC(53) — the
+  epoch-ns clock composed from qemu virt's PL031 RTC (DTB
+  pl031@9010000, RTCDR epoch seconds) anchored once against the generic
+  timer's monotonic CNTPCT count (runtime CNTFRQ; u128 scaling; raspi
+  gets no fake clock — compile-time absence); RENDEZVOUS(34) — 9k
+  sysrendezvous semantics over a new `port::rendez` group (Arc-shared
+  per rfork's RFREND arm, now real; first-sleeps/peer-wakes symmetric
+  exchange; exit sweeps the sleeper table per 9k pexit).  Both handlers
+  follow the Phase-4/5 discipline (sargs validation, width rules,
+  loud errors); the loud-unimplemented default stays for everything
+  else.
+- **r9 gates (all green with R9_HARVEY_DIR set):** `cargo xtask
+  ureg-check` (35 fields ≡ aarch64/include/ureg.h); all five boot-test
+  profiles — virt (banner/ticks/echo), virtexec (SC#2 + stacksmoke),
+  virtmulti (SC#4 rfork/fd + preemption), virtnotes (notes), virtpanic
+  (dump) — and `cargo test -p port` (83 green incl. the 2 new rendez
+  table tests).
+- **Push-before-pin (T-06-13):** r9 `2afa3d6..2a1f29b` pushed to
+  requaos/r9 main BEFORE the Harvey flake.lock advance; the pin bump
+  (`f8723ec51`) touches ONLY flake.lock and names both SHAs.
+- **NMOUNT-ledger note (step 6):** no NMOUNT-class (number/semantics)
+  divergence surfaced.  The trace's two name-level mappings are
+  print-name only, same wire: `_nsec` ↔ NSEC(53) (already documented —
+  aarch64/ABI.md:59) and the donor mksystab's printed `Rendez` ↔
+  RENDEZVOUS(34) (mksystab's baked `Rendezvous→Rendez` rename; the
+  parser's `resolve()` maps both).  Nothing to grow.
+- **Venue notes for later plans:** the traced sweep's DRIVER shell was
+  the donor's own rc (the venue boots the donor's chain; `exec rc`
+  resolves the donor's /bin/rc) — the "rc" bucket in the artifact
+  aggregates the driver + its pre-exec fork/backquote shims, and bare
+  `echo` in sweep pipelines resolves to the donor's /bin/echo (measured:
+  `echo` ×69).  Footprint classes are identical to the Harvey binaries'
+  (open/pread/close/pwrite/brk_/exits); on r9 the driver is the image's
+  /bin/rc (Harvey's).  The trace ran the pre-prefix sweep; the
+  venue-prefix edit (B=/boot→/bin, D=/boot→/lib/tier1 on r9) and the ed
+  move are venue-mapping only — no measured behavior changed.
+- **Ledger lines appended:** none by this record (the r9-venue ledger
+  lines — `exec=T1-OK:r9` / `exec=SKIP:r9-no-writable-fs` — land with
+  the 06-07 Task-2 gate evidence; PENDING-CHAIN:06-07 resolves there).
