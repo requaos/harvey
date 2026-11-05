@@ -79,6 +79,13 @@
 - Captures/counters are unchanged by this fix (the type-file read path is not exercised by the sweeps): no new logs/pcaps committed — this is an index re-proof row, not an evidence refresh.
 - Host-side pins land at the same HEAD: `port/src/devether_tests.rs` (crate-root) — readnum_content(-1)==` 4294967295 ` byte-exact + the 0/65535 neighbors + the conv_close last-close reset pin (G-07-1's donor-intentional record); port suite 51/51 (+4), `cargo xtask test` green.
 
+### 07-10 — RX payload-offset fix (G-07-1 round 2) — virtnet gate re-proof at r9 a5b1b42ec92d5f6be4e13c1fe370da1768316131
+
+- **arp mode (NETDRV-03 re-proof):** `R9_BOOT_TEST_TIMEOUT=600 cargo xtask boot-test --arch aarch64 --config virtnet` PASS at r9 `a5b1b42ec92d5f6be4e13c1fe370da1768316131` (the G-07-1 fixed HEAD) — banner, real Harvey boot chain, typed arp sweep N=4, netsweep markers + pcap assertion observed; counters reconcile: stats `in:4/out:4` (`in:` counts at rx_ingress entry, BEFORE the demux — unchanged now that delivery works), pcap == 2N == 8 frames, ifstats `used==lastused` per queue, zero `unhandled irq` lines.
+- **blast mode (NETDRV-04 re-proof):** `R9_BOOT_TEST_TIMEOUT=600 R9_NET_SWEEP_MODE=blast cargo xtask boot-test --arch aarch64 --config virtnet` PASS on the SAME HEAD (no intermediate r9 commits between the two runs) — typed blast sweep N=256, NET-DONE + pcap assertion observed; soverflows stays 0 (256 × 64 B ≈ 16 KiB against the 64 KiB per-conversation store cap, with delivery now working).
+- Captures/counters are unchanged by this fix (the sweeps assert counters and pcaps, not conversation-queue delivery — that end-to-end confirmation is the guest UAT re-run, verify-work's), so no new logs/pcaps were committed — this is an index re-proof row, not an evidence refresh.
+- Host-side pins land at the same HEAD: `port/src/rx_chain_tests.rs` (crate-root) — the chain-layout premise pin + the byte-exact PCAP_REPLY delivery-input pin + the max-size within-page pin through the REAL Ring and the REAL drain arithmetic (the previously-uncovered Ring↔pci.rs seam); port suite lib 54/54 (+3), `cargo xtask test --verbose` green.
+
 ## Regression state at the pinned HEAD (r9 `2afa3d6`, from 07-07's self-check)
 
 | Leg | Command | Result |
