@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 07
 current_phase_name: r9 PCI/ECAM + virtio-net + devether
 status: verifying
-stopped_at: Completed 07-09-PLAN.md
-last_updated: "2026-11-05T14:29:56.076Z"
+stopped_at: Completed 07-10-PLAN.md
+last_updated: "2026-11-05T16:01:57.116Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 07 execution started
-state_head: 69c4cf689a54c5371d5a8c903ef5d670c4d520eb
+state_head: 0f10a351ce306db92733dbfe0141318022aed1f8
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 17
-  completed_plans: 17
+  total_plans: 18
+  completed_plans: 18
 ---
 
 # Project State
@@ -117,6 +117,7 @@ Progress: [░░░░░░░░░░] 0% (v2.0)
 | Phase 06 P07 | 4h 27m | 2 tasks | 24 files |
 | Phase 06 P08 | 4h 8m | 2 tasks | 8 files |
 | Phase 07 P09 | 18 min | 4 tasks | 7 files |
+| Phase 07 P10 | 21 min | 4 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -269,6 +270,9 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-09: the fix is exactly the diagnosis — `let v = val as u32 as u64;` reproduces the C conversion int→ulong (32-bit truncation, never sign extension; Plan 9 long/ulong is 32-bit even on amd64, vlong/uvlong are the 64-bit types hence VLNUMSIZE=22); NO saturating clamp and NO underflow guard — the u32 ceiling makes the underflow unreachable and a guard would mask a future width regression
 - [Phase 07]: 07-09: conv_close's last-close reset (typ=0, owner cleared, queue drain, EOF wake — donor 9k netif.c:446) is pinned as INTENTIONAL by a host test rather than repaired — G-07-1 was a test-PROCEDURE defect (connect before holding the conversation open); the corrected read-first-then-connect protocol lives in 07-UAT.md for the verify-work re-run
 - [Phase 07]: 07-09: push-before-pin executed at the fix HEAD — r9 46a2ed2..1c16193 pushed to requaos/r9 BEFORE the flake.lock advance; the pin commit d5df2df38 names flake.lock ALONE; locked rev == live HEAD == origin/main, owner requaos; hosted r9-shell run 42043430592 SUCCESS at headSha eef588612 (and 42043437746 SUCCESS at the subsequent tip carrying these commits)
+- [Phase 07]: 07-10: the fix is exactly the diagnosis — virtio_net_frame_offset() == 0 with NO bounds guard/clamp/min: next_used's used-len validation (12 <= len <= 12+4096) already constrains frame_len <= 4096 = the payload page capacity, so the offset-0 slice is in-page by construction; a guard would mask a future chain-layout regression
+- [Phase 07]: 07-10: the rx_chain_tests pin covers the Ring<->pci.rs seam ONLY — deliberately NOT a full rx_ingress/pop_frame drive: netif::publish is once-per-process and devether_tests' conv_close pin already consumes it in this test binary; the slice->rx_ingress leg stays host-covered by 07-09's synthetic drive and the end-to-end confirmation is the guest UAT re-run (verify-work's)
+- [Phase 07]: 07-10: push-before-pin executed at the fix HEAD — r9 1c16193..a5b1b42 (2 commits) pushed to requaos/r9 BEFORE the flake.lock advance; the pin commit 91f6ab9aa names flake.lock ALONE; locked rev == live HEAD == origin/main, owner requaos; hosted r9-shell run 42058021884 SUCCESS at headSha 1dca03c25 (and 42058871366 SUCCESS at the subsequent tip 0f10a351 carrying these commits)
 
 ### Pending Todos
 
@@ -317,8 +321,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T14:29:55.515Z
-Stopped at: Completed 07-09-PLAN.md
+Last session: 2026-11-05T16:01:39.417Z
+Stopped at: Completed 07-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
