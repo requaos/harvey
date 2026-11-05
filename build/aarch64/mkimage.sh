@@ -208,6 +208,8 @@ done
 for p in lib/netip-loopback.rc lib/netaddr.rc; do
 	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
 done
+# 08-05 (NETIP-03's third leg): the tcp/7 echo gate fixture must be baked
+[ -f "$STAGE/lib/netip-tcp.rc" ] || err "manifest: lib/netip-tcp.rc missing from staged tree"
 [ -f "$STAGE/aarch64/bin/netblast" ] || err "manifest: aarch64/bin/netblast missing from staged tree"
 
 # 5a. init identity: out/ was shared with the

@@ -1,0 +1,179 @@
+#!/bin/rc
+# netip-tcp.rc — the NETIP-03 tcp/7 echo gate fixture (08-05): tcpecho
+# (announce/listen/accept via UNMODIFIED libc — the 08-03 baked binary)
+# answers an rc client's connect/write/read through /net/tcp over the
+# loopback medium, then the sweep asserts the P-M stats honesty (non-zero
+# counters after the exchange) and a well-formed status line with a devip
+# state name.  Sourced by the gate harness (R9_NETIP_SWEEP=tcp), never
+# typed at a prompt (the sourced-not-typed discipline — net-sweep.rc's
+# precedent).
+#
+# Addresses come from /lib/netaddr.rc (the D-11 seam) — the lo_ leg.  NO
+# hardcoded 127.0.0.1 outside that seam (Pitfall 9's discipline).
+#
+# The preamble is the loopback fixture's, factored INLINE per the plan
+# (never a shared file this era): seam → bind #I → ipifc clone → bind
+# loopback → add → selftab assert.  Every failed step prints
+# `netip: FAIL <stage>' to stderr and exits non-nil; success prints its
+# ok markers (`netip: tcp echo ok`, `netip: tcp stats ok`) and the run
+# ends with NETIP-DONE.
+
+# the D-11 seam (test -e first: a failed source is uncatchable)
+test -e /lib/netaddr.rc || {
+	echo netip: FAIL seam >[1=2]
+	exit seam
+}
+. /lib/netaddr.rc
+
+# attach the #I device tree at /net
+bind -a '#I' /net || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+
+# ipifc: clone a conversation, bind the loopback medium, add the
+# loopback-leg address.  The ctl file is re-opened per write (the
+# binding persists across close — loopbackmedium's unbindonclose is 0).
+conv=`{cat /net/ipifc/clone} || {
+	echo netip: FAIL clone >[1=2]
+	exit clone
+}
+~ $#conv 1 || {
+	echo netip: FAIL clone >[1=2]
+	exit clone
+}
+
+test -e /net/ipifc/$conv/ctl || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+echo bind loopback > /net/ipifc/$conv/ctl || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+echo add $lo_guestv4 255.0.0.0 > /net/ipifc/$conv/ctl || {
+	echo netip: FAIL add >[1=2]
+	exit add
+}
+
+# /net/ipselftab must now carry the loopback address line (the contract's
+# "%-44.44I %2.2d %4.4s\n" content — the sweep reads the top-level file
+# surface; the rc ~ dialect lesson: a plain literal word compare).
+selftab=`{cat /net/ipselftab} || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+found=0
+for(w in $selftab){
+	if(~ $w $lo_guestv4)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+
+# the tcp/7 echo leg (NETIP-03's third leg): tcpecho announces tcp!*!7
+# (a NUMERIC port — no no-cs service-name discovery needed; the udp leg's
+# discovery dance was for `echo' passing identtrans verbatim).  The client
+# still spins until a tcp conv's local reports !7 — a NONZERO matching
+# port proves the announce ctl write completed (the single-CPU syscall
+# atomicity argument of the udp leg's port discovery; the pre-clone spin
+# is fork-free).  The server runs backgrounded and stays (the harness
+# tears the guest down after NETIP-DONE).
+ip/tcpecho &
+
+sport=''
+while (~ $sport '') {
+	for (d in /net/tcp/[0-9]*) {
+		loc=`{cat $d/local >[2]/dev/null}
+		if (~ $loc *!7) {
+			sport=7
+		}
+	}
+}
+
+# The client exchange, with the clone-opened ctl held on fd 4 across the
+# whole exchange (the conv-lifetime discipline: a devip conv RESETS on its
+# last close — rc's per-command `echo verb > ctl' shape would lose the
+# conv between commands; rc's `<>[4]' redirect is the man page's own
+# `newconn <>/net/tcp/clone' precedent).  The connect BLOCKS until the
+# loopback handshake resolves (the P-K bridge); the write/read ride the
+# byte stream; dd's -bs/-count one-read discipline takes exactly the echo
+# (a bare cat would block for more of the stream).
+{
+	tconv=`{cat <[0=4]} || {
+		echo netip: FAIL tcpclone >[1=2]
+		exit tcpclone
+	}
+	~ $#tconv 1 || {
+		echo netip: FAIL tcpclone >[1=2]
+		exit tcpclone
+	}
+	echo connect $lo_guestv4!7 >[1=4] || {
+		echo netip: FAIL tcpconnect >[1=2]
+		exit tcpconnect
+	}
+	tcptag=netip-tcp-probe-08-05
+	test -e /net/tcp/$tconv/data || {
+		echo netip: FAIL tcpdata >[1=2]
+		exit tcpdata
+	}
+	echo $tcptag > /net/tcp/$tconv/data || {
+		echo netip: FAIL tcpwrite >[1=2]
+		exit tcpwrite
+	}
+	reply=`{dd -if /net/tcp/$tconv/data -bs 512 -count 1 >[2]/dev/null} || {
+		echo netip: FAIL tcpread >[1=2]
+		exit tcpread
+	}
+	~ "$reply" "$tcptag" || {
+		echo netip: FAIL tcpcompare >[1=2]
+		exit tcpcompare
+	}
+	# the status leg: the live connection's status line leads with a
+	# devip state name (the §5.2 format — the tcpstates rename table).
+	st=`{cat /net/tcp/$tconv/status} || {
+		echo netip: FAIL tcpstatus >[1=2]
+		exit tcpstatus
+	}
+	~ $st(1) Closed Listen Syn_sent Syn_received Established Finwait1 Finwait2 Close_wait Closing Last_ack Time_wait || {
+		echo netip: FAIL tcpstatus >[1=2]
+		exit tcpstatus
+	}
+	echo netip: tcp status $st(1)
+} <>[4]/net/tcp/clone || {
+	echo netip: FAIL tcpclone >[1=2]
+	exit tcpclone
+}
+echo netip: tcp echo ok
+
+# the stats-honesty leg (P-M; the contract's 28-tag file): the exchange
+# moved the bridge-maintained counters — InSegs/OutSegs must read
+# non-zero (a zeros-forever stats file is a contract violation, D-08).
+stats=`{cat /net/tcp/stats} || {
+	echo netip: FAIL tcpstats >[1=2]
+	exit tcpstats
+}
+insegs=`{cat /net/tcp/stats | sed -n 's/^InSegs: //p'}
+outsegs=`{cat /net/tcp/stats | sed -n 's/^OutSegs: //p'}
+~ $#insegs 1 || {
+	echo netip: FAIL tcpstats >[1=2]
+	exit tcpstats
+}
+~ $#outsegs 1 || {
+	echo netip: FAIL tcpstats >[1=2]
+	exit tcpstats
+}
+if (~ $insegs '' 0) {
+	echo netip: FAIL tcpstats >[1=2]
+	exit tcpstats
+}
+if (~ $outsegs '' 0) {
+	echo netip: FAIL tcpstats >[1=2]
+	exit tcpstats
+}
+echo netip: tcp stats ok
+
+echo netip: NETIP-DONE
+exit ''
