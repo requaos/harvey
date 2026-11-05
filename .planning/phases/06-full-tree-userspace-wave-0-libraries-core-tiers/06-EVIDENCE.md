@@ -280,3 +280,67 @@ host drive's fate (USPACE-04's never-wedge edge held: T1-DONE in the
 fault run's log).  Green standing gate:
 [evidence/06-05-tier1-gate-donor.log](evidence/06-05-tier1-gate-donor.log)
 (21 × T1-OK, zero T1-FAIL, zero panic|trap:, T1-DONE, float 0.333).
+
+## 06-06 tier-1 completion + self-host canary run record (USPACE-06, D-09/D-11)
+
+- **Commits:** machinery `5edf99e83` (membership + sweep + fixed inputs)
+  → gate fixes `30914b2b0`, `4e16a8055`, `4ceb04875`, `ce779749f`,
+  `a9c8ff7c3`, `0ef2825d0`, `bbe2c4e82` → Task-1 ledger `f8b0b790e` →
+  canary machinery `17370bba1` → canary fixes `cd96f5ac7`, `fab7377c4`
+  (the gate-ran commit for the Task-2 ledger lines).
+- **Host:** darwin-aarch64 (lima guest linux-aarch64 namespace builds;
+  host qemu TCG donor boots).
+- **Build:** [evidence/06-06-tier1-build.log](evidence/06-06-tier1-build.log)
+  — 62 T1-ART + 35 T0-ART markers, `TIER-BUILD-OK`; **zero per-cmd
+  compile fixes needed** across the 37 new entries (the Pitfall-3 classes
+  again live at runtime, not compile time — and the donor gate measured
+  none either).
+- **Task-1 donor gate (full ~58-entry scale):**
+  [evidence/06-06-tier1-donor.log](evidence/06-06-tier1-donor.log) —
+  58 × T1-OK (55 computed members + float-d01 + libtest-tdraw +
+  libtest-disktest), zero T1-FAIL, zero panic|trap:, T1-DONE.  The
+  expected marker set is now COMPUTED from tier1-cmds.txt (never a second
+  hardcoded list to rot).
+- **A7 settled by observation:** `T1-BCOBS 0.333` — this bc prints the
+  fraction WITH the leading zero (RESEARCH's "may print .333" resolved:
+  it prints `0.333`).
+- **D-11 canary (full path — A3 verified, NO fallback):**
+  [evidence/06-06-selfhost.log](evidence/06-06-selfhost.log) — 61 ×
+  T1-OK including `T1-OK 7a` (the committed tiny.s assembled in-guest;
+  the canary's `7c -FTVw` emits .7 directly so 7a carries its own
+  marker), `T1-OK selfhost-compile` (the guest's OWN h7c+h7l compiled
+  and linked the committed hello.c in the writable /tmp scratch,
+  resolving headers + autolib libc.a from the srv9-served root's staged
+  /aarch64 tree), and `T1-OK selfhost` with
+  `T1-SELFHOST-OBS hello aarch64 harvey` — the guest-compiled binary
+  EXECUTED from the srv9 writable prefix and printed the known string
+  (T-06-12's separate compile/run markers; the known-output string is in
+  the retained serial log).  The A3 writable-prefix-exec mechanic works —
+  the fallback (COMPILE-ONLY + host-side R_MAGIC assert) was NOT needed.
+- **Venue findings filed for later plans (the gate's iterations caught
+  them):** the donor kernel's devroot caps /boot at Nbootfiles=32 —
+  subset-exec.sh now raises it to 128 in the donor-COPY tree (guest
+  scratch, scripted, idempotent, disclosed harness-side accommodation);
+  the served rootfs has NO /sys tree — the gate stages Harvey's
+  sys/lib/yaccpar + sys/lib/lex/ncform + sys/include into it (yacc/lex
+  open their skeletons by compiled-in absolute paths; 7c's include
+  search covers /sys/include for libc.h); 9front guest-rc lexes a bare
+  `=` as a word terminator (flag=value arguments must be quoted) and
+  plan9port rc rejects separated subshells inside backquotes (the sweep
+  is subshell-free; fn producers carry multi-command input streams);
+  rc redirect-open failure is an uncatchable Xerror (07-04's lesson —
+  look's db redirect is dir-probe-guarded); bc.y's execl("/bin/dc") is
+  hardcoded and the donor's served /bin is minimal — the sweep
+  union-mounts a shim (/tmp/bc-bin/dc ← our hdc) over /bin with the
+  donor's own /bin/bind; the guest's /tmp is the MCREATE bind of
+  /usr/glenda/tmp, so scratch cleanup mirrors BOTH branches.
+- **Ledger lines appended:** 37 × `exec=T1-OK:donor` tier-1 lines
+  (build chain + coreutils, evidence = 06-06-tier1-donor.log), the
+  tier-0 libmach supersede to `exec=CARRIED:nm` (nm.c:8 <mach.h>; D-06),
+  and the 4 × `exec=T1-OK:donor` supersede lines for 7a/7c/7l/cc
+  (evidence = 06-06-selfhost.log).  No PENDING-CANARY survives as any
+  dir's latest line.
+- **dir-coverage (D-15 standing rule):** regenerated after the plan's
+  commits — **unchanged** (the plan's members are single-file targets or
+  already-ok dirs; no dir-level build rows flipped), `git diff
+  --exit-code` green; no re-baseline commit needed.

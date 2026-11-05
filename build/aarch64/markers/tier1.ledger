@@ -80,3 +80,16 @@ tier=1 dir=cmd/read bin=read sha256=768541fa714cdb0b333c380a9bd2c7bbd2f978900dec
 tier=1 dir=cmd/du bin=du sha256=342509b53e0178ad61546f452e5def72b325a18a51cf26c1bddb5eb0875462cc exec=T1-OK:donor evidence=.planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-06-tier1-donor.log commit=bbe2c4e82c81cf970fb11e8936ee42b9b12e162a date=2026-11-05
 tier=1 dir=cmd/xd bin=xd sha256=0a066b53f3a8498afb6abea7b40c31dcda54fabc5a93c01729f9eab88d6b13ea exec=T1-OK:donor evidence=.planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-06-tier1-donor.log commit=bbe2c4e82c81cf970fb11e8936ee42b9b12e162a date=2026-11-05
 tier=1 dir=cmd/nm bin=nm sha256=4ebe49e5feebe49643ae8daa75c7aa8a791f6e60e101fad18f8c29c9872b80f4 exec=T1-OK:donor evidence=.planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-06-tier1-donor.log commit=bbe2c4e82c81cf970fb11e8936ee42b9b12e162a date=2026-11-05
+# 06-06 Task 2 (D-11): the guest self-host canary supersedes the
+# PENDING-CANARY:06-06 lines.  7c compiled + 7l linked the committed
+# hello.c in the guest's writable /tmp and the product RAN from the
+# srv9 writable prefix printing 'hello aarch64 harvey' (A3 verified on
+# the full path — no fallback); 7a assembled the committed tiny.s
+# (the canary's 7c -FTVw emits .7 directly, so 7a carries its own
+# marker); cc's evidence is cc.a7 linked INTO 7c — the canary's 7c run
+# IS the shared frontend's execution.  Full path, 61 x T1-OK, zero
+# T1-FAIL, zero panic|trap:, T1-DONE.
+tier=1 dir=cmd/7a bin=7a sha256=c5b71ce4f59316a97ff815c921d30d22bffccfbe9cdb6b2efc32537c00fa2c9e exec=T1-OK:donor evidence=.planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-06-selfhost.log commit=fab7377c413ae6d5fca7f2a67aa9fda07519f9b2 date=2026-11-05
+tier=1 dir=cmd/7c bin=7c sha256=c2087339e14cb4ad50eb57fce36f85fccb448b33ba52e7461c408a64c6ca8557 exec=T1-OK:donor evidence=.planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-06-selfhost.log commit=fab7377c413ae6d5fca7f2a67aa9fda07519f9b2 date=2026-11-05
+tier=1 dir=cmd/7l bin=7l sha256=9ac1334d197da6067ac5386f681e0066fbb54ef02acd121730b7ba063342bccc exec=T1-OK:donor evidence=.planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-06-selfhost.log commit=fab7377c413ae6d5fca7f2a67aa9fda07519f9b2 date=2026-11-05
+tier=1 dir=cmd/cc bin=cc.a7 sha256=fa140018c5d416519229c6b5edc6a2d86c9ae154c4dbd381db95d62a81f79722 exec=T1-OK:donor evidence=.planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-06-selfhost.log commit=fab7377c413ae6d5fca7f2a67aa9fda07519f9b2 date=2026-11-05
