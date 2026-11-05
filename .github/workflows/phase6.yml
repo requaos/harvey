@@ -101,8 +101,9 @@ jobs:
           log=.build/wave0-gethunk.log
           : > "$log"
           for c in "gethunk-repro-cc.sh archive" "gethunk-repro-cc.sh verify" "gethunk-repro-6l.sh archive" "gethunk-repro-6l.sh verify"; do
+            set -- $c
             echo "== $c" | tee -a "$log"
-            nix develop -c sh "build/aarch64/$c" >>"$log" 2>&1 || {
+            nix develop -c sh "build/aarch64/$1" "$2" >>"$log" 2>&1 || {
               rc=$?
               echo "GETHUNK-GATE-FAIL: $c rc=$rc" | tee -a "$log"
               { echo "## ❌ gethunk repro gate failed: \`$c\` (rc=$rc)"; echo '```'; tail -80 "$log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
