@@ -265,8 +265,10 @@ if not echo T1-FAIL strings
 # xd: 4-byte hex dump (-4x) of the sentinel — the LE long words are
 # deterministic: 'alph' → 68706c61, ' bra' → 61726220 (the -c char
 # format spaces every character, so a substring assert cannot work —
-# measured 06-06)
+# measured 06-06).  T1-XDOBS records the raw dump in the retained log
+# (observation marker, same class as T1-BCOBS)
 xdout=`{/boot/hxd -4x /boot/sentinel.txt}
+echo T1-XDOBS $xdout
 xdok=0
 if(~ $"xdout *68706c61*) if(~ $"xdout *61726220*) xdok=1
 if(~ $xdok 1) echo T1-OK xd
@@ -314,9 +316,13 @@ if(~ $venue donor){
 	if not echo T1-FAIL rm
 
 	# --- 06-06 write-flow + look checks (D-09) --------------------
-	# The build-chain checks below (yacc/lex/mk) write their outputs
-	# to the CURRENT directory, so the rest of this block runs from
-	# the writable /tmp scratch.  Every other check here uses absolute
+	# The rm check above DELETED /tmp/tier1 (it covers the file AND
+	# the emptied dir) — recreate the scratch dir before the rest of
+	# this block writes into it (measured on the donor 06-06:
+	# 'file does not exist: /tmp/tier1' down the whole block).  The
+	# build-chain checks (yacc/lex/mk) write their outputs to the
+	# CURRENT directory, so the rest of this block runs from the
+	# writable /tmp scratch.  Every other check here uses absolute
 	# paths and is cwd-indifferent.  (The plan9port rc lexer —
 	# host-measured 06-06 — rejects subshells with separators inside
 	# backquotes, and plain-position (…) || … subshells misparse too,
@@ -326,6 +332,7 @@ if(~ $venue donor){
 	# word (rc lex.c's wordchr excludes it), so flag=value arguments
 	# must be quoted — see cpp's '-DVALUE=41'.)
 	cd /tmp
+	/boot/hmkdir /tmp/tier1
 
 	# bc: bc.y's execl("/bin/dc") is hardcoded, and the donor's served
 	# /bin is the minimal 20-entry set with NO dc — union-mount a shim
@@ -413,10 +420,14 @@ if(~ $venue donor){
 	# look: binary-search a generated sorted db (the sentinel is NOT
 	# sorted — '_' < 'a' — so it is an unreliable fixed input for
 	# bisection; the generated db is the honest shape).  fn producer:
-	# no subshells (see the block head note)
+	# no subshells (see the block head note).  The redirect is guarded
+	# by a dir probe first: a redirect-open failure is an uncatchable
+	# rc Xerror that would abort the sweep without a marker (07-04's
+	# lesson)
 	fn lookdb { /boot/hecho __LOOK_A__ ; /boot/hecho __LOOK_B__ }
 	lok=1
-	lookdb > /tmp/tier1/look.db || lok=0
+	/boot/htest -d /tmp/tier1 || lok=0
+	if(~ $lok 1){ lookdb > /tmp/tier1/look.db || lok=0 }
 	if(~ $lok 1){
 		lout=`{/boot/hlook __LOOK_A__ /tmp/tier1/look.db}
 		if(~ $"lout __LOOK_A__) echo T1-OK look
