@@ -66,3 +66,7 @@ tier=0 dir=liboventi artifact=aarch64/lib/liboventi.a sha256=c2a70ef211480ddc8e7
 tier=0 dir=libmach artifact=aarch64/lib/libmach.a sha256=f7374a556f9335d77cc361f4f888f9b507c9153c31b12fbf992747b4d7ec6650 exec=PENDING:nm-tier1 evidence=.planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-05-tier0-wave-build.log commit=9397b6823e99acde09bb1d2de5275a424cd90b19 date=2026-11-05
 tier=0 dir=libaml artifact=aarch64/lib/libaml.a sha256=c8a60e3e1ee5b181d9730a2208ab7c013b7222a91093dbbf1c334da0d4366967 exec=EXCLUDED:no-consumer evidence=.planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-05-tier0-wave-build.log commit=9397b6823e99acde09bb1d2de5275a424cd90b19 date=2026-11-05
 tier=0 dir=libdynld artifact=aarch64/lib/libdynld.a sha256=587619257a3236a8b7cb571785b3845272f141b2d93fc57213db46f2e664dee4 exec=EXCLUDED:no-consumer evidence=.planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-05-tier0-wave-build.log commit=9397b6823e99acde09bb1d2de5275a424cd90b19 date=2026-11-05
+# 06-06: nm joined tier-1 and donor-executed (its T1-OK:donor is in
+# 06-06-tier1-donor.log) — libmach's execution is consumer-carried by nm
+# (nm.c:8 #include <mach.h>; D-06).  Supersedes PENDING:nm-tier1.
+tier=0 dir=libmach artifact=aarch64/lib/libmach.a sha256=f3e0bf5900adfce66df51f6df3cc79760eccef557bb0542e5b1d47166f129125 exec=CARRIED:nm evidence=.planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-06-tier1-donor.log commit=bbe2c4e82c81cf970fb11e8936ee42b9b12e162a date=2026-11-05
