@@ -578,3 +578,58 @@ fault run's log).  Green standing gate:
   row proves host-dependent, the D-15 diff reds on first push — the
   gate working as designed; the report header's re-baseline standing
   rule applies.
+
+## 06-08 Task 2 — the USPACE-10 pool-panic re-test record (D-04)
+
+- **Commits:** verdict harness `30d9d5cd2` + the healthy-marker
+  correction `cbdee1f87` (Rule-1 deviation — see below) + the
+  x86_64-poolpanic CI job `c8f542246`.
+- **Harness:** `build/mm/boot-9k10cpu-qemu.sh` — plain qemu `-kernel`
+  (minimega-free, D-03), capture truncated before launch, accel probed
+  exactly once per run (kvm iff /dev/kvm writable else tcg/-cpu qemu64,
+  600s budgets, PP_BOOT_BUDGET/PP_CONTINUE_BUDGET overrides), whole-log
+  classification against the recorded 01-04 signature set (`bad magic`,
+  `panic`, `suicide: sys: trap`), verdict file grammar
+  `VERDICT=PASS|FAIL <classification>` + banner/signatures/
+  healthy_markers/accel/kernel/log/commit/date.  Exit 0 iff a verdict
+  was PRODUCED (banner seen + classification written) — never gated on
+  PASS; empty capture → FAIL no-banner + non-zero (the leg never greens
+  on an empty log).
+- **THE VERDICT (local, darwin-aarch64, qemu 11.1.2 TCG, kernel
+  artifact amd64/9k10cpu.elf built from this pswt-fixed tree):**
+  **`VERDICT=PASS no-panic-signature boot-continues`** — banner at 5s,
+  the boot sailed PAST the 01-04 panic point ("508M memory…" → boot.c's
+  `root is from (tcp)[tcp]: ` method prompt, boot.c:342), ZERO
+  signature lines in the whole capture.  The Phase-2 pswt.c LP64 fix
+  (`7efff3aa3`) cured the 9k-amd64 bad-magic pool panic — the same root
+  cause as the donor kernel's, as the Phase-2 audit hypothesized.
+  USPACE-10 is closed WITH INFORMATION.  Full record:
+  [evidence/poolpanic-verdict.md](evidence/poolpanic-verdict.md);
+  retained serial capture:
+  [evidence/06-08-poolpanic-serial.log](evidence/06-08-poolpanic-serial.log).
+- **Rule-1 deviation (marker vocabulary):** the plan-named healthy
+  markers (boot.c's `argc=` / `version...`) are unreachable in the
+  production build — `argc=` is `#ifdef DEBUG`-gated (boot.c:68-73) and
+  `version...` prints only after a rootfs connection (boot.c:139), which
+  a capture-only serial never establishes.  The first local run
+  classified the healthy boot `banner-only` (healthy_markers=no).
+  Corrected to the production build's actual post-panic print
+  (`root is from`, with the plan's two retained as recognized
+  alternatives) and re-run fresh — same boot, honest
+  `boot-continues` classification.  Run-1's verdict is retained in the
+  evidence record (superseded, never silently rewritten).
+- **Teeth runs (all recorded in the evidence file):** incident-shaped
+  canned log → `VERDICT=FAIL pool-panic-signature` exit 0
+  (production-not-outcome); empty log → `FAIL no-banner` exit 1;
+  healthy canned log → `PASS boot-continues` exit 0; a deliberately
+  wrong kernel image through REAL qemu → `FAIL no-banner` exit 1
+  (qemu `invalid kernel header` at 5s); the production-shape healthy
+  log (root-is-from only) → `PASS boot-continues` exit 0.
+- **CI leg:** the `x86_64-poolpanic` job (phase6.yml) builds 9k10cpu
+  from the clean checkout via `nix run .#build` (the pswt-fixed 6c
+  guaranteed independent of local hostbin), runs the harness, asserts
+  the verdict FILE + VERDICT= line, and uploads the serial log +
+  verdict as artifacts (`if: always()`).  **Hosted run: PENDING FIRST
+  PUSH** — the KVM-classified verdict lands at first push; the local
+  TCG verdict stands as the recorded evidence meanwhile (D-04's
+  recorded-either-way letter satisfied).
