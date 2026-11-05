@@ -1,0 +1,152 @@
+# phase6.yml — the phase-6 full-pipeline CI (D-16) + the USPACE-10
+# x86_64 9k pool-panic verdict leg (D-04).  A SIBLING of r9-shell.yml
+# and the legacy harvey.yml — both byte-untouched.  A clean checkout of
+# this repo runs every gate phase 6 built, on ubuntu-latest:
+#
+#   wave0-host  (fast, 45m): host toolchain → the gethunk ×2 repro gates
+#               (archive mode rebuilds the recorded PREREF pristine
+#               compilers from git — the teeth proof — then verify
+#               asserts the hang signature on them and green on the
+#               fixed hostbin pair, USPACE-01) → the coverage report
+#               regenerated IN PLACE and `git diff --exit-code`d (the
+#               working tree vs the committed copy IS the drift signal —
+#               D-15, USPACE-02) → the generator .7-magic scan
+#               (USPACE-03's mechanical red) → the grep-hygiene gate
+#               (D-02) → the FPdbleword region assert (D-01).
+#   tier-donor  (slow, 90m): subset-build.sh + subset-exec.sh on the
+#               native-linux venue (NATIVE_LINUX engages by uname:
+#               nsrun sudo-unshare, donor clone pin-verified to
+#               350266104f host-side, TCG aarch64 qemu) — the tier-0/1
+#               donor execution gate (USPACE-04's first venue).
+#   tier-r9     (slow, 90m): nix run .#boot-r9-tier1 — the tier-1 sweep
+#               on the flake.lock-pinned r9 kernel (06-07's app;
+#               USPACE-04's second venue, D-12).  TCG on the runner.
+#
+# CI-green means LINUX only — the darwin leg is documented-manual
+# (build/REPRODUCIBILITY.md names the exact commands); no darwin leg
+# runs here (the r9-shell.yml precedent).
+#
+# Supply chain: EVERY action below is pinned to a full 40-char commit
+# SHA, never a floating tag (r9-shell.yml:35's `@v4` checkout is NOT
+# repeated — CONCERNS IN-06):
+#   actions/checkout v4                          = 11d5960a326750d5838078e36cf38b85af677262
+#   DeterminateSystems/nix-installer-action v23  = 3138316df39ed29be04236d7ffc686fa525866aa
+#   actions/upload-artifact v4                   = ea165f8d65b6e75b540449e92b4886f43607fa02
+# (checkout + upload-artifact resolved via the GitHub API
+# git/refs/tags/<tag> at authoring time, 2026-11-05; the
+# nix-installer-action pin is the 05-13 pin.)
+# Permissions are the default checkout scope (contents: read) — the
+# pipeline builds and boots locally; no extra tokens or secrets.
+# A concurrency group cancels superseded runs — 90-min TCG serial legs
+# would otherwise amplify on every push (T-06-18).
+
+name: phase6-userspace
+
+on: [push, pull_request]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: phase6-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  wave0-host:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: install nix
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: host toolchain (hostbin 6c/7c + plan9port)
+        run: nix run .#toolchain
+      - name: gethunk repro gates (USPACE-01)
+        # archive mode builds the teeth (the recorded PREREF pristine
+        # compilers) from git — CI-durable from any later checkout;
+        # verify asserts RED on them + GREEN on the fixed hostbin pair.
+        run: |
+          nix develop -c sh build/aarch64/gethunk-repro-cc.sh archive
+          nix develop -c sh build/aarch64/gethunk-repro-cc.sh verify
+          nix develop -c sh build/aarch64/gethunk-repro-6l.sh archive
+          nix develop -c sh build/aarch64/gethunk-repro-6l.sh verify
+      - name: coverage report regen + drift diff (USPACE-02, D-15)
+        # Regenerate IN PLACE — intentionally range-less: the working
+        # tree vs the committed copy IS the drift signal.
+        run: |
+          nix develop -c sh build/aarch64/coverage-sweep.sh
+          git diff --exit-code build/aarch64/dir-coverage.txt
+      - name: generator .7-magic scan (USPACE-03)
+        run: nix develop -c sh build/aarch64/generator-scan.sh
+      - name: grep-hygiene gate (D-02)
+        # No absolute-path grep CALL shape survives in
+        # build/aarch64/*.sh.  The sanctioned idiom is the per-script
+        # `GREP=$(command -v /usr/bin/grep || command -v grep)`
+        # resolution line (and its comments) — the forbidden shape is
+        # an INVOCATION: the absolute path followed by flags.
+        run: |
+          if grep -nE '/usr/bin/grep[[:space:]]+-' build/aarch64/*.sh; then
+            echo "GREP-HYGIENE-FAIL: absolute-path grep call shape survives" >&2
+            exit 1
+          fi
+          echo "GREP-HYGIENE-OK"
+      - name: FPdbleword region assert (D-01)
+        # Sed the union region out of aarch64/include/u.h and require
+        # exactly the two uint members (the amd64 reference shape);
+        # any surviving ulong member is red.
+        run: |
+          region=$(sed -n '/^union FPdbleword/,/^};/p' aarch64/include/u.h)
+          n=$(printf '%s\n' "$region" | grep -cE '^[[:space:]]+uint[[:space:]]+(lo|hi);')
+          if [ "$n" -ne 2 ]; then
+            echo "FPDBL-FAIL: want exactly the uint lo/hi members, found $n" >&2
+            exit 1
+          fi
+          if printf '%s\n' "$region" | grep -q 'ulong'; then
+            echo "FPDBL-FAIL: a ulong member survives in FPdbleword" >&2
+            exit 1
+          fi
+          echo "FPDBL-OK"
+
+  tier-donor:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90 # TCG aarch64 scale; the gate's own BOOT_BUDGET localizes failures
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: install nix
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: tier-0/1 build (native-linux namespace)
+        # NATIVE_LINUX engages by uname: nsrun.sh sudo-unshare, host
+        # toolchain auto-bootstraps via nix run .#setup / .#toolchain.
+        run: nix develop -c sh build/aarch64/subset-build.sh
+      - name: tier-0/1 donor execution gate (TCG aarch64)
+        # Native-linux donor venue (Pitfall P6-4): the donor clone +
+        # pin-verify 350266104f runs host-side; the rebake runs in the
+        # host's own mount namespace; qemu aarch64 under TCG.
+        run: nix develop -c sh build/aarch64/subset-exec.sh
+      - name: upload the gate logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tier-donor-logs
+          path: |
+            .build/subset-build.log
+            .build/9front-dist/subset-exec.log
+            .build/9front-dist/subset-rebake.log
+          if-no-files-found: warn
+
+  tier-r9:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90 # TCG scale; the driver's per-stage 600s timeouts localize failures
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: install nix
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: tier-1 r9 gate (boot-r9-tier1)
+        run: nix run .#boot-r9-tier1
+      - name: upload the retained gate log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tier-r9-log
+          path: build/aarch64/tier1-r9.log
+          if-no-files-found: warn
