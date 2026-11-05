@@ -175,3 +175,108 @@ host, marker summary, retained log path under `evidence/`, and the
 ledger lines appended by the run.  Append-only; never edit earlier
 records (supersede via the ledgers' last-line-wins rule and a new
 section here).
+
+## 06-05 tier-0 library wave record (USPACE-05, D-05..D-08)
+
+- **Commits:** verdict `2d2fa5725` (libdynld rename kept — probe-built
+  green in the namespace venue BEFORE the wave); wave machinery
+  `fa19c15f7` (21 appends in the research dependency sort + the liblex
+  archive-name mapping + the darwin lib rsync-back); ledger seed
+  `90224e2e8` (22 × PENDING-CLASSIFY in exact tier-file order); libtest
+  machinery + donor gate `9397b6823` (the commit the classification
+  lines name).
+- **Host:** darwin-aarch64 (lima guest linux-aarch64 namespace builds;
+  host qemu TCG donor boots).
+- **Sweep:** 35/35 `T0-ART` lines, `TIER-BUILD-OK`, zero per-lib compile
+  fixes needed.  Member sanity: every object member across all 35 fresh
+  archives is `.7` — zero committed `.6`/`.8` cargo-culted (D-07;
+  `__.SYMDEF` symtabs aside); host archives byte-matched the guest
+  gate-time sha256s at rsync-back.
+  Log: [evidence/06-05-tier0-wave-build.log](evidence/06-05-tier0-wave-build.log)
+- **libdynld verdict (D-08 recommendation (i)):** `dynld-arm64.c →
+  dynld-aarch64.c` rename KEPT — probe-built before the wave
+  (`rm -f /aarch64/lib/libdynld.a`, `objtype=aarch64 mk install` →
+  fresh 3-member `.7`-only archive, `DYNLD-PROBE-OK`).  Compile note
+  filed below (not a failure).
+- **liblex machinery fix (not a compile failure):** liblex's mkfile
+  builds `libl.a` (the lex runtime's historical name — consumers link it
+  by that name), not `liblex.a`; the driver's lib<dir-minus-lib> name
+  map aborted the first sweep run at liblex (`no artifact
+  /aarch64/lib/liblex.a` after a green compile).  Fixed with an explicit
+  per-lib archive-name case in subset-build.sh.
+- **Execution classification (D-06/D-08) — all 22 final:**
+  - `TEST:donor` (in-tree test ran green on the donor): **libdraw**
+    (`T1-OK libtest-tdraw` — the additive `$O.test` rule this wave adds;
+    test.c had no rule), **libdisk** (`T1-OK libtest-disktest` —
+    opendisk's plain-file fallback on a /tmp fixture).
+  - `TEST-FAIL:donor` (in-tree tests ran and FAULTED — filed Phase-10
+    checklist below): **libmemdraw** (drawtest + arctest).
+  - `PENDING:nm-tier1`: **libmach** — `nm.c:8` `#include <mach.h>`; nm
+    joins tier-1 in 06-06 and supersedes this line to CARRIED:nm.
+  - `EXCLUDED:no-consumer`: **libaml** (only self-consumers tree-wide;
+    the 9k kernel never includes aml.h), **libdynld** (zero dynld.h
+    includers outside libdynld — rename verdict recorded, artifact
+    green).
+  - `EXCLUDED:no-tier1-consumer` (16): libavl (avl.h's only tree-wide
+    consumer is venti/copy.c), libbin (upas/bayes/dfa.c, venti/copy.c),
+    libcomplete (acme/text.c; gs excluded), libgeometry, liblex (libl.a
+    is the runtime for lex-GENERATED scanners; the lex binary itself
+    self-contains — sub1.c defines allprint), libstdio (153 cmd
+    includers, ape-flavored, Phase-10), libplumb (tier-3 plumber),
+    libscribble (sole consumer libcontrol/scribble.c — a tier-3 lib
+    chain, no tier-1 binary), libmemlayer (tier-3 GUI; arctest
+    references no memlayer symbol), libframe (acme/sam), libcontrol
+    (tier-3 GUI), libhtml (webfs/links), libhttpd (ip/httpd),
+    libsunrpc (9nfs/nfs), libventi + liboventi (venti suite).
+    Grep evidence: no swept or 06-06-planned tier-1 source includes any
+    of these libs' headers, and no `#pragma lib "<archive>"` references
+    them (swept-set + tree-wide greps, 2026-11-05).
+- **Ledger lines appended:** 22 PENDING-CLASSIFY seeds (`90224e2e8`),
+  superseded by the 22 final classification lines (the classification
+  commit; last-line-per-dir-wins).
+
+### Phase-10 per-dir checklist (the plan's no-drive-by rule — filed, not fixed)
+
+- **libmemdraw (drawtest):** donor run faults — `suicide: sys: trap:
+  fault read addr=0x0 pc=0x1ab50`; the pc symbolizes INSIDE `abort()`
+  (0x1ab4c..0x1ab5b), i.e. the stochastic memimagedraw pixel
+  verification detected a mismatch on aarch64 (the null read is abort's
+  own mechanism).  Pixel-path LP64/struct-punning audit needed
+  (Pitfall-3 class).
+- **libmemdraw (arctest):** `fault write addr=0x1c001374bc
+  pc=0x155bc`; the pc sits inside `memsetl` — the caller's destination
+  pointer is garbage (LP64-fossil signature).  memarc → fill-path audit.
+- **libdynld:** `dynld.c:128` — 7c: "useless or misleading comparison:
+  ULONG < 0" (compile note; the lib archived green).
+- **liboventi:** the `$O.vttest` + `test:` mkfile targets reference a
+  `vttest.c` that does not exist — stale target; Phase 10 decides
+  (remove the target or restore the source).
+- **libmemdraw mkfile:** the `$O.test` target references a `test.c`
+  that does not exist (same stale-target class; only drawtest/arctest
+  are real).
+
+### rc `~` dialect discovery (sweep-author trap, measured host-side 2026-11-05)
+
+Quoting DISABLES wildcarding in `~` patterns: a quoted `*` is a literal
+star (`~ foo 'f*'` never matches; wildcards must be bare — the sweep's
+existing `*20[0-9][0-9]*` idiom).  Multi-star spans over literal text
+are unreliable even bare (the three-group `* [0-9]* [0-9]* [0-9]* from *
+shape never matched a valid '2048 64 32 from guess').  Assert multi-part
+output in separate proven-shape conditions (disktest: `*' from '*` AND
+`[0-9]*`).  Same D-02-shadowing-class family as 06-04's sed/date
+findings.
+
+### drive9 fast-fail interaction (standing-gate shape note)
+
+A faulting binary's per-proc `suicide: sys: trap:` note trips drive9's
+deliberate shared panic fast-fail (`panic|trap:` hardcoded) — observed
+twice this plan (06-03's hawk fault was the first).  The standing sweep
+therefore carries only green libtest members (tdraw, disktest); the two
+faulting libmemdraw tests are evidence-captured
+([evidence/06-05-libtest-donor.log](evidence/06-05-libtest-donor.log) —
+all four markers + both fault lines + T1-DONE) and rejoin the sweep when
+Phase 10 fixes the lib.  The guest completes the sweep regardless of the
+host drive's fate (USPACE-04's never-wedge edge held: T1-DONE in the
+fault run's log).  Green standing gate:
+[evidence/06-05-tier1-gate-donor.log](evidence/06-05-tier1-gate-donor.log)
+(21 × T1-OK, zero T1-FAIL, zero panic|trap:, T1-DONE, float 0.333).
