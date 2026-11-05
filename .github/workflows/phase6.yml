@@ -76,6 +76,12 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: install nix
         uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: host bin bootstrap (pcc + plan9port userland)
+        # toolchain.sh hard-requires $HARVEY_LINUX_BIN/pcc — on a clean
+        # runner hostbin-linux-x86_64/ does not exist yet (local
+        # validation never saw this: the dev hosts' hostbin dirs were
+        # populated long ago).
+        run: nix run .#setup
       - name: host toolchain (hostbin 6c/7c + plan9port)
         run: nix run .#toolchain
       - name: gethunk repro gates (USPACE-01)
@@ -175,6 +181,13 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
       - name: install nix
         uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: host bin + toolchain provisioning
+        # nix/build.sh asserts pcc/cpp/ar in $HARVEY_LINUX_BIN before
+        # building — provision them on the clean runner (same missing
+        # prerequisite class as wave0-host's setup step).
+        run: |
+          nix run .#setup
+          nix run .#toolchain
       - name: build 9k10cpu from the clean checkout (pswt-fixed 6c)
         run: nix run .#build
       - name: accel probe (recorded in the verdict file)
