@@ -60,6 +60,11 @@ done
 command -v sudo >/dev/null || err "sudo missing — the namespace build needs it (unshare -m + bind mounts)"
 [ -n "${PLAN9:-}" ] && [ -x "$PLAN9/bin/rc" ] || err "\$PLAN9/bin/rc missing — run inside the nix devshell (nix develop)"
 
+# the 06-02 idiom (D-02): the log greps below use -q/-E, which plan9
+# grep lacks — resolve a host grep once (never rely on PATH ordering
+# against the devshell's plan9port tail)
+GREP=$(command -v /usr/bin/grep || command -v grep) || err "no host grep found"
+
 # --- staging (idempotent): the sweep, sentinel, and nm-input ride ------
 # the embedded root from a transient staging dir (single-sourced in
 # build/aarch64/; .tier1-stage is gitignored, never committed).
@@ -135,7 +140,7 @@ fi
 # k10t1.c.  (mkrootall prints no count and mk echoes the embed recipe as
 # one logical recipe, so log-line counting is unsound.)
 if [ "$fails" -eq 0 ]; then
-	N=$(grep -c 'addbootfile("' k10t1.c)
+	N=$("$GREP" -c 'addbootfile("' k10t1.c)
 	echo "embedded root files: $N"
 	[ "$N" = 43 ] || { echo "error: embedded root file count $N != 43 (devroot.c's panic ceiling is 64; a missing stage file fails mk's prerequisite check first)" >&2; fails=1; }
 fi
@@ -175,7 +180,7 @@ fi
 # the embedded-count line must be exactly 43 (re-asserted host-side from
 # the captured log — the in-namespace assert is the primary; this is the
 # driver's own record)
-if ! grep -q '^embedded root files: 43$' "$LOG"; then
+if ! "$GREP" -q '^embedded root files: 43$' "$LOG"; then
 	echo "error: the build log lacks 'embedded root files: 43' — the venue embed count is wrong; last 40 lines:" >&2
 	tail -40 "$LOG" >&2
 	exit 1
@@ -192,5 +197,5 @@ if [ -n "$_dirty" ]; then
 fi
 
 # success: surface the key evidence lines from the captured log
-grep -E '^embedded root files: |9k10(t1|cpu)\.elf' "$LOG" | tail -6 || true
+"$GREP" -E '^embedded root files: |9k10(t1|cpu)\.elf' "$LOG" | tail -6 || true
 echo "== build-9k10t1 OK: amd64/9k10t1.elf ($(wc -c < "$HARVEY/amd64/9k10t1.elf" | tr -d ' ') bytes), 9k10cpu relinked against devroot(Nbootfiles=64), k10 tree git-clean"
