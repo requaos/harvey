@@ -131,6 +131,14 @@ Xbackq(void)
 		closeio(f);
 		Waitfor(pid, 0);
 		poplist();	/* ditch split in "stop" */
+		/* 06-07: at a TOP-LEVEL backquote assignment the popped "stop" list
+		 * was the stack's ONLY list — the stack then reads argv==0 and the
+		 * next op's pushword/deref faults ("pushword but no argv", a measured
+		 * flake on the r9 tier-1 sweep's `out=\`{...}\`` checks).  Restore
+		 * the invariant every reader assumes: Xbackq leaves a list on the
+		 * stack for the result (empty or not). */
+		if(runq->argv==0)
+			pushlist();
 		/* v points to reversed arglist -- reverse it onto argv */
 		while(v){
 			nextv = v->next;
