@@ -271,10 +271,14 @@ cp "$HARVEY/sys/lib/lex/ncform" "$ROOTFS/sys/lib/lex/ncform"
 # /aarch64/lib/libc.a must exist IN THE SERVED ROOT (7l autolibs libc.a
 # via libc.h's #pragma lib).  Stage Harvey's committed arch include
 # tree + the freshly built libc.a (subset-build's tier-0 fresh-archive
-# product, rsynced back host-side on the darwin leg).
-rm -rf "$ROOTFS/aarch64/include"
-mkdir -p "$ROOTFS/aarch64/lib"
+# product, rsynced back host-side on the darwin leg).  The compiler's
+# include search also covers /sys/include (measured on the donor:
+# u.h resolves from /aarch64/include, then libc.h is wanted from
+# /sys/include) — stage the committed sys/include tree as well.
+rm -rf "$ROOTFS/aarch64/include" "$ROOTFS/sys/include"
+mkdir -p "$ROOTFS/aarch64/lib" "$ROOTFS/sys"
 cp -R "$HARVEY/aarch64/include" "$ROOTFS/aarch64/include"
+cp -R "$HARVEY/sys/include" "$ROOTFS/sys/include"
 cp "$HARVEY/aarch64/lib/libc.a" "$ROOTFS/aarch64/lib/libc.a"
 
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/subset-exec.XXXXXX")

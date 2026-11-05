@@ -3,5 +3,5 @@
 // assembler gets its own explicit input: staged as bootdir data and
 // assembled in-guest by /boot/h7a in the writable /tmp scratch; the
 // marker is the produced tiny.7.
-TEXT	·main(SB), 0, $0
+TEXT	main(SB), 1, $-4
 	RETURN
