@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 29
+open_count: 30
 waived_count: 3
 fixed_count: 2
-total_count: 34
-last_updated: 2026-11-05T00:05:08.206Z
+total_count: 35
+last_updated: 2026-11-05T00:10:54.539Z
 ---
 
 # Broken Windows Ledger
@@ -49,6 +49,7 @@ last_updated: 2026-11-05T00:05:08.206Z
 | 32 | 07 | deviation | build/aarch64/mkimage.sh | 165 | trailer magic re-extracted via od -j (Harvey host dd shadows POSIX dd on the devshell PATH — D-02 class) | open |  | 2026-11-05T00:04:58.144Z |  |
 | 33 | 07 | deviation | build/aarch64/root-tree/lib/net-sweep.rc | 77 | dd syntax corrected to dash-pair form (-if/-of); the baked dd.c rejects classic if=/of= (plan prose corrected, gate-blocking) | open |  | 2026-11-05T00:05:04.202Z |  |
 | 34 | 07 | deviation | build/aarch64/mkimage.sh | 165 | trailer magic re-extracted via od -j (Harvey host dd shadows POSIX dd on the devshell PATH — D-02 class) | open |  | 2026-11-05T00:05:08.206Z |  |
+| 35 | 06 | deviation | .planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/06-02-PLAN.md | 216 | 06-02 Task-3 verify gate 2 text defective: mk -n never recurses, so the nested-path grep on cmd's own output always counts 0; intent proven by chain probes in 06-02-SUMMARY; repair gate text at 06-03 planning | open |  | 2026-11-05T00:10:54.539Z |  |
 
 ````json
 [
@@ -491,6 +492,19 @@ last_updated: 2026-11-05T00:05:08.206Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-05T00:05:08.206Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 35,
+    "kind": "deviation",
+    "phase": "06",
+    "file": ".planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/06-02-PLAN.md",
+    "line": 216,
+    "description": "06-02 Task-3 verify gate 2 text defective: mk -n never recurses, so the nested-path grep on cmd's own output always counts 0; intent proven by chain probes in 06-02-SUMMARY; repair gate text at 06-03 planning",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T00:10:54.539Z",
     "resolved_at": null,
     "milestone": "v2.0"
   }
