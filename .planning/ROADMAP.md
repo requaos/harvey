@@ -126,9 +126,9 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   4. The guest takes an address and is reachable: arp + ethermedium bound to devether, static ipconfig assigns IPv4, DHCP works via ipconfig `/net/udp` broadcast fidelity (or the recorded smoltcp dhcpv4 fallback), and the devip ip6 tree + ipconfig IPv6 configuration are demonstrated (NETIP-04, NETIP-05, NETIP-06)
   5. The networking exit gate is green: sustained bidirectional TCP flow + load soak **on the tap leg** (slirp evidence explicitly not accepted — it forgives L2 bugs), with aan available for cpu connections (NETIP-07, NETIP-08)
 
-**Plans:** 9 plans
+**Plans:** 1/9 plans executed
 **Wave 1**
-- [ ] 08-01-PLAN.md — D-03 contract doc (full devip surface enumeration) + smoltcp 0.14.0 pin/lockfile + cfg(dev_ip) + NETIP-01 provenance record (NETIP-01, NETIP-02; D-01..D-04)
+- [x] 08-01-PLAN.md — D-03 contract doc (full devip surface enumeration) + smoltcp 0.14.0 pin/lockfile + cfg(dev_ip) + NETIP-01 provenance record (NETIP-01, NETIP-02; D-01..D-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 08-02-PLAN.md — event-driven seam (stack/waker/phyadapt) + host pins incl. OQ-1 DHCP-shaped exchange FIRST + UNSAFE-AUDIT entry (NETIP-02, NETIP-05; D-05)
@@ -223,7 +223,7 @@ Two parallel tracks from the v1.0 foundation: userspace {6 → 10} ∥ networkin
 | 5. Shell Boot + One-Command Integration | v1.0 | 13/13 | Complete | 2026-11-04 |
 | 6. Full-Tree Userspace — Wave 0 + Libraries/Core | v2.0 | 8/8 | In Progress|  |
 | 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 10/10 | Complete    | 2026-11-05 |
-| 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | 0/9 | Planned | - |
+| 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | 1/9 | In Progress | - |
 | 9. Host Networking + boot-r9 Net Modes | v2.0 | - | Not started | - |
 | 10. Userspace Services + GUI Tiers + Bootfs | v2.0 | - | Not started | - |
 | 11. In-Guest p9sk1 Auth Domain | v2.0 | - | Not started | - |

@@ -30,7 +30,7 @@
 
 ### r9 TCP/IP Path (NETIP)
 
-- [ ] **NETIP-01**: TCP implementation decision FINAL and recorded before driver-dependent plans (research recommends smoltcp 0.14 behind the devip ABI vs a staged Rust port of `sys/src/9k/ip`; same-axis virtio provenance decision)
+- [x] **NETIP-01**: TCP implementation decision FINAL and recorded before driver-dependent plans (research recommends smoltcp 0.14 behind the devip ABI vs a staged Rust port of `sys/src/9k/ip`; same-axis virtio provenance decision)
 - [ ] **NETIP-02**: `/net` file tree with devip-exact semantics: tcp/udp/icmp clone/ctl/data/status + ipifc; loopback + null mediums land FIRST
 - [ ] **NETIP-03**: TCP debuggable without the NIC: `ping 127.0.0.1`, udp echo, in-guest tcp/7 echo over loopback
 - [ ] **NETIP-04**: arp + ethermedium bound to devether; static ipconfig assigns an IPv4 address; guest reachable from host
@@ -132,7 +132,7 @@ Each requirement maps to exactly one phase. Populated 2026-11-04 at roadmap crea
 | NETDRV-02 | Phase 7 | Complete |
 | NETDRV-03 | Phase 7 | Complete |
 | NETDRV-04 | Phase 7 | Complete |
-| NETIP-01 | Phase 8 | Pending |
+| NETIP-01 | Phase 8 | Complete |
 | NETIP-02 | Phase 8 | Pending |
 | NETIP-03 | Phase 8 | Pending |
 | NETIP-04 | Phase 8 | Pending |

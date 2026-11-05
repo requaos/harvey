@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 08
 current_phase_name: r9-tcp-ip-path-devip-compatible-net
 status: executing
-stopped_at: Phase 8 context gathered
-last_updated: "2026-11-05T18:52:46.993Z"
+stopped_at: Completed 08-01-PLAN.md
+last_updated: "2026-11-05T19:10:37.709Z"
 last_activity: 2026-11-05
-last_activity_desc: Phase 07 complete, transitioned to Phase 6
-state_head: b76c95411903e50f53f4bfadb19f4bf57c15f61a
+last_activity_desc: Phase 08 execution started
+state_head: 26b6f614964c94def0be9776eb4cc4c0d9c2a960
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 27
-  completed_plans: 18
+  completed_plans: 19
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-05)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 6 — Full-Tree Userspace (Wave 0 + Libraries/Core Tiers); Phase 8 (r9 devip TCP/IP path) is Phase 7's direct successor
+**Current focus:** Phase 08 — r9-tcp-ip-path-devip-compatible-net
 
 ## Current Position
 
-Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — READY TO EXECUTE
-Plan: 8
+Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-11-05 — Phase 07 complete, transitioned to Phase 6
+Last activity: 2026-11-05 — Phase 08 execution started
 
 Progress: [███████░░░] 71% (v2.0)
 
@@ -119,6 +119,7 @@ Progress: [███████░░░] 71% (v2.0)
 | Phase 06 P08 | 4h 8m | 2 tasks | 8 files |
 | Phase 07 P09 | 18 min | 4 tasks | 7 files |
 | Phase 07 P10 | 21 min | 4 tasks | 6 files |
+| Phase 08 P01 | 9 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -279,6 +280,12 @@ Recent decisions affecting current work:
 - [Phase 07]: Test delivery, not just counters — every automated gate stayed green while inbound frames were counted-but-never-enqueued (pci.rs RX slice off by VIRTIO_NET_HDR_LEN on two-descriptor chains); only the conversational UAT blocked-read caught it. Chain-faithful pin (rx_chain_tests) now covers the Ring↔drain seam
 - [Phase 07]: netif scopes `connect` by conversation open lifetime (donor netif.c:446 last-close typ reset) — pinned as intentional by devether_tests; test/protocol procedures must hold a reference across connect
 - [Phase 07]: Push-before-pin discipline extended to fixes: every r9 landing pushes to requaos/r9, then flake.lock advances as its own structural-assert-gated commit with fresh hosted CI (07-08/09/10; CI runs 41955568449/42043430592/42058021884)
+- [Phase 08]: 08-01: Accept pool depth = 128 (devip-exact Maxincall) with 2048/2048-byte socket buffers = 512 KiB per announced conv (12.5% of r9's 4 MiB QuickFit arena); ≤2 concurrent announced TCP convs in the phase gates (OQ-3 resolved, math in docs/devip-contract.md §12.3)
+- [Phase 08]: 08-01: tcp checksum/tcpporthogdefense ctl verbs accepted-and-recorded with a netlog note (no smoltcp mechanism; D-08 full-fidelity over loud-unimplemented) (OQ-4 resolved)
+- [Phase 08]: 08-01: one smoltcp Interface per bound ipifc with address-class demux (127/8 and ::1 → loopback; else → ether) (OQ-5 resolved)
+- [Phase 08]: 08-01: timer leg = one-shot arming from poll_at() over the existing 1 ms tick sweep; literal dynamic-CNTP-rearm considered and rejected (A5 resolved)
+- [Phase 08]: 08-01: MAXTTL = 255 recorded from source (sys/src/9k/ip/ip.h:44) — phase research's '64' parenthetical corrected; bridge sets hop_limit 255 at conv creation so smoltcp's 64 default never leaks
+- [Phase 08]: 08-01: boot-test verify invocations carry --arch aarch64 (xtask Arch::from defaults x86_64) — same correction as the 07-01 precedent
 
 ### Pending Todos
 
@@ -328,9 +335,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T17:30:55.192Z
-Stopped at: Phase 8 context gathered
-Resume file: .planning/phases/08-r9-tcp-ip-path-devip-compatible-net/08-CONTEXT.md
+Last session: 2026-11-05T19:10:37.298Z
+Stopped at: Completed 08-01-PLAN.md
+Resume file: None
 
 ## Operator Next Steps
 
