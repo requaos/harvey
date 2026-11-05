@@ -80,7 +80,91 @@ ip/ping -n 3 $lo_guestv4 || {
 	echo netip: FAIL ping >[1=2]
 	exit ping
 }
-echo netip: ping ok
+echo netip: ping ok# the udp leg (NETIP-03's second leg): udpecho (announce udp!*!echo +
+# headers mode) echoes an rc client's datagram over the loopback,
+# exercising the 52-byte Udphdr synthesis both directions.  The server
+# runs backgrounded and stays (the harness tears the guest down after
+# NETIP-DONE).
+#
+# TWO era-specific disciplines shape this leg:
+#
+# (1) The conv-lifetime discipline: a devip conv RESETS on its last
+# close (closeconv) — so an rc script that opens ctl/data per command
+# (the `echo verb > ctl` shape) loses the conv between commands.  The
+# client below holds the clone-opened ctl open on fd 4 for the whole
+# exchange (rc's `<>[4]' read-write redirect — the man page's own
+# `newconn <>/net/tcp/clone' precedent), so the conv survives the
+# per-command data opens.
+#
+# (2) The no-cs era's service discovery: udpecho's `echo' service name
+# has no connection server to resolve it (Phase 10), so libc's
+# identtrans passes it through and the announce lands as a WILDCARD —
+# the kernel picks the port (the donor's atoi(name)=0 → setlport
+# shape).  The gate reads the server's real port back from the file
+# tree: a NONZERO port on the server's conv proves the announce ctl
+# write completed (single-CPU syscall atomicity — the local read can
+# only interleave between syscalls), i.e. the socket is bound.  The
+# pre-clone spin is fork-free (rc globbing is in-process), so it cannot
+# pressure the arena while it waits for the backgrounded server.
+ip/udpecho &
+
+# Discover the server's port (above).  ~ dialect lessons: glob patterns
+# stay UNQUOTED (quoting disables wildcarding); `~ $p '' 0' rejects the
+# not-yet-announced conv (empty read or port 0).  Ours is the only udp
+# conv in the tree until the client's clone below.
+sport=''
+while (~ $sport '') {
+	for (d in /net/udp/[0-9]*) {
+		loc=`{cat $d/local >[2]/dev/null}
+		if (~ $loc *!*) {
+			p=`{echo $loc | sed 's/.*!//'}
+			if (! ~ $p '' 0) {
+				sport=$p
+			}
+		}
+	}
+}
+
+# The client exchange, with the clone-opened ctl held on fd 4 (above):
+# read the conv number off the ctl, connect to the server, write the
+# tagged payload (echo's trailing newline rides the datagram), read
+# exactly one datagram back (dd's -bs/-count one-read discipline — a
+# bare cat would block for a second datagram), compare.
+{
+	uconv=`{cat <[0=4]} || {
+		echo netip: FAIL udpclone >[1=2]
+		exit udpclone
+	}
+	~ $#uconv 1 || {
+		echo netip: FAIL udpclone >[1=2]
+		exit udpclone
+	}
+	echo connect $lo_guestv4!$sport >[1=4] || {
+		echo netip: FAIL udpconnect >[1=2]
+		exit udpconnect
+	}
+	udptag=netip-udp-probe-08-04
+	test -e /net/udp/$uconv/data || {
+		echo netip: FAIL udpdata >[1=2]
+		exit udpdata
+	}
+	echo $udptag > /net/udp/$uconv/data || {
+		echo netip: FAIL udpwrite >[1=2]
+		exit udpwrite
+	}
+	reply=`{dd -if /net/udp/$uconv/data -bs 512 -count 1 >[2]/dev/null} || {
+		echo netip: FAIL udpread >[1=2]
+		exit udpread
+	}
+	~ "$reply" "$udptag" || {
+		echo netip: FAIL udpcompare >[1=2]
+		exit udpcompare
+	}
+} <>[4]/net/udp/clone || {
+	echo netip: FAIL udpclone >[1=2]
+	exit udpclone
+}
+echo netip: udp echo ok
 
 echo netip: NETIP-DONE
 exit ''
