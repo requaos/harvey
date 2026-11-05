@@ -3,18 +3,42 @@ phase: 06
 review: 06-REVIEW.md
 titles: json
 findings:
+  - id: WR-01
+    severity: warning
+    disposition: open
+    title: "gethunk libc-provisioning block's error handling is dead under `set -e`"
+  - id: WR-02
+    severity: warning
+    disposition: open
+    title: "coverage-sweep.sh unconditionally overwrites the host's /bin/cpp outside the namespace"
+  - id: IN-01
+    severity: info
+    disposition: open
+    title: "mkimage.sh keeps a dead dd trailer extraction"
+  - id: IN-02
+    severity: info
+    disposition: open
+    title: "subset-exec.sh defines the D-02 GREP idiom but barely uses it"
+  - id: IN-03
+    severity: info
+    disposition: open
+    title: "subset-exec.sh sentinel comment says \"40 bytes\"; the fixture is 41"
+  - id: IN-04
+    severity: info
+    disposition: open
+    title: "subset-exec.sh rebake comment undercounts the tier-1 bootdir (66 vs 70)"
+  - id: IN-05
+    severity: info
+    disposition: open
+    title: "gethunk fixed-bin staleness key watches only obj.c"
+  - id: IN-06
+    severity: info
+    disposition: open
+    title: "devroot.c carries a pre-existing debug `panic(\"whoops\")` remnant"
   - id: CR-01
     severity: critical
     disposition: fixed
     title: "tier-donor CI leg cannot pass on a clean runner — no step clones or builds the donor"
-  - id: WR-01
-    severity: warning
-    disposition: open
-    title: "The LP64 Ieee-emission fix was applied to 7l only — 6l and 9l carry the identical proven-faulty pattern"
-  - id: WR-02
-    severity: warning
-    disposition: open
-    title: "mk tier filters silently produce an empty aarch64 sweep when $HARVEY is unset"
   - id: WR-03
     severity: warning
     disposition: open
@@ -39,43 +63,30 @@ findings:
     severity: warning
     disposition: open
     title: "gethunk-repro-6l.sh's \"built fresh every run\" claim is narrower than the code"
-  - id: IN-01
-    severity: info
-    disposition: open
-    title: "run-gate.sh's remediation hint points at a script that refuses to run"
-  - id: IN-02
-    severity: info
-    disposition: open
-    title: "mkimage.sh duplicate input asserts"
-  - id: IN-03
-    severity: info
-    disposition: open
-    title: "generator-scan verifies only G6's guard mechanically"
-  - id: IN-04
-    severity: info
-    disposition: open
-    title: "gethunk reset pattern survives in the out-of-scope linkers"
-open: 12
-total: 13
-recorded: 2026-11-05T13:14:57.959Z
+open: 14
+total: 15
+recorded: 2026-11-05T22:35:43.623Z
 ---
+
 # Phase 06: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | fixed | closed by retirement 2026-11-05 — tier-donor CI leg removed per maintainer direction; the x86_64 venue is Harvey's own kernel (06-09/06-10); venue-pin step asserts the retirement |
 | WR-01 | warning | open | - |
 | WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
-| WR-05 | warning | open | - |
-| WR-06 | warning | open | - |
-| WR-07 | warning | open | - |
-| WR-08 | warning | open | - |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
 | IN-04 | info | open | - |
+| IN-05 | info | open | - |
+| IN-06 | info | open | - |
+| CR-01 | critical | fixed | closed by retirement 2026-11-05 — tier-donor CI leg removed per maintainer direction; the x86_64 venue is Harvey's own kernel (06-09/06-10); venue-pin step asserts the retirement (not in the current review) |
+| WR-03 | warning | open | - (not in the current review) |
+| WR-04 | warning | open | - (not in the current review) |
+| WR-05 | warning | open | - (not in the current review) |
+| WR-06 | warning | open | - (not in the current review) |
+| WR-07 | warning | open | - (not in the current review) |
+| WR-08 | warning | open | - (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
