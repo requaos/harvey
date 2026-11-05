@@ -112,6 +112,24 @@ echo "   7l: $(command -v 7l)"
 echo "   ar: $(command -v ar)"
 echo "   mk: $(command -v mk)"
 
+# nm shim (nix/build.sh:16-32's idiom, mirrored): host-toolchain
+# generator sub-builds (cmd/awk's $cputype.maketab chain — G1) link with
+# plan9port 9l, whose autolib execs bare `nm` on HOST ELF objects; with
+# $HARVEY_LINUX_BIN first on the devshell PATH that resolves to Harvey's
+# ken-format nm, which fails "Can't read header" and silently breaks
+# autolib (undefined Bopen/Brdline/Blinelen at link — observed).  Shadow
+# it with the wrapper PATH's (binutils) nm for the duration.  Nothing in
+# the Plan 9 build itself calls nm, so the shim is safe to leave in
+# place for the whole script.
+_P9NM_PATH=$(echo "$PATH" | sed 's/^[^:]*\/\.build\/hostbin-[^:]*//; s/:[^:]*\/\.build\/hostbin-[^:]*//g; s/^::*//; s/::*$//')
+_NM_HOSTNM=$(PATH="$_P9NM_PATH" command -v nm 2>/dev/null || true)
+if [ -n "$_NM_HOSTNM" ]; then
+	_NM_SHIMDIR=$(mktemp -d)
+	ln -sf "$_NM_HOSTNM" "$_NM_SHIMDIR/nm"
+	export PATH="$_NM_SHIMDIR:$PATH"
+	echo "== nm shim: $_NM_SHIMDIR/nm -> $_NM_HOSTNM (9l autolib shadow)"
+fi
+
 # the namespace binds $HARVEY/aarch64 at /aarch64; mkdirs lays out the
 # bin/lib tree it needs (vm-run.sh, unlike nix/build.sh, does not run
 # mkdirs first; git tracks no empty dirs)
