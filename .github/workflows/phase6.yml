@@ -21,6 +21,23 @@
 #   tier-r9     (slow, 90m): nix run .#boot-r9-tier1 — the tier-1 sweep
 #               on the flake.lock-pinned r9 kernel (06-07's app;
 #               USPACE-04's second venue, D-12).  TCG on the runner.
+#   x86_64-poolpanic (45m): USPACE-10's re-test (D-04) — `nix run
+#               .#build` builds 9k10cpu from the clean checkout (the
+#               pswt-fixed 6c is guaranteed by the clean toolchain
+#               build), then build/mm/boot-9k10cpu-qemu.sh boots it
+#               under PLAIN qemu (no minimega — D-03) with the serial
+#               capture file-attached at launch and classifies the
+#               WHOLE log against the recorded 01-04 signature set
+#               (bad magic / panic / suicide: sys: trap).  The job
+#               asserts verdict PRODUCTION (the verdict file exists
+#               with a VERDICT= line — banner seen + classification
+#               written), NEVER the outcome: a recorded VERDICT=FAIL
+#               closes USPACE-10 with information.  An empty capture
+#               records FAIL no-banner and the leg reds.  KVM when
+#               /dev/kvm is writable (ubuntu-latest exposes it), else
+#               the TCG fallback (-cpu qemu64, 600s budgets) — the
+#               probe runs exactly once per run and the classification
+#               set is identical on both paths.
 #
 # CI-green means LINUX only — the darwin leg is documented-manual
 # (build/REPRODUCIBILITY.md names the exact commands); no darwin leg
@@ -149,4 +166,44 @@ jobs:
         with:
           name: tier-r9-log
           path: build/aarch64/tier1-r9.log
+          if-no-files-found: warn
+
+  x86_64-poolpanic:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45 # KVM when available; the script's own budgets localize TCG
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: install nix
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: build 9k10cpu from the clean checkout (pswt-fixed 6c)
+        run: nix run .#build
+      - name: accel probe (recorded in the verdict file)
+        # KVM iff /dev/kvm is writable, else TCG — exactly once per
+        # run; the classification assertion set is identical on both
+        # paths (the script probes again for its own run; this step
+        # surfaces the runner's capability in the job log).
+        run: |
+          if [ -w /dev/kvm ]; then
+            echo "accel=kvm (/dev/kvm writable)"
+          else
+            echo "accel=tcg (no writable /dev/kvm — 600s budgets)"
+          fi
+      - name: boot 9k10cpu + produce the verdict (USPACE-10)
+        # The harness exits 0 iff a verdict was PRODUCED (banner seen +
+        # classification written) — never gated on PASS.  No banner
+        # (incl. an empty capture) records FAIL no-banner and reds the
+        # leg.  The assert below is the job's verdict-production gate.
+        run: |
+          nix develop -c sh build/mm/boot-9k10cpu-qemu.sh
+          test -f .build/poolpanic-verdict.txt
+          grep -q '^VERDICT=' .build/poolpanic-verdict.txt
+          cat .build/poolpanic-verdict.txt
+      - name: upload the serial log + verdict
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: poolpanic-verdict
+          path: |
+            .build/poolpanic-serial.log
+            .build/poolpanic-verdict.txt
           if-no-files-found: warn
