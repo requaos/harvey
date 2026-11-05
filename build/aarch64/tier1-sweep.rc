@@ -1,0 +1,146 @@
+#!/bin/rc
+# tier1-sweep.rc — the D-10 sourced in-guest tier-1 sweep (06-03
+# tracer).  Staged into the donor kernel's devroot as
+# /boot/tier1-sweep.rc (CONF bootdir DATA — mkrootall strips only
+# file-identified executables; text rides through) and SOURCED by the
+# staged termrc override's final exec:
+#	exec rc -c '. /boot/tier1-sweep.rc donor'
+# never typed per-binary: the donor's devcons fails /dev/cons reads by
+# design (Egreg — userland console input is kbdfs-served) and typed
+# steps do not scale to a tier (05-03's lesson).
+#
+#	usage: rc /boot/tier1-sweep.rc [venue]	venue: donor (default) | r9
+#
+# Markers over serial (host asserts presence, never interleaving order;
+# TCG-timing tolerant):
+#	T1-OK <name>	the binary's fixed-input check passed
+#	T1-FAIL <name>	it failed — the sweep CONTINUES (USPACE-04's
+#			empty edge: a failing entry never wedges or
+#			shortens the sweep); the host gate reds on any
+#	T1-SKIP <name>	write-flow entry skipped on a read-only-root
+#			venue (r9 this era); never emitted on the donor
+#	T1-OK float-d01	D-01's mandatory canary: %e/%f/%g correctness
+#			is execution-asserted, not assumed
+#	T1-DONE		the sweep ran to completion
+#
+# The fixed inputs re-express the v1.0 subset-exec.sh step table
+# (subset-exec.sh's header marker table is the source); the h* binaries
+# are Harvey's aarch64 tier-1 set embedded in the donor kernel's
+# devroot (mkrootall), executed by the donor's own rc.
+
+venue=$1
+if(~ $#venue 0) venue=donor
+
+# check NAME CMD... — run the fixed input; zero exit status → T1-OK.
+# A failing entry never aborts the sweep: the command rides if(), its
+# status becomes the marker, and the sweep continues.
+fn check {
+	n=$1
+	shift
+	if($*) echo T1-OK $n
+	if not echo T1-FAIL $n
+}
+
+# --- read-only checks (run on every venue) ---------------------------
+
+# echo: fixed sentinel
+checko_echo=`{/boot/hecho __T1_SENTINEL__}
+if(~ $checko_echo __T1_SENTINEL__) echo T1-OK echo
+if not echo T1-FAIL echo
+
+# ls: / non-empty, /boot present
+lsout=`{/boot/hls /}
+if(~ /boot $lsout) echo T1-OK ls
+if not echo T1-FAIL ls
+
+# cat: the baked known-content file (2 lines, 4 words)
+catout=`{/boot/hcat /boot/sentinel.txt}
+if(~ $"catout 'alpha bravo charlie') echo T1-OK cat
+if not echo T1-FAIL cat
+
+# grep pipeline
+grepout=`{/boot/hcat /boot/sentinel.txt | /boot/hgrep __SUBSET_GREP_LINE__}
+if(~ $"grepout __SUBSET_GREP_LINE__) echo T1-OK grep
+if not echo T1-FAIL grep
+
+# sed transform pipeline
+sedout=`{/boot/hecho __SUBSET_SENTINEL__ | /boot/hsed s/SENTINEL/VERIFIED/}
+if(~ $"sedout __SUBSET_VERIFIED__) echo T1-OK sed
+if not echo T1-FAIL sed
+
+# wc -l: deterministic count from the known-content file
+wcout=`{/boot/hcat /boot/sentinel.txt | /boot/hwc -l}
+if(~ $"wcout 2) echo T1-OK wc
+if not echo T1-FAIL wc
+
+# date: parseable line carrying a 20xx year
+dateout=`{/boot/hdate}
+if(~ $dateout *20[0-9][0-9]*) echo T1-OK date
+if not echo T1-FAIL date
+
+# test -f true-branch
+check test /boot/htest -f /boot/hcat
+
+# rc: OUR rc (hrc) evaluates — caret concat + command substitution
+# inside a forked hrc -c proves the parser/evaluator/exec/exits path
+rcout=`{/boot/hrc -c 'x=`{echo hello}; echo __T1_RC_^$x^_OK__'}
+if(~ $"rcout __T1_RC_hello_OK__) echo T1-OK rc
+if not echo T1-FAIL rc
+
+# ps: the sweep's own shell (named rc) is resident
+psout=`{/boot/hps}
+if(~ rc $psout) echo T1-OK ps
+if not echo T1-FAIL ps
+
+# ipconfig: usage-level (network-less guest) — usage text on stderr,
+# non-zero exit; the output check is the proof
+ipcout=`{/boot/hipconfig -Z >[2=1]}
+if(~ $ipcout *ipconfig*) echo T1-OK ipconfig
+if not echo T1-FAIL ipconfig
+
+# factotum: backgrounded spawn (v1.0's -n -s subexec shape), then
+# resident-in-ps — bounded settle loop (TCG), never a silent hang
+/boot/hfactotum -n -s subexec &
+factok=0
+for(i in 1 2 3 4 5 6 7 8 9 10){
+	if(~ hfactotum `{/boot/hps}) factok=1
+	if(~ $factok 0) sleep 1
+}
+if(~ $factok 1) echo T1-OK factotum
+if not echo T1-FAIL factotum
+
+# awk: field splitting through a pipe (the G1 maketab generator path
+# produced this binary's proctab.c at build time)
+awkout=`{echo 'alpha bravo charlie' | /boot/hawk '{print $2}'}
+if(~ $"awkout bravo) echo T1-OK awk
+if not echo T1-FAIL awk
+
+# float canary (D-01, MANDATORY): %.3f of 1/3 must print 0.333 —
+# execution-asserts the FPdbleword fix (06-01) end to end
+out=`{/boot/hawk 'BEGIN{printf "%.3f\n", 1.0/3.0}'}
+if(~ $out 0.333) echo T1-OK float-d01
+if not echo T1-FAIL float-d01
+
+# --- write-flow round-trip (donor venue only — r9's root is read-only
+# this era; named T1-SKIP lines keep the marker set enumerable) -------
+if(~ $venue donor){
+	check mkdir /boot/hmkdir /tmp/tier1
+	check cp /boot/hcp /boot/sentinel.txt /tmp/tier1/copied
+	check mv /boot/hmv /tmp/tier1/copied /tmp/tier1/moved
+	# rm covers the file AND the emptied dir (v1.0 steps 15+17) — one
+	# marker per tier entry
+	rmok=1
+	/boot/hrm /tmp/tier1/moved || rmok=0
+	/boot/hrm /tmp/tier1 || rmok=0
+	if(~ $rmok 1) echo T1-OK rm
+	if not echo T1-FAIL rm
+}
+if not {
+	echo T1-SKIP mkdir
+	echo T1-SKIP cp
+	echo T1-SKIP mv
+	echo T1-SKIP rm
+}
+
+echo T1-DONE
+exit

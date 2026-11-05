@@ -34,3 +34,5 @@ lib9p		# v1.0 gate: subset-build green (factotum closure)
 libauth		# v1.0 gate: subset-build green (factotum closure)
 libauthsrv	# v1.0 gate: subset-build green (factotum closure)
 libflate	# v1.0 gate: subset-build green (paqfs closure; flate.h #pragma lib)
+# --- 06-03 tracer: first growth beyond the v1.0 baseline ---
+libavl		# 06-03 tracer (USPACE-04): 1-file lib proves the tier-0 loop end-to-end (D-07 fresh-archive + T0-ART)

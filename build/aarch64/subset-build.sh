@@ -1,18 +1,28 @@
 #!/bin/sh
-# build/aarch64/subset-build.sh — the aarch64 shell-boot userland
-# subset namespace build driver.
+# build/aarch64/subset-build.sh — the aarch64 tier-0/tier-1 userspace
+# namespace build driver (06-03: the hardcoded v1.0 loops became
+# tier-file loops in place — RESEARCH OQ-3 — so mkimage.sh and
+# smoke-r9.sh inherit tier-1 growth with no call-site changes).
 #
-# Builds, with objtype=aarch64: the lib closure in dependency order
-# (libc … libflate, abort on first failure), the command subset (rc,
-# grep, ip/ipconfig, auth/factotum + the twelve single-file commands),
-# and the boot chain (boot(8) via sys/src/9k/boot/mkfile.aarch64, init,
-# paqfs, stacksmoke) harvested to the gitignored build/aarch64/out/
+# Builds, with objtype=aarch64: the tier-0 library allowlist
+# (build/aarch64/tiers/tier0-libs.txt) with the D-07 fresh-archive rule
+# (rm -f the target .a before mk install — ar vu never prunes, the 02-10
+# staleness class) + a T0-ART sha256 marker per lib, then the tier-1
+# allowlist (tiers/tier1-cmds.txt) dispatched per entry form
+# (cmd/<single> per-target install; cmd/<dir> dir install;
+# cmd/<container>/<dir> nested; cmd/<dir>:<target> per-target in the
+# dir; 9k/boot + stage/<name> driver-only blocks) with a T1-ART sha256
+# marker per artifact, harvested to the gitignored build/aarch64/out/
 # with R_MAGIC asserts.  Platform split: darwin drives the lima guest;
 # linux runs the SAME generated guest script natively under nsrun.sh's
 # sudo-unshare — no lima, no rsync (the namespace bind-mounts the real
 # checkout, so artifacts land in place).  out/ ownership: the rsync-back
 # here is per-file (never --delete) — last writer wins against the
 # staged-init supply chain.
+#
+# Markers: T0-ART <lib> <sha256>, T1-ART <bin> <sha256>, TIER-BUILD-OK
+# (mk exit status is never trusted — 02-12; artifact asserts + markers
+# are the only gates).
 #
 # usage: sh build/aarch64/subset-build.sh   (from the repo root,
 # inside the nix devshell)
@@ -93,7 +103,7 @@ cat > "$TMPD/subset-build-guest.sh" <<'GUEST_EOF'
 # the host driver regenerates it each run.
 set -e
 
-fail() { echo "SUBSET-BUILD-FAIL: $1" >&2; exit 1; }
+fail() { echo "TIER-BUILD-FAIL: $1" >&2; exit 1; }
 
 echo "== subset build provenance (Harvey's vendored toolchain):"
 echo "   7c: $(command -v 7c)"
@@ -107,76 +117,126 @@ echo "   mk: $(command -v mk)"
 # mkdirs first; git tracks no empty dirs)
 cd "$HARVEY" && bash build/mkdirs || fail "mkdirs"
 
-# libs in dependency order. libc first (idempotent rerun — the
-# committed wiring already proved it green), then the
-# #pragma-lib closure the subset links against (discovered at link
-# time): ls/ps/sed/wc/grep →
-# libbio; sed → libregexp; ipconfig → libip + libndb; factotum →
-# libauth + libauthsrv + libmp/libsec transitives + libString +
-# libthread + lib9p.  paqfs adds libflate (flate.h's
-# #pragma lib) to the closure.
-for d in libc libbio libregexp libip libndb libmp libsec libString libthread lib9p libauth libauthsrv libflate; do
-	echo "== subset lib: $d"
+# tier-0 libraries: the D-13 append-only allowlist drives the sweep.
+# D-07 fresh-archive per lib: mksyslib's `ar vu $LIB $newprereq` rule is
+# append-only and never prunes (the 02-10 staleness class — a stale
+# alphaobj.6 duplicate-symbol'd Phase 2), so the target .a is deleted
+# before repopulating.  Artifact assert + T0-ART sha256 marker per lib
+# (mk exit status is never trusted — 02-12).  libc stays first-class:
+# tier0-libs.txt line 1 and build_aarch64's explicit bootstrap both keep
+# its primacy.
+TIER0="$HARVEY/build/aarch64/tiers/tier0-libs.txt"
+[ -f "$TIER0" ] || fail "tier0 data file missing: $TIER0"
+while read -r line; do
+	case "$line" in ''|'#'*) continue;; esac
+	d="${line%%[ 	]*}"
+	case "$d" in ''|'#'*) continue;; esac
+	lib="lib${d#lib}.a"
+	echo "== tier0 lib: $d"
+	rm -f "/aarch64/lib/$lib"
 	(cd "/sys/src/$d" && objtype=aarch64 mk install) || fail "lib $d"
-done
+	[ -s "/aarch64/lib/$lib" ] || fail "lib $d: no artifact /aarch64/lib/$lib"
+	echo "T0-ART $d $(sha256sum "/aarch64/lib/$lib" | cut -d' ' -f1)"
+done < "$TIER0"
 
-# the four directory commands. auth/factotum uses the per-target
-# install rule (mkmany's %.install): the dir's TARG also carries fgui,
-# factotum's GUI companion, which needs the out-of-scope graphics stack
-# (libdraw/libcontrol) — fgui is not in the named subset, and building
-# the GUI libs to satisfy it would violate the subset scoping.
-for d in rc grep ip/ipconfig; do
-	echo "== subset cmd: $d"
-	(cd "/sys/src/cmd/$d" && objtype=aarch64 mk install) || fail "cmd $d"
-done
-echo "== subset cmd: auth/factotum (per-target install)"
-(cd /sys/src/cmd/auth/factotum && objtype=aarch64 mk factotum.install) || fail "cmd auth/factotum"
-
-# the twelve single-file commands via cmd's per-target install rule
-echo "== subset cmd: cat cp date echo ls mkdir mv ps rm sed test wc (per-target install)"
-cd /sys/src/cmd
-objtype=aarch64 mk cat.install cp.install date.install echo.install \
-	ls.install mkdir.install mv.install ps.install rm.install \
-	sed.install test.install wc.install || fail "cmd single-file set"
+# tier-1 commands + boot chain: the D-13 allowlist, dispatched per entry
+# form — cmd/<single> → cmd's per-target install rule; cmd/<dir> → dir
+# mk install; cmd/<container>/<dir> → nested dir install;
+# cmd/<dir>:<target> → per-target install in the dir (factotum/paqfs
+# precedent — never the dir's whole TARG: factotum's sibling fgui needs
+# the out-of-tier graphics stack); 9k/boot → the additive objtype-gated
+# mkfile.aarch64 build+harvest+clean; stage/<name> → the staged-compile
+# blocks (init.install / stacksmoke 7c+7l).  T1-ART sha256 marker per
+# entry's artifact.  A failing entry aborts the BUILD (fail) — the
+# build side is not the sweep; USPACE-04's never-wedge edge belongs to
+# tier1-sweep.rc.
+TIER1="$HARVEY/build/aarch64/tiers/tier1-cmds.txt"
+[ -f "$TIER1" ] || fail "tier1 data file missing: $TIER1"
+mkdir -p "$HARVEY/build/aarch64/out"
+while read -r line; do
+	case "$line" in ''|'#'*) continue;; esac
+	entry="${line%%[ 	]*}"
+	case "$entry" in ''|'#'*) continue;; esac
+	echo "== tier1 entry: $entry"
+	case "$entry" in
+	9k/boot)
+		# boot(8) for aarch64 via the additive, objtype-gated
+		# mkfile.aarch64 (boot has no standalone mkfile; the amd64 path
+		# awk-generates the bootconf from a kernel config, and the
+		# hand-written bootr9.c is the generated equivalent here).
+		# Build in-tree, harvest to out/ (gitignored), then clean the
+		# boot dir so the guest tree stays pristine (no *.7/libboot.a7
+		# left behind).
+		(cd /sys/src/9k/boot && objtype=aarch64 mk -f mkfile.aarch64) || fail "boot(8) aarch64 build"
+		cp /sys/src/9k/boot/boot "$HARVEY/build/aarch64/out/boot" || fail "harvest boot to out/"
+		(cd /sys/src/9k/boot && objtype=aarch64 mk -f mkfile.aarch64 clean) || fail "boot dir clean"
+		art="$HARVEY/build/aarch64/out/boot"
+		;;
+	stage/init)
+		# init installs via cmd's per-target rule — cmd/mkfile's
+		# special $BIN/init rule lands it at /aarch64/init (boot's
+		# execinit builds /$objtype/init), so harvest from there, not
+		# /aarch64/bin.
+		(cd /sys/src/cmd && objtype=aarch64 mk init.install) || fail "init.install"
+		cp /aarch64/init "$HARVEY/build/aarch64/out/init" || fail "harvest init to out/"
+		art="$HARVEY/build/aarch64/out/init"
+		;;
+	stage/stacksmoke)
+		# the deep-recursion binary (build/aarch64/stacksmoke.c),
+		# recompiled here so it ships in the real image too.
+		(cd "$HARVEY/build/aarch64" && objtype=aarch64 7c -FTVw stacksmoke.c \
+			&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/stacksmoke" stacksmoke.7 \
+			&& rm -f stacksmoke.7) || fail "stacksmoke"
+		art="$HARVEY/build/aarch64/out/stacksmoke"
+		;;
+	cmd/cc)
+		# the shared frontend: tier evidence is the cc.a7 archive the
+		# 7c build links.  Fresh-archive hygiene mirrors D-07 (mklib's
+		# ar vu is the same never-prune rule).
+		rm -f /sys/src/cmd/cc/cc.a7
+		(cd /sys/src/cmd/cc && objtype=aarch64 mk install) || fail "cmd cc"
+		art=/sys/src/cmd/cc/cc.a7
+		;;
+	cmd/*:*)
+		# dir:target — per-target install in the dir (the mkmany
+		# %.install rule), never the whole dir TARG.
+		dir="${entry%%:*}"
+		tgt="${entry##*:}"
+		(cd "/sys/src/$dir" && objtype=aarch64 mk "$tgt.install") || fail "cmd $entry"
+		art="/aarch64/bin/${dir#cmd/}"
+		# paqfs is also harvested to out/ — mkimage.sh's manifest names
+		# out/paqfs (the boot chain's image supply contract).
+		if [ "$tgt" = "paqfs" ]; then
+			cp /aarch64/bin/paqfs "$HARVEY/build/aarch64/out/paqfs" || fail "harvest paqfs to out/"
+		fi
+		;;
+	cmd/*)
+		# dir vs single-file: a dir entry recurses its own mkfile; a
+		# single builds via cmd's per-target install rule.
+		if [ -d "/sys/src/$entry" ]; then
+			(cd "/sys/src/$entry" && objtype=aarch64 mk install) || fail "cmd $entry"
+		else
+			(cd /sys/src/cmd && objtype=aarch64 mk "${entry#cmd/}.install") || fail "cmd $entry"
+		fi
+		art="/aarch64/bin/${entry#cmd/}"
+		;;
+	*)
+		fail "tier1 entry form not understood: $entry"
+		;;
+	esac
+	[ -s "$art" ] || fail "$entry: no artifact $art"
+	echo "T1-ART ${art##*/} $(sha256sum "$art" | cut -d' ' -f1)"
+done < "$TIER1"
 
 # 07-04: dd joins the image (D-07 names dd as the sweep's writer) —
 # dd.c is single-file, u.h+libc.h only, so no new libs enter the
-# closure.  Separate additive line (not folded into the list above) so
+# closure.  Separate additive line (not folded into the tier-1 loop) so
 # this phase's edits stay insertion-only against the parallel Phase 6
-# tier machinery touching the same regions.
+# tier machinery touching the same regions.  (dd appends to
+# tier1-cmds.txt when its Phase-6 execution gate passes — 06-06; the
+# 07-04 net venue already proved it on the donor.)
 echo "== subset cmd: dd (per-target install, 07-04)"
-objtype=aarch64 mk dd.install || fail "cmd dd (per-target install)"
-
-# The boot chain — boot(8) for aarch64 via the additive,
-# objtype-gated mkfile.aarch64 (boot has no standalone mkfile; the
-# amd64 path awk-generates the bootconf from a kernel config, and the
-# hand-written bootr9.c is the generated equivalent here).  Build
-# in-tree, harvest to build/aarch64/out/boot (gitignored), then clean
-# the boot dir so the guest tree stays pristine (no
-# *.7/libboot.a7/boot artifacts left behind).
-echo "== boot chain: boot(8) aarch64 (05-02)"
-(cd /sys/src/9k/boot && objtype=aarch64 mk -f mkfile.aarch64) || fail "boot(8) aarch64 build"
-mkdir -p "$HARVEY/build/aarch64/out"
-cp /sys/src/9k/boot/boot "$HARVEY/build/aarch64/out/boot" || fail "harvest boot to out/"
-(cd /sys/src/9k/boot && objtype=aarch64 mk -f mkfile.aarch64 clean) || fail "boot dir clean"
-
-# init, paqfs, and stacksmoke join the image supply
-# chain.  init installs via cmd's per-target rule — cmd/mkfile's
-# special $BIN/init rule lands it at /aarch64/init (boot's execinit
-# builds /$objtype/init), so harvest from there, not /aarch64/bin.
-# paqfs installs per-target from its own dir (NEVER the dir's whole
-# mkmany TARG — that would also build mkpaqfs for aarch64, which only
-# the host needs).  stacksmoke is the deep-recursion binary
-# (build/aarch64/stacksmoke.c), recompiled here so it ships in the
-# real image too.
-echo "== boot chain: init paqfs stacksmoke (05-02)"
-(cd /sys/src/cmd && objtype=aarch64 mk init.install) || fail "init.install"
-cp /aarch64/init "$HARVEY/build/aarch64/out/init" || fail "harvest init to out/"
-(cd /sys/src/cmd/paqfs && objtype=aarch64 mk paqfs.install) || fail "paqfs.install"
-cp /aarch64/bin/paqfs "$HARVEY/build/aarch64/out/paqfs" || fail "harvest paqfs to out/"
-(cd "$HARVEY/build/aarch64" && objtype=aarch64 7c -FTVw stacksmoke.c \
-	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/stacksmoke" stacksmoke.7 \
-	&& rm -f stacksmoke.7) || fail "stacksmoke"
+(cd /sys/src/cmd && objtype=aarch64 mk dd.install) || fail "cmd dd (per-target install)"
 
 # 07-04: netblast, the D-08 TX-bulk generator, joins the image supply
 # chain beside stacksmoke (same compile/harvest shape)
@@ -185,14 +245,14 @@ echo "== boot chain: netblast (07-04, D-08)"
 	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/netblast" netblast.7 \
 	&& rm -f netblast.7) || fail "netblast"
 
-echo "== subset tree (/aarch64/bin):"
+echo "== tier tree (/aarch64/bin):"
 ls /aarch64/bin
 echo "-- ip:"
 ls /aarch64/bin/ip
 echo "-- auth:"
 ls /aarch64/bin/auth
 
-echo "SUBSET-BUILD-OK"
+echo "TIER-BUILD-OK"
 GUEST_EOF
 
 mkdir -p "$HARVEY/.build"
@@ -214,11 +274,11 @@ RC=$?
 set -e
 cat "$LOG"
 if [ $RC -ne 0 ]; then
-	echo "error: guest subset build failed (rc=$RC); log: $LOG" >&2
-	echo "hint: the log names the first failing mk step (SUBSET-BUILD-FAIL: <dir>)" >&2
+	echo "error: guest tier build failed (rc=$RC); log: $LOG" >&2
+	echo "hint: the log names the first failing mk step (TIER-BUILD-FAIL: <entry>)" >&2
 	exit $RC
 fi
-"$GREP" -q 'SUBSET-BUILD-OK' "$LOG" || err "guest build log lacks SUBSET-BUILD-OK"
+"$GREP" -q 'TIER-BUILD-OK' "$LOG" || err "guest build log lacks TIER-BUILD-OK"
 
 if [ -z "$NATIVE_LINUX" ]; then
 	# rsync the resulting /aarch64/bin tree back to the host checkout
@@ -256,6 +316,14 @@ done
 [ -x "$HARVEY/aarch64/bin/dd" ] || err "aarch64/bin/dd missing after rsync-back"
 [ -x "$HARVEY/aarch64/bin/ip/ipconfig" ] || err "aarch64/bin/ip/ipconfig missing after rsync-back"
 [ -x "$HARVEY/aarch64/bin/auth/factotum" ] || err "aarch64/bin/auth/factotum missing after rsync-back"
+# 06-03: the tracer's additions — awk (G1 generator path) and the
+# tier-file-driven guest build chain (7a/7c/7l as aarch64 targets)
+[ -x "$HARVEY/aarch64/bin/awk" ] || err "aarch64/bin/awk missing after rsync-back"
+magic=$(od -An -tx1 -N4 "$HARVEY/aarch64/bin/awk" | tr -d ' \n')
+[ "$magic" = "00008c47" ] || err "aarch64/bin/awk: bad magic $magic (want 00008c47)"
+for t in 7a 7c 7l; do
+	[ -x "$HARVEY/aarch64/bin/$t" ] || err "aarch64/bin/$t missing after rsync-back"
+done
 
 # Every boot-chain binary must carry the arm64 a.out magic
 # (R_MAGIC 0x8C47, BE)
@@ -269,4 +337,4 @@ done
 magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/netblast" | tr -d ' \n')
 [ "$magic" = "00008c47" ] || err "build/aarch64/out/netblast: bad magic $magic (want 00008c47)"
 
-echo "== PASS: aarch64 shell-boot subset built and installed ($(ls "$HARVEY/aarch64/bin" | wc -l | tr -d ' ') entries in aarch64/bin; log: $LOG)"
+echo "== PASS: aarch64 tier-0/tier-1 set built and installed ($(ls "$HARVEY/aarch64/bin" | wc -l | tr -d ' ') entries in aarch64/bin; log: $LOG)"

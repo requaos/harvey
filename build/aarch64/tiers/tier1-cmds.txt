@@ -80,3 +80,5 @@ cmd/7a
 cmd/7c
 cmd/7l
 cmd/cc				# shared frontend; tier evidence is the cc.a7 archive the 7c build links
+# --- 06-03 tracer: first expansion beyond the v1.0 baseline ---
+cmd/awk				# 06-03 tracer (USPACE-04, D-01): dir entry exercising the G1 host-safe maketab generator; carries the mandatory float canary (T1-OK float-d01)
