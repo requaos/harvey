@@ -230,6 +230,37 @@ SHIM
 			build_pair "$HARVEY_ROOT" "$SCRATCH/fixed-bin"
 		fi
 		FIXBIN="$SCRATCH/fixed-bin"
+
+		# The fixed-6l GREEN proof links a real amd64 binary, so
+		# $HARVEY_ROOT/amd64/lib/libc.a must exist. Dev hosts carry it from
+		# prior full builds; a clean CI checkout does not (the x86_64
+		# runner's RED was "cannot open libc.a: No such file or directory").
+		# Provision JUST libc through the private-namespace harness when
+		# absent (NS_TARGET is honored by sys/src/BUILD_SETUP_NAMESPACE).
+		# RUN_BUILD_IN_PRIVATE_NAMESPACE is linux-only — elsewhere a missing
+		# libc.a stays the hard error it always was.
+		if [ ! -f "$HARVEY_ROOT/amd64/lib/libc.a" ]; then
+			echo "== verify: amd64/lib/libc.a absent — provisioning libc only via the namespace"
+			[ "$(uname -s)" = "Linux" ] || { echo "error: amd64/lib/libc.a missing; run 'nix run .#build' once first" >&2; exit 2; }
+			command -v sudo >/dev/null || { echo "error: amd64/lib/libc.a missing and no sudo for the namespace build" >&2; exit 2; }
+			[ -x /bin/rc ] || sudo cp "$PLAN9/bin/rc" /bin/rc
+			NSLIBC="$(mktemp "${TMPDIR:-/tmp}/ns-libc.XXXXXX.sh")"
+			printf '%s\n' \
+				'cd /sys/src' \
+				'. buildnamespace' \
+				'_a=$(uname -m); [ "$_a" = "arm64" ] && _a=aarch64' \
+				'PATH="${HARVEY_LINUX_BIN:-$HARVEY/.build/hostbin-linux-$_a/bin}:$PATH"' \
+				'export PATH' \
+				'cd libc' \
+				'objtype=amd64 mk install' > "$NSLIBC"
+			NS_TARGET="bash $NSLIBC"
+			export NS_TARGET
+			(cd "$HARVEY_ROOT/sys/src" && bash RUN_BUILD_IN_PRIVATE_NAMESPACE)
+			RC=$?
+			rm -f "$NSLIBC"
+			[ $RC -eq 0 ] || { echo "error: libc namespace provisioning failed (rc=$RC)" >&2; exit 2; }
+			[ -f "$HARVEY_ROOT/amd64/lib/libc.a" ] || { echo "error: libc namespace provisioning produced no libc.a" >&2; exit 2; }
+		fi
 		gen_input
 		GEN="$SCRATCH/input"
 
