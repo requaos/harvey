@@ -2783,12 +2783,19 @@ pub struct T1Data {
 /// evidence: the 06-07 trace caught ed's mktemp create+remove pair
 /// (ed.c:159/930/1092 — /tmp/eXXXXX unconditionally), a /tmp-writable
 /// dependency the read-only block hid; r9's root is read-only this era.
+/// `hipconfig` + `hfactotum` joined on the 06-07 r9 GATE's evidence
+/// (POST-trace refinement — the committed evidence/06-07-trace.txt
+/// predates it): ipconfig opens /dev/random at startup (r9 has no
+/// devrandom this era) and factotum's startup needs FAUTH + the devproc
+/// "protect"/"noswap" ctl verbs + a devsrv-service mount (the auth-era
+/// surface; r9's sys_mount is pipe-9P-only, and the image's auth
+/// stub-by-absence already means no factotum on r9).
 /// Everything else measured is r9-runnable (the read-only block +
 /// libtest-tdraw + stacksmoke run on both venues).
 pub const T1_WRITEFLOW_BINS: &[&str] = &[
     "hmkdir", "hcp", "hmv", "hrm", "hbc", "hdd", "htar", "htee", "hchmod", "htouch", "hsplit",
     "hlook", "hcpp", "hyacc", "hlex", "hmk", "h7a", "h7c", "h7l", "hdisktest", "hello", "bind",
-    "hed",
+    "hed", "hipconfig", "hfactotum",
 ];
 
 pub fn t1_class(name: &str) -> &'static str {
@@ -2942,6 +2949,12 @@ pub fn artifact_t1(
     s.push_str("#     ed's unconditional mktemp create+remove (ed.c:159/930/1092,\n");
     s.push_str("#     /tmp/eXXXXX) — a /tmp-writable dependency the read-only block\n");
     s.push_str("#     hid; r9's root is read-only this era, so ed T1-SKIPs on r9.\n");
+    s.push_str("#     (POST-TRACE refinement, recorded in 06-EVIDENCE.md: the r9 gate\n");
+    s.push_str("#     also measured ipconfig's /dev/random startup and factotum's\n");
+    s.push_str("#     FAUTH + devproc-ctl + devsrv-mount needs — both take named\n");
+    s.push_str("#     T1-SKIPs on r9 this era.  This artifact's table is the\n");
+    s.push_str("#     TRACE-TIME classification; the sweep file's venue guard is the\n");
+    s.push_str("#     living source of truth.)\n");
     s.push_str("#   name caveat: a born-traced child's pre-exec fragments carry its\n");
     s.push_str("#     parent's text name — the \"rc\" bucket aggregates the sweep\n");
     s.push_str("#     shell, hrc invocations, and rc fork/backquote shims.\n");
