@@ -221,7 +221,19 @@ jobs:
           nix run .#setup
           nix run .#toolchain
       - name: build 9k10cpu from the clean checkout (pswt-fixed 6c)
-        run: nix run .#build
+        # 02-12 (deferred): .#build's break-glass tail reports exit 0
+        # even when the build failed — assert the ARTIFACT, and on
+        # absence print an error digest so the swallowed failure is
+        # diagnosable from the job log.
+        run: |
+          mkdir -p .build
+          nix run .#build 2>&1 | tee .build/poolpanic-build.log
+          if [ ! -f amd64/9k10cpu.elf ]; then
+            echo "BUILD-SWALLOWED-FAIL: amd64/9k10cpu.elf missing after nix run .#build (02-12 exit-0 class)" >&2
+            echo "== error digest (first 40 error lines, in order):"
+            grep -nE "error|Error|FAIL|don't know how|cannot|No such" .build/poolpanic-build.log | head -40
+            exit 1
+          fi
       - name: accel probe (recorded in the verdict file)
         # KVM iff /dev/kvm is writable, else TCG — exactly once per
         # run; the classification assertion set is identical on both

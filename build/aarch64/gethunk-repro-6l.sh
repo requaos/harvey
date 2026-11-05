@@ -268,6 +268,11 @@ SHIM
 		else
 			echo "RED 6l (rc=$RC, output $([ -s "$GEN/spike-fixed.out" ] && echo present || echo missing); log: $LOG)"
 			echo "not ok $t - fixed 6l links 4MB-symtab archive within 120s"
+			# Print the failing link's own tail — the RED line alone is
+			# undiagnosable on a host the reporter can't log in to.
+			echo "--- verify-fixed-6l.log (tail 30):"
+			tail -30 "$LOG"
+			echo "---"
 			fails=$((fails + 1))
 		fi
 		t=$((t + 1))
