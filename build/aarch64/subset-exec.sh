@@ -536,6 +536,7 @@ grep -q 'Nbootfiles = 128' "$DEVROOT" || {
 echo "== donor devroot /boot cap raised to Nbootfiles=128 (66-entry tier-1 bootdir)"
 
 mkdir -p "$DIST"
+export DONOR SCRATCH DIST
 EXPORTS=/tmp/subset-exports.$$
 export > "$EXPORTS"
 set +e
