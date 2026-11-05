@@ -4,17 +4,17 @@ milestone: v2.0
 milestone_name: Full System & Drawterm
 current_phase: 06
 current_phase_name: Full-Tree Userspace — Wave 0 + Libraries/Core Tiers
-status: executing
-stopped_at: Completed 06-09-PLAN.md
-last_updated: "2026-11-05T21:54:40.575Z"
+status: verifying
+stopped_at: Completed 06-10-PLAN.md
+last_updated: "2026-11-05T22:20:11.485Z"
 last_activity: 2026-11-05
 last_activity_desc: Phase 06 execution started
-state_head: a24eb7eb5471ec0b92685236cd14f531e7dfdb94
+state_head: 6d053613bf939c3610811111cc15975e63b3437f
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 29
-  completed_plans: 22
+  completed_plans: 23
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-05)
 
 Phase: 06 (Full-Tree Userspace — Wave 0 + Libraries/Core Tiers) — EXECUTING
 Plan: 10 of 10
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-05 — Phase 06 execution started
 
 Progress: [███████░░░] 71% (v2.0)
@@ -123,6 +123,7 @@ Progress: [███████░░░] 71% (v2.0)
 | Phase 08 P02 | 26 min | 2 tasks | 9 files |
 | Phase 08 P03 | 8 min | 2 tasks | 5 files |
 | Phase 06 P09 | 60 min | 2 tasks | 12 files |
+| Phase 06 P10 | 8 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -296,6 +297,8 @@ Recent decisions affecting current work:
 - [Phase 08]: 08-03: netaddr.rc keys are leg-prefixed (lo_/slirp_) — bare duplicate guestv4 per leg would be last-wins-on-source, silently binding the slirp address into loopback gates; the prefixed shape keeps wholesale sourcing unambiguous and every acceptance grep passes on the substring (D-11's anti-Pitfall-9 intent enforced inside the seam file itself)
 - [Phase 08]: 08-03: out/ harvest is the payload magic-contract surface while /aarch64/bin stays the bake source — subset-build.sh od-asserts out/ post-rsync, mkimage.sh stages from bin/ and asserts staged paths pre-bake; a missing/stale payload fails loudly at both layers (T-08-05); slirp v6 pair recorded provisional (fec0::15/fec0::2) with 08-07's live probe named as finalizer in-file
 - [Phase 06]: [Phase 06] 06-09: the Harvey-kernel amd64 tier venue (k10t1) inherits k10cpu's device set VERBATIM; only rootdir/boot differ. The venue never writes tier-ledger lines (D-14 stays aarch64-pure, T-06-20). The 9k SKIP whitelist is fixed at 24 names with a converse assert; the sweep's 9k libtest SKIPs ride a block-local fn so the r9 gate's sweep-text extraction stays venue-correct. — The venue surfaced five real fixes — 6l LP64 double constants (778d4616b, the WR-01 class on amd64), the k10 early KZERO map raised to 8MiB for the 43-file embed (bba1eeaa8), parse cname uniqueness for dual-name embeds (36542bdbb), rc-script boot plumbing (#r/rtc clock + hostowner; 8b55abbda/8088471ba), and the r9-extraction interaction (fd544ef42) — each fixed in-tree and re-proven green, per the maintainer's in-tree-fix constraint.
+- [Phase 06]: [Phase 06]: 06-10: tier-donor CI leg REMOVED (not kept red as tripwire) per maintainer direction 2026-11-05 — on x86_64 CI donor evidence comes from Harvey's OWN kernel (9k10cpu lineage); the wave0-host venue-pin step (anchored job-key negative-grep + self-hosting-safe donor-script ERE + tier-9k positive-grep) is the honest tripwire — a permanently-red leg trains red-blindness — G-06-1 / CR-01 closed by retirement. CR-01's provisioning arm (wire a native 9front donor build into CI) rejected: borrowing 9front-specific design decisions is the deliberate anti-goal, and the first hosted run redded the leg earlier than the pin gate (host toolchain bootstrap under nixpkgs gcc hardening) — a second bootstrap surface to maintain for unwanted evidence.
+- [Phase 06]: [Phase 06]: 06-10: the coverage report's venue line discloses host-class visit-count jitter (reach set + per-dir verdicts host-independent, proven identical linux-aarch64 vs linux-x86_64); counts stay embedded as data — jpg's note line included — and the D-15 normalized drift gate carries the tolerance (dropping data to quiet a green gate is the wrong direction) — USPACE-02 wording truthfulness under both linux host classes; the gate normalizes visited=N, so the committed report's count embeddings are information, not drift.
 
 ### Pending Todos
 
@@ -345,8 +348,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T21:54:40.534Z
-Stopped at: Completed 06-09-PLAN.md
+Last session: 2026-11-05T22:20:05.742Z
+Stopped at: Completed 06-10-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
