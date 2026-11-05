@@ -41,8 +41,8 @@
 # devroot (mkrootall), executed by the donor's own rc.
 #
 # 06-06 fixed inputs (committed, read-only — the T-06-12 boundary):
-# /boot/tiny.y (yacc grammar), /boot/tiny.l (lex scanner), /boot/tiny.mk
-# (trivial mkfile), /boot/nm-input.7 (nm's baked object — PRODUCED AT
+# $D/tiny.y (yacc grammar), $D/tiny.l (lex scanner), $D/tiny.mk
+# (trivial mkfile), $D/nm-input.7 (nm's baked object — PRODUCED AT
 # AUTHORING TIME by the build venue's host 7c over the committed
 # build/aarch64/hello.c; the reuse-the-canary's-hello.7 route was
 # dropped because this sweep precedes the canary).  cpp's -D smoke
@@ -73,68 +73,68 @@ fn check {
 # --- read-only checks (run on every venue) ---------------------------
 
 # echo: fixed sentinel
-checko_echo=`{/boot/hecho __T1_SENTINEL__}
+checko_echo=`{$B/hecho __T1_SENTINEL__}
 if(~ $checko_echo __T1_SENTINEL__) echo T1-OK echo
 if not echo T1-FAIL echo
 
 # ls: / non-empty, /boot present
-lsout=`{/boot/hls /}
+lsout=`{$B/hls /}
 if(~ /boot $lsout) echo T1-OK ls
 if not echo T1-FAIL ls
 
 # cat: the baked known-content file (2 lines, 4 words) — the fixed
 # expectation is the FIRST line (v1.0's anchored-line assertion); the
 # trailing pattern covers the second (grep-marker) line
-catout=`{/boot/hcat /boot/sentinel.txt}
+catout=`{$B/hcat $D/sentinel.txt}
 if(~ $"catout 'alpha bravo charlie '*) echo T1-OK cat
 if not echo T1-FAIL cat
 
 # grep pipeline
-grepout=`{/boot/hcat /boot/sentinel.txt | /boot/hgrep __SUBSET_GREP_LINE__}
+grepout=`{$B/hcat $D/sentinel.txt | $B/hgrep __SUBSET_GREP_LINE__}
 if(~ $"grepout __SUBSET_GREP_LINE__) echo T1-OK grep
 if not echo T1-FAIL grep
 
 # sed transform pipeline
-sedout=`{/boot/hecho __SUBSET_SENTINEL__ | /boot/hsed s/SENTINEL/VERIFIED/}
+sedout=`{$B/hecho __SUBSET_SENTINEL__ | $B/hsed s/SENTINEL/VERIFIED/}
 if(~ $"sedout __SUBSET_VERIFIED__) echo T1-OK sed
 if not echo T1-FAIL sed
 
 # wc -l: deterministic count from the known-content file
-wcout=`{/boot/hcat /boot/sentinel.txt | /boot/hwc -l}
+wcout=`{$B/hcat $D/sentinel.txt | $B/hwc -l}
 if(~ $"wcout 2) echo T1-OK wc
 if not echo T1-FAIL wc
 
 # date: parseable line carrying a 20xx year
-dateout=`{/boot/hdate}
+dateout=`{$B/hdate}
 if(~ $dateout *20[0-9][0-9]*) echo T1-OK date
 if not echo T1-FAIL date
 
 # test -f true-branch
-check test /boot/htest -f /boot/hcat
+check test $B/htest -f $B/hcat
 
 # rc: OUR rc (hrc) evaluates — caret concat + command substitution
 # inside a forked hrc -c proves the parser/evaluator/exec/exits path
-rcout=`{/boot/hrc -c 'x=`{echo hello}; echo __T1_RC_^$x^_OK__'}
+rcout=`{$B/hrc -c 'x=`{echo hello}; echo __T1_RC_^$x^_OK__'}
 if(~ $"rcout __T1_RC_hello_OK__) echo T1-OK rc
 if not echo T1-FAIL rc
 
 # ps: the sweep's own shell (named rc) is resident
-psout=`{/boot/hps}
+psout=`{$B/hps}
 if(~ rc $psout) echo T1-OK ps
 if not echo T1-FAIL ps
 
 # ipconfig: usage-level (network-less guest) — usage text on stderr,
 # non-zero exit; the output check is the proof
-ipcout=`{/boot/hipconfig -Z >[2=1]}
+ipcout=`{$B/hipconfig -Z >[2=1]}
 if(~ $ipcout *ipconfig*) echo T1-OK ipconfig
 if not echo T1-FAIL ipconfig
 
 # factotum: backgrounded spawn (v1.0's -n -s subexec shape), then
 # resident-in-ps — bounded settle loop (TCG), never a silent hang
-/boot/hfactotum -n -s subexec &
+$B/hfactotum -n -s subexec &
 factok=0
 for(i in 1 2 3 4 5 6 7 8 9 10){
-	if(~ hfactotum `{/boot/hps}) factok=1
+	if(~ hfactotum `{$B/hps}) factok=1
 	if(~ $factok 0) sleep 1
 }
 if(~ $factok 1) echo T1-OK factotum
@@ -142,13 +142,13 @@ if not echo T1-FAIL factotum
 
 # awk: field splitting through a pipe (the G1 maketab generator path
 # produced this binary's proctab.c at build time)
-awkout=`{echo 'alpha bravo charlie' | /boot/hawk '{print $2}'}
+awkout=`{echo 'alpha bravo charlie' | $B/hawk '{print $2}'}
 if(~ $"awkout bravo) echo T1-OK awk
 if not echo T1-FAIL awk
 
 # float canary (D-01, MANDATORY): %.3f of 1/3 must print 0.333 —
 # execution-asserts the FPdbleword fix (06-01) end to end
-out=`{/boot/hawk 'BEGIN{printf "%.3f\n", 1.0/3.0}'}
+out=`{$B/hawk 'BEGIN{printf "%.3f\n", 1.0/3.0}'}
 if(~ $out 0.333) echo T1-OK float-d01
 if not echo T1-FAIL float-d01
 
@@ -161,12 +161,12 @@ if not echo T1-FAIL float-d01
 
 # sort: '_' (0x5f) sorts before 'a' (0x61), so the grep-marker line
 # comes first
-sortout=`{/boot/hsort /boot/sentinel.txt}
+sortout=`{$B/hsort $D/sentinel.txt}
 if(~ $"sortout '__SUBSET_GREP_LINE__ '*) echo T1-OK sort
 if not echo T1-FAIL sort
 
 # tr: upper-case transform of the sentinel
-trout=`{/boot/hcat /boot/sentinel.txt | /boot/htr a-z A-Z}
+trout=`{$B/hcat $D/sentinel.txt | $B/htr a-z A-Z}
 if(~ $"trout 'ALPHA BRAVO CHARLIE '*) echo T1-OK tr
 if not echo T1-FAIL tr
 
@@ -174,29 +174,29 @@ if not echo T1-FAIL tr
 # producer is a fn — the plan9port rc lexer (host-measured, 06-06)
 # rejects subshells with separators inside backquotes, so the sweep
 # keeps backquote bodies to simple-command pipelines
-fn uniqin { /boot/hecho alpha ; /boot/hecho alpha ; /boot/hecho bravo }
-unqout=`{uniqin | /boot/huniq}
+fn uniqin { $B/hecho alpha ; $B/hecho alpha ; $B/hecho bravo }
+unqout=`{uniqin | $B/huniq}
 if(~ $"unqout 'alpha bravo') echo T1-OK uniq
 if not echo T1-FAIL uniq
 
 # tail: last line of the sentinel
-tailout=`{/boot/hcat /boot/sentinel.txt | /boot/htail -1}
+tailout=`{$B/hcat $D/sentinel.txt | $B/htail -1}
 if(~ $"tailout __SUBSET_GREP_LINE__) echo T1-OK tail
 if not echo T1-FAIL tail
 
 # basename: strip dir + suffix
-baseout=`{/boot/hbasename /boot/sentinel.txt .txt}
+baseout=`{$B/hbasename $D/sentinel.txt .txt}
 if(~ $"baseout sentinel) echo T1-OK basename
 if not echo T1-FAIL basename
 
 # sleep: zero-second status check
-check sleep /boot/hsleep 0
+check sleep $B/hsleep 0
 
 # cmp: identical files compare clean (status)
-check cmp /boot/hcmp /boot/sentinel.txt /boot/sentinel.txt
+check cmp $B/hcmp $D/sentinel.txt $D/sentinel.txt
 
 # sum: CRC + block count + name (two-condition shape assert)
-sumout=`{/boot/hsum /boot/sentinel.txt}
+sumout=`{$B/hsum $D/sentinel.txt}
 sumok=0
 if(~ $"sumout [0-9a-f]*) if(~ $"sumout *sentinel.txt*) sumok=1
 if(~ $sumok 1) echo T1-OK sum
@@ -205,32 +205,36 @@ if not echo T1-FAIL sum
 # md5sum/sha1sum: exact known-content asserts — the digests of the
 # baked sentinel (computed at authoring time from its exact 41 bytes:
 # 'alpha bravo charlie\n__SUBSET_GREP_LINE__\n')
-md5out=`{/boot/hmd5sum /boot/sentinel.txt}
-if(~ $"md5out '6c3d57e94871f9606c5b63c315e76135 /boot/sentinel.txt') echo T1-OK md5sum
+md5out=`{$B/hmd5sum $D/sentinel.txt}
+if(~ $"md5out '6c3d57e94871f9606c5b63c315e76135 $D/sentinel.txt') echo T1-OK md5sum
 if not echo T1-FAIL md5sum
-sha1out=`{/boot/hsha1sum /boot/sentinel.txt}
-if(~ $"sha1out '893404a2c36b54f5c7874070d1acefe38f7ce652 /boot/sentinel.txt') echo T1-OK sha1sum
+sha1out=`{$B/hsha1sum $D/sentinel.txt}
+if(~ $"sha1out '893404a2c36b54f5c7874070d1acefe38f7ce652 $D/sentinel.txt') echo T1-OK sha1sum
 if not echo T1-FAIL sha1sum
 
-# ed: scripted print+quit over the sentinel (fn producer — see uniq)
-fn edin { /boot/hecho ,p ; /boot/hecho q }
-edout=`{edin | /boot/hed /boot/sentinel.txt}
-if(~ $"edout *'alpha bravo charlie'*) echo T1-OK ed
-if not echo T1-FAIL ed
+# ed MOVED into the donor-venue guard (06-07, measured): ed.c ALWAYS
+# creates a mktemp scratch (/tmp/eXXXXX, lines 159/1092) and removes it
+# at exit (line 930) — the 06-07 donor trace caught hed's create+remove
+# pair, a /tmp-writable dependency the read-only block hid.  On r9's
+# read-only root this era the create fails and ed exits without
+# printing — it takes the named T1-SKIP (USPACE-04 transparency: never
+# an unearned T1-OK).
+# --- read-only checks continue ---
+
 
 # dc: postfix 2+3 prints 5
-dcout=`{/boot/hecho '2 3+p' | /boot/hdc}
+dcout=`{$B/hecho '2 3+p' | $B/hdc}
 if(~ $"dcout 5) echo T1-OK dc
 if not echo T1-FAIL dc
 
 # units: usage-level — the donor image carries no /lib/units db, so
 # the usage text on a bad flag is the execution proof (ipconfig shape)
-uout=`{/boot/hunits -Z >[2=1]}
+uout=`{$B/hunits -Z >[2=1]}
 if(~ $"uout *units*) echo T1-OK units
 if not echo T1-FAIL units
 
 # cal: a fixed month renders its banner
-calout=`{/boot/hcal 11 2026}
+calout=`{$B/hcal 11 2026}
 if(~ $"calout *'November 2026'*) echo T1-OK cal
 if not echo T1-FAIL cal
 
@@ -240,33 +244,33 @@ if not echo T1-FAIL cal
 # T1-BCOBS exact-output observation live there.
 
 # fmt: passthrough fold of a short line
-fmtout=`{/boot/hecho 'alpha bravo charlie' | /boot/hfmt}
+fmtout=`{$B/hecho 'alpha bravo charlie' | $B/hfmt}
 if(~ $"fmtout 'alpha bravo charlie') echo T1-OK fmt
 if not echo T1-FAIL fmt
 
 # seq: 1..3
-seqout=`{/boot/hseq 3}
+seqout=`{$B/hseq 3}
 if(~ $"seqout '1 2 3') echo T1-OK seq
 if not echo T1-FAIL seq
 
 # time: runs its argument command; the sentinel rides stdout (time's
 # own line rides stderr, not captured)
-tout=`{/boot/htime /boot/hecho __T1_TIME__}
+tout=`{$B/htime $B/hecho __T1_TIME__}
 if(~ $"tout __T1_TIME__) echo T1-OK time
 if not echo T1-FAIL time
 
 # read: echoes one stdin line back (read.c)
-rout=`{/boot/hecho __T1_READ__ | /boot/hread}
+rout=`{$B/hecho __T1_READ__ | $B/hread}
 if(~ $"rout __T1_READ__) echo T1-OK read
 if not echo T1-FAIL read
 
 # pr: paginated print carries the content line under its header
-prout=`{/boot/hpr /boot/sentinel.txt}
+prout=`{$B/hpr $D/sentinel.txt}
 if(~ $"prout *'alpha bravo charlie'*) echo T1-OK pr
 if not echo T1-FAIL pr
 
 # strings: a text file's lines are all printable runs
-strout=`{/boot/hstrings /boot/sentinel.txt}
+strout=`{$B/hstrings $D/sentinel.txt}
 if(~ $"strout *'alpha bravo charlie'*) echo T1-OK strings
 if not echo T1-FAIL strings
 
@@ -278,7 +282,7 @@ if not echo T1-FAIL strings
 # format spaces every character, so a substring assert cannot work
 # there.  T1-XDOBS records the raw dump in the retained log
 # (observation marker, same class as T1-BCOBS)
-xdout=`{/boot/hxd -4x /boot/sentinel.txt}
+xdout=`{$B/hxd -4x $D/sentinel.txt}
 echo T1-XDOBS $xdout
 xdok=0
 if(~ $"xdout *616c7068*) if(~ $"xdout *63686172*) xdok=1
@@ -286,7 +290,7 @@ if(~ $xdok 1) echo T1-OK xd
 if not echo T1-FAIL xd
 
 # du: block count + name for the file argument (two-condition assert)
-duout=`{/boot/hdu /boot/sentinel.txt}
+duout=`{$B/hdu $D/sentinel.txt}
 duok=0
 if(~ $"duout [0-9]*) if(~ $"duout *sentinel.txt*) duok=1
 if(~ $duok 1) echo T1-OK du
@@ -294,13 +298,13 @@ if not echo T1-FAIL du
 
 # comm: the sentinel against itself — every line is column-3 (common),
 # so the flattened words are the file's words in order
-cout=`{/boot/hcomm /boot/sentinel.txt /boot/sentinel.txt}
+cout=`{$B/hcomm $D/sentinel.txt $D/sentinel.txt}
 if(~ $"cout 'alpha bravo charlie __SUBSET_GREP_LINE__') echo T1-OK comm
 if not echo T1-FAIL comm
 
 # join: the sentinel joined with itself on field 1 — the alpha-keyed
 # line joins its tails
-jout=`{/boot/hjoin /boot/sentinel.txt /boot/sentinel.txt}
+jout=`{$B/hjoin $D/sentinel.txt $D/sentinel.txt}
 if(~ $"jout *'alpha bravo charlie bravo charlie'*) echo T1-OK join
 if not echo T1-FAIL join
 
@@ -308,21 +312,21 @@ if not echo T1-FAIL join
 # authoring time by the build venue's host 7c over the committed
 # build/aarch64/hello.c); libmach's consumer-carrier (D-06).  The
 # output must name the program's main symbol
-nmout=`{/boot/hnm /boot/nm-input.7}
+nmout=`{$B/hnm $D/nm-input.7}
 if(~ $"nmout *main*) echo T1-OK nm
 if not echo T1-FAIL nm
 
 # --- write-flow round-trip (donor venue only — r9's root is read-only
 # this era; named T1-SKIP lines keep the marker set enumerable) -------
 if(~ $venue donor){
-	check mkdir /boot/hmkdir /tmp/tier1
-	check cp /boot/hcp /boot/sentinel.txt /tmp/tier1/copied
-	check mv /boot/hmv /tmp/tier1/copied /tmp/tier1/moved
+	check mkdir $B/hmkdir /tmp/tier1
+	check cp $B/hcp $D/sentinel.txt /tmp/tier1/copied
+	check mv $B/hmv /tmp/tier1/copied /tmp/tier1/moved
 	# rm covers the file AND the emptied dir (v1.0 steps 15+17) — one
 	# marker per tier entry
 	rmok=1
-	/boot/hrm /tmp/tier1/moved || rmok=0
-	/boot/hrm /tmp/tier1 || rmok=0
+	$B/hrm /tmp/tier1/moved || rmok=0
+	$B/hrm /tmp/tier1 || rmok=0
 	if(~ $rmok 1) echo T1-OK rm
 	if not echo T1-FAIL rm
 
@@ -343,7 +347,7 @@ if(~ $venue donor){
 	# word (rc lex.c's wordchr excludes it), so flag=value arguments
 	# must be quoted — see cpp's '-DVALUE=41'.)
 	cd /tmp
-	/boot/hmkdir /tmp/tier1
+	$B/hmkdir /tmp/tier1
 
 	# bc: bc.y's execl("/bin/dc") is hardcoded, and the donor's served
 	# /bin is the minimal 20-entry set with NO dc — union-mount a shim
@@ -353,15 +357,15 @@ if(~ $venue donor){
 	# (Donor-guarded: r9's Harvey image carries /bin/dc natively, so
 	# the r9 venue takes the named SKIP until 06-07 wires it.)
 	bcok=1
-	/boot/hmkdir /tmp/bc-bin || bcok=0
-	if(~ $bcok 1){ /boot/hcp /boot/hdc /tmp/bc-bin/dc || bcok=0 }
+	$B/hmkdir /tmp/bc-bin || bcok=0
+	if(~ $bcok 1){ $B/hcp $B/hdc /tmp/bc-bin/dc || bcok=0 }
 	if(~ $bcok 1){ /bin/bind -b /tmp/bc-bin /bin || bcok=0 }
 	if(~ $bcok 1){
 		# A7 observation: scale=3; 1/3 — the exact observed output
 		# is recorded in the log (T1-BCOBS) to settle A7 by
 		# observation; the assert is the shape pair (Plan 9 bc may
 		# drop the leading zero)
-		bcout=`{/boot/hecho 'scale=3; 1/3' | /boot/hbc}
+		bcout=`{$B/hecho 'scale=3; 1/3' | $B/hbc}
 		echo T1-BCOBS $bcout
 		if(~ $"bcout '.'[0-9]* '0.'[0-9]*) echo T1-OK bc
 		if not echo T1-FAIL bc
@@ -371,28 +375,28 @@ if(~ $venue donor){
 	# dd: dash-pair syntax (07-04's measured dialect — the baked dd.c
 	# parses -if/-of, not if=/of=), round-trip + content compare
 	ddok=1
-	/boot/hdd -if /boot/sentinel.txt -of /tmp/tier1/dd.out || ddok=0
-	if(~ $ddok 1){ /boot/hcmp /boot/sentinel.txt /tmp/tier1/dd.out || ddok=0 }
+	$B/hdd -if $D/sentinel.txt -of /tmp/tier1/dd.out || ddok=0
+	if(~ $ddok 1){ $B/hcmp $D/sentinel.txt /tmp/tier1/dd.out || ddok=0 }
 	if(~ $ddok 1) echo T1-OK dd
 	if not echo T1-FAIL dd
 
 	# tar: create + list round-trip; the listing names the archived file
 	tarok=1
-	/boot/hmkdir /tmp/tier1/tarf || tarok=0
-	if(~ $tarok 1){ /boot/hcp /boot/sentinel.txt /tmp/tier1/tarf/sentinel.txt || tarok=0 }
-	if(~ $tarok 1){ /boot/htar cf /tmp/tier1/t.tar /tmp/tier1/tarf || tarok=0 }
+	$B/hmkdir /tmp/tier1/tarf || tarok=0
+	if(~ $tarok 1){ $B/hcp $D/sentinel.txt /tmp/tier1/tarf/sentinel.txt || tarok=0 }
+	if(~ $tarok 1){ $B/htar cf /tmp/tier1/t.tar /tmp/tier1/tarf || tarok=0 }
 	if(~ $tarok 1){
-		tarout=`{/boot/htar tf /tmp/tier1/t.tar}
+		tarout=`{$B/htar tf /tmp/tier1/t.tar}
 		if(~ $"tarout *'sentinel.txt'*) echo T1-OK tar
 		if not echo T1-FAIL tar
 	}
 	if(~ $tarok 0) echo T1-FAIL tar
 
 	# tee: stdout AND the written file both carry the marker
-	teeout=`{/boot/hecho __T1_TEE__ | /boot/htee /tmp/tier1/tee.out}
+	teeout=`{$B/hecho __T1_TEE__ | $B/htee /tmp/tier1/tee.out}
 	teeok=0
 	if(~ $"teeout __T1_TEE__){
-		teef=`{/boot/hcat /tmp/tier1/tee.out}
+		teef=`{$B/hcat /tmp/tier1/tee.out}
 		if(~ $"teef __T1_TEE__) teeok=1
 	}
 	if(~ $teeok 1) echo T1-OK tee
@@ -402,15 +406,15 @@ if(~ $venue donor){
 	# writable tree's mode semantics are srv9's; the exit status is
 	# the exercise)
 	chmok=1
-	/boot/hcp /boot/sentinel.txt /tmp/tier1/chmodme || chmok=0
-	if(~ $chmok 1){ /boot/hchmod 444 /tmp/tier1/chmodme || chmok=0 }
+	$B/hcp $D/sentinel.txt /tmp/tier1/chmodme || chmok=0
+	if(~ $chmok 1){ $B/hchmod 444 /tmp/tier1/chmodme || chmok=0 }
 	if(~ $chmok 1) echo T1-OK chmod
 	if not echo T1-FAIL chmod
 
 	# touch: create + re-touch in the scratch
 	tchok=1
-	/boot/htouch /tmp/tier1/touchme || tchok=0
-	if(~ $tchok 1){ /boot/htest -f /tmp/tier1/touchme || tchok=0 }
+	$B/htouch /tmp/tier1/touchme || tchok=0
+	if(~ $tchok 1){ $B/htest -f /tmp/tier1/touchme || tchok=0 }
 	if(~ $tchok 1) echo T1-OK touch
 	if not echo T1-FAIL touch
 
@@ -418,13 +422,13 @@ if(~ $venue donor){
 	# dialect: -n lines-per-piece, -f stem — there is no -l; measured
 	# on the donor 06-06); sp.aa carries line 1
 	splitok=1
-	/boot/hsplit -n 1 -f /tmp/tier1/sp. /boot/sentinel.txt || splitok=0
+	$B/hsplit -n 1 -f /tmp/tier1/sp. $D/sentinel.txt || splitok=0
 	if(~ $splitok 1){
-		/boot/htest -f /tmp/tier1/sp.aa || splitok=0
-		/boot/htest -f /tmp/tier1/sp.ab || splitok=0
+		$B/htest -f /tmp/tier1/sp.aa || splitok=0
+		$B/htest -f /tmp/tier1/sp.ab || splitok=0
 	}
 	if(~ $splitok 1){
-		spa=`{/boot/hcat /tmp/tier1/sp.aa}
+		spa=`{$B/hcat /tmp/tier1/sp.aa}
 		if(~ $"spa 'alpha bravo charlie') echo T1-OK split
 		if not echo T1-FAIL split
 	}
@@ -437,16 +441,26 @@ if(~ $venue donor){
 	# by a dir probe first: a redirect-open failure is an uncatchable
 	# rc Xerror that would abort the sweep without a marker (07-04's
 	# lesson)
-	fn lookdb { /boot/hecho __LOOK_A__ ; /boot/hecho __LOOK_B__ }
+	fn lookdb { $B/hecho __LOOK_A__ ; $B/hecho __LOOK_B__ }
 	lok=1
-	/boot/htest -d /tmp/tier1 || lok=0
+	$B/htest -d /tmp/tier1 || lok=0
 	if(~ $lok 1){ lookdb > /tmp/tier1/look.db || lok=0 }
 	if(~ $lok 1){
-		lout=`{/boot/hlook __LOOK_A__ /tmp/tier1/look.db}
+		lout=`{$B/hlook __LOOK_A__ /tmp/tier1/look.db}
 		if(~ $"lout __LOOK_A__) echo T1-OK look
 		if not echo T1-FAIL look
 	}
 	if(~ $lok 0) echo T1-FAIL look
+
+	# ed (moved from the read-only block 06-07 — see the note there):
+	# ed ALWAYS creates its /tmp/eXXXXX mktemp scratch (ed.c:159/1092)
+	# and removes it at exit (ed.c:930) — measured in the 06-07 donor
+	# trace (hed create×1 remove×1), so it needs the writable /tmp.
+	# Scripted print+quit over the sentinel (fn producer — see uniq).
+	fn edin { $B/hecho ,p ; $B/hecho q }
+	edout=`{edin | $B/hed $D/sentinel.txt}
+	if(~ $"edout *'alpha bravo charlie'*) echo T1-OK ed
+	if not echo T1-FAIL ed
 
 	# --- 06-06: build-chain execution evidence (RESEARCH OQ-2's
 	# letter: cpp/mk/yacc/lex ALL need execution evidence — every
@@ -457,9 +471,9 @@ if(~ $venue donor){
 	# file needed).  The flag is QUOTED: 9front rc's lexer ends a word
 	# at a bare '=' (measured on the donor 06-06)
 	cppok=1
-	/boot/hecho 'int x = VALUE;' > /tmp/cpp-in.c || cppok=0
+	$B/hecho 'int x = VALUE;' > /tmp/cpp-in.c || cppok=0
 	if(~ $cppok 1){
-		cppout=`{/boot/hcpp '-DVALUE=41' /tmp/cpp-in.c}
+		cppout=`{$B/hcpp '-DVALUE=41' /tmp/cpp-in.c}
 		if(~ $"cppout *'int x = 41;'*) echo T1-OK cpp
 		if not echo T1-FAIL cpp
 	}
@@ -469,24 +483,24 @@ if(~ $venue donor){
 	# the cwd — /tmp per the block head note) carries the generated
 	# yyparse fragment (hgrep has no -q — status via redirect)
 	yacok=1
-	/boot/hyacc /boot/tiny.y || yacok=0
-	if(~ $yacok 1){ /boot/htest -f /tmp/y.tab.c || yacok=0 }
-	if(~ $yacok 1){ if(! /boot/hgrep yyparse /tmp/y.tab.c >/dev/null) yacok=0 }
+	$B/hyacc $D/tiny.y || yacok=0
+	if(~ $yacok 1){ $B/htest -f /tmp/y.tab.c || yacok=0 }
+	if(~ $yacok 1){ if(! $B/hgrep yyparse /tmp/y.tab.c >/dev/null) yacok=0 }
 	if(~ $yacok 1) echo T1-OK yacc
 	if not echo T1-FAIL yacc
 
 	# lex: compile the committed one-rule scanner; lex.yy.c carries
 	# the generated yylex fragment
 	lexok=1
-	/boot/hlex /boot/tiny.l || lexok=0
-	if(~ $lexok 1){ /boot/htest -f /tmp/lex.yy.c || lexok=0 }
-	if(~ $lexok 1){ if(! /boot/hgrep yylex /tmp/lex.yy.c >/dev/null) lexok=0 }
+	$B/hlex $D/tiny.l || lexok=0
+	if(~ $lexok 1){ $B/htest -f /tmp/lex.yy.c || lexok=0 }
+	if(~ $lexok 1){ if(! $B/hgrep yylex /tmp/lex.yy.c >/dev/null) lexok=0 }
 	if(~ $lexok 1) echo T1-OK lex
 	if not echo T1-FAIL lex
 
 	# mk: run the committed trivial mkfile; the recipe's echo output
 	# is the marker content
-	mkout=`{/boot/hmk -f /boot/tiny.mk}
+	mkout=`{$B/hmk -f $D/tiny.mk}
 	if(~ $"mkout *__TINY_MK_OK__*) echo T1-OK mk
 	if not echo T1-FAIL mk
 
@@ -503,14 +517,14 @@ if(~ $venue donor){
 	# -FTVw emits .7 directly) — assemble the committed tiny.s as
 	# 7a's explicit marker
 	a7ok=1
-	/boot/h7a /boot/tiny.s || a7ok=0
-	if(~ $a7ok 1){ /boot/htest -f /tmp/tiny.7 || a7ok=0 }
+	$B/h7a $D/tiny.s || a7ok=0
+	if(~ $a7ok 1){ $B/htest -f /tmp/tiny.7 || a7ok=0 }
 	if(~ $a7ok 1) echo T1-OK 7a
 	if not echo T1-FAIL 7a
 
 	shok=1
-	/boot/h7c -FTVw /boot/hello.c || shok=0
-	if(~ $shok 1){ /boot/h7l -o /tmp/hello hello.7 || shok=0 }
+	$B/h7c -FTVw $D/hello.c || shok=0
+	if(~ $shok 1){ $B/h7l -o /tmp/hello hello.7 || shok=0 }
 	if(~ $shok 1) echo T1-OK selfhost-compile
 	if not echo T1-FAIL selfhost-compile
 	# the run marker: exec from the srv9 WRITABLE prefix is the A3
@@ -521,8 +535,8 @@ if(~ $venue donor){
 	# weaker COMPILE-ONLY proof in the ledger + EVIDENCE.md)
 	shrun=0
 	if(~ $shok 1){
-		if(/boot/hrc -c '/tmp/hello > /tmp/hello.out'){
-			hout=`{/boot/hcat /tmp/hello.out}
+		if($B/hrc -c '/tmp/hello > /tmp/hello.out'){
+			hout=`{$B/hcat /tmp/hello.out}
 			# the known-output string must appear in the retained
 			# serial log (T-06-12) — observation marker, same class
 			# as T1-BCOBS/T1-XDOBS
@@ -547,6 +561,7 @@ if not {
 	echo T1-SKIP touch
 	echo T1-SKIP split
 	echo T1-SKIP look
+	echo T1-SKIP ed
 	echo T1-SKIP cpp
 	echo T1-SKIP yacc
 	echo T1-SKIP lex
@@ -561,7 +576,7 @@ if not {
 # evidence in tier0.ledger).  tdraw prints wordsperline for a fixed
 # rect/depth (libdraw); disktest runs opendisk's plain-file path on a
 # /tmp fixture (a write — donor venue only, named T1-SKIP elsewhere; the
-# fixture rides /boot/hcp because the donor's served /bin is minimal and
+# fixture rides $B/hcp because the donor's served /bin is minimal and
 # has no cp).  libmemdraw's drawtest/arctest ALSO ran on the donor —
 # 2026-11-05, evidence/06-05-libtest-donor.log — and FAULT:
 # drawtest abort()s its own stochastic pixel verification (the null read
@@ -576,7 +591,7 @@ if not {
 # vttest is a stale mkfile target (no vttest.c exists) — documented,
 # never staged.
 # (tdraw keeps the proven output-pattern check shape)
-tdrout=`{/boot/htdraw 0 0 8 8 32}
+tdrout=`{$B/htdraw 0 0 8 8 32}
 if(~ $"tdrout [0-9]*) echo T1-OK libtest-tdraw
 if not echo T1-FAIL libtest-tdraw
 
@@ -586,9 +601,9 @@ if(~ $venue donor){
 	# geometry) prints '<c> <h> <s> from <src>'.  The cp rides || so a
 	# fixture failure marks T1-FAIL, never aborts the sweep.
 	diskok=1
-	/boot/hcp /boot/hawk /tmp/diskimg || diskok=0
+	$B/hcp $B/hawk /tmp/diskimg || diskok=0
 	if(~ $diskok 1){
-		diskout=`{/boot/hdisktest /tmp/diskimg}
+		diskout=`{$B/hdisktest /tmp/diskimg}
 		# rc dialect (measured host-side): quoting DISABLES wildcarding
 		# in ~ patterns (a quoted * is literal), and multi-star spans
 		# over literal text are unreliable — assert in two proven-shape
