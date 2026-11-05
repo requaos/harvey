@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 07
 current_phase_name: r9 PCI/ECAM + virtio-net + devether
 status: executing
-stopped_at: Completed 07-04-PLAN.md
-last_updated: "2026-11-05T00:04:51.713Z"
+stopped_at: Completed 06-02-PLAN.md
+last_updated: "2026-11-05T00:10:54.016Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 07 execution started
-state_head: 9fb015a573d434b8d029e8399191ec6ea43319a4
+state_head: 8ec9c050e5fd3711ce14b6fa1f1079271b94f192
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 16
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -104,6 +104,7 @@ Progress: [░░░░░░░░░░] 0% (v2.0)
 | Phase 07 P03 | 19 min | 2 tasks | 4 files |
 | Phase 07 P04 | 19 min | 2 tasks | 5 files |
 | Phase 07 P04 | 19 min | 2 tasks | 5 files |
+| Phase 06 P02 | 30 min | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -225,6 +226,10 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-04: insertion-only edits to the shared build scripts (SUBSET append, separate mk dd.install and manifest assert lines) — the acceptance zero-deletion constraint and Phase-6 collision avoidance govern over the prose alphabetical-in-list placement
 - [Phase 07]: 07-04: net-sweep.rc connect step pre-checks test -e on the ctl file — a redirect-open failure is an uncatchable rc Xerror (aborts without the named FAIL line); the || on the echo covers the write-failure (Ebadctl) class
 - [Phase 07]: 07-04: mkimage.sh trailer magic re-extracted with od -j — the Harvey host dd shadows POSIX dd on the devshell PATH (D-02 hostbin-shadowing class), leaving the classic-syntax extraction empty and the bake red; od is never shadowed (no Plan 9 od exists)
+- [Phase 06]: 06-02: Task-2 checkpoint resolved planned-layout (user 2026-11-04) — tier data files, entry forms, filter hooks, COVERAGE_SWEEP disengagement, and the D-14 ledger grammar committed exactly as presented; ledgers committed header-only to pin the grammar before 06-03's first append
+- [Phase 06]: 06-02: uniform keep-rule = first-path-component awk extraction (colon-stripped); dir:target keeps its dir in the mk sweep (mkpaqfs compiles green under 7c) while host-only semantics live at the driver/staging layer; leaf target filtering only where equipped (auth/factotum drops fgui)
+- [Phase 06]: 06-02: plan9port mk backquote lexer constraints spiked and encoded (no literal newlines; first unquoted close-brace terminates; $1/$$ are lex errors) — single-line brace-free rc filters with single-quoted awk extractions; mkmany + cmd/mkfile carry empty-TARG phantom guards (Rule-1 deviation, parity re-proven)
+- [Phase 06]: 06-02: Task-3 verify gate 2 is defective as written (mk -n never recurses; ip/ipconfig|auth/factotum can never appear in cmd's own output) — intent proven by per-level chain probes; gate-text repair queued for 06-03 planning
 
 ### Pending Todos
 
@@ -273,8 +278,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T00:04:51.692Z
-Stopped at: Completed 07-04-PLAN.md
+Last session: 2026-11-05T00:10:53.995Z
+Stopped at: Completed 06-02-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
