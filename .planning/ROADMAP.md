@@ -234,3 +234,13 @@ Two parallel tracks from the v1.0 foundation: userspace {6 → 10} ∥ networkin
 | 10. Userspace Services + GUI Tiers + Bootfs | v2.0 | - | Not started | - |
 | 11. In-Guest p9sk1 Auth Domain | v2.0 | - | Not started | - |
 | 12. CPU Service + Drawterm + rio Desktop | v2.0 | - | Not started | - |
+
+## Backlog
+
+### Phase 999.1: Follow-up — Phase 06 deferred UAT follow-up: Test 1 (BACKLOG)
+
+**Goal:** Resolve the UAT checkpoint deferred during Phase 06 verification
+**Source phase:** 06
+**Deferred at:** 2026-11-05 during /gsd-verify-work 06 session completion
+**Follow-ups:**
+- [ ] Test 1: Fix the legacy harvey.yml workflow to build via nix so it is green moving forward (pre-dates this work; red streak on master recorded since 2026-11-04T12:01Z — pre-existing/unrelated to Phase 6) (deferred 2026-11-05)
