@@ -262,15 +262,18 @@ strout=`{/boot/hstrings /boot/sentinel.txt}
 if(~ $"strout *'alpha bravo charlie'*) echo T1-OK strings
 if not echo T1-FAIL strings
 
-# xd: 4-byte hex dump (-4x) of the sentinel — the LE long words are
-# deterministic: 'alph' → 68706c61, ' bra' → 61726220 (the -c char
-# format spaces every character, so a substring assert cannot work —
-# measured 06-06).  T1-XDOBS records the raw dump in the retained log
+# xd: 4-byte hex dump (-4x) of the sentinel — the byte-order words are
+# deterministic on the fixed input: 'alph' → 616c7068, 'vo c' →
+# 766f2063 (xd prints bytes in memory order per unit, NOT
+# endian-composed values; and 'alpha' is FIVE letters — both mistakes
+# in the first assert measured against T1-XDOBS 06-06).  The -c char
+# format spaces every character, so a substring assert cannot work
+# there.  T1-XDOBS records the raw dump in the retained log
 # (observation marker, same class as T1-BCOBS)
 xdout=`{/boot/hxd -4x /boot/sentinel.txt}
 echo T1-XDOBS $xdout
 xdok=0
-if(~ $"xdout *68706c61*) if(~ $"xdout *61726220*) xdok=1
+if(~ $"xdout *616c7068*) if(~ $"xdout *766f2063*) xdok=1
 if(~ $xdok 1) echo T1-OK xd
 if not echo T1-FAIL xd
 
@@ -403,9 +406,11 @@ if(~ $venue donor){
 	if(~ $tchok 1) echo T1-OK touch
 	if not echo T1-FAIL touch
 
-	# split: one line per piece in the scratch; sp.aa carries line 1
+	# split: one line per piece in the scratch (Harvey's split.c flag
+	# dialect: -n lines-per-piece, -f stem — there is no -l; measured
+	# on the donor 06-06); sp.aa carries line 1
 	splitok=1
-	/boot/hsplit -l 1 /boot/sentinel.txt /tmp/tier1/sp. || splitok=0
+	/boot/hsplit -n 1 -f /tmp/tier1/sp. /boot/sentinel.txt || splitok=0
 	if(~ $splitok 1){
 		/boot/htest -f /tmp/tier1/sp.aa || splitok=0
 		/boot/htest -f /tmp/tier1/sp.ab || splitok=0

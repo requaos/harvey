@@ -233,10 +233,26 @@ RSYNC_RSH="ssh -F $SSH_CFG"
 mkdir -p "$ROOTFS/tmp" "$ROOTFS/usr/glenda/tmp"
 # start each run from a clean scratch (idempotence evidence) — the
 # sweep's write-flow round-trips + build-chain outputs + the 06-06
-# canary products are all removed (06-06 extended the set)
-rm -rf "$ROOTFS/tmp/subset" "$ROOTFS/usr/glenda/tmp/subset" "$ROOTFS/tmp/tier1" "$ROOTFS/usr/glenda/tmp/tier1" "$ROOTFS/tmp/bc-bin"
-rm -f "$ROOTFS/tmp/y.tab.c" "$ROOTFS/tmp/lex.yy.c" "$ROOTFS/tmp/cpp-in.c" \
-	"$ROOTFS/tmp/hello" "$ROOTFS/tmp/hello.7" "$ROOTFS/tmp/hello.out" "$ROOTFS/tmp/tiny.7"
+# canary products are all removed.  The guest's /tmp is lib/namespace's
+# MCREATE bind of /usr/glenda/tmp, so BOTH branches are cleaned
+# (measured 06-06: a stale bc-bin on the usr/glenda/tmp branch broke
+# the next run's shim setup)
+for scratch in "$ROOTFS/tmp" "$ROOTFS/usr/glenda/tmp"; do
+	rm -rf "$scratch/subset" "$scratch/tier1" "$scratch/bc-bin"
+	rm -f	"$scratch/y.tab.c" "$scratch/lex.yy.c" "$scratch/cpp-in.c" \
+		"$scratch/hello" "$scratch/hello.7" "$scratch/hello.out" "$scratch/tiny.7"
+done
+
+# 06-06: srv9-served-root staging — the guest has no /sys tree at all,
+# but the build-chain tools open their skeletons by compiled-in
+# absolute paths (yacc's PARSER=/sys/lib/yaccpar, yacc.c:16; lex's
+# /sys/lib/lex/ncform, lex/lmain.c:17).  Stage Harvey's (the matching
+# skeletons for our vendored tools) into the served root — additive,
+# read-only from the guest side.  (Task 2 extends this block with
+# aarch64/include + aarch64/lib/libc.a for the self-host canary.)
+mkdir -p "$ROOTFS/sys/lib/lex"
+cp "$HARVEY/sys/lib/yaccpar" "$ROOTFS/sys/lib/yaccpar"
+cp "$HARVEY/sys/lib/lex/ncform" "$ROOTFS/sys/lib/lex/ncform"
 
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/subset-exec.XXXXXX")
 TERMRC_ORIG="$TMPD/termrc.orig"
