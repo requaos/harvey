@@ -391,6 +391,106 @@ new tests assert what they claim. Adversarial pass found no new defects.
 
 ---
 
+## Incremental Review — 07-10 RX offset fix
+
+**Reviewed:** 2026-11-05
+**Depth:** standard
+**Scope:** the 07-10 source-change set only — `../r9/aarch64/src/platform/virt/pci.rs`
+(the GREEN fix: RX drain slice base, ~:889-903), `../r9/port/src/virtio.rs`
+(the extracted `pub const fn virtio_net_frame_offset()` seam, :835-848), and
+`../r9/port/src/rx_chain_tests.rs` (new — the chain-faithful RED pins).
+**New findings:** 0 (critical 0, warning 0, info 0). Frontmatter counts and
+file list above are unchanged: the union of findings remains the original 14,
+and the newly-reviewed file's scope is recorded here per the 07-09 precedent.
+
+### Verdict
+
+The G-07-1 fix is correct and spec-exact: the two-descriptor chain (12-byte
+virtio_net_hdr descriptor NEXT-chained to the payload descriptor, virtio.rs
+`setup_chains` :546-565) makes the descriptor boundary a hard I/O-vector
+boundary per §5.1.6.3.2, so the device writes the frame at the payload page's
+offset 0 and only `used.len` carries the +12. Returning 0 from the extracted
+seam is the right cure, and the new pins genuinely assert what they claim.
+Adversarial pass found no new defects.
+
+### Verification detail (the four review questions)
+
+1. **Offset 0 is correct for every caller.** Grep-verified:
+   `virtio_net_frame_offset` has exactly ONE production caller — the RX drain
+   at pci.rs:899 — plus the test's mirrored `drain_slice`. No TX-side or other
+   consumer exists that could legitimately need 12: `virtnet_tx_post`
+   (pci.rs:753-779) copies the outbound frame at its payload page's offset 0
+   and the TX chain's header descriptor points at the shared header page,
+   zeroed at allocation (`alloc_ring_page` zero-fills, pci.rs:457) — which is
+   exactly `VirtioNetHdr::tx().to_le_bytes()` under the D-03 zero-offload mask
+   (pinned at virtio_tests.rs:753-758). `VirtioNetHdr::to_le_bytes` keeps its
+   test consumers, so the seam extraction introduced no dead code. The 12-byte
+   (not 10-byte legacy) header form is guaranteed by D-03's VERSION_1-only
+   negotiation, so no MRG_RXBUF/legacy path can reintroduce a header-in-buffer
+   layout (MRG_RXBUF is never accepted — ACCEPT_LO/HI, virtio.rs:220-222).
+
+2. **The `used.len − 12` math cannot underflow.** For RX rings,
+   `Ring::new` sets `used_len_min = VIRTIO_NET_HDR_LEN` (virtio.rs:518-521)
+   and `next_used` rejects `len < used_len_min` as a device fault
+   (virtio.rs:747-749). The drain computes `virtio_net_frame_len(used.len)`
+   only inside the `Some(Ok(used))` arm (pci.rs:878-889), so the subtraction
+   sees `len ≥ 12` structurally — the helper's documented precondition holds at
+   its only call site. The upper side is equally tight: `used_len_max` is the
+   chain capacity `12 + 4096` (pci.rs:490), so `frame_len ≤ 4096` and the slice
+   `[page+0 .. page+frame_len]` stays within the 4 KiB payload page by
+   construction (the SAFETY comment at pci.rs:891-896 is accurate). Boundary
+   case `len == 12` yields a 0-byte frame; `rx_ingress`'s runt drop
+   (`frame.len() < 14`, netif.rs:585-587) handles it without panic.
+
+3. **The tests assert what they claim.** Traced line-by-line against the real
+   `Ring`: `DescPool::new(8)` pops ascending, so slot 0 gets chain head 0 /
+   payload 1 — matching test 1's descriptor pins (`addr=HDR_PA, len=12,
+   flags=NEXT|WRITE, next=1`; payload `addr=PAY_PA, len=4096, flags=WRITE`
+   after replenish). `replenish_slot0`'s `Replenish { offered: 1, notified:
+   true }` expectation matches `rx_replenish`'s control flow exactly (one
+   post, alloc dries up, closing notify under `USED_F_NO_NOTIFY == 0`).
+   `device_complete` correctly models the device's independent used cursor
+   (reads `used.idx`, writes the entry at the device position, advances).
+   `drain_slice` mirrors pci.rs's arithmetic with *safe* indexing, so the old
+   defect fails loudly: offset 12 would byte-mismatch test 2's
+   `slice == PCAP_REPLY` and panic out-of-bounds in test 3's `[12..4108]` on a
+   4096-byte page — both pins are genuinely RED against the pre-fix
+   arithmetic. The `PCAP_REPLY` vector was independently verified byte-exact
+   against `evidence/07-07-virtnet-arp.pcap` packet 2 (incl_len 64): dst
+   52:54:00:12:34:56, src 52:55:0a:00:02:02, etype 0806, ARP oper 0002, spa
+   10.0.2.2, tha guest MAC, tpa 10.0.2.15, 22 zero pad bytes — the provenance
+   claim in the test header is true. Executed: `nix develop --offline
+   --command cargo test -p port --lib rx_chain` → **3 passed, 0 failed** (51
+   pre-existing lib tests filtered out).
+
+4. **No new panic path reaches kernel code.** The kernel-side change adds a
+   `const fn` returning 0 to a slice base — no new panic construct; the
+   pre-existing bounds argument above covers the slice extent.
+   `rx_chain_tests` is `#[cfg(test)]`-gated (lib.rs:87-88) under the crate's
+   `#![cfg_attr(not(any(test)), no_std)]` (lib.rs:3), so the Vec/Rc/RefCell
+   rig vanishes from kernel builds; `port::virtio` keeps its
+   `#![forbid(unsafe_code)]`.
+
+### Notes (not findings)
+
+- Test-fidelity boundaries (deliberate, documented in the module header): the
+  device-write model pokes the payload page directly rather than resolving
+  PAY_PA through the descriptor table — the composition is still covered
+  because test 1 pins the descriptor addresses; the `hdr_page` sentinel write
+  is set dressing (never asserted), matching the driver truth that the header
+  content is never consumed with MRG_RXBUF off. The netif::rx_ingress leg is
+  covered by devether_tests' synthetic drive; the publish-once constraint
+  forbidding a second full-path drive is real (devether_tests already consumes
+  the single publish).
+- WR-06 (unposted-slot retire) is untouched by this fix and unchanged in
+  disposition; the drain's free-stack push accounting it threatens is the same
+  code path, so its remediation remains the relevant follow-up.
+- The `rx_ingress` doc comment ("header already stripped", netif.rs:575-576)
+  reads as net-effect accurate post-fix (the delivered frame is header-free);
+  pci.rs:881-888 carries the precise never-in-the-buffer explanation.
+
+---
+
 _Reviewed: 2026-11-04_
 _Reviewer: the agent (gsd-code-reviewer)_
 _Depth: standard_
