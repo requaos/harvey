@@ -14,6 +14,8 @@
 | harvey | `15739d108595bde0f17b88081dfcc25f2c271848` | 07-08 Task 2: the compose-path NIC stanza (`nix/boot-r9.sh`, `build/aarch64/run-r9.sh`, `build/aarch64/smoke-r9.expect`) + the smoke's nic-bind post-pass. The pushed HEAD the hosted CI ran at. |
 | r9 (`requaos/r9`, branch `main`) | **`1c161931000e77edb546a972f33b1adfa89b0b30`** | 07-09: the G-07-2 fixed HEAD — pushed to origin 2026-11-05 (`46a2ed2..1c16193`, 2 commits: the RED pin `1e77266` + the GREEN u32 truncation `1c16193`) BEFORE locking (push-before-pin, T-07-20). Verified: `git -C ../r9 ls-remote origin main` names this rev post-push; both virtnet gates re-proved green at this exact SHA. |
 | harvey | `d5df2df38699dd5af627d00932933318875fb310` | 07-09: **the pin commit** — flake.lock ALONE (the `git diff-tree` gate: 1 file, 3 insertions, 3 deletions), advancing the r9 pin `46a2ed2` → `1c16193` (narHash `sha256-Kjz9iKvVII2/YAI6LvPb5vPqPNw6eiGZSEe7ERxd4EY=`, owner `requaos`). |
+| r9 (`requaos/r9`, branch `main`) | **`a5b1b42ec92d5f6be4e13c1fe370da1768316131`** | 07-10: the G-07-1 fixed HEAD — pushed to origin 2026-11-05 (`1c16193..a5b1b42`, 2 commits: the RED pin `3a49da1` + the GREEN offset-0 fix `a5b1b42`) BEFORE locking (push-before-pin, T-07-22). Verified: `git -C ../r9 ls-remote origin main` names this rev post-push; both virtnet gates re-proved green at this exact SHA. |
+| harvey | `91f6ab9aa7528f0b44d69d944b29450cdd311c7f` | 07-10: **the pin commit** — flake.lock ALONE (the `git diff-tree` gate: 1 file, 3 insertions, 3 deletions), advancing the r9 pin `1c16193` → `a5b1b42` (narHash `sha256-V5cZPghFjujQA5Mzlzc+CrUQ6ksiTPX3swXdOXei1Gc=`, owner `requaos`). |
 
 ## Gate → commit mapping
 
