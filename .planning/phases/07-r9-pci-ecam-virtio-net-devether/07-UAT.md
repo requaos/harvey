@@ -45,8 +45,18 @@ expected: |
   proved (stats out:1 after dd, in:1 after slirp's reply), BUT the blocked
   read never woke — process 9 never printed the frame and never exited even
   though the reply was already counted at the device.
+  Third attempt (post-07-09, corrected read-FIRST protocol): typ STUCK this
+  time — proven by conv2's connect being rejected `devether: ether-type
+  already in use` (typeinuse sees conv owning 2054; round-1's last-close
+  reset is eliminated as the sole cause). Reply still counted (in:1) but the
+  blocked read (pid 8) never woke. DISCRIMINATING PROBE: a fresh foreground
+  `cat /net/ether0/$conv/data` (pid 8 still blocked) ALSO blocked → the
+  queue was EMPTY → the frame was counted at rx_ingress entry (netif.rs:584)
+  but NEVER ENQUEUED. Wake eliminated as a suspect; the break is in
+  rx_ingress's parse/demux/push path (round-1 diagnosis falsified as
+  complete; G-07-1 re-diagnosed in round 2).
 result: issue
-reported: "Console log: bind/clone/connect clean; `cat data &` (pid 9) blocked with no output; dd of arp.req on a second conversation sent (out:1); stats showed in:1 (slirp reply arrived); the blocked cat never woke — no frame printed, no 'process 9 exited' line. stats: in:1 out:1 link:1 mbps:1000 addr:525400123456, all error counters 0."
+reported: "Round 2 (fixed kernel, corrected protocol): bind/clone clean; cat data & (pid 8) blocked; connect 2054 on conv OK and STUCK (conv2's connect rejected 'ether-type already in use' — typeinuse proof); conv2's connect failed as expected; dd sent (out:1); reply counted (in:1); pid 8 never printed/exited; probe: fresh foreground read of conv's data ALSO blocks → frame counted but never enqueued — break is in parse/demux/push inside rx_ingress, not the wake. stats: in:1 out:1 link:1, all error counters 0."
 severity: blocker
 
 ### 2. CR-01 reproduction + triage decision (readnum_content(-1) kernel panic)
@@ -83,7 +93,7 @@ blocked: 0
   reason: "User reported: block-on-empty held (backgrounded cat pid 9 never errored/exited) and the reply reached the device (stats in:1), but the blocked read never woke — no frame bytes printed, no process-9 exit. The register→block→wake→copyout link in netif/devether (EtherHooks block/wake) is wedged; device-level RX accounting works."
   severity: blocker
   test: 1
-  root_cause: "TEST-PROCEDURE defect, not a kernel defect: the protocol's `echo connect 2054 > ctl` opens ctl, sets typ=2054, then the redirection close drops inuse to 0, triggering conv_close's last-close reset (typ=0, netif.rs:497/499 — donor-faithful: 9k netif.c:446). The blocked read then sits on a typ=0 conversation; the demux (netif.rs:603) skips the reply and rx_ingress returns before the wake drain (netif.rs:621-623). Frame counted (in:1, netif.rs:584 — proves ISR→ingress ran) but never enqueued. Wake machinery statically sound and TX-side live-proven by the blast gate."
+  root_cause: "ROUND 1 (partial — real but incomplete): the original protocol's connect-then-drop triggered conv_close's donor-faithful last-close typ=0 reset (netif.rs:497/499); demux skipped the reply. 07-09 pinned those semantics and corrected the protocol. ROUND 2 FALSIFIED round 1 as a complete explanation: with the corrected protocol typ STUCK (proven by typeinuse rejecting conv2's duplicate connect), the reply was still counted (in:1 — rx_ingress entry, netif.rs:584) but NEVER ENQUEUED — a fresh foreground read of the same conv ALSO blocked (queue empty). The break is inside rx_ingress's parse→demux→push path, BEFORE the waiter drain (wake eliminated — nothing to wake for). Candidates: virtio header strip offset corrupting the dst/etype parse, the tome/address match (:606), the multicast gate (:593-595), or a silent push/delivered=false early-return (:621-623). Round-2 diagnosis: .planning/debug/rx-ingress-frame-never-enqueued.md"
   artifacts:
     - path: "../r9/port/src/netif.rs"
       issue: "497/499 last-close typ reset (causal origin, donor-faithful), 603 demux skip, 621-623 early return before wake — all correct donor semantics; no code change indicated"
