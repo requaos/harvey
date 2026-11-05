@@ -29,6 +29,17 @@ bind '#p' /proc
 bind '#d' /fd
 bind -b /boot /bin
 
+# venue plumbing the rc-script boot path otherwise skips (boot.c's
+# chain normally does both — measured 2026-11-05 on the first venue
+# boots): set the kernel clock from the RTC (date(1) read epoch 0 —
+# nothing else sets it on this venue), and name a hostowner (writing
+# #c/hostowner also sets the process user — sysauth.c's
+# hostownerwrite; with eve="" every process's /proc status line carries
+# an EMPTY user field, tokenize yields 11 fields not 12, and ps(1)
+# silently returns per process — the venue's T1-FAIL ps).
+hcat /dev/rtc > /dev/time
+echo -n sys > '#c/hostowner'
+
 # run the tier-1 sweep in a CHILD rc so its trailing `exit` never kills
 # init.  The child also needs the explicit -m (same devroot rcmain
 # absence), and the embedded rcmain's `eval $cflag` path is what runs
