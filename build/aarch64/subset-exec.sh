@@ -234,7 +234,7 @@ mkdir -p "$ROOTFS/tmp" "$ROOTFS/usr/glenda/tmp"
 # start each run from a clean scratch (idempotence evidence) — the
 # sweep's write-flow round-trips + build-chain outputs + the 06-06
 # canary products are all removed (06-06 extended the set)
-rm -rf "$ROOTFS/tmp/subset" "$ROOTFS/usr/glenda/tmp/subset" "$ROOTFS/tmp/tier1" "$ROOTFS/usr/glenda/tmp/tier1"
+rm -rf "$ROOTFS/tmp/subset" "$ROOTFS/usr/glenda/tmp/subset" "$ROOTFS/tmp/tier1" "$ROOTFS/usr/glenda/tmp/tier1" "$ROOTFS/tmp/bc-bin"
 rm -f "$ROOTFS/tmp/y.tab.c" "$ROOTFS/tmp/lex.yy.c" "$ROOTFS/tmp/cpp-in.c" \
 	"$ROOTFS/tmp/hello" "$ROOTFS/tmp/hello.7" "$ROOTFS/tmp/hello.out" "$ROOTFS/tmp/tiny.7"
 

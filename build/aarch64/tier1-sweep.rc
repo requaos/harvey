@@ -226,13 +226,10 @@ calout=`{/boot/hcal 11 2026}
 if(~ $"calout *'November 2026'*) echo T1-OK cal
 if not echo T1-FAIL cal
 
-# bc (A7 observation): scale=3; 1/3 — the exact observed output is
-# recorded in the log (T1-BCOBS) to settle A7 by observation; the
-# assert is the shape pair (Plan 9 bc may drop the leading zero)
-bcout=`{/boot/hecho 'scale=3; 1/3' | /boot/hbc}
-echo T1-BCOBS $bcout
-if(~ $"bcout '.'[0-9]* '0.'[0-9]*) echo T1-OK bc
-if not echo T1-FAIL bc
+# bc moved into the donor-venue guard (06-06): bc.y's execl("/bin/dc")
+# is hardcoded and the donor's served /bin has no dc — the guard's
+# union-mount shim gives bc its subprocess.  A7's shape-assert + the
+# T1-BCOBS exact-output observation live there.
 
 # fmt: passthrough fold of a short line
 fmtout=`{/boot/hecho 'alpha bravo charlie' | /boot/hfmt}
@@ -265,9 +262,14 @@ strout=`{/boot/hstrings /boot/sentinel.txt}
 if(~ $"strout *'alpha bravo charlie'*) echo T1-OK strings
 if not echo T1-FAIL strings
 
-# xd: character-format dump carries the ascii column
-xdout=`{/boot/hxd -c /boot/sentinel.txt}
-if(~ $"xdout *alpha*) echo T1-OK xd
+# xd: 4-byte hex dump (-4x) of the sentinel — the LE long words are
+# deterministic: 'alph' → 68706c61, ' bra' → 61726220 (the -c char
+# format spaces every character, so a substring assert cannot work —
+# measured 06-06)
+xdout=`{/boot/hxd -4x /boot/sentinel.txt}
+xdok=0
+if(~ $"xdout *68706c61*) if(~ $"xdout *61726220*) xdok=1
+if(~ $xdok 1) echo T1-OK xd
 if not echo T1-FAIL xd
 
 # du: block count + name for the file argument (two-condition assert)
@@ -319,8 +321,34 @@ if(~ $venue donor){
 	# host-measured 06-06 — rejects subshells with separators inside
 	# backquotes, and plain-position (…) || … subshells misparse too,
 	# so this block uses NO subshells: cd once, absolute paths, and fn
-	# producers for multi-command input streams.)
+	# producers for multi-command input streams.  A second guest-rc
+	# dialect finding, measured on the donor 06-06: bare '=' ends a
+	# word (rc lex.c's wordchr excludes it), so flag=value arguments
+	# must be quoted — see cpp's '-DVALUE=41'.)
 	cd /tmp
+
+	# bc: bc.y's execl("/bin/dc") is hardcoded, and the donor's served
+	# /bin is the minimal 20-entry set with NO dc — union-mount a shim
+	# dir carrying our hdc as 'dc' over /bin first (bind -b; /bin/bind
+	# is the donor's own).  The shim binary execs from the srv9
+	# writable prefix — the A3 mechanic the Task-2 canary also gates.
+	# (Donor-guarded: r9's Harvey image carries /bin/dc natively, so
+	# the r9 venue takes the named SKIP until 06-07 wires it.)
+	bcok=1
+	/boot/hmkdir /tmp/bc-bin || bcok=0
+	if(~ $bcok 1){ /boot/hcp /boot/hdc /tmp/bc-bin/dc || bcok=0 }
+	if(~ $bcok 1){ /bin/bind -b /tmp/bc-bin /bin || bcok=0 }
+	if(~ $bcok 1){
+		# A7 observation: scale=3; 1/3 — the exact observed output
+		# is recorded in the log (T1-BCOBS) to settle A7 by
+		# observation; the assert is the shape pair (Plan 9 bc may
+		# drop the leading zero)
+		bcout=`{/boot/hecho 'scale=3; 1/3' | /boot/hbc}
+		echo T1-BCOBS $bcout
+		if(~ $"bcout '.'[0-9]* '0.'[0-9]*) echo T1-OK bc
+		if not echo T1-FAIL bc
+	}
+	if(~ $bcok 0) echo T1-FAIL bc
 
 	# dd: dash-pair syntax (07-04's measured dialect — the baked dd.c
 	# parses -if/-of, not if=/of=), round-trip + content compare
@@ -402,11 +430,12 @@ if(~ $venue donor){
 	# A failure on these tiny inputs is a genuine toolchain defect:
 	# T1-FAIL → fix or escalate, never exempt.) --------------------
 	# cpp: -D smoke (input sweep-generated in /tmp — no committed
-	# file needed)
+	# file needed).  The flag is QUOTED: 9front rc's lexer ends a word
+	# at a bare '=' (measured on the donor 06-06)
 	cppok=1
 	/boot/hecho 'int x = VALUE;' > /tmp/cpp-in.c || cppok=0
 	if(~ $cppok 1){
-		cppout=`{/boot/hcpp -DVALUE=41 /tmp/cpp-in.c}
+		cppout=`{/boot/hcpp '-DVALUE=41' /tmp/cpp-in.c}
 		if(~ $"cppout *'int x = 41;'*) echo T1-OK cpp
 		if not echo T1-FAIL cpp
 	}
@@ -442,6 +471,7 @@ if not {
 	echo T1-SKIP cp
 	echo T1-SKIP mv
 	echo T1-SKIP rm
+	echo T1-SKIP bc
 	echo T1-SKIP dd
 	echo T1-SKIP tar
 	echo T1-SKIP tee
