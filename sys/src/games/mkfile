@@ -55,3 +55,26 @@ dirall:V:
 		cd $i
 		mk all
 	}
+
+# report-all diagnostic (06-04, USPACE-02): visit every dir in $DIRS,
+# collect failures, print the full list at the end.  Copy of
+# sys/src/cmd/mkfile's checkall shape (brace group, not @{}, so the
+# fail=() accumulator survives; explicit exit 0 because a false final
+# if-condition would otherwise exit 1 on green).  Additive: all/install
+# keep their dirall/dirinstall shape.  Iterates $DIRS as committed —
+# blabs stays commented out and is named as an upstream-disabled
+# exclusion in build/aarch64/dir-coverage.txt (nothing drops silently).
+checkall:V:
+	fail=()
+	for(i in $DIRS) {
+		cd $i
+		echo mk $i
+		if(! mk $MKFLAGS all)
+			fail=($fail $i)
+		cd ..
+	}
+	if(! ~ $#fail 0) {
+		echo 'checkall failures: '^$"fail
+		exit checkall
+	}
+	exit 0

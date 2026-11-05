@@ -81,6 +81,61 @@ cannot evidence our boot(8)/init/paqfs — the 05-03 trace is their honest
 donor-kernel execution evidence.  (USPACE-04 transparency: no execution
 claim without serial-marker evidence.)
 
+## 06-04 coverage sweep run record (USPACE-02, D-15)
+
+- **Commit:** the run executed against base `f4ce2326872414a464ac9fffd22fc4dd5ed2e2c0`
+  plus the 06-04 machinery working-tree edits (games checkall,
+  coverage-sweep.sh); the machinery lands in the 06-04 Task-1 commit on
+  top, and the committed report's authoring-run line names that base.
+- **Host:** darwin-aarch64; build in the lima guest's linux-aarch64
+  namespace (the report's venue line — the build host class is always
+  linux-aarch64).
+- **Sweep:** 212 visits / 212 exits / 0 watchdog fires; universe 221,
+  visited 206, excluded 15 — reconciliation CLOSED, phantom-free, no
+  stale exclusions.  58 per-dir `build=fail` rows recorded as Phase-10
+  backlog data (almost all missing tier-0 libraries: libmemdraw,
+  libhttpd, libplumb, libventi, … — 06-05's wave).
+- **Second-chance pass (35 dirs):** plan9port mk recipes abort at the
+  first failing command (measured 2026-11-05 with a toy mkfile: a
+  container's `for(i in $DIRS) @{ cd $i; mk all }` stops at the first
+  failing sibling — the strict abort-on-first-failure semantics 06-02
+  documented).  With tier-0 libs outstanding, ip's loop stopped at httpd
+  (libhttpd), upas's at fs (libplumb), postscript's at common, aux's
+  inside its DIRS — 35 dirs were never reached.  The sweep's pass 2
+  visits each remaining dir with its own guarded `mk all` (the log's
+  SECOND-CHANCE lines), so reach is TOTAL and the adjacency truth holds:
+  ipconfig + all 6 ip siblings are visited and recorded.
+- **Wave-0 blocker re-verification:** jpg's committed ycbcr.h/rgbv.h can
+  satisfy mk without the generator chain firing, so the run FORCES it in
+  the scratch guest tree (rm headers + unix.* generators, `mk ycbcr.h
+  rgbv.h`): unix.rgbycc and unix.rgbrgbv rebuilt via 9c/9l and asserted
+  host-ELF (`BLOCKER-CHECK … magic=7f454c46` ×2) — the Phase-1 fix
+  (7be7e98c8) holds for the aarch64 sweep.  mahjongg `visited=1
+  build=ok` (fresh; citation 01-01-SUMMARY.md:156).  4a `visited=1
+  build=ok` as an aarch64-target build here; target-sweep-excluded by
+  decision (01-01-SUMMARY.md:150 + PITFALLS notorious-dirs).
+- **Logs:** driver log `.build/coverage-sweep.log` (gitignored, full
+  compile output); reach evidence
+  [evidence/06-04-coverage-log.txt](evidence/06-04-coverage-log.txt)
+  (committed: the VISIT/EXIT/SECOND-CHANCE log the report was parsed
+  from).
+- **Toolchain dialect findings (recorded for every later namespace
+  script):** inside the namespace (and on the devshell host PATH) the
+  Harvey hostbin shadows core tools — Plan 9 sed garbles on `|` inside a
+  /-delimited pattern and silently fails `\(\)`/`\1` extractions; Plan 9
+  date prints the epoch for `-u +%Y-%m-%d`.  coverage-sweep.sh uses awk
+  index/substr or plain-`^` seds and a probe-verified ISO date
+  (D-02-shadowing class; 07-04's dd incident was the same class).
+- **Observed anomaly (run 1):** jpg's generator chain did not fire
+  during that run's checkall (headers committed + fresh; mk's missing-
+  prereq chase is proven to fire in three controlled reproductions) —
+  the guest's `.build` was concurrently wiped/rebuilt by the Phase-07
+  session mid-run, the probable state-churn cause; per the
+  concurrent-session rule the probes were made state-independent (the
+  forced blocker re-verification) and the run repeated.
+- **Ledger lines appended:** none (06-04 owns committed reports, not
+  tier markers).
+
 ## Format note for later plans (06-04..06-08 appends)
 
 One section per gated run: commit SHA (the machinery state that ran),
