@@ -178,6 +178,13 @@ cp /aarch64/bin/paqfs "$HARVEY/build/aarch64/out/paqfs" || fail "harvest paqfs t
 	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/stacksmoke" stacksmoke.7 \
 	&& rm -f stacksmoke.7) || fail "stacksmoke"
 
+# 07-04: netblast, the D-08 TX-bulk generator, joins the image supply
+# chain beside stacksmoke (same compile/harvest shape)
+echo "== boot chain: netblast (07-04, D-08)"
+(cd "$HARVEY/build/aarch64" && objtype=aarch64 7c -FTVw netblast.c \
+	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/netblast" netblast.7 \
+	&& rm -f netblast.7) || fail "netblast"
+
 echo "== subset tree (/aarch64/bin):"
 ls /aarch64/bin
 echo "-- ip:"
@@ -233,6 +240,7 @@ if [ -z "$NATIVE_LINUX" ]; then
 		"$GUEST:$GUEST_DIR/build/aarch64/out/init" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/paqfs" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/stacksmoke" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/netblast" \
 		"$HARVEY/build/aarch64/out/"
 else
 	# native linux: the namespace bound the real checkout — the subset
@@ -256,5 +264,9 @@ for f in boot init paqfs stacksmoke; do
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
 	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
 done
+# 07-04: netblast carries the same magic contract
+[ -s "$HARVEY/build/aarch64/out/netblast" ] || err "build/aarch64/out/netblast missing after rsync-back"
+magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/netblast" | tr -d ' \n')
+[ "$magic" = "00008c47" ] || err "build/aarch64/out/netblast: bad magic $magic (want 00008c47)"
 
 echo "== PASS: aarch64 shell-boot subset built and installed ($(ls "$HARVEY/aarch64/bin" | wc -l | tr -d ' ') entries in aarch64/bin; log: $LOG)"

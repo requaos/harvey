@@ -69,6 +69,7 @@ fi
 for f in boot init paqfs stacksmoke; do
 	[ -s "$OUT/$f" ] || err "$OUT/$f missing — run sh build/aarch64/subset-build.sh first"
 done
+[ -s "$OUT/netblast" ] || err "$OUT/netblast missing — run sh build/aarch64/subset-build.sh first"	# 07-04 D-08
 SUBSET="rc grep cat cp date echo ls mkdir mv ps rm sed test wc"
 SUBSET="$SUBSET dd"	# 07-04: dd joins the image (D-07's sweep writer); append form keeps the edit insertion-only
 for f in $SUBSET; do
@@ -108,6 +109,7 @@ done
 cp "$BIN/ip/ipconfig" "$STAGE/aarch64/bin/ip/ipconfig"
 cp "$BIN/auth/factotum" "$STAGE/aarch64/bin/auth/factotum"
 cp "$OUT/stacksmoke" "$STAGE/aarch64/bin/stacksmoke"
+cp "$OUT/netblast" "$STAGE/aarch64/bin/netblast"
 
 # 4. bake-time verbatim copies (rcmain: never edited, single source of
 #    truth; timezone: the repo's data, consumed by init's cpenv)
@@ -128,6 +130,7 @@ done
 for p in lib/test/arp.req lib/net-sweep.rc; do
 	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
 done
+[ -f "$STAGE/aarch64/bin/netblast" ] || err "manifest: aarch64/bin/netblast missing from staged tree"
 
 # 5a. init identity: out/ was shared with the
 # staged-init supply chain — the sharing ended (the smoke stage
