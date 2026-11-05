@@ -689,8 +689,17 @@ if(! ~ $venue 9k){
 	if not echo T1-SKIP libtest-disktest
 }
 if not {
-	echo T1-SKIP libtest-tdraw
-	echo T1-SKIP libtest-disktest
+	# 9k: no libtest binaries are staged on the embedded-root venue
+	# (the amd64 libtest build machinery is out of this gap's scope).
+	# Emitted via a helper on purpose: nix/tier1-r9.sh and
+	# ledger-r9-append.sh extract the R9 venue's SKIP set by grepping
+	# this file's text for `echo T1-SKIP <name>` lines (the file is
+	# the source of truth) — the 9k-only names must NOT appear in that
+	# literal form here, or the r9 gate's want-set grows a marker the
+	# r9 venue actually RUNS (tdraw) and reds (measured 2026-11-05).
+	fn t1skip { echo T1-SKIP $1 }
+	t1skip libtest-tdraw
+	t1skip libtest-disktest
 }
 
 echo T1-DONE
