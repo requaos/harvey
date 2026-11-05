@@ -94,17 +94,42 @@ jobs:
         # archive mode builds the teeth (the recorded PREREF pristine
         # compilers) from git — CI-durable from any later checkout;
         # verify asserts RED on them + GREEN on the fixed hostbin pair.
+        # Evidence channel: on failure the captured log tail lands in
+        # the step summary (API-readable; runner logs are auth-gated).
         run: |
-          nix develop -c sh build/aarch64/gethunk-repro-cc.sh archive
-          nix develop -c sh build/aarch64/gethunk-repro-cc.sh verify
-          nix develop -c sh build/aarch64/gethunk-repro-6l.sh archive
-          nix develop -c sh build/aarch64/gethunk-repro-6l.sh verify
+          mkdir -p .build
+          log=.build/wave0-gethunk.log
+          : > "$log"
+          for c in "gethunk-repro-cc.sh archive" "gethunk-repro-cc.sh verify" "gethunk-repro-6l.sh archive" "gethunk-repro-6l.sh verify"; do
+            echo "== $c" | tee -a "$log"
+            nix develop -c sh "build/aarch64/$c" >>"$log" 2>&1 || {
+              rc=$?
+              echo "GETHUNK-GATE-FAIL: $c rc=$rc" | tee -a "$log"
+              { echo "## ❌ gethunk repro gate failed: \`$c\` (rc=$rc)"; echo '```'; tail -80 "$log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+              exit $rc
+            }
+          done
+          echo "GETHUNK-GATES-OK" | tee -a "$log"
       - name: coverage report regen + drift diff (USPACE-02, D-15)
         # Regenerate IN PLACE — intentionally range-less: the working
         # tree vs the committed copy IS the drift signal.
+        # Evidence channel: step summary on failure (API-readable).
         run: |
-          nix develop -c sh build/aarch64/coverage-sweep.sh
-          git diff --exit-code build/aarch64/dir-coverage.txt
+          mkdir -p .build
+          log=.build/wave0-coverage.log
+          : > "$log"
+          nix develop -c sh build/aarch64/coverage-sweep.sh >>"$log" 2>&1 || {
+            rc=$?
+            echo "COVERAGE-SWEEP-FAIL rc=$rc" | tee -a "$log"
+            { echo "## ❌ coverage sweep failed (rc=$rc)"; echo '```'; tail -80 "$log"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit $rc
+          }
+          tail -5 "$log"
+          if ! git diff --exit-code build/aarch64/dir-coverage.txt > "$log.diff" 2>&1; then
+            { echo "## ❌ coverage drift diff (committed report vs regen on $(uname -m))"; echo '```'; head -80 "$log.diff"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
+          echo "COVERAGE-DIFF-CLEAN ($(uname -m))"
       - name: generator .7-magic scan (USPACE-03)
         run: nix develop -c sh build/aarch64/generator-scan.sh
       - name: grep-hygiene gate (D-02)
