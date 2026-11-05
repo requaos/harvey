@@ -54,7 +54,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   4. Tiered allowlist machinery is live: per-dir append-only allowlist growth (never a flag-flip), per-tier execution gates run on the 9front donor kernel FIRST then r9 via measure-first traces, and artifact+execution markers are committed as the only gates — namespace-build mk exit status is never trusted (USPACE-04)
   5. Tier-0/1 are green with committed markers: all 22 outstanding libraries (libdraw/libmemdraw/libmemlayer/libframe, libcontrol, libhtml, libhttpd, libdisk, libflate, libgeometry, liblex, libplumb, libventi/liboventi, …) compile for aarch64 via the mksyslib portable-C fallback (no cargo-culted stale `.6`/`.8` objects), and shell/coreutils + the guest build chain (7a/7c/7l/cc/cpp/mk/yacc/lex as aarch64 binaries) execute on the donor kernel (USPACE-05, USPACE-06)
 
-**Plans:** 6/8 plans executed
+**Plans:** 7/8 plans executed
 **Wave 1**
 - [x] 06-01-PLAN.md — Wave-0 landmines: gethunk ×2 fixes + teeth-proven repro gates + FPdbleword uint fix (USPACE-01, D-01)
 
@@ -74,7 +74,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] 06-06-PLAN.md — Tier-1: build chain + ~32 coreutils + guest self-host canary on the donor (USPACE-06, D-09/D-11)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 06-07-PLAN.md — r9 venue: measure-first dispatch growth, push-before-pin, boot-r9-tier1 gate (USPACE-04, USPACE-06, D-12)
+- [x] 06-07-PLAN.md — r9 venue: measure-first dispatch growth, push-before-pin, boot-r9-tier1 gate (USPACE-04, USPACE-06, D-12)
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 06-08-PLAN.md — CI pipeline: phase6.yml four jobs incl. x86_64 pool-panic verdict leg (USPACE-10, D-04/D-16)
@@ -194,7 +194,7 @@ Two parallel tracks from the v1.0 foundation: userspace {6 → 10} ∥ networkin
 | 3. r9 qemu-virt Platform Bring-up | v1.0 | 6/6 | Complete | 2026-11-01 |
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | v1.0 | 8/8 | Complete | 2026-11-02 |
 | 5. Shell Boot + One-Command Integration | v1.0 | 13/13 | Complete | 2026-11-04 |
-| 6. Full-Tree Userspace — Wave 0 + Libraries/Core | v2.0 | 6/8 | In Progress|  |
+| 6. Full-Tree Userspace — Wave 0 + Libraries/Core | v2.0 | 7/8 | In Progress|  |
 | 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 8/8 | In Progress|  |
 | 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | - | Not started | - |
 | 9. Host Networking + boot-r9 Net Modes | v2.0 | - | Not started | - |
