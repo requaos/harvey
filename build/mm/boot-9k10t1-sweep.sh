@@ -153,6 +153,7 @@ classify_log() {
 	_badskip=""
 	_ok=0
 	_skip=0
+	_skiplibtest=0
 	for m in $(compute_expected); do
 		if "$GREP" -qE 'T1-OK '"$m"'([^A-Za-z0-9.-]|$)' "$_norm"; then
 			_ok=$((_ok + 1))
@@ -160,6 +161,9 @@ classify_log() {
 		fi
 		if in_whitelist "$m" && "$GREP" -qE 'T1-SKIP '"$m"'([^A-Za-z0-9.-]|$)' "$_norm"; then
 			_skip=$((_skip + 1))
+			case "$m" in
+			libtest-*) _skiplibtest=$((_skiplibtest + 1)) ;;
+			esac
 			continue
 		fi
 		_missing="$_missing $m"
@@ -223,6 +227,8 @@ classify_log() {
 		echo "verdict=PASS"
 		echo "ok=$_ok"
 		echo "skip=$_skip"
+		echo "skip_venue=$((_skip - _skiplibtest))"
+		echo "skip_libtest=$_skiplibtest"
 		echo "fail=0"
 		echo "done=$_done"
 		echo "accel=$_accel"
@@ -231,7 +237,7 @@ classify_log() {
 		echo "commit=$COMMIT"
 		echo "date=$DATE"
 	} > "$RESULT"
-	echo "== T1-VENUE-PASS ok=$_ok skip=$_skip fail=0 done=yes accel=$_accel commit=$COMMIT"
+	echo "== T1-VENUE-PASS ok=$_ok skip=$((_skip - _skiplibtest))+$((_skiplibtest))libtest fail=0 done=yes accel=$_accel commit=$COMMIT"
 	echo "   result file: $RESULT"
 	rm -f "$_norm"
 	return 0
