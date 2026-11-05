@@ -480,7 +480,11 @@ if [ -f "$ROOTFS/rc/bin/termrc" ] && grep -qF 'tier1-sweep.rc' "$ROOTFS/rc/bin/t
 	cp "$DONOR/rc/bin/termrc" "$ROOTFS/rc/bin/termrc"
 fi
 cp "$ROOTFS/rc/bin/termrc" "$TERMRC_ORIG"
-cat > "$TMPD/tier1-termrc" <<'TERMRC_EOF'
+# TIER1_TERMCMD (diagnostic hook): when set, the staged override's tail
+# execs it instead of the sweep — for gated boot diagnostics (06-03's
+# awkprobe run used it).  Unset in all gate flows.
+TERMCMD="${TIER1_TERMCMD:-. /boot/tier1-sweep.rc donor}"
+cat > "$TMPD/tier1-termrc" <<TERMRC_EOF
 #!/bin/rc
 # 06-03 tier-1 gate termrc override — staged over the served rootfs's
 # /rc/bin/termrc for the gate run's duration (subset-exec.sh restores
@@ -492,10 +496,10 @@ cat > "$TMPD/tier1-termrc" <<'TERMRC_EOF'
 # restart loop (manual=1) brings up the interactive pass-2 rc — the
 # driver's shell proof lands there.
 /boot/hstacksmoke
-s=$status
-if(~ $s '') echo T1-OK stacksmoke
-if(! ~ $s '') echo T1-FAIL stacksmoke
-exec rc -c '. /boot/tier1-sweep.rc donor'
+s=\$status
+if(~ \$s '') echo T1-OK stacksmoke
+if(! ~ \$s '') echo T1-FAIL stacksmoke
+exec rc -c '$TERMCMD'
 TERMRC_EOF
 cp "$TMPD/tier1-termrc" "$ROOTFS/rc/bin/termrc"
 echo "== staged the tier-1 termrc override into the served rootfs (restored on exit)"
