@@ -1,9 +1,9 @@
 ---
-status: diagnosed
+status: complete
 phase: 07-r9-pci-ecam-virtio-net-devether
 source: [07-VERIFICATION.md]
 started: 2026-11-05T03:20:00Z
-updated: 2026-11-05T05:10:00Z
+updated: 2026-11-05T06:30:00Z
 ---
 
 ## Current Test
@@ -55,9 +55,11 @@ expected: |
   but NEVER ENQUEUED. Wake eliminated as a suspect; the break is in
   rx_ingress's parse/demux/push path (round-1 diagnosis falsified as
   complete; G-07-1 re-diagnosed in round 2).
-result: issue
-reported: "Round 2 (fixed kernel, corrected protocol): bind/clone clean; cat data & (pid 8) blocked; connect 2054 on conv OK and STUCK (conv2's connect rejected 'ether-type already in use' — typeinuse proof); conv2's connect failed as expected; dd sent (out:1); reply counted (in:1); pid 8 never printed/exited; probe: fresh foreground read of conv's data ALSO blocks → frame counted but never enqueued — break is in parse/demux/push inside rx_ingress, not the wake. stats: in:1 out:1 link:1, all error counters 0."
-severity: blocker
+  FINAL RE-RUN (post-07-10, fixed kernel at pin a5b1b42): PASS — user-confirmed
+  2026-11-05. Blocked read woke on the reply with the whole frame.
+result: pass
+resolved_by: [07-09 (protocol + conv_close pin), 07-10 (RX payload-offset fix)]
+resolved_at: 2026-11-05
 
 ### 2. CR-01 reproduction + triage decision (readnum_content(-1) kernel panic)
 expected: |
@@ -72,15 +74,17 @@ expected: |
   CONFIRMED LIVE: `connect -1` admitted (clean exit), `cat type` panicked the
   kernel — "panicked at port/src/devether.rs:492:15: attempt to subtract with
   overflow" — exactly the reviewed readnum_content underflow.
-result: issue
-reported: "Console log: `echo connect -1 > /net/ether0/0/ctl` exited clean; `cat /net/ether0/0/type` panicked at port/src/devether.rs:492:15 'attempt to subtract with overflow' — CR-01 reproduced verbatim (kernel panic, panic=abort)."
-severity: blocker
+  FINAL RE-RUN (post-07-09, fixed kernel): PASS — user-confirmed 2026-11-05.
+  `cat /net/ether0/0/type` reads back 4294967295 (donor-exact); no panic.
+result: pass
+resolved_by: [07-09 (readnum_content u32 truncation fix)]
+resolved_at: 2026-11-05
 
 ## Summary
 
 total: 2
-passed: 0
-issues: 2
+passed: 2
+issues: 0
 pending: 0
 skipped: 0
 blocked: 0
@@ -89,7 +93,9 @@ blocked: 0
 
 - gap_id: G-07-1
   truth: "A read of /net/ether0/N/data on a connected conversation blocks while the queue is empty, wakes on the first matching inbound frame, and returns one whole frame per read"
-  status: failed
+  status: resolved
+  resolved_by: [07-09, 07-10]
+  resolved_at: 2026-11-05
   reason: "User reported: block-on-empty held (backgrounded cat pid 9 never errored/exited) and the reply reached the device (stats in:1), but the blocked read never woke — no frame bytes printed, no process-9 exit. The register→block→wake→copyout link in netif/devether (EtherHooks block/wake) is wedged; device-level RX accounting works."
   severity: blocker
   test: 1
@@ -106,7 +112,9 @@ blocked: 0
   debug_session: .planning/debug/data-read-never-wakes.md
 - gap_id: G-07-2
   truth: "A conversation whose ctl accepted `connect -1` reports its type file per donor semantics — reading /net/ether0/0/type reads back 4294967295 (u32 wrap of -1), never a kernel panic"
-  status: failed
+  status: resolved
+  resolved_by: [07-09]
+  resolved_at: 2026-11-05
   reason: "User reported: connect -1 admitted cleanly; reading the type file panicked the kernel at port/src/devether.rs:492:15 'attempt to subtract with overflow' — the reviewed CR-01 readnum_content usize underflow (NUMSIZE-1-20), reproduced live under panic=abort."
   severity: blocker
   test: 2
