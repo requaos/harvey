@@ -253,6 +253,13 @@ jobs:
             echo "== what the repo's amd64/bin holds after the build:"
             ls amd64/bin/ 2>&1 | head -10 || true
             ls amd64/bin/ip/ 2>&1 | head -10 || true
+            echo "== first mk recipe failures (the abort-on-first-failure origin):"
+            grep -n 'exit status=' "$log" | head -8 || echo "(none)"
+            _first=$(grep -n -m1 'exit status=' "$log" | cut -d: -f1 || true)
+            if [ -n "$_first" ]; then
+              echo "== context around the first failure (line $_first):"
+              sed -n "$((_first > 25 ? _first - 25 : 1)),$((_first + 3))p" "$log" || true
+            fi
             echo "== last 30 lines:"
             tail -30 "$log" || true
             exit 1
