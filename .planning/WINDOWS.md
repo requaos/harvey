@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 38
+open_count: 37
 waived_count: 3
-fixed_count: 2
+fixed_count: 3
 total_count: 43
-last_updated: 2026-11-05T19:54:26.000Z
+last_updated: 2026-11-05T22:30:00.000Z
 ---
 
 # Broken Windows Ledger
@@ -57,7 +57,7 @@ last_updated: 2026-11-05T19:54:26.000Z
 | 40 | 06 | deviation | build/aarch64/generator-scan.sh |  | 06-04: ssh tree probes drained the audit-rows while-loop's stdin (only G1 checked on the first run) — all ssh probe sites carry </dev/null now | open |  | 2026-11-05T02:10:46.815Z |  |
 | 41 | 06 | deviation | build/aarch64/generator-audit.txt |  | 06-04: plan/RESEARCH cells corrected against live mkfiles (plan-mandated re-confirmation): G5 artifact is o.pcode (cpuobjtype=o via /unix/mkfile O=o); G6 genarch is pcc-built native-only (build guard gs/mkfile:164), never built nor run in the aarch64 sweep | open |  | 2026-11-05T02:10:47.035Z |  |
 | 42 | 06 | deviation | .planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/06-05-PLAN.md |  | 06-05 Task-2's literal no-PENDING-CLASSIFY grep contradicts Task-1's mandated append-only seed lines; ran the intent gate (latest-line-per-dir clean) — gate-text repair filed for the next planning pass | open |  | 2026-11-05T02:51:20.644Z |  |
-| 43 | 08 | unmet-truth | r9:aarch64/src/proc.rs |  | 08-04: the NETIP-03 ping-127.0.0.1 truth is UNMET this plan — r9's rfork does not honor RFMEM (eager copy; syscall.rs's documented Phase-4 era limit) and ping's rfork(RFPROC\|RFMEM\|RFFDG) reader/sender pair structurally needs the shared request list; the devip wire exchange itself is proven (request+reply deliver with matching ident/seq); RFMEM decision pending (Rule 4 checkpoint returned 2026-11-05) | open |  | 2026-11-05T19:54:26.000Z |  |
+| 43 | 08 | unmet-truth | r9:aarch64/src/proc.rs |  | 08-04: the NETIP-03 ping-127.0.0.1 truth is MET — RFMEM landed per the blocking-human decision (option A, donor dupseg semantics): Data/Bss pages share under RFMEM with PA-keyed refcount-gated frees, RFMEM families carry the shared break (sys_brk_ family arm births grown pages shared — the checkpoint's 'ping does not brk_-grow post-fork' premise was falsified at the gate and the donor's shared-segment growth is the implemented semantics), the rfork bss sweep closes the untouched-page hole, and SEMACQUIRE(37)/SEMRELEASE(38) implemented for the contended libc lock() path; virtip gate green (netip: ping ok + NETIP-DONE), 8/8 regression profiles green, r9 4298fc0 | fixed |  | 2026-11-05T19:54:26.000Z | 2026-11-05T22:30:00.000Z |
 
 ````json
 [
@@ -613,11 +613,11 @@ last_updated: 2026-11-05T19:54:26.000Z
     "phase": "08",
     "file": "r9:aarch64/src/proc.rs",
     "line": null,
-    "description": "08-04: the NETIP-03 ping-127.0.0.1 truth is UNMET this plan — r9's rfork does not honor RFMEM (eager copy; syscall.rs's documented Phase-4 era limit) and ping's rfork(RFPROC|RFMEM|RFFDG) reader/sender pair structurally needs the shared request list; the devip wire exchange itself is proven (request+reply deliver with matching ident/seq); RFMEM decision pending (Rule 4 checkpoint returned 2026-11-05)",
-    "status": "open",
+    "description": "08-04: the NETIP-03 ping-127.0.0.1 truth is MET — RFMEM landed per the blocking-human decision (option A, donor dupseg semantics): Data/Bss pages share under RFMEM with PA-keyed refcount-gated frees, RFMEM families carry the shared break (sys_brk_ family arm births grown pages shared — the checkpoint's 'ping does not brk_-grow post-fork' premise was falsified at the gate and the donor's shared-segment growth is the implemented semantics), the rfork bss sweep closes the untouched-page hole, and SEMACQUIRE(37)/SEMRELEASE(38) implemented for the contended libc lock() path; virtip gate green (netip: ping ok + NETIP-DONE), 8/8 regression profiles green, r9 4298fc0",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-11-05T19:54:26.000Z",
-    "resolved_at": null,
+    "resolved_at": "2026-11-05T22:30:00.000Z",
     "milestone": "v2.0"
   }
 ]
