@@ -13,8 +13,16 @@
 # panic) — DO NOT PRUNE: changing the device set risks new breakage for
 # zero venue benefit.  The deliberate deltas vs k10cpu are ONLY:
 #   rootdir — the 43-entry venue embed set below (35 swept h* binaries
-#             + rc/echo/bind/rcmain + the boot script + 3 staged files;
-#             devroot.c's Nbootfiles is raised 32 -> 64 for this);
+#             + rc/echo/bind/rcmain + the boot script + 5 staged files;
+#             devroot.c's Nbootfiles is raised 32 -> 64 for this).
+#             NOTE: rc and echo embed under TWO names each (hrc+rc,
+#             hecho+echo — the sweep's $B/h* vocabulary plus the boot
+#             chain's bare-name resolution).  parse keys each entry's C
+#             symbol name off the SOURCE path, so the second name rides
+#             a staged copy (.tier1-stage/rc, .tier1-stage/echo) — the
+#             same source twice would duplicate _amd64_bin_rc{code,len}
+#             / _amd64_bin_echo{code,len} and 6l fails with 'multiple
+#             initialization' (measured 2026-11-05, first venue build).
 #   conf    — k10root's proven-compiling `int cpuserver = 1;` line
 #             (semantically inert without boot.c).
 # The boot section keeps k10cpu's `boot cpu` / `tcp` pair verbatim (it
@@ -127,8 +135,8 @@ rootdir
 	/amd64/bin/comm hcomm
 	/amd64/bin/join hjoin
 	/amd64/bin/nm hnm
-	/amd64/bin/rc rc
-	/amd64/bin/echo echo
+	./.tier1-stage/rc rc
+	./.tier1-stage/echo echo
 	/amd64/bin/bind bind
 	/rc/lib/rcmain rcmain
 	./root/k10t1.rc boot

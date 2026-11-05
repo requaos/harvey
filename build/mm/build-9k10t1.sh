@@ -68,6 +68,15 @@ rm -rf "$STAGE"
 mkdir -p "$STAGE"
 cp "$HARVEY/build/aarch64/tier1-sweep.rc" "$STAGE/tier1-sweep.rc"
 cp "$HARVEY/build/aarch64/nm-input.7" "$STAGE/nm-input.7"
+# rc and echo embed under TWO names each (hrc+rc for the sweep's $B/h*
+# vocabulary AND the shebang's /boot/rc; hecho+echo likewise) — but
+# parse keys each rootdir entry's C symbol name off the SOURCE path, so
+# the second name needs its own staged copy (the same source twice
+# duplicates _amd64_bin_rc{code,len}/_amd64_bin_echo{code,len} and the
+# 6l link fails with 'multiple initialization' — measured on the first
+# venue build 2026-11-05).
+cp "$HARVEY/amd64/bin/rc" "$STAGE/rc"
+cp "$HARVEY/amd64/bin/echo" "$STAGE/echo"
 # the byte-exact sentinel from subset-exec.sh:308 — assert its digests
 # equal the sweep's pinned constants so a drifted fixture reds at BUILD
 # time, never in the guest.
@@ -92,11 +101,16 @@ mkdir -p "$HARVEY/.build"
 NSK="$(mktemp "${TMPDIR:-/tmp}/ns-9k10t1.XXXXXX.sh")"
 # The script is bash (NS_TARGET="bash …") carrying the namespace-proven
 # line shape: buildnamespace is RUN_BUILD_IN_PRIVATE_NAMESPACE's own
-# `export`-dump, sourced to restore the captured environment.
+# `export`-dump, sourced to restore the captured environment.  The
+# /rc/bin:. tail is load-bearing (the phase-01 namespace-env rule — the
+# proven nix/build.sh:28-30 shape): inside the namespace /rc is the
+# repo's rc/ bind, and bootmkfile's archive rule execs `membername`
+# from rc/bin; without the tail the BOOTLIB archive silently builds
+# EMPTY and the boot$CONF.out link fails with undefined boot/connecttcp.
 cat > "$NSK" <<'EOF'
 cd /sys/src || exit 1
 . buildnamespace
-PATH="$NS_HBIN:$PATH"
+PATH="$NS_HBIN:$PATH:/rc/bin:."
 export PATH
 export FORCERCFORMK=1
 cd /sys/src/9k/k10 || exit 1
