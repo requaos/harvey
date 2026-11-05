@@ -19,7 +19,7 @@
 - [ ] **USPACE-07**: Session daemons + services compile and donor-execute: aux/listen, mntgen, ndb/cs+dns, exportfs, ip/ suite (ipconfig, ping), auth/ suite (~80 files)
 - [ ] **USPACE-08**: GUI stack compiles: libdraw family + rio + acme + sam + plumb; donor-kernel syscall traces for rio/acme/sam captured (measure-first — libthread programs exercise unmeasured kernel corners)
 - [ ] **USPACE-09**: Long tail compiles: upas + lp + remaining cmd dirs; fossil + venti compile-gated and documented as unverifiable this milestone (no block device in r9); gs included (753 files)
-- [ ] **USPACE-10**: v1.0 carry-over: 9k-amd64 embedded-root `bad magic` pool panic re-tested against the pswt.c-fixed 6c (v1.0 deferred-items #8)
+- [x] **USPACE-10**: v1.0 carry-over: 9k-amd64 embedded-root `bad magic` pool panic re-tested against the pswt.c-fixed 6c (v1.0 deferred-items #8)
 
 ### r9 Network Driver (NETDRV)
 
@@ -127,7 +127,7 @@ Each requirement maps to exactly one phase. Populated 2026-11-04 at roadmap crea
 | USPACE-07 | Phase 10 | Pending |
 | USPACE-08 | Phase 10 | Pending |
 | USPACE-09 | Phase 10 | Pending |
-| USPACE-10 | Phase 6 | Pending |
+| USPACE-10 | Phase 6 | Complete |
 | NETDRV-01 | Phase 7 | Complete |
 | NETDRV-02 | Phase 7 | Complete |
 | NETDRV-03 | Phase 7 | Complete |
