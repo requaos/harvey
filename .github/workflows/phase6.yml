@@ -223,15 +223,26 @@ jobs:
       - name: build 9k10cpu from the clean checkout (pswt-fixed 6c)
         # 02-12 (deferred): .#build's break-glass tail reports exit 0
         # even when the build failed — assert the ARTIFACT, and on
-        # absence print an error digest so the swallowed failure is
-        # diagnosable from the job log.
+        # absence print a targeted failure digest so the swallowed
+        # failure is diagnosable from the job log.
         run: |
           mkdir -p .build
           nix run .#build 2>&1 | tee .build/poolpanic-build.log
           if [ ! -f amd64/9k10cpu.elf ]; then
+            log=.build/poolpanic-build.log
             echo "BUILD-SWALLOWED-FAIL: amd64/9k10cpu.elf missing after nix run .#build (02-12 exit-0 class)" >&2
-            echo "== error digest (first 40 error lines, in order):"
-            grep -nE "error|Error|FAIL|don't know how|cannot|No such" .build/poolpanic-build.log | head -40
+            echo "== bind-error context (they are noise on green hosts, but confirm):"
+            grep -n -B2 -A2 'bind: No such' "$log" | head -24
+            echo "== was cmd/ip ever visited:"
+            grep -nc 'cmd/ip' "$log"
+            grep -n 'ip/ipconfig' "$log" | head -10
+            echo "== all missing-make targets:"
+            grep -nE "don't know how to make" "$log" | sort -u -t"'" -k2 | head -15
+            echo "== what the repo's amd64/bin holds after the build:"
+            ls amd64/bin/ 2>&1 | head -10
+            ls amd64/bin/ip/ 2>&1 | head -10
+            echo "== last 30 lines:"
+            tail -30 "$log"
             exit 1
           fi
       - name: accel probe (recorded in the verdict file)
