@@ -64,6 +64,8 @@ command -v sudo >/dev/null || err "sudo missing — the namespace build needs it
 # grep lacks — resolve a host grep once (never rely on PATH ordering
 # against the devshell's plan9port tail)
 GREP=$(command -v /usr/bin/grep || command -v grep) || err "no host grep found"
+export GREP  # the namespace script greps the generated k10t1.c — the
+             # buildnamespace export-dump only carries exported vars
 
 # --- staging (idempotent): the sweep, sentinel, and nm-input ride ------
 # the embedded root from a transient staging dir (single-sourced in
