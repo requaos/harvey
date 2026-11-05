@@ -229,7 +229,7 @@ Two parallel tracks from the v1.0 foundation: userspace {6 → 10} ∥ networkin
 | 5. Shell Boot + One-Command Integration | v1.0 | 13/13 | Complete | 2026-11-04 |
 | 6. Full-Tree Userspace — Wave 0 + Libraries/Core | v2.0 | 8/8 | In Progress|  |
 | 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 10/10 | Complete    | 2026-11-05 |
-| 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | 1/9 | In Progress | - |
+| 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | 3/9 | In Progress | - |
 | 9. Host Networking + boot-r9 Net Modes | v2.0 | - | Not started | - |
 | 10. Userspace Services + GUI Tiers + Bootfs | v2.0 | - | Not started | - |
 | 11. In-Guest p9sk1 Auth Domain | v2.0 | - | Not started | - |

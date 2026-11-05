@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 08
 current_phase_name: r9-tcp-ip-path-devip-compatible-net
 status: executing
-stopped_at: Completed 08-02-PLAN.md
-last_updated: "2026-11-05T19:38:55.000Z"
+stopped_at: Completed 08-03-PLAN.md
+last_updated: "2026-11-05T19:51:30.000Z"
 last_activity: 2026-11-05
-last_activity_desc: Phase 08 plan 02 executed — event-driven seam + host pins green
-state_head: 26b6f614964c94def0be9776eb4cc4c0d9c2a960
+last_activity_desc: Phase 08 plan 03 executed — six gate payloads baked + D-11 addressing seam landed
+state_head: 499b4f00ea4e802ca55323ee9fd6cc8b4fe5420e
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 27
-  completed_plans: 20
+  completed_plans: 21
 ---
 
 # Project State
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-11-05)
 ## Current Position
 
 Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — EXECUTING
-Plan: 3 of 9
+Plan: 4 of 9
 Status: Ready to execute
-Last activity: 2026-11-05 — Phase 08 plan 02 executed (seam + host pins green)
+Last activity: 2026-11-05 — Phase 08 plan 03 executed (six gate payloads baked + D-11 seam landed)
 
 Progress: [███████░░░] 71% (v2.0)
 
@@ -121,6 +121,7 @@ Progress: [███████░░░] 71% (v2.0)
 | Phase 07 P10 | 21 min | 4 tasks | 6 files |
 | Phase 08 P01 | 9 min | 2 tasks | 6 files |
 | Phase 08 P02 | 26 min | 2 tasks | 9 files |
+| Phase 08 P03 | 8 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -291,6 +292,8 @@ Recent decisions affecting current work:
 - [Phase 08]: 08-02: smoltcp 'async' feature enabled (Rule 3 blocking fix) — 0.14.0 gates ALL socket waker methods + internal wake() calls behind #[cfg(feature = "async")]; the D-05 waker bridge cannot exist without it; async = [] pulls in zero deps (no executor; Cargo.lock unchanged); the research's 'async outdated' note was self-contradictory — corrected in contract §12.2
 - [Phase 08]: 08-02: devip/waker.rs mounted at the crate root as crate::devip_waker via #[path] — Rust's forbid(unsafe_code) PROPAGATES into submodules (probe-proven), so the named unsafe exception cannot be a child of the forbidden devip module; every acceptance criterion + the safety contract hold structurally
 - [Phase 08]: 08-02: the waker bridge RECORDS into a pending-wake set and drive_stack drains it after the STACK cell drops (netif's wake-after-drop discipline); the seam's clock is its own registration point (set_clock) beside the verbatim DevipHooks {current, block, wake} triple; AcceptPool ops self-enter the cell with partial-announce teardown
+- [Phase 08]: 08-03: netaddr.rc keys are leg-prefixed (lo_/slirp_) — bare duplicate guestv4 per leg would be last-wins-on-source, silently binding the slirp address into loopback gates; the prefixed shape keeps wholesale sourcing unambiguous and every acceptance grep passes on the substring (D-11's anti-Pitfall-9 intent enforced inside the seam file itself)
+- [Phase 08]: 08-03: out/ harvest is the payload magic-contract surface while /aarch64/bin stays the bake source — subset-build.sh od-asserts out/ post-rsync, mkimage.sh stages from bin/ and asserts staged paths pre-bake; a missing/stale payload fails loudly at both layers (T-08-05); slirp v6 pair recorded provisional (fec0::15/fec0::2) with 08-07's live probe named as finalizer in-file
 
 ### Pending Todos
 
