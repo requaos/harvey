@@ -505,20 +505,11 @@ echo "== donor CONF bootdir now:"
 sed -n '/^bootdir/,$p' "$CONF"
 
 # assert the staged files (25 v1.0/06-03/06-05 + 37 h* 06-06 binaries +
-# 4 06-06 data files = 66)
-for f in hrc hgrep hcat hcp hdate hecho hls hmkdir hmv hps hrm hsed htest hwc hipconfig hfactotum hawk hstacksmoke hdrawtest harctest htdraw hdisktest sentinel.txt tier1-sweep.rc hello.c; do
-	[ -s "$DONOR/arm64/bin/subset/$f" ] || {
-		echo "error: staged tier-1 file missing: $DONOR/arm64/bin/subset/$f" >&2
-		exit 1
-	}
-done
-for f in $SUBSET_CORE $SUBSET_CHAIN; do
-	[ -s "$DONOR/arm64/bin/subset/h$f" ] || {
-		echo "error: staged tier-1 file missing: $DONOR/arm64/bin/subset/h$f" >&2
-		exit 1
-	}
-done
-for f in $SUBSET_DATA; do
+# 4 06-06 data files = 66).  NOTE: this runs inside the generated guest
+# script — it must stay a LITERAL list (the host-side SUBSET_CORE/
+# SUBSET_CHAIN/SUBSET_DATA variables are not exported across the ssh/
+# namespace boundary; measured 2026-11-05: unbound-variable abort)
+for f in hrc hgrep hcat hcp hdate hecho hls hmkdir hmv hps hrm hsed htest hwc hipconfig hfactotum hawk hstacksmoke hdrawtest harctest htdraw hdisktest sentinel.txt tier1-sweep.rc hello.c hbc hsort htr huniq htail hdd htar hchmod htee hbasename hsleep hcmp hcomm hfmt hjoin hlook hpr hsplit hstrings hsum hmd5sum hsha1sum hed hdc hunits hcal htouch htime hseq hread hdu hxd hnm hcpp hmk hyacc hlex tiny.y tiny.l tiny.mk nm-input.7; do
 	[ -s "$DONOR/arm64/bin/subset/$f" ] || {
 		echo "error: staged tier-1 file missing: $DONOR/arm64/bin/subset/$f" >&2
 		exit 1
