@@ -1060,9 +1060,8 @@ fault: bss page-in va=0x4f000
 fault: bss page-in va=0x57000
 fault: bss page-in va=0x56000
 fault: bss page-in va=0x58000
-sched: switch 2->3
-fault: bss page-in va=0x50000
 process 2 exited: ""
+fault: bss page-in va=0x50000
 version...fault: text page-in va=0x20000
 fault: text page-in va=0x21000
 syscall 10 unimplemented
@@ -1101,7 +1100,6 @@ fault: bss page-in va=0x3e000
 fault: bss page-in va=0x3f000
 
 init: starting /bin/rc
-sched: switch 1->4
 fault: bss page-in va=0x40000
 fault: bss page-in va=0x41000
 fault: bss page-in va=0x42000
@@ -1241,7 +1239,7 @@ fault: bss page-in va=0x56000
 fault: bss page-in va=0x57000
 % rc /lib/net-sweep.rc arp
 sched: switch 4->6
-sched: switch 6->4
+sched: switch 3->4
 fault: text page-in va=0x1c000
 fault: text page-in va=0x20000
 fault: text page-in va=0x13000
@@ -1352,7 +1350,7 @@ fault: text page-in va=0x14000
 0+1 records out
 process 11 exited: ""
 sched: switch 6->12
-sched: switch 12->6
+sched: switch 3->6
 fault: text page-in va=0x10000
 fault: text page-in va=0x15000
 fault: text page-in va=0x16000
@@ -1459,7 +1457,6 @@ mbps: 1000
 addr: 525400123456
 process 19 exited: ""
 sched: switch 6->20
-sched: switch 3->6
 fault: text page-in va=0x10000
 fault: text page-in va=0x11000
 fault: text page-in va=0x14000
@@ -1470,6 +1467,7 @@ vq0: avail=132 used=4 lastused=4 nintr=4 nnote=0
 vq1: avail=4 used=4 lastused=4 nintr=4 nnote=4
 process 20 exited: ""
 sched: switch 6->21
+sched: switch 3->6
 fault: text page-in va=0x10000
 fault: text page-in va=0x15000
 fault: text page-in va=0x16000

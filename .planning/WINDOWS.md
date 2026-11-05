@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 31
+open_count: 36
 waived_count: 3
 fixed_count: 2
-total_count: 36
-last_updated: 2026-11-05T01:09:17.807Z
+total_count: 41
+last_updated: 2026-11-05T02:10:47.035Z
 ---
 
 # Broken Windows Ledger
@@ -51,6 +51,11 @@ last_updated: 2026-11-05T01:09:17.807Z
 | 34 | 07 | deviation | build/aarch64/mkimage.sh | 165 | trailer magic re-extracted via od -j (Harvey host dd shadows POSIX dd on the devshell PATH — D-02 class) | open |  | 2026-11-05T00:05:08.206Z |  |
 | 35 | 06 | deviation | .planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/06-02-PLAN.md | 216 | 06-02 Task-3 verify gate 2 text defective: mk -n never recurses, so the nested-path grep on cmd's own output always counts 0; intent proven by chain probes in 06-02-SUMMARY; repair gate text at 06-03 planning | open |  | 2026-11-05T00:10:54.539Z |  |
 | 36 | 07 | unrun-verify | r9:aarch64/src/platform/virt/pci.rs |  | 07-06 D6: virtio IRQ handler armed-and-inert-proven only; traffic-level proof lands with 07-08's NETDRV-04 gates (no traffic source until 07-07) | open |  | 2026-11-05T01:09:17.807Z |  |
+| 37 | 06 | deviation | build/aarch64/coverage-sweep.sh |  | 06-04: second-chance visitation pass added — plan9port mk recipes abort at the first failing command (measured), so container recursion stops at the first failing sibling; the plan's adjacency truth (ipconfig+6 siblings visited) is otherwise unreachable with tier-0 libs outstanding; pass 2 gives each unvisited in-universe dir its own shimmed guarded mk all | open |  | 2026-11-05T02:10:46.163Z |  |
+| 38 | 06 | deviation | build/aarch64/coverage-sweep.sh |  | 06-04: pass-2 initially invoked $REAL_MK directly — a leaf dir runs no nested mk so no VISIT line was logged (run-3 reconciliation failure); pass-2 visits now invoke bare mk through the shim | open |  | 2026-11-05T02:10:46.381Z |  |
+| 39 | 06 | deviation | build/aarch64/coverage-sweep.sh |  | 06-04: namespace/devshell Plan 9-tool dialect fixes — sed {/pat/!p} group garbled (host), sed s/\|.*$// garbled by hostbin Plan 9 sed (namespace; silently emptied the exclusions in run 2), date -u +fmt prints the epoch under Plan 9 date — awk index/substr + host-precomputed plain-path exclusions + probe-verified ISO date | open |  | 2026-11-05T02:10:46.602Z |  |
+| 40 | 06 | deviation | build/aarch64/generator-scan.sh |  | 06-04: ssh tree probes drained the audit-rows while-loop's stdin (only G1 checked on the first run) — all ssh probe sites carry </dev/null now | open |  | 2026-11-05T02:10:46.815Z |  |
+| 41 | 06 | deviation | build/aarch64/generator-audit.txt |  | 06-04: plan/RESEARCH cells corrected against live mkfiles (plan-mandated re-confirmation): G5 artifact is o.pcode (cpuobjtype=o via /unix/mkfile O=o); G6 genarch is pcc-built native-only (build guard gs/mkfile:164), never built nor run in the aarch64 sweep | open |  | 2026-11-05T02:10:47.035Z |  |
 
 ````json
 [
@@ -519,6 +524,71 @@ last_updated: 2026-11-05T01:09:17.807Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-05T01:09:17.807Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 37,
+    "kind": "deviation",
+    "phase": "06",
+    "file": "build/aarch64/coverage-sweep.sh",
+    "line": null,
+    "description": "06-04: second-chance visitation pass added — plan9port mk recipes abort at the first failing command (measured), so container recursion stops at the first failing sibling; the plan's adjacency truth (ipconfig+6 siblings visited) is otherwise unreachable with tier-0 libs outstanding; pass 2 gives each unvisited in-universe dir its own shimmed guarded mk all",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T02:10:46.163Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 38,
+    "kind": "deviation",
+    "phase": "06",
+    "file": "build/aarch64/coverage-sweep.sh",
+    "line": null,
+    "description": "06-04: pass-2 initially invoked $REAL_MK directly — a leaf dir runs no nested mk so no VISIT line was logged (run-3 reconciliation failure); pass-2 visits now invoke bare mk through the shim",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T02:10:46.381Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 39,
+    "kind": "deviation",
+    "phase": "06",
+    "file": "build/aarch64/coverage-sweep.sh",
+    "line": null,
+    "description": "06-04: namespace/devshell Plan 9-tool dialect fixes — sed {/pat/!p} group garbled (host), sed s/|.*$// garbled by hostbin Plan 9 sed (namespace; silently emptied the exclusions in run 2), date -u +fmt prints the epoch under Plan 9 date — awk index/substr + host-precomputed plain-path exclusions + probe-verified ISO date",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T02:10:46.602Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 40,
+    "kind": "deviation",
+    "phase": "06",
+    "file": "build/aarch64/generator-scan.sh",
+    "line": null,
+    "description": "06-04: ssh tree probes drained the audit-rows while-loop's stdin (only G1 checked on the first run) — all ssh probe sites carry </dev/null now",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T02:10:46.815Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 41,
+    "kind": "deviation",
+    "phase": "06",
+    "file": "build/aarch64/generator-audit.txt",
+    "line": null,
+    "description": "06-04: plan/RESEARCH cells corrected against live mkfiles (plan-mandated re-confirmation): G5 artifact is o.pcode (cpuobjtype=o via /unix/mkfile O=o); G6 genarch is pcc-built native-only (build guard gs/mkfile:164), never built nor run in the aarch64 sweep",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T02:10:47.035Z",
     "resolved_at": null,
     "milestone": "v2.0"
   }

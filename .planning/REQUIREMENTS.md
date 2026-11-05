@@ -11,8 +11,8 @@
 ### Full aarch64 Userspace (USPACE)
 
 - [x] **USPACE-01**: Wave-0 landmine fixes land before any tier: `cc/macbody` + `6l/obj.c` gethunk reset-not-accumulate bugs fixed (they fire as silent build HANGS at full-tree scale), with regression proof
-- [ ] **USPACE-02**: Structural mk blockers for a full-tree aarch64 sweep fixed (jpg/mkfile-class `oc` derivation, mahjongg cpp, `4a` lex.c) so the DIRS recursion reaches every cmd dir
-- [ ] **USPACE-03**: Cross-compiled-generator audit: every build-then-run generator in swept mkfiles builds with the host toolchain (7c output never runs on the host); CI reds on `.7`-magic generator artifacts
+- [x] **USPACE-02**: Structural mk blockers for a full-tree aarch64 sweep fixed (jpg/mkfile-class `oc` derivation, mahjongg cpp, `4a` lex.c) so the DIRS recursion reaches every cmd dir
+- [x] **USPACE-03**: Cross-compiled-generator audit: every build-then-run generator in swept mkfiles builds with the host toolchain (7c output never runs on the host); CI reds on `.7`-magic generator artifacts
 - [ ] **USPACE-04**: Tiered allowlist machinery: per-dir append-only allowlist growth (never a flag-flip); per-tier EXECUTION gates on the 9front donor kernel FIRST, then r9 via measure-first traces; artifact+execution markers are the only gates (namespace-build mk exit status is always 0)
 - [ ] **USPACE-05**: All remaining libraries compile for aarch64 (22 of 35 outstanding: libdraw, libmemdraw, libmemlayer, libframe, libcontrol, libhtml, libhttpd, libdisk, libflate, libgeometry, liblex, libplumb, libventi/liboventi, …) via the `mksyslib` portable-C fallback (stale committed `.6`/`.8` objects NOT cargo-culted)
 - [ ] **USPACE-06**: Core commands + self-hosted build chain compile and donor-execute: shell/coreutils + 7a/7c/7l/cc/cpp/mk/yacc/lex as aarch64 binaries
@@ -119,8 +119,8 @@ Each requirement maps to exactly one phase. Populated 2026-11-04 at roadmap crea
 | Requirement | Phase | Status |
 |-------------|-------|--------|
 | USPACE-01 | Phase 6 | Complete |
-| USPACE-02 | Phase 6 | Pending |
-| USPACE-03 | Phase 6 | Pending |
+| USPACE-02 | Phase 6 | Complete |
+| USPACE-03 | Phase 6 | Complete |
 | USPACE-04 | Phase 6 | Pending |
 | USPACE-05 | Phase 6 | Pending |
 | USPACE-06 | Phase 6 | Pending |
