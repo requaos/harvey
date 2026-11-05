@@ -36,3 +36,25 @@ libauthsrv	# v1.0 gate: subset-build green (factotum closure)
 libflate	# v1.0 gate: subset-build green (paqfs closure; flate.h #pragma lib)
 # --- 06-03 tracer: first growth beyond the v1.0 baseline ---
 libavl		# 06-03 tracer (USPACE-04): 1-file lib proves the tier-0 loop end-to-end (D-07 fresh-archive + T0-ART)
+# --- tier-0 wave (Phase 6, USPACE-05) ---
+libbin		# 06-05 wave (USPACE-05); consumers: upas/bayes/dfa.c, venti/copy.c (Phase 10)
+libcomplete	# 06-05 wave; consumers: acme/text.c (tier-3), gs (excluded)
+libgeometry	# 06-05 wave; libdraw-adjacent, no tier-1 carrier
+liblex		# 06-05 wave; lex runtime — lex joins the tier-1 build chain in 06-06
+libstdio	# 06-05 wave; 153 cmd files include <stdio.h> (ape-flavored cmds, mostly Phase 10)
+libdisk		# 06-05 wave; disk/prep class (Phase 10)
+libplumb	# 06-05 wave; plumber (tier-3)
+libscribble	# 06-05 wave; sole consumer libcontrol/scribble.c (tier-3 chain)
+libmemdraw	# 06-05 wave; libdraw family consumers (tier-3)
+libmemlayer	# 06-05 wave; tier-3 GUI
+libdraw		# 06-05 wave; rio/acme (tier-3)
+libframe	# 06-05 wave; acme/sam (tier-3)
+libcontrol	# 06-05 wave; GUI apps (tier-3); pulls libscribble via scribble.c
+libhtml		# 06-05 wave; webfs/links class (Phase 10)
+libhttpd	# 06-05 wave; ip/httpd (tier-2/Phase 10)
+libsunrpc	# 06-05 wave; 9nfs/nfs (Phase 10)
+libventi	# 06-05 wave; venti suite (Phase 10)
+liboventi	# 06-05 wave; venti suite (Phase 10)
+libmach		# 06-05 wave; nm carrier (nm.c includes mach.h — nm joins tier-1 in 06-06)
+libaml		# 06-05 wave; zero consumers (9k kernel doesn't include aml.h) — execution-leg documented exclusion
+libdynld	# 06-05 wave; zero dynld.h consumers outside libdynld; compile leg kept via the dynld-aarch64 rename verdict (2d2fa5725, D-08)

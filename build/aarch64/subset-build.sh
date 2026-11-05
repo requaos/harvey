@@ -149,7 +149,13 @@ while read -r line; do
 	case "$line" in ''|'#'*) continue;; esac
 	d="${line%%[ 	]*}"
 	case "$d" in ''|'#'*) continue;; esac
-	lib="lib${d#lib}.a"
+	# 06-05: liblex's archive is libl.a — the lex runtime's historical
+	# name (consumers link it by that name; the lib<dir-minus-lib>
+	# default holds for every other swept lib)
+	case "$d" in
+	liblex)	lib="libl.a";;
+	*)	lib="lib${d#lib}.a";;
+	esac
 	echo "== tier0 lib: $d"
 	rm -f "/aarch64/lib/$lib"
 	(cd "/sys/src/$d" && objtype=aarch64 mk install) || fail "lib $d"
@@ -312,6 +318,16 @@ if [ -z "$NATIVE_LINUX" ]; then
 	mkdir -p "$HARVEY/aarch64/bin"
 	rsync -a --delete -e "$RSYNC_RSH" \
 		"$GUEST:$GUEST_DIR/aarch64/bin/" "$HARVEY/aarch64/bin/"
+
+	# 06-05: pull the tier-0 library archives back too (gitignored:
+	# /aarch64/lib) — the 06-05 artifact gate asserts host-side
+	# $HARVEY/aarch64/lib/*.a, and on darwin nothing else lands them
+	# host-side.  --delete mirrors the guest exactly; the D-07
+	# fresh-archive rule makes the guest set the truth.
+	echo "== pulling the tier-0 library archives back to host aarch64/lib"
+	mkdir -p "$HARVEY/aarch64/lib"
+	rsync -a --delete -e "$RSYNC_RSH" \
+		"$GUEST:$GUEST_DIR/aarch64/lib/" "$HARVEY/aarch64/lib/"
 
 	# Pull the boot-chain binaries back to the host's gitignored
 	# build/aarch64/out/.  Individual-file sync (no --delete):
