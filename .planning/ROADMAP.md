@@ -32,7 +32,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 
 **v2.0 Full System & Drawterm (Phases 6–12):**
 
-- [ ] **Phase 6: Full-Tree Userspace — Wave 0 + Libraries/Core Tiers** - Landmine fixes + generator audit + tiered allowlist machinery; tier-0 libs and core cmds/build chain execute green on the donor kernel first, then r9
+- [x] **Phase 6: Full-Tree Userspace — Wave 0 + Libraries/Core Tiers** - Landmine fixes + generator audit + tiered allowlist machinery; tier-0 libs and core cmds/build chain execute green on the donor kernel first, then r9 (completed 2026-11-05)
 - [x] **Phase 7: r9 PCI/ECAM + virtio-net + devether** - *(cross-repo: `../r9`)* DTB-driven PCI discovery, zero-offload virtio-net from Day 1, `/net/ether0`, guest ARP observable on the host (completed 2026-11-05)
 - [ ] **Phase 8: r9 TCP/IP Path — devip-Compatible /net** - *(cross-repo: `../r9`)* Loopback-first `/net` with devip-exact file semantics; exit gate is sustained bidirectional TCP on the tap leg, not ping on slirp
 - [ ] **Phase 9: Host Networking + boot-r9 Net Modes** - Hermetic slirp+hostfwd default (CI-able), explicit `--net=slirp|tap|vmnet`, documented linux tap / darwin socket_vmnet legs, doctor-checker
@@ -54,7 +54,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   4. Tiered allowlist machinery is live: per-dir append-only allowlist growth (never a flag-flip), per-tier execution gates run on the 9front donor kernel FIRST then r9 via measure-first traces, and artifact+execution markers are committed as the only gates — namespace-build mk exit status is never trusted (USPACE-04)
   5. Tier-0/1 are green with committed markers: all 22 outstanding libraries (libdraw/libmemdraw/libmemlayer/libframe, libcontrol, libhtml, libhttpd, libdisk, libflate, libgeometry, liblex, libplumb, libventi/liboventi, …) compile for aarch64 via the mksyslib portable-C fallback (no cargo-culted stale `.6`/`.8` objects), and shell/coreutils + the guest build chain (7a/7c/7l/cc/cpp/mk/yacc/lex as aarch64 binaries) execute on the donor kernel (USPACE-05, USPACE-06)
 
-**Plans:** 10/10 plans executed (+ 2 gap-closure plans planned for G-06-1)
+**Plans:** 10/10 plans complete (+ 2 gap-closure plans planned for G-06-1)
 **Wave 1**
 - [x] 06-01-PLAN.md — Wave-0 landmines: gethunk ×2 fixes + teeth-proven repro gates + FPdbleword uint fix (USPACE-01, D-01)
 
@@ -227,7 +227,7 @@ Two parallel tracks from the v1.0 foundation: userspace {6 → 10} ∥ networkin
 | 3. r9 qemu-virt Platform Bring-up | v1.0 | 6/6 | Complete | 2026-11-01 |
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | v1.0 | 8/8 | Complete | 2026-11-02 |
 | 5. Shell Boot + One-Command Integration | v1.0 | 13/13 | Complete | 2026-11-04 |
-| 6. Full-Tree Userspace — Wave 0 + Libraries/Core | v2.0 | 10/10 | In Progress|  |
+| 6. Full-Tree Userspace — Wave 0 + Libraries/Core | v2.0 | 10/10 | Complete    | 2026-11-05 |
 | 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 10/10 | Complete    | 2026-11-05 |
 | 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | 3/9 | In Progress | - |
 | 9. Host Networking + boot-r9 Net Modes | v2.0 | - | Not started | - |
