@@ -676,30 +676,37 @@ let h = sockets.add(s);             // conv records h; conv.announced = true
 
 **Everything else in this document is [VERIFIED] against in-session tool reads (docs.rs, crates.io API, the downloaded smoltcp-0.14.0 crate source, the compile probe, and direct reads of `sys/src/9k/ip/`, `sys/man/`, `sys/src/cmd/`, `sys/src/libc/`, and `../r9` source) or tagged [ASSUMED] inline.**
 
-## Open Questions
+## Open Questions (RESOLVED — per-question dispositions below)
+
+_All five questions were resolved at plan time (2026-11-05); each entry below carries its disposition and venue. The section is kept for the reasoning trail._
 
 1. **OQ-1 — Can smoltcp's udp socket TX source 0.0.0.0 + broadcast with NO configured interface address?** (D-09's DHCP fidelity crux)
    - What we know: RX side verified (broadcast accepted by port-bound sockets; iface accepts broadcast-destined packets). smoltcp's own dhcpv4 socket hand-crafts src-0.0.0.0 packets at the wire layer (`socket/dhcpv4.rs:610`). The udp socket's source-selection path with zero configured addresses is unproven for this shape.
    - What's unclear: whether `update_ip_addrs` must be skipped for `0.0.0.0` (yes — it panics on non-unicast, verified) AND how the TX path then sources the packet.
    - Recommendation: the FIRST host-side pin of the phase (before any guest gate): build ipconfig's exact DHCP-shaped exchange against a host-side smoltcp instance — bind port 68, send a broadcast Discover with no iface address, observe. If it fails, the bridge's wire-layer shim (same construction as smoltcp's dhcpv4 socket internals) is the designed answer; the recorded fallback stays D-09's dhcpv4 socket.
+   - **RESOLVED (plan venue):** Plan 08-02 Task 2 pin (h) implements exactly this as the phase's FIRST host pin (ScriptedDev captures the TX frame; src 0.0.0.0 present-or-absent is the verdict); the PASS-path/SHIM-path verdict is recorded as a dated line in `docs/devip-contract.md`'s mapping chapter.
 
 2. **OQ-2 — `/dev/random` for ipconfig (the Phase-11 adjacency pulled forward).**
    - What we know: ipconfig's `init()` calls `srand(truerand())` unconditionally; libc's truerand sysfatals without `/dev/random`; r9 devcons has no random files; CONTEXT's deferred list places `/dev/random` in Phase 11 (AUTH-02's DTB-seeded CSPRNG).
    - What's unclear: whether Phase 8 lands a minimal devcons `random`/`urandom` (small, non-CSPRNG, loudly labeled) or the milestone re-scopes (pull AUTH-02's device forward / patch nothing — D-09/D-12 forbid patching ipconfig).
    - Recommendation: planner surfaces this to the user at plan check — it crosses a locked phase boundary (CONTEXT's deferred list). The minimal device is ~small and devcons-adjacent; AUTH-02's full CSPRNG stays Phase 11 either way.
+   - **RESOLVED (user decision, CONTEXT.md D-17, 2026-11-05):** the minimal DTB-seeded CSPRNG lands THIS phase — devcons `random`/`urandom` files only, no devcap/auth adjacency; Phase 11 hardens/expands. Plan 08-06 Task 1 implements it BEFORE the first ipconfig gate; ipconfig stays unmodified (D-09).
 
 3. **OQ-3 — Accept-pool depth for TCP listen.**
    - What we know: devip `Maxincall = 128`; smoltcp resets excess SYNs; each pool member costs rx+tx socket buffers.
    - What's unclear: the memory budget per conv at the phase's buffer sizes; whether 128-deep pools are affordable or a documented smaller deviation.
    - Recommendation: plan computes the byte math (pool depth × (rx+tx) per proto) and records the choice in the contract doc; D-08 pushes toward 128 unless the memory math forbids.
+   - **RESOLVED (plan venue):** Plan 08-01 Task 1 — the contract doc's mapping chapter computes the byte math (pool depth × (rx+tx) socket-buffer bytes per announced conv vs r9's recorded kernel-heap budget from `../r9/port/src/allocator.rs`) and records the depth decision (devip-exact 128 per D-08, or the documented smaller deviation with the math shown).
 
 4. **OQ-4 — `checksum n` and `tcpporthogdefense` ctl verbs have no smoltcp mechanism.**
    - What we know: verified absent from smoltcp's socket API (checksums are always computed; keepalives are interval-based, not random-seq probes).
    - Recommendation: contract doc maps them as accepted-and-recorded (netlog note) or loud-unimplemented — D-08's full-fidelity stance wants the former with the deviation documented; decide at contract-doc time.
+   - **RESOLVED (plan venue):** Plan 08-01 Task 1 — the contract doc's TCP chapter maps both verbs as accepted-and-recorded with a netlog note (D-08's full-fidelity stance: acceptance + documented deviation, not loud-unimplemented).
 
 5. **OQ-5 — Multiple smoltcp Interfaces vs one.**
    - What we know: one Interface owns one Device; devip allows multiple bound ipifcs (loopback + ether). A socket's egress rides the interface whose Device the socket's adapter belongs to; address-based demux (127/8, ::1 → loopback iface) is the seam's routing.
    - Recommendation: two Interfaces (loopback + ether) created at medium bind, socket-to-interface binding at conv connect/announce by address class; the contract doc's routing section records it. This is the agent's discretion; the plan should validate the demux against the loopback+ether gates early.
+   - **RESOLVED (plan venue):** Plan 08-01 Task 1 records one smoltcp Interface per bound ipifc with address-class demux (127/8 and ::1 → loopback iface; everything else → ether iface) in the contract doc's routing chapter; plans 08-04 (loopback leg) and 08-06 (ether leg) implement it and their gates validate the demux.
 
 ## Environment Availability
 
@@ -715,7 +722,7 @@ let h = sockets.add(s);             // conv records h; conv.announced = true
 | plan9port host tools | Harvey payload builds (7c/7l host legs ride the existing subset-build.sh machinery) | ✓ (project harness) | — | — |
 
 **Missing dependencies with no fallback:** none for Phase 8's own gates.
-**Missing dependencies with fallback:** `/dev/random` in the guest (OQ-2 — not an environment item but a phase-scope item; listed here for visibility since ipconfig sysfatals without it).
+**Missing dependencies with fallback:** `/dev/random` in the guest (OQ-2 — not an environment item but a phase-scope item; listed here for visibility since ipconfig sysfatals without it). **Resolved by CONTEXT.md D-17:** the minimal DTB-seeded device lands in plan 08-06 Task 1 before the first ipconfig gate.
 
 ## Security Domain
 
