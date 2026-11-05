@@ -1,20 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 07-r9-pci-ecam-virtio-net-devether
 source: [07-VERIFICATION.md]
 started: 2026-11-05T03:20:00Z
-updated: 2026-11-05T04:05:00Z
+updated: 2026-11-05T04:40:00Z
 ---
 
 ## Current Test
 
-number: 2
-name: CR-01 reproduction + triage decision (readnum_content(-1) kernel panic)
-expected: |
-  With #l bound: `echo connect -1 > /net/ether0/0/ctl` then
-  `cat /net/ether0/0/type`. Donor-faithful expected: reads back `4294967295`.
-  Predicted actual: kernel panic via usize underflow in readnum_content.
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -57,14 +51,19 @@ expected: |
   Human decides: fix now (recommended — one-line u32 cast per 07-REVIEW.md
   CR-01, plus a host test pinning connect -1 readback) or defer with a
   recorded reason in 07-REVIEW-DISPOSITION.md.
-result: [pending]
+  CONFIRMED LIVE: `connect -1` admitted (clean exit), `cat type` panicked the
+  kernel — "panicked at port/src/devether.rs:492:15: attempt to subtract with
+  overflow" — exactly the reviewed readnum_content underflow.
+result: issue
+reported: "Console log: `echo connect -1 > /net/ether0/0/ctl` exited clean; `cat /net/ether0/0/type` panicked at port/src/devether.rs:492:15 'attempt to subtract with overflow' — CR-01 reproduced verbatim (kernel panic, panic=abort)."
+severity: blocker
 
 ## Summary
 
 total: 2
 passed: 0
-issues: 1
-pending: 1
+issues: 2
+pending: 0
 skipped: 0
 blocked: 0
 
@@ -75,6 +74,11 @@ blocked: 0
   status: failed
   reason: "User reported: block-on-empty held (backgrounded cat pid 9 never errored/exited) and the reply reached the device (stats in:1), but the blocked read never woke — no frame bytes printed, no process-9 exit. The register→block→wake→copyout link in netif/devether (EtherHooks block/wake) is wedged; device-level RX accounting works."
   severity: blocker
-  test: 1
+- gap_id: G-07-2
+  truth: "A conversation whose ctl accepted `connect -1` reports its type file per donor semantics — reading /net/ether0/0/type reads back 4294967295 (u32 wrap of -1), never a kernel panic"
+  status: failed
+  reason: "User reported: connect -1 admitted cleanly; reading the type file panicked the kernel at port/src/devether.rs:492:15 'attempt to subtract with overflow' — the reviewed CR-01 readnum_content usize underflow (NUMSIZE-1-20), reproduced live under panic=abort."
+  severity: blocker
+  test: 2
   artifacts: []
   missing: []
