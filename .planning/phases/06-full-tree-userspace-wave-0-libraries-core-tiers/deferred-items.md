@@ -31,3 +31,22 @@ current task's changes (executor scope boundary — logged, not fixed).
   `build/aarch64/gethunk-repro-6l.sh` does.
   **Status:** open — platform fact, venue constraint for future
   gethunk-class gates.
+
+- 6l (and likely 8l/5l/9l/ql/vl/4l/kl) share the 7l LP64 double-constant
+  emission bug — latent, no current consumer
+  status: open
+  **Found during:** 06-03 Task 1 (the hawk float-canary fault → 7l fix)
+  **What:** 7l's datfill D_FCONST case-8 emitted double constants via a
+  cast over `struct Ieee {long l; long h;}` — 16 bytes on LP64 hosts,
+  so only l's low half + l's zero high half were written (fixed in 06-03
+  for 7l, commit `2bbca81ed`).  6l's asm.c D_FCONST case-8 has the same
+  shape (`cast = (uchar*)&p->to.ieee` with Ieee EMBEDDED in the Adr
+  union — 16 bytes on LP64, fnuxi8 reads only the first 8 = l's bytes).
+  Latent: the amd64 9k build carries no non-trivial double data
+  constants, so nothing in the default build consumes the path (v1.0
+  never printed a float anywhere).  Fix when an amd64/386 consumer
+  appears, using the 06-03 7l fix as the pattern (emit the two 32-bit
+  halves via int[2]); the dormant-arch letters (8l/5l/9l/ql/vl/4l/kl)
+  should be audited at the same time.
+  **Status:** open — latent toolchain class, deliberately not fixed in
+  06-03 (amd64 leg kept byte-untouched; scope boundary).
