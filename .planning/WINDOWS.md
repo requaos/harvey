@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 25
+open_count: 29
 waived_count: 3
 fixed_count: 2
-total_count: 30
-last_updated: 2026-11-04T23:18:26.940Z
+total_count: 34
+last_updated: 2026-11-05T00:05:08.206Z
 ---
 
 # Broken Windows Ledger
@@ -45,6 +45,10 @@ last_updated: 2026-11-04T23:18:26.940Z
 | 28 | 261103-giq | deviation | build/aarch64/subset-exec.sh |  | guest-scratch CONF=qemu bootdir reset to pristine (39 accumulated rows exceeded Nbootfiles=32; pre-existing guest state) | open |  | 2026-11-03T18:24:07.120Z |  |
 | 29 | 06 | deviation | build/aarch64/gethunk-repro-cc.sh |  | cc repro input shape changed from plan's >600KB string literal to digit/comma macro define (NSYMB/STRINGSZ caps reject the sketched shape before gethunk); use line dropped (macexpand Io.b 16KB cap) | open |  | 2026-11-04T23:18:26.722Z |  |
 | 30 | 06 | deviation | build/aarch64/gethunk-repro-6l.sh |  | 6l repro input shape settled by A4 spike to >2.5MB archive __.SYMDEF bang-malloc (array toothless, string-literal impossible); venue linux-only (darwin sbrk 4096KB arena); fixed pair built from working tree not hostbin | open |  | 2026-11-04T23:18:26.940Z |  |
+| 31 | 07 | deviation | build/aarch64/root-tree/lib/net-sweep.rc | 77 | dd syntax corrected to dash-pair form (-if/-of); the baked dd.c rejects classic if=/of= (plan prose corrected, gate-blocking) | open |  | 2026-11-05T00:04:57.930Z |  |
+| 32 | 07 | deviation | build/aarch64/mkimage.sh | 165 | trailer magic re-extracted via od -j (Harvey host dd shadows POSIX dd on the devshell PATH — D-02 class) | open |  | 2026-11-05T00:04:58.144Z |  |
+| 33 | 07 | deviation | build/aarch64/root-tree/lib/net-sweep.rc | 77 | dd syntax corrected to dash-pair form (-if/-of); the baked dd.c rejects classic if=/of= (plan prose corrected, gate-blocking) | open |  | 2026-11-05T00:05:04.202Z |  |
+| 34 | 07 | deviation | build/aarch64/mkimage.sh | 165 | trailer magic re-extracted via od -j (Harvey host dd shadows POSIX dd on the devshell PATH — D-02 class) | open |  | 2026-11-05T00:05:08.206Z |  |
 
 ````json
 [
@@ -435,6 +439,58 @@ last_updated: 2026-11-04T23:18:26.940Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-04T23:18:26.940Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 31,
+    "kind": "deviation",
+    "phase": "07",
+    "file": "build/aarch64/root-tree/lib/net-sweep.rc",
+    "line": 77,
+    "description": "dd syntax corrected to dash-pair form (-if/-of); the baked dd.c rejects classic if=/of= (plan prose corrected, gate-blocking)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T00:04:57.930Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 32,
+    "kind": "deviation",
+    "phase": "07",
+    "file": "build/aarch64/mkimage.sh",
+    "line": 165,
+    "description": "trailer magic re-extracted via od -j (Harvey host dd shadows POSIX dd on the devshell PATH — D-02 class)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T00:04:58.144Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 33,
+    "kind": "deviation",
+    "phase": "07",
+    "file": "build/aarch64/root-tree/lib/net-sweep.rc",
+    "line": 77,
+    "description": "dd syntax corrected to dash-pair form (-if/-of); the baked dd.c rejects classic if=/of= (plan prose corrected, gate-blocking)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T00:05:04.202Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 34,
+    "kind": "deviation",
+    "phase": "07",
+    "file": "build/aarch64/mkimage.sh",
+    "line": 165,
+    "description": "trailer magic re-extracted via od -j (Harvey host dd shadows POSIX dd on the devshell PATH — D-02 class)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T00:05:08.206Z",
     "resolved_at": null,
     "milestone": "v2.0"
   }

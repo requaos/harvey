@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 07
 current_phase_name: r9 PCI/ECAM + virtio-net + devether
 status: executing
-stopped_at: Completed 07-03-PLAN.md
-last_updated: "2026-11-04T23:42:15.982Z"
+stopped_at: Completed 07-04-PLAN.md
+last_updated: "2026-11-05T00:04:51.713Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 07 execution started
-state_head: 877cdae110447534aed11bc033da539ec284b991
+state_head: 9fb015a573d434b8d029e8399191ec6ea43319a4
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 16
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-04)
 ## Current Position
 
 Phase: 07 (r9 PCI/ECAM + virtio-net + devether) — EXECUTING
-Plan: 4 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-11-04 — Phase 07 execution started
 
@@ -102,6 +102,8 @@ Progress: [░░░░░░░░░░] 0% (v2.0)
 | Phase 06 P01 | 35 min | 3 tasks | 8 files |
 | Phase 07 P01 | 10min | 2 tasks | 3 files |
 | Phase 07 P03 | 19 min | 2 tasks | 4 files |
+| Phase 07 P04 | 19 min | 2 tasks | 5 files |
+| Phase 07 P04 | 19 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -219,6 +221,10 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-03: RingMem::fence(order) trait method with a core-fence default (dmb ish/ishld per RESEARCH codegen) — the mock overrides to record op ORDER, so the virtio barrier sandwich is test-proven as a sequence; zero new unsafe/asm in port::virtio (#[forbid(unsafe_code)])
 - [Phase 07]: 07-03: avail pre-linking is literal (Ring::new writes each avail entry to its slot's chain head once; post re-writes the fixed value inside the §2.7.13 sequence); a fresh ascending DescPool reproduces ethervirtio.c's 2i chain-head layout organically; MAX_QSIZE=256 loud ceiling implements the accept-256-never-downsize EDGE-PROBE assumption
 - [Phase 07]: 07-03: used-ring validation beyond the plan's named checks (Rule 2): odd ids rejected as device faults (chain heads are even — aliasing guard), direction guards on tx_post/rx_replenish — the T-07-05 device-untrusted boundary's completed shape
+- [Phase 07]: 07-04: sweep dd syntax is the dash-pair form (dd -if fixture -of datafile) — the baked sys/src/cmd/dd.c parses dash-prefixed key/value pairs (iskey requires the dash), so the classic if=/of= form fails on the guest with dd: bad arg
+- [Phase 07]: 07-04: insertion-only edits to the shared build scripts (SUBSET append, separate mk dd.install and manifest assert lines) — the acceptance zero-deletion constraint and Phase-6 collision avoidance govern over the prose alphabetical-in-list placement
+- [Phase 07]: 07-04: net-sweep.rc connect step pre-checks test -e on the ctl file — a redirect-open failure is an uncatchable rc Xerror (aborts without the named FAIL line); the || on the echo covers the write-failure (Ebadctl) class
+- [Phase 07]: 07-04: mkimage.sh trailer magic re-extracted with od -j — the Harvey host dd shadows POSIX dd on the devshell PATH (D-02 hostbin-shadowing class), leaving the classic-syntax extraction empty and the bake red; od is never shadowed (no Plan 9 od exists)
 
 ### Pending Todos
 
@@ -267,8 +273,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-04T23:42:15.961Z
-Stopped at: Completed 07-03-PLAN.md
+Last session: 2026-11-05T00:04:51.692Z
+Stopped at: Completed 07-04-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
