@@ -273,8 +273,14 @@ SHIM
 				'objtype=amd64 mk install' > "$NSLIBC"
 			NS_TARGET="bash $NSLIBC"
 			export NS_TARGET
+			# set +e wrapper per the script's harness-invocation idiom (the
+			# verify legs below): without it a non-zero namespace-build status
+			# aborts the script under set -e before RC is captured, making the
+			# named error and the NSLIBC cleanup unreachable.
+			set +e
 			(cd "$HARVEY_ROOT/sys/src" && bash RUN_BUILD_IN_PRIVATE_NAMESPACE)
 			RC=$?
+			set -e
 			rm -f "$NSLIBC"
 			[ $RC -eq 0 ] || { echo "error: libc namespace provisioning failed (rc=$RC)" >&2; exit 2; }
 			[ -f "$HARVEY_ROOT/amd64/lib/libc.a" ] || { echo "error: libc namespace provisioning produced no libc.a" >&2; exit 2; }
