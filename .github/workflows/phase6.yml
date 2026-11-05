@@ -12,15 +12,22 @@
 #               working tree vs the committed copy IS the drift signal —
 #               D-15, USPACE-02) → the generator .7-magic scan
 #               (USPACE-03's mechanical red) → the grep-hygiene gate
-#               (D-02) → the FPdbleword region assert (D-01).
-#   tier-donor  (slow, 90m): subset-build.sh + subset-exec.sh on the
-#               native-linux venue (NATIVE_LINUX engages by uname:
-#               nsrun sudo-unshare, donor clone pin-verified to
-#               350266104f host-side, TCG aarch64 qemu) — the tier-0/1
-#               donor execution gate (USPACE-04's first venue).
+#               (D-02) → the venue pin (the 9front tier-leg retirement
+#               is CI-asserted, not prose — G-06-1) → the FPdbleword
+#               region assert (D-01).
+#   tier-9k     (slow, 90m): the Harvey-kernel tier venue (06-09,
+#               G-06-1) — host setup + toolchain + the full amd64 build,
+#               then the k10t1 embedded-root kernel (k10cpu's proven
+#               device set + the 43-file tier-1 set + the D-10 sweep
+#               baked into devroot) built by build/mm/build-9k10t1.sh,
+#               booted + swept + asserted host-side by
+#               build/mm/boot-9k10t1-sweep.sh under PLAIN qemu (no
+#               minimega — D-03; KVM when /dev/kvm is writable, else the
+#               TCG fallback).  The x86_64 CI tier venue: the tier-1
+#               sweep runs on Harvey's OWN kernel (USPACE-04).
 #   tier-r9     (slow, 90m): nix run .#boot-r9-tier1 — the tier-1 sweep
 #               on the flake.lock-pinned r9 kernel (06-07's app;
-#               USPACE-04's second venue, D-12).  TCG on the runner.
+#               USPACE-04's second CI venue, D-12).  TCG on the runner.
 #   x86_64-poolpanic (45m): USPACE-10's re-test (D-04) — `nix run
 #               .#build` builds 9k10cpu from the clean checkout (the
 #               pswt-fixed 6c is guaranteed by the clean toolchain
@@ -38,6 +45,17 @@
 #               the TCG fallback (-cpu qemu64, 600s budgets) — the
 #               probe runs exactly once per run and the classification
 #               set is identical on both paths.
+#
+# Venue split (G-06-1; CR-01 closed by retirement; maintainer direction
+# 2026-11-05): on x86_64 CI the tier donor evidence comes from Harvey's
+# OWN kernel (9k10cpu lineage — proven booting on the runner by the
+# poolpanic leg), never 9front — borrowing 9front-specific design
+# decisions is the deliberate anti-goal.  The aarch64 tier gates stay
+# LOCAL-only (the 9front donor pin, driven by hand from
+# build/aarch64/); tier-r9 remains the second CI venue (D-12).  The
+# wave0-host venue-pin step negative-greps the retired leg's job key
+# and its gate-script basenames, so a silent reintroduction of a hosted
+# 9front dependency reds the fast leg.
 #
 # CI-green means LINUX only — the darwin leg is documented-manual
 # (build/REPRODUCIBILITY.md names the exact commands); no darwin leg
@@ -166,6 +184,33 @@ jobs:
             exit 1
           fi
           echo "GREP-HYGIENE-OK"
+      - name: venue pin (tier-donor retired 2026-11-05)
+        # Maintainer direction 2026-11-05 (G-06-1, CR-01): on x86_64 CI
+        # the tier donor evidence comes from Harvey's OWN kernel — the
+        # 9front tier leg is RETIRED (removed, not kept red: a
+        # permanently-red leg trains red-blindness; this step is the
+        # honest tripwire).  A future edit reintroducing a hosted 9front
+        # dependency reds the fast leg here.  Self-hosting-safe: the
+        # anchored job-key greps require line-start + exactly two spaces
+        # (this run block's lines are indented deeper and begin with
+        # shell keywords), and the donor-gate ERE literal contains
+        # parentheses + a backslash — it never matches its own pattern
+        # text.
+        run: |
+          wf=.github/workflows/phase6.yml
+          if grep -qE '^  tier-donor:' "$wf"; then
+            echo "VENUE-PIN-FAIL: the retired tier-donor leg was reintroduced — the x86_64 tier venue is tier-9k (Harvey's own kernel); the aarch64 donor gates stay LOCAL-only" >&2
+            exit 1
+          fi
+          if grep -qE 'subset-(build|exec)\.sh' "$wf"; then
+            echo "VENUE-PIN-FAIL: a 9front donor-gate script reference survives in phase6.yml — CI never provisions .build/9front-donor (maintainer direction 2026-11-05)" >&2
+            exit 1
+          fi
+          if ! grep -qE '^  tier-9k:' "$wf"; then
+            echo "VENUE-PIN-FAIL: the tier-9k job is missing — the x86_64 tier venue must be Harvey's own kernel (the 06-09 k10t1 pair)" >&2
+            exit 1
+          fi
+          echo "VENUE-PIN-OK jobs: wave0-host tier-9k tier-r9 x86_64-poolpanic"
       - name: FPdbleword region assert (D-01)
         # Sed the union region out of aarch64/include/u.h and require
         # exactly the two uint members (the amd64 reference shape);
@@ -183,33 +228,6 @@ jobs:
           fi
           echo "FPDBL-OK"
 
-  tier-donor:
-    runs-on: ubuntu-latest
-    timeout-minutes: 90 # TCG aarch64 scale; the gate's own BOOT_BUDGET localizes failures
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: install nix
-        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
-      - name: tier-0/1 build (native-linux namespace)
-        # NATIVE_LINUX engages by uname: nsrun.sh sudo-unshare, host
-        # toolchain auto-bootstraps via nix run .#setup / .#toolchain.
-        run: nix develop -c sh build/aarch64/subset-build.sh
-      - name: tier-0/1 donor execution gate (TCG aarch64)
-        # Native-linux donor venue (Pitfall P6-4): the donor clone +
-        # pin-verify 350266104f runs host-side; the rebake runs in the
-        # host's own mount namespace; qemu aarch64 under TCG.
-        run: nix develop -c sh build/aarch64/subset-exec.sh
-      - name: upload the gate logs
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: tier-donor-logs
-          path: |
-            .build/subset-build.log
-            .build/9front-dist/subset-exec.log
-            .build/9front-dist/subset-rebake.log
-          if-no-files-found: warn
-
   tier-r9:
     runs-on: ubuntu-latest
     timeout-minutes: 90 # TCG scale; the driver's per-stage 600s timeouts localize failures
@@ -225,6 +243,101 @@ jobs:
         with:
           name: tier-r9-log
           path: build/aarch64/tier1-r9.log
+          if-no-files-found: warn
+
+  tier-9k:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90 # TCG-fallback scale; KVM expected — ubuntu-latest exposes /dev/kvm (the poolpanic leg's premise)
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: install nix
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: host bin + toolchain provisioning
+        # nix/build.sh asserts pcc/cpp/ar in $HARVEY_LINUX_BIN before
+        # building — provision them on the clean runner (the missing-
+        # prerequisite class the first hosted run redded on), then
+        # assert the products explicitly: toolchain.sh's trailing echo
+        # masks sub-build failures (the 02-12 exit-0 class).
+        run: |
+          nix run .#setup
+          nix run .#toolchain
+          _a=$(uname -m); [ "$_a" = "arm64" ] && _a=aarch64
+          hb=".build/hostbin-linux-$_a/bin"
+          missing=0
+          for t in pcc cpp ar 6c 6l 8c 8l; do
+            if [ ! -x "$hb/$t" ]; then echo "TOOLCHAIN-MISSING: $hb/$t" >&2; missing=1; fi
+          done
+          if [ "$missing" -ne 0 ]; then echo "hostbin contents:" >&2; ls "$hb" >&2; exit 1; fi
+          echo "TOOLCHAIN-PRODUCTS-OK ($hb)"
+      - name: build amd64 userspace + kernels
+        # 02-12 (deferred): .#build's break-glass tail reports exit 0
+        # even when the build failed — assert the ARTIFACTS, and on
+        # absence print the poolpanic step's BUILD-SWALLOWED-FAIL
+        # digest so the swallowed failure is diagnosable from the job
+        # log.
+        run: |
+          mkdir -p .build
+          nix run .#build 2>&1 | tee .build/tier-9k-build.log
+          missing=""
+          for f in amd64/9k10cpu.elf amd64/bin/rc amd64/bin/awk; do
+            if [ ! -f "$f" ]; then missing="$missing $f"; fi
+          done
+          if [ -n "$missing" ]; then
+            log=.build/tier-9k-build.log
+            echo "BUILD-SWALLOWED-FAIL: missing after nix run .#build:$missing (02-12 exit-0 class)" >&2
+            echo "== bind-error context (they are noise on green hosts, but confirm):"
+            grep -n -B2 -A2 'bind: No such' "$log" | head -24 || true
+            echo "== ip/ipconfig lines in the build log:"
+            grep -n 'ipconfig' "$log" | head -10 || echo "(none — ipconfig never touched)"
+            echo "== all missing-make targets:"
+            grep -nE "don't know how to make" "$log" | head -15 || echo "(none)"
+            echo "== what the repo's amd64/bin holds after the build:"
+            ls amd64/bin/ 2>&1 | head -10 || true
+            ls amd64/bin/ip/ 2>&1 | head -10 || true
+            echo "== first mk recipe failures (the abort-on-first-failure origin):"
+            grep -n 'exit status=' "$log" | head -8 || echo "(none)"
+            _first=$(grep -n -m1 'exit status=' "$log" | cut -d: -f1 || true)
+            if [ -n "$_first" ]; then
+              echo "== context around the first failure (line $_first):"
+              sed -n "$((_first > 25 ? _first - 25 : 1)),$((_first + 3))p" "$log" || true
+            fi
+            echo "== last 30 lines:"
+            tail -30 "$log" || true
+            exit 1
+          fi
+      - name: build the k10t1 venue kernel
+        # The script self-asserts its products and prints the embedded-
+        # file count (43); on failure its tail lands in the step
+        # summary (D-16's self-print convention — runner logs are
+        # auth-gated).
+        run: |
+          nix develop -c sh build/mm/build-9k10t1.sh 2>&1 | tee .build/tier-9k-kernel-build.log || {
+            rc=$?
+            { echo "## ❌ k10t1 venue kernel build failed (rc=$rc)"; echo '```'; tail -60 .build/tier-9k-kernel-build.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit $rc
+          }
+      - name: boot 9k10t1 + tier sweep gate
+        # The harness prints its marker-state digest + log tail to
+        # stderr on failure — capture both into the step summary, then
+        # the result file when present.  On green, cat the result file
+        # into the log.
+        run: |
+          nix develop -c sh build/mm/boot-9k10t1-sweep.sh 2>&1 | tee .build/tier-9k-sweep.log || {
+            rc=$?
+            { echo "## ❌ tier-9k boot/sweep failed (rc=$rc)"; echo '```'; tail -120 .build/tier-9k-sweep.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            if [ -f .build/tier-9k-result.txt ]; then cat .build/tier-9k-result.txt; fi
+            exit $rc
+          }
+          cat .build/tier-9k-result.txt
+      - name: upload the venue logs
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tier-9k-logs
+          path: |
+            .build/tier-9k-serial.log
+            .build/tier-9k-result.txt
+            .build/tier-9k-build.log
           if-no-files-found: warn
 
   x86_64-poolpanic:
