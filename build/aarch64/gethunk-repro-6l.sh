@@ -257,6 +257,12 @@ SHIM
 				exit 2
 			fi
 			export NS_HBIN
+			# iar creates /amd64/lib/libc.a — the dir is build output
+			# (gitignored), absent on a clean checkout (runner evidence:
+			# "ar: cannot create /amd64/lib/libc.a: No such file or
+			# directory"). build/mkdirs is the full-build path's answer;
+			# here the one needed dir is made directly.
+			mkdir -p "$HARVEY_ROOT/amd64/lib"
 			NSLIBC="$(mktemp "${TMPDIR:-/tmp}/ns-libc.XXXXXX.sh")"
 			printf '%s\n' \
 				'cd /sys/src' \

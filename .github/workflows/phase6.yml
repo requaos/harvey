@@ -245,17 +245,16 @@ jobs:
             log=.build/poolpanic-build.log
             echo "BUILD-SWALLOWED-FAIL: amd64/9k10cpu.elf missing after nix run .#build (02-12 exit-0 class)" >&2
             echo "== bind-error context (they are noise on green hosts, but confirm):"
-            grep -n -B2 -A2 'bind: No such' "$log" | head -24
-            echo "== was cmd/ip ever visited:"
-            grep -nc 'cmd/ip' "$log"
-            grep -n 'ip/ipconfig' "$log" | head -10
+            grep -n -B2 -A2 'bind: No such' "$log" | head -24 || true
+            echo "== ip/ipconfig lines in the build log:"
+            grep -n 'ipconfig' "$log" | head -10 || echo "(none — ipconfig never touched)"
             echo "== all missing-make targets:"
-            grep -nE "don't know how to make" "$log" | sort -u -t"'" -k2 | head -15
+            grep -nE "don't know how to make" "$log" | head -15 || echo "(none)"
             echo "== what the repo's amd64/bin holds after the build:"
-            ls amd64/bin/ 2>&1 | head -10
-            ls amd64/bin/ip/ 2>&1 | head -10
+            ls amd64/bin/ 2>&1 | head -10 || true
+            ls amd64/bin/ip/ 2>&1 | head -10 || true
             echo "== last 30 lines:"
-            tail -30 "$log"
+            tail -30 "$log" || true
             exit 1
           fi
       - name: accel probe (recorded in the verdict file)
