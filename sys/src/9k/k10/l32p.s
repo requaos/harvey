@@ -65,7 +65,7 @@ _endofheader:
 	pFARJMP32(SSEL(SiCS, SsTIGDT|SsRPL0), _warp64<>-KZERO(SB))
 
 /*
- * Make the basic page tables for CPU0 to map 0-4MiB physical
+ * Make the basic page tables for CPU0 to map 0-8MiB physical
  * to KZERO, and include an identity map for the switch from protected
  * to paging mode. There's an assumption here that the creation and later
  * removal of the identity map will not interfere with the KZERO mappings;
@@ -76,7 +76,18 @@ _endofheader:
  * the code below assumes these conditions are met.
  *
  * Assume a recent processor with Page Size Extensions
- * and use two 2MiB entries.
+ * and use four 2MiB entries.
+ *
+ * 06-09: raised from two entries (0-4MiB) to four (0-8MiB): the k10t1
+ * tier venue's 43-file devroot embed pushes the kernel image's data+BSS
+ * past 4MiB physical (measured: .data MemSiz ends at 5.16MiB), and
+ * main()'s memset(edata, 0, end-edata) faulted at the first BSS page
+ * before the banner (v=0e at CR2=0xfffffffff04e13d8 -> double/triple
+ * fault -> reset under qemu -no-reboot).  The KZERO PDE slots are
+ * consecutive and free; the identity map (needed only by the 32-bit
+ * entry below 2MiB) and its teardown are untouched.  The full map is
+ * rebuilt by mmuinit later in main(); these entries serve only the
+ * entry window.
  */
 /*
  * The layout is decribed in dat.h:
@@ -132,6 +143,10 @@ TEXT _warp64<>(SB), 1, $-4
 	MOVL	DX, PDO(KZERO)(AX)		/* PDE for KZERO 0-[24]MiB */
 	ADDL	$PGLSZ(1), DX
 	MOVL	DX, PDO(KZERO+PGLSZ(1))(AX)	/* PDE for KZERO [24]-[48]MiB */
+	ADDL	$PGLSZ(1), DX
+	MOVL	DX, PDO(KZERO+2*PGLSZ(1))(AX)	/* PDE for KZERO +[4,6)MiB (06-09) */
+	ADDL	$PGLSZ(1), DX
+	MOVL	DX, PDO(KZERO+3*PGLSZ(1))(AX)	/* PDE for KZERO +[6,8)MiB (06-09) */
 
 	MOVL	AX, DX				/*  */
 	ADDL	$(PTSZ|PteRW|PteP), DX		/* PT at PML4 + 3*PTSZ */
