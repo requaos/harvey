@@ -45,8 +45,8 @@
 #   nboot               bootloader tree, not a userspace sweep member
 #   cmd/4a..9l letters  other-arch toolchains are HOST tools via
 #                       BUILDTOOLCHAIN only, never aarch64 targets
-#   cmd/cpp cmd/mk cmd/yacc cmd/lex   D-09 build-chain members awaiting
-#                       their execution gates (append here in 06-06)
+#   cmd/cpp cmd/mk cmd/yacc cmd/lex   LANDED 06-06 with their per-tool
+#                       execution gates (the build-chain banner below)
 #   cmd/init            staged via the driver-only stage/init entry
 # Everything else not listed above is simply not yet gated: growth is
 # append-a-line after the dir's per-tier gate passes (06-03+).
@@ -82,3 +82,53 @@ cmd/7l
 cmd/cc				# shared frontend; tier evidence is the cc.a7 archive the 7c build links
 # --- 06-03 tracer: first expansion beyond the v1.0 baseline ---
 cmd/awk				# 06-03 tracer (USPACE-04, D-01): dir entry exercising the G1 host-safe maketab generator; carries the mandatory float canary (T1-OK float-d01)
+# --- 06-06: guest build chain completion (USPACE-06, D-09).  Per-tool
+# fixed-input execution evidence in tier1-sweep.rc (RESEARCH OQ-2's
+# letter: every named SC#5 chain member executes; no SC#5 chain member
+# lands artifact-only).  All four run their checks in the guest's
+# writable /tmp scratch under the donor-venue guard; r9 names them
+# T1-SKIP until its writable scratch exists (D-12 preparation). ---
+cmd/cpp				# -D smoke over a sweep-generated input (/tmp; no committed file)
+cmd/mk				# mk -f /boot/tiny.mk — the committed trivial mkfile's echo recipe
+cmd/yacc			# yacc /boot/tiny.y → y.tab.c greps yyparse (committed one-rule grammar)
+cmd/lex				# lex /boot/tiny.l → lex.yy.c greps yylex (committed one-rule scanner)
+# --- 06-06: researcher-proposed coreutils classics (06-RESEARCH
+# §Tier-1 Membership — every entry verified on-disk in BOTH Harvey's
+# tree and the 9front donor baseline).  Verified absences, recorded
+# factually (not scope cuts): xargs, dirname, and kill are missing from
+# BOTH trees — process control is /proc/n/ctl writes and rc/basename
+# idioms cover dirname; they are not tier members because they do not
+# exist on Plan 9. ---
+cmd/bc				# second float canary (A7: exact output observed in the ledger evidence)
+cmd/sort
+cmd/tr
+cmd/uniq
+cmd/tail
+cmd/dd				# write-flow (dash-pair -if/-of syntax — 07-04's measured dialect)
+cmd/tar				# write-flow (create + list round-trip)
+cmd/chmod			# write-flow
+cmd/tee				# write-flow (stdout + file both asserted)
+cmd/basename
+cmd/sleep
+cmd/cmp
+cmd/comm
+cmd/fmt
+cmd/join
+cmd/look			# binary-search over a sweep-generated sorted db (the sentinel is unsorted)
+cmd/pr
+cmd/split			# write-flow
+cmd/strings
+cmd/sum
+cmd/md5sum			# exact known-content assert (digest of the baked sentinel)
+cmd/sha1sum			# exact known-content assert (digest of the baked sentinel)
+cmd/ed
+cmd/dc
+cmd/units			# usage-level (the donor image carries no /lib/units db)
+cmd/cal
+cmd/touch			# write-flow
+cmd/time
+cmd/seq
+cmd/read
+cmd/du
+cmd/xd
+cmd/nm				# links libmach (nm.c:8 <mach.h>) — consumer-carries tier-0 libmach (D-06); fixed input is the committed baked nm-input.7

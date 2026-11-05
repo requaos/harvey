@@ -1,10 +1,12 @@
 #!/bin/sh
 # build/aarch64/subset-exec.sh — the tier-1 execution gate: the Harvey
-# aarch64 tier-1 binaries (the v1.0 16-subset — rc, grep, ip/ipconfig,
-# auth/factotum, and the core single-file commands cat cp date echo ls
-# mkdir mv ps rm sed test wc — plus the 06-03 tracer's cmd/awk, all
-# compiled by Harvey's vendored 7c and linked by 7l) EXECUTE on the
-# 9front donor kernel under qemu -M virt TCG.
+# aarch64 tier-1 binaries (the D-09 membership: the v1.0 16-subset, the
+# 06-03 tracer's cmd/awk, the 06-06 coreutils extension — bc sort tr
+# uniq tail dd tar chmod tee basename sleep cmp comm fmt join look pr
+# split strings sum md5sum sha1sum ed dc units cal touch time seq read
+# du xd nm — and the build chain, all compiled by Harvey's vendored 7c
+# and linked by 7l) EXECUTE on the 9front donor kernel under qemu -M
+# virt TCG.
 #
 # 06-03 evolution (D-10): the 22 typed drive9 steps are replaced by the
 # SOURCED in-guest sweep — build/aarch64/tier1-sweep.rc, staged into the
@@ -66,8 +68,14 @@
 # re-express the v1.0 step table): echo sentinel, ls / non-empty, cat
 # sentinel.txt, grep/sed/wc pipelines, date parseable, test -f, hrc
 # eval (caret concat), ps lists the sweep's rc, ipconfig usage-level,
-# factotum spawn+resident, awk field split, float canary, and the
-# donor-only write-flow round-trip (mkdir/cp/mv/rm in /tmp/tier1).
+# factotum spawn+resident, awk field split, float canary, the 06-06
+# coreutils blocks (sort/tr/uniq/tail round-trips, sum/md5sum/sha1sum/
+# cmp known-content, ed/dc/units/cal usage+output markers, bc's A7
+# shape-assert + T1-BCOBS observation, nm reading the committed baked
+# nm-input.7), the donor-venue write-flow round-trips (mkdir/cp/mv/rm +
+# dd/tar/tee/chmod/touch/split + look's generated sorted db), and the
+# donor-venue build-chain evidence (cpp -D smoke, yacc tiny.y →
+# y.tab.c/yyparse, lex tiny.l → lex.yy.c/yylex, mk tiny.mk echo).
 #
 # Invariant: zero panic/trap/sys: note lines in the capture (asserted
 # host-side; the plan's fails_when).  BOOT_BUDGET discipline per
@@ -114,6 +122,16 @@ SRV9_GUEST_IP="${SRV9_GUEST_IP:-10.0.2.100}"
 # the tier-1 swept binaries: guest-staging name → /boot name (h-prefix)
 SUBSET_FLAT="cat cp date echo ls mkdir mv ps rm sed test wc rc grep"
 SUBSET_NAMED="ip/ipconfig auth/factotum"
+# 06-06 (USPACE-06, D-09): the researcher-proposed coreutils extension
+# + the four build-chain members with per-tool fixed-input checks.  All
+# install flat into /aarch64/bin and stage h*-prefixed.  (dd already
+# rode the 07-04 image block; its tier-1 gate membership lands here.)
+SUBSET_CORE="bc sort tr uniq tail dd tar chmod tee basename sleep cmp comm fmt join look pr split strings sum md5sum sha1sum ed dc units cal touch time seq read du xd nm"
+SUBSET_CHAIN="cpp mk yacc lex"
+# 06-06 committed fixed inputs (staged as bootdir DATA): yacc/lex/mk
+# execution-evidence inputs + nm's baked object (produced at authoring
+# time by the build venue's host 7c over the committed hello.c).
+SUBSET_DATA="tiny.y tiny.l tiny.mk nm-input.7"
 
 # Platform split (06-03, Pitfall P6-4): linux runs the donor rebake in
 # the host's own mount namespace (the self-re-entrant script's
@@ -150,7 +168,7 @@ actual=$(git -C "$DONOR" rev-parse HEAD 2>/dev/null || echo missing)
 [ "$actual" = "$DONOR_SHA" ] || err "donor pin mismatch: want $DONOR_SHA, have $actual"
 [ -s "$DIST/9qemu.u" ] || err "$DIST/9qemu.u missing — run sh build/aarch64/donor-vm-build.sh first"
 [ -d "$ROOTFS/arm64/bin" ] || err "$ROOTFS incomplete — run sh build/aarch64/donor-vm-build.sh first"
-for f in $SUBSET_FLAT; do
+for f in $SUBSET_FLAT $SUBSET_CORE $SUBSET_CHAIN; do
 	[ -x "$HARVEY/aarch64/bin/$f" ] || err "aarch64/bin/$f missing — run sh build/aarch64/subset-build.sh first"
 done
 for f in $SUBSET_NAMED; do
@@ -162,6 +180,10 @@ done
 [ -s "$HARVEY/build/aarch64/out/stacksmoke" ] || err "build/aarch64/out/stacksmoke missing — run sh build/aarch64/subset-build.sh first"
 [ -f "$HARVEY/build/aarch64/tier1-sweep.rc" ] || err "build/aarch64/tier1-sweep.rc missing (06-03 committed sweep)"
 [ -f "$HARVEY/build/aarch64/hello.c" ] || err "build/aarch64/hello.c missing (06-06 self-host canary source, staged as data)"
+# 06-06: the committed fixed inputs (06-06 Task 1)
+for f in $SUBSET_DATA; do
+	[ -f "$HARVEY/build/aarch64/$f" ] || err "build/aarch64/$f missing (06-06 committed fixed input)"
+done
 # 06-05: the tier-0 lib test binaries (D-06 — built per-target by
 # subset-build.sh, staged below, run by the sweep's libtest block)
 for f in hdrawtest harctest htdraw hdisktest; do
@@ -209,8 +231,12 @@ RSYNC_RSH="ssh -F $SSH_CFG"
 # ensure the writable scratch targets exist in the served root (the
 # /tmp bind target must exist for lib/namespace's bind -c to succeed)
 mkdir -p "$ROOTFS/tmp" "$ROOTFS/usr/glenda/tmp"
-# start each run from a clean scratch (idempotence evidence)
+# start each run from a clean scratch (idempotence evidence) — the
+# sweep's write-flow round-trips + build-chain outputs + the 06-06
+# canary products are all removed (06-06 extended the set)
 rm -rf "$ROOTFS/tmp/subset" "$ROOTFS/usr/glenda/tmp/subset" "$ROOTFS/tmp/tier1" "$ROOTFS/usr/glenda/tmp/tier1"
+rm -f "$ROOTFS/tmp/y.tab.c" "$ROOTFS/tmp/lex.yy.c" "$ROOTFS/tmp/cpp-in.c" \
+	"$ROOTFS/tmp/hello" "$ROOTFS/tmp/hello.7" "$ROOTFS/tmp/hello.out" "$ROOTFS/tmp/tiny.7"
 
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/subset-exec.XXXXXX")
 TERMRC_ORIG="$TMPD/termrc.orig"
@@ -240,13 +266,16 @@ printf 'alpha bravo charlie\n__SUBSET_GREP_LINE__\n' > "$TMPD/sentinel.txt"
 
 # ---- 1. stage the tier-1 binaries + sweep data into the donor tree --
 # h-prefix renaming: the guest's own binaries stay distinguishable from
-# Harvey's under test.  tier1-sweep.rc and hello.c ride as DATA.
-echo "== staging the tier-1 binaries + tier1-sweep.rc + hello.c into the donor tree (arm64/bin/subset/)"
+# Harvey's under test.  tier1-sweep.rc and hello.c ride as DATA, as do
+# the 06-06 committed fixed inputs (tiny.y/tiny.l/tiny.mk/nm-input.7 —
+# nm-input.7 is a .7 OBJECT; mkrootall strips only file-identified
+# executables, so an unstripped object rides through as data).
+echo "== staging the tier-1 binaries + tier1-sweep.rc + fixed inputs into the donor tree (arm64/bin/subset/)"
 if [ -n "$NATIVE_LINUX" ]; then
 	# native leg: the donor tree is the host's own .build checkout —
 	# stage in place (no lima, no rsync)
 	mkdir -p "$DONOR/arm64/bin/subset"
-	for f in $SUBSET_FLAT; do
+	for f in $SUBSET_FLAT $SUBSET_CORE $SUBSET_CHAIN; do
 		cp "$HARVEY/aarch64/bin/$f" "$DONOR/arm64/bin/subset/h$f"
 	done
 	cp "$HARVEY/aarch64/bin/ip/ipconfig" "$DONOR/arm64/bin/subset/hipconfig"
@@ -256,13 +285,16 @@ if [ -n "$NATIVE_LINUX" ]; then
 	cp "$TMPD/sentinel.txt" "$DONOR/arm64/bin/subset/sentinel.txt"
 	cp "$HARVEY/build/aarch64/tier1-sweep.rc" "$DONOR/arm64/bin/subset/tier1-sweep.rc"
 	cp "$HARVEY/build/aarch64/hello.c" "$DONOR/arm64/bin/subset/hello.c"
+	for f in $SUBSET_DATA; do
+		cp "$HARVEY/build/aarch64/$f" "$DONOR/arm64/bin/subset/$f"
+	done
 	# 06-05: the tier-0 lib test binaries (D-06)
 	for f in hdrawtest harctest htdraw hdisktest; do
 		cp "$HARVEY/build/aarch64/out/$f" "$DONOR/arm64/bin/subset/$f"
 	done
 else
 	ssh -F "$SSH_CFG" "$GUEST" "mkdir -p $GUEST_DONOR/arm64/bin/subset"
-	for f in $SUBSET_FLAT; do
+	for f in $SUBSET_FLAT $SUBSET_CORE $SUBSET_CHAIN; do
 		rsync -a -e "$RSYNC_RSH" "$HARVEY/aarch64/bin/$f" "$GUEST:$GUEST_DONOR/arm64/bin/subset/h$f"
 	done
 	rsync -a -e "$RSYNC_RSH" "$HARVEY/aarch64/bin/ip/ipconfig" "$GUEST:$GUEST_DONOR/arm64/bin/subset/hipconfig"
@@ -272,6 +304,9 @@ else
 	rsync -a -e "$RSYNC_RSH" "$TMPD/sentinel.txt" "$GUEST:$GUEST_DONOR/arm64/bin/subset/sentinel.txt"
 	rsync -a -e "$RSYNC_RSH" "$HARVEY/build/aarch64/tier1-sweep.rc" "$GUEST:$GUEST_DONOR/arm64/bin/subset/tier1-sweep.rc"
 	rsync -a -e "$RSYNC_RSH" "$HARVEY/build/aarch64/hello.c" "$GUEST:$GUEST_DONOR/arm64/bin/subset/hello.c"
+	for f in $SUBSET_DATA; do
+		rsync -a -e "$RSYNC_RSH" "$HARVEY/build/aarch64/$f" "$GUEST:$GUEST_DONOR/arm64/bin/subset/$f"
+	done
 	# 06-05: the tier-0 lib test binaries (D-06)
 	for f in hdrawtest harctest htdraw hdisktest; do
 		rsync -a -e "$RSYNC_RSH" "$HARVEY/build/aarch64/out/$f" "$GUEST:$GUEST_DONOR/arm64/bin/subset/$f"
@@ -307,6 +342,47 @@ cat > "$TMPD/subset-bootdir.txt" <<'EOF'
 	/$objtype/bin/subset/harctest	harctest
 	/$objtype/bin/subset/htdraw	htdraw
 	/$objtype/bin/subset/hdisktest	hdisktest
+	/$objtype/bin/subset/hbc	hbc
+	/$objtype/bin/subset/hsort	hsort
+	/$objtype/bin/subset/htr	htr
+	/$objtype/bin/subset/huniq	huniq
+	/$objtype/bin/subset/htail	htail
+	/$objtype/bin/subset/hdd	hdd
+	/$objtype/bin/subset/htar	htar
+	/$objtype/bin/subset/hchmod	hchmod
+	/$objtype/bin/subset/htee	htee
+	/$objtype/bin/subset/hbasename	hbasename
+	/$objtype/bin/subset/hsleep	hsleep
+	/$objtype/bin/subset/hcmp	hcmp
+	/$objtype/bin/subset/hcomm	hcomm
+	/$objtype/bin/subset/hfmt	hfmt
+	/$objtype/bin/subset/hjoin	hjoin
+	/$objtype/bin/subset/hlook	hlook
+	/$objtype/bin/subset/hpr	hpr
+	/$objtype/bin/subset/hsplit	hsplit
+	/$objtype/bin/subset/hstrings	hstrings
+	/$objtype/bin/subset/hsum	hsum
+	/$objtype/bin/subset/hmd5sum	hmd5sum
+	/$objtype/bin/subset/hsha1sum	hsha1sum
+	/$objtype/bin/subset/hed	hed
+	/$objtype/bin/subset/hdc	hdc
+	/$objtype/bin/subset/hunits	hunits
+	/$objtype/bin/subset/hcal	hcal
+	/$objtype/bin/subset/htouch	htouch
+	/$objtype/bin/subset/htime	htime
+	/$objtype/bin/subset/hseq	hseq
+	/$objtype/bin/subset/hread	hread
+	/$objtype/bin/subset/hdu	hdu
+	/$objtype/bin/subset/hxd	hxd
+	/$objtype/bin/subset/hnm	hnm
+	/$objtype/bin/subset/hcpp	hcpp
+	/$objtype/bin/subset/hmk	hmk
+	/$objtype/bin/subset/hyacc	hyacc
+	/$objtype/bin/subset/hlex	hlex
+	/$objtype/bin/subset/tiny.y	tiny.y
+	/$objtype/bin/subset/tiny.l	tiny.l
+	/$objtype/bin/subset/tiny.mk	tiny.mk
+	/$objtype/bin/subset/nm-input.7	nm-input.7
 EOF
 
 cat > "$TMPD/subset-ns-rebake.sh" <<'GUEST_EOF'
@@ -428,8 +504,21 @@ mv "$CONF.tier1" "$CONF"
 echo "== donor CONF bootdir now:"
 sed -n '/^bootdir/,$p' "$CONF"
 
-# assert the staged files (25: 18 h* + 4 libtest h* + sentinel.txt + tier1-sweep.rc + hello.c)
+# assert the staged files (25 v1.0/06-03/06-05 + 37 h* 06-06 binaries +
+# 4 06-06 data files = 66)
 for f in hrc hgrep hcat hcp hdate hecho hls hmkdir hmv hps hrm hsed htest hwc hipconfig hfactotum hawk hstacksmoke hdrawtest harctest htdraw hdisktest sentinel.txt tier1-sweep.rc hello.c; do
+	[ -s "$DONOR/arm64/bin/subset/$f" ] || {
+		echo "error: staged tier-1 file missing: $DONOR/arm64/bin/subset/$f" >&2
+		exit 1
+	}
+done
+for f in $SUBSET_CORE $SUBSET_CHAIN; do
+	[ -s "$DONOR/arm64/bin/subset/h$f" ] || {
+		echo "error: staged tier-1 file missing: $DONOR/arm64/bin/subset/h$f" >&2
+		exit 1
+	}
+done
+for f in $SUBSET_DATA; do
 	[ -s "$DONOR/arm64/bin/subset/$f" ] || {
 		echo "error: staged tier-1 file missing: $DONOR/arm64/bin/subset/$f" >&2
 		exit 1
@@ -635,14 +724,31 @@ grep -qiE '9front|Plan 9' "$RUNLOG" || err "captured log lacks the 9front/Plan 9
 grep -q 'term% ' "$RUNLOG" || err "captured log lacks the rc prompt signature"
 grep -q 'stacksmoke: depth 64 ok' "$RUNLOG" || err "captured log lacks the stacksmoke marker"
 # the tier-1 swept marker set (presence-based, never interleaving
-# order — tier1-sweep.rc's check table is the source of truth):
-#   echo ls cat grep sed wc date test rc ps ipconfig factotum awk
-#   + the write-flow round-trip (mkdir cp mv rm — donor venue)
-#   + the D-01 float canary + stacksmoke + T1-DONE
-#   + the 06-05 tier-0 lib test binaries (libtest-tdraw/libtest-disktest
-#     — D-6; drawtest/arctest run as evidence captures, not standing
-#     sweep members: their filed faults would trip drive9's fast-fail)
-for m in echo ls cat grep sed wc date test rc ps ipconfig factotum awk mkdir cp mv rm float-d01 stacksmoke libtest-tdraw libtest-disktest; do
+# order — tier1-sweep.rc's check table is the source of truth).
+# 06-06: the expected set is COMPUTED from the D-13 tier file (never a
+# second hardcoded list to rot): every entry maps to its marker name
+# (basename; dir:target maps to the target) EXCEPT the entries whose
+# execution evidence lives elsewhere: 9k/boot + stage/init +
+# cmd/paqfs:paqfs (BOOT:donor via the 05-03 real-chain trace — never
+# swept by name) and cmd/7a cmd/7c cmd/7l cmd/cc (the D-11 canary
+# markers — 06-06 Task 2 asserts those separately).  stage/stacksmoke's
+# marker comes from the termrc override.  On the donor venue every
+# member — including the write-flow and build-chain entries — is an
+# ordinary expected-set member (T1-SKIP lines only exist for r9).
+EXPECTED=$(
+	awk 'NF && $1 !~ /^#/ { print $1 }' "$HARVEY/build/aarch64/tiers/tier1-cmds.txt" |
+	while read -r e; do
+		case "$e" in
+		9k/boot|stage/init|cmd/paqfs:paqfs|cmd/7a|cmd/7c|cmd/7l|cmd/cc) continue ;;
+		stage/stacksmoke) echo stacksmoke; continue ;;
+		esac
+		e="${e#cmd/}"
+		case "$e" in *:*) e="${e##*:}" ;; esac
+		echo "${e##*/}"
+	done
+)
+echo "== expected T1-OK marker set (computed from tier1-cmds.txt): $(echo $EXPECTED | wc -w | tr -d ' ') members + float-d01 + libtest ×2"
+for m in $EXPECTED float-d01 libtest-tdraw libtest-disktest; do
 	grep -q "T1-OK $m" "$RUNLOG" || err "captured log lacks T1-OK $m"
 done
 grep -q 'T1-DONE' "$RUNLOG" || err "captured log lacks T1-DONE (the sweep did not run to completion)"
