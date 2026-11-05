@@ -17,9 +17,16 @@
 #   10 min is a wedged dir — WATCHDOG line, build=hang, the
 #   report FAILS (06-01's gethunk fixes closed that class; a hang is a
 #   gate failure, never data).
-# venue: linux-aarch64 namespace build (lima guest on darwin hosts;
-#   native sudo-unshare on linux hosts) — the build host class is
-#   always linux-aarch64, so this report is host-independent.
+# venue: linux namespace build (lima guest on darwin hosts;
+#   native sudo-unshare on linux hosts).  The reach set + per-dir
+#   build verdicts are host-independent — proven identical on
+#   linux-aarch64 (authoring venue) and linux-x86_64 (06-08's
+#   hosted wave0-host leg).  Per-dir visit COUNTS jitter with
+#   watchdog/second-chance timing across host classes
+#   (measurement noise, not drift): the CI drift gate diffs
+#   count-normalized copies, and the counts stay embedded as
+#   data (jpg's note line included — the count is information,
+#   the gate tolerates it).
 # authoring-run: commit f4ce2326872414a464ac9fffd22fc4dd5ed2e2c0 2026-11-05 (run record + logs: 06-EVIDENCE.md)
 #   ^ preserved verbatim across regenerations; it names the first
 #   committed run.  Everything below this header is regenerated and
@@ -93,7 +100,7 @@ sys/src/cmd/aquarela visited=1 build=ok
 sys/src/cmd/astro visited=1 build=ok
 sys/src/cmd/auth visited=1 build=ok
 sys/src/cmd/auth/factotum visited=1 build=ok
-sys/src/cmd/auth/lib visited=2 build=ok
+sys/src/cmd/auth/lib visited=1 build=ok
 sys/src/cmd/auth/secstore visited=1 build=ok
 sys/src/cmd/aux visited=1 build=ok
 sys/src/cmd/aux/flashfs visited=1 build=ok
@@ -102,7 +109,7 @@ sys/src/cmd/aux/mnihongo visited=1 build=ok
 sys/src/cmd/aux/na visited=1 build=ok
 sys/src/cmd/aux/realemu visited=1 build=ok
 sys/src/cmd/aux/vga visited=1 build=ok
-sys/src/cmd/awk visited=2 build=ok
+sys/src/cmd/awk visited=1 build=ok
 sys/src/cmd/bzip2 visited=1 build=ok
 sys/src/cmd/bzip2/lib visited=1 build=ok
 sys/src/cmd/cb visited=1 build=ok
@@ -156,7 +163,7 @@ sys/src/cmd/ip/ipconfig visited=1 build=ok
 sys/src/cmd/ip/ppp visited=1 build=ok
 sys/src/cmd/ip/snoopy visited=1 build=ok
 sys/src/cmd/jpg visited=1 build=ok
-sys/src/cmd/jtagfs visited=2 build=ok
+sys/src/cmd/jtagfs visited=1 build=ok
 sys/src/cmd/ka visited=1 build=ok
 sys/src/cmd/kc visited=1 build=ok
 sys/src/cmd/ki visited=1 build=ok
@@ -210,7 +217,7 @@ sys/src/cmd/samterm visited=1 build=ok
 sys/src/cmd/scat visited=1 build=ok
 sys/src/cmd/scuzz visited=1 build=ok
 sys/src/cmd/snap visited=1 build=ok
-sys/src/cmd/spell visited=2 build=ok
+sys/src/cmd/spell visited=1 build=ok
 sys/src/cmd/spin visited=1 build=fail
 sys/src/cmd/srvold9p visited=1 build=ok
 sys/src/cmd/ssh1 visited=1 build=ok
@@ -237,7 +244,7 @@ sys/src/cmd/upas/pop3 visited=1 build=ok
 sys/src/cmd/upas/q visited=1 build=ok
 sys/src/cmd/upas/scanmail visited=1 build=ok
 sys/src/cmd/upas/send visited=1 build=ok
-sys/src/cmd/upas/smtp visited=2 build=ok
+sys/src/cmd/upas/smtp visited=1 build=ok
 sys/src/cmd/upas/unesc visited=1 build=ok
 sys/src/cmd/upas/vf visited=1 build=ok
 sys/src/cmd/usb visited=1 build=ok

@@ -42,8 +42,8 @@
 # Platform split (subset-build.sh shape): darwin drives the lima guest
 # (vm-run.sh rsyncs the checkout and runs the guest script under
 # nsrun.sh); linux runs the same guest script natively under nsrun.sh's
-# sudo-unshare.  The build host class is always linux-aarch64, so the
-# committed report is host-independent.
+# sudo-unshare.  See the report's venue block for the host-independence
+# statement + count-jitter disclosure.
 #
 # CI (06-08) regenerates and `git diff --exit-code`s the committed report
 # (D-15): per-dir rows, excluded= lines, and the tail are deterministic
@@ -567,9 +567,16 @@ cat <<EOF
 #   ${WATCHDOG_MIN} min is a wedged dir — WATCHDOG line, build=hang, the
 #   report FAILS (06-01's gethunk fixes closed that class; a hang is a
 #   gate failure, never data).
-# venue: linux-aarch64 namespace build (lima guest on darwin hosts;
-#   native sudo-unshare on linux hosts) — the build host class is
-#   always linux-aarch64, so this report is host-independent.
+# venue: linux namespace build (lima guest on darwin hosts;
+#   native sudo-unshare on linux hosts).  The reach set + per-dir
+#   build verdicts are host-independent — proven identical on
+#   linux-aarch64 (authoring venue) and linux-x86_64 (06-08's
+#   hosted wave0-host leg).  Per-dir visit COUNTS jitter with
+#   watchdog/second-chance timing across host classes
+#   (measurement noise, not drift): the CI drift gate diffs
+#   count-normalized copies, and the counts stay embedded as
+#   data (jpg's note line included — the count is information,
+#   the gate tolerates it).
 # authoring-run: $AUTHORING_LINE
 #   ^ preserved verbatim across regenerations; it names the first
 #   committed run.  Everything below this header is regenerated and
