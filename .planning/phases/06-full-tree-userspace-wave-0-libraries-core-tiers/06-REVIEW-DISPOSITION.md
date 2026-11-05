@@ -5,11 +5,11 @@ titles: json
 findings:
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "gethunk libc-provisioning block's error handling is dead under `set -e`"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "coverage-sweep.sh unconditionally overwrites the host's /bin/cpp outside the namespace"
   - id: IN-01
     severity: info
@@ -63,17 +63,17 @@ findings:
     severity: warning
     disposition: open
     title: "gethunk-repro-6l.sh's \"built fresh every run\" claim is narrower than the code"
-open: 14
+open: 12
 total: 15
-recorded: 2026-11-05T22:35:43.623Z
+recorded: 2026-11-05T23:47:14.586Z
 ---
 
 # Phase 06: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
+| WR-01 | warning | fixed | 06-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 06-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
