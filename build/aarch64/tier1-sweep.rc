@@ -53,9 +53,11 @@ lsout=`{/boot/hls /}
 if(~ /boot $lsout) echo T1-OK ls
 if not echo T1-FAIL ls
 
-# cat: the baked known-content file (2 lines, 4 words)
+# cat: the baked known-content file (2 lines, 4 words) — the fixed
+# expectation is the FIRST line (v1.0's anchored-line assertion); the
+# trailing pattern covers the second (grep-marker) line
 catout=`{/boot/hcat /boot/sentinel.txt}
-if(~ $"catout 'alpha bravo charlie') echo T1-OK cat
+if(~ $"catout 'alpha bravo charlie '*) echo T1-OK cat
 if not echo T1-FAIL cat
 
 # grep pipeline

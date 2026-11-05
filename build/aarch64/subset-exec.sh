@@ -598,6 +598,12 @@ if [ $RC -ne 0 ]; then
 	tail -n 40 "$RUNLOG" >&2 || true
 	echo "hint: the guest log is the bisect surface (toolchain-first diagnostic rule):" >&2
 	echo "      suspect our 7c/7l/libc/tier-1 binaries before the donor kernel" >&2
+	# 06-03: the sweep runs guest-side regardless of the drive's fate —
+	# report its full marker state for triage before exiting (a
+	# userspace fault trips drive9's panic fast-fail but never stops
+	# the sweep — USPACE-04's never-wedge edge)
+	echo "== sweep marker state at failure:" >&2
+	grep -oE 'T1-(OK|FAIL|SKIP) [A-Za-z0-9.-]+|T1-DONE' "$RUNLOG" >&2 || true
 	exit 1
 fi
 
