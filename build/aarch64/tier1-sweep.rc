@@ -9,7 +9,16 @@
 # design (Egreg — userland console input is kbdfs-served) and typed
 # steps do not scale to a tier (05-03's lesson).
 #
-#	usage: rc /boot/tier1-sweep.rc [venue]	venue: donor (default) | r9
+#	usage: rc /boot/tier1-sweep.rc [venue]	venue: donor (default) | r9 | 9k
+#
+# venue 9k (06-09, G-06-1): the embedded-root amd64 venue — Harvey's OWN
+# kernel (9k10cpu lineage) booting standalone under plain qemu with the
+# tier set devroot-embedded at /boot (B=/boot D=/boot like the donor);
+# write-flow / build-chain / selfhost / ipconfig / factotum / libtest
+# entries take named T1-SKIP lines (never an unearned T1-OK), and every
+# child rc rides $rcm's `-m /boot/rcmain` (rc sources an rcmain on EVERY
+# invocation — exec.c:130-156 — and the compiled-in default
+# /rc/lib/rcmain is absent on the embedded-root venue).
 #
 # On the donor the sweep + h* binaries are devroot-embedded at /boot.
 # On r9 (06-07, D-12) the sweep bakes at /lib/tier1-sweep.rc, the
@@ -72,11 +81,21 @@ if(~ $#venue 0) venue=donor
 # on r9 the binaries bake into the image's /aarch64/bin (resolved
 # through the namespace's /bin union) and the data rides /lib/tier1
 # (the paqfs image is read-only; /boot on r9 is the kernel's devroot).
+# rcm (06-09): the rcmain override for child rc invocations — empty on
+# donor/r9 (their /rc/lib/rcmain exists), `-m /boot/rcmain` on 9k (the
+# embedded-root venue has no /rc/lib; rc sources an rcmain on EVERY
+# invocation — exec.c:130-156's loadboot — so a bare child rc would
+# Xerror there).  An empty list vanishes in rc command position, so
+# donor/r9 expand byte-identically to before.
 B=/boot
 D=/boot
+rcm=()
 if(~ $venue r9){
 	B=/bin
 	D=/lib/tier1
+}
+if(~ $venue 9k){
+	rcm=(-m /boot/rcmain)
 }
 
 # check NAME CMD... — run the fixed input; zero exit status → T1-OK.
@@ -132,8 +151,10 @@ if not echo T1-FAIL date
 check test $B/htest -f $B/hcat
 
 # rc: OUR rc (hrc) evaluates — caret concat + command substitution
-# inside a forked hrc -c proves the parser/evaluator/exec/exits path
-rcout=`{$B/hrc -c 'x=`{echo hello}; echo __T1_RC_^$x^_OK__'}
+# inside a forked hrc -c proves the parser/evaluator/exec/exits path.
+# $rcm carries the 9k venue's mandatory rcmain override (empty on
+# donor/r9 — see the venue-prefix block).
+rcout=`{$B/hrc $rcm -c 'x=`{echo hello}; echo __T1_RC_^$x^_OK__'}
 if(~ $"rcout __T1_RC_hello_OK__) echo T1-OK rc
 if not echo T1-FAIL rc
 
@@ -634,32 +655,43 @@ if not {
 # vttest is a stale mkfile target (no vttest.c exists) — documented,
 # never staged.
 # (tdraw keeps the proven output-pattern check shape)
-tdrout=`{$B/htdraw 0 0 8 8 32}
-if(~ $"tdrout [0-9]*) echo T1-OK libtest-tdraw
-if not echo T1-FAIL libtest-tdraw
+# 06-09: on the 9k embedded-root venue NO libtest binaries are staged
+# (the amd64 libtest build machinery is out of this gap's scope) — both
+# libtest markers take named T1-SKIP lines there (USPACE-04 transparency:
+# never an unearned T1-OK).  The disktest block keeps its existing
+# donor/SKIP arms inside the non-9k branch.
+if(! ~ $venue 9k){
+	tdrout=`{$B/htdraw 0 0 8 8 32}
+	if(~ $"tdrout [0-9]*) echo T1-OK libtest-tdraw
+	if not echo T1-FAIL libtest-tdraw
 
-if(~ $venue donor){
-	# fixture: a real file standing in for a disk — opendisk's Tfile
-	# fallback (the <name>ctl probe fails, plain-file path guesses
-	# geometry) prints '<c> <h> <s> from <src>'.  The cp rides || so a
-	# fixture failure marks T1-FAIL, never aborts the sweep.
-	diskok=1
-	$B/hcp $B/hawk /tmp/diskimg || diskok=0
-	if(~ $diskok 1){
-		diskout=`{$B/hdisktest /tmp/diskimg}
-		# rc dialect (measured host-side): quoting DISABLES wildcarding
-		# in ~ patterns (a quoted * is literal), and multi-star spans
-		# over literal text are unreliable — assert in two proven-shape
-		# halves: output contains ' from ' AND starts with a digit
-		# ('<c> <h> <s> from <src>' — opendisk's plain-file fallback).
-		diskok2=0
-		if(~ $"diskout *' from '*) if(~ $"diskout [0-9]*) diskok2=1
-		if(~ $diskok2 1) echo T1-OK libtest-disktest
-		if not echo T1-FAIL libtest-disktest
+	if(~ $venue donor){
+		# fixture: a real file standing in for a disk — opendisk's Tfile
+		# fallback (the <name>ctl probe fails, plain-file path guesses
+		# geometry) prints '<c> <h> <s> from <src>'.  The cp rides || so a
+		# fixture failure marks T1-FAIL, never aborts the sweep.
+		diskok=1
+		$B/hcp $B/hawk /tmp/diskimg || diskok=0
+		if(~ $diskok 1){
+			diskout=`{$B/hdisktest /tmp/diskimg}
+			# rc dialect (measured host-side): quoting DISABLES wildcarding
+			# in ~ patterns (a quoted * is literal), and multi-star spans
+			# over literal text are unreliable — assert in two proven-shape
+			# halves: output contains ' from ' AND starts with a digit
+			# ('<c> <h> <s> from <src>' — opendisk's plain-file fallback).
+			diskok2=0
+			if(~ $"diskout *' from '*) if(~ $"diskout [0-9]*) diskok2=1
+			if(~ $diskok2 1) echo T1-OK libtest-disktest
+			if not echo T1-FAIL libtest-disktest
+		}
+		if(~ $diskok 0) echo T1-FAIL libtest-disktest
 	}
-	if(~ $diskok 0) echo T1-FAIL libtest-disktest
+	if not echo T1-SKIP libtest-disktest
 }
-if not echo T1-SKIP libtest-disktest
+if not {
+	echo T1-SKIP libtest-tdraw
+	echo T1-SKIP libtest-disktest
+}
 
 echo T1-DONE
 exit
