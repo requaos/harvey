@@ -144,5 +144,52 @@ if not {
 	echo T1-SKIP rm
 }
 
+# --- 06-05: tier-0 lib test binaries (D-06 — the in-tree lib tests run
+# on the donor where they exist; the markers are the libs' execution
+# evidence in tier0.ledger).  tdraw prints wordsperline for a fixed
+# rect/depth (libdraw); disktest runs opendisk's plain-file path on a
+# /tmp fixture (a write — donor venue only, named T1-SKIP elsewhere; the
+# fixture rides /boot/hcp because the donor's served /bin is minimal and
+# has no cp).  libmemdraw's drawtest/arctest ALSO ran on the donor —
+# 2026-11-05, evidence/06-05-libtest-donor.log — and FAULT:
+# drawtest abort()s its own stochastic pixel verification (the null read
+# inside abort is the mechanism), arctest takes a wild-pointer write
+# inside libmemdraw's memsetl.  Both are FILED Pitfall-3-class Phase-10
+# findings (06-EVIDENCE.md checklist) per the plan's no-drive-by-fix
+# rule, and stay OUT of this standing sweep because a faulting binary's
+# per-proc 'suicide: sys: trap:' note trips drive9's deliberate shared
+# panic fast-fail (the 06-03 interaction — the gate is not weakened for
+# expected faults).  They rejoin when Phase 10 fixes the lib (the
+# XFAIL-whitelist shape is recorded in 06-EVIDENCE.md).  liboventi's
+# vttest is a stale mkfile target (no vttest.c exists) — documented,
+# never staged.
+# (tdraw keeps the proven output-pattern check shape)
+tdrout=`{/boot/htdraw 0 0 8 8 32}
+if(~ $"tdrout [0-9]*) echo T1-OK libtest-tdraw
+if not echo T1-FAIL libtest-tdraw
+
+if(~ $venue donor){
+	# fixture: a real file standing in for a disk — opendisk's Tfile
+	# fallback (the <name>ctl probe fails, plain-file path guesses
+	# geometry) prints '<c> <h> <s> from <src>'.  The cp rides || so a
+	# fixture failure marks T1-FAIL, never aborts the sweep.
+	diskok=1
+	/boot/hcp /boot/hawk /tmp/diskimg || diskok=0
+	if(~ $diskok 1){
+		diskout=`{/boot/hdisktest /tmp/diskimg}
+		# rc dialect (measured host-side): quoting DISABLES wildcarding
+		# in ~ patterns (a quoted * is literal), and multi-star spans
+		# over literal text are unreliable — assert in two proven-shape
+		# halves: output contains ' from ' AND starts with a digit
+		# ('<c> <h> <s> from <src>' — opendisk's plain-file fallback).
+		diskok2=0
+		if(~ $"diskout *' from '*) if(~ $"diskout [0-9]*) diskok2=1
+		if(~ $diskok2 1) echo T1-OK libtest-disktest
+		if not echo T1-FAIL libtest-disktest
+	}
+	if(~ $diskok 0) echo T1-FAIL libtest-disktest
+}
+if not echo T1-SKIP libtest-disktest
+
 echo T1-DONE
 exit

@@ -276,6 +276,29 @@ echo "== boot chain: netblast (07-04, D-08)"
 	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/netblast" netblast.7 \
 	&& rm -f netblast.7) || fail "netblast"
 
+# 06-05: tier-0 lib test binaries (D-06 — in-tree lib tests run on the
+# donor where they exist; subset-exec.sh stages them h*-style and the
+# sweep's libtest markers are the libs' exec=TEST:donor evidence).
+# Built per-target AFTER the tier-0 loop so each tests against the fresh
+# archive; harvested to out/ (gitignored) and cleaned from the lib dirs
+# so the guest tree stays pristine.  liboventi's $O.vttest is a stale
+# mkfile target (no vttest.c exists) — documented in 06-EVIDENCE.md,
+# never built.  libdisk's $O.test + libmemdraw's $O.drawtest/$O.arctest
+# are the in-tree targets; libdraw's $O.test is the additive rule this
+# wave adds (test.c had no rule).
+echo "== tier-0 lib test binaries (06-05, D-06)"
+(cd /sys/src/libmemdraw && objtype=aarch64 mk 7.drawtest 7.arctest) || fail "libmemdraw test binaries"
+cp /sys/src/libmemdraw/7.drawtest "$HARVEY/build/aarch64/out/hdrawtest" || fail "harvest hdrawtest"
+cp /sys/src/libmemdraw/7.arctest "$HARVEY/build/aarch64/out/harctest" || fail "harvest harctest"
+rm -f /sys/src/libmemdraw/7.drawtest /sys/src/libmemdraw/7.arctest \
+	/sys/src/libmemdraw/drawtest.7 /sys/src/libmemdraw/arctest.7
+(cd /sys/src/libdraw && objtype=aarch64 mk 7.test) || fail "libdraw test binary"
+cp /sys/src/libdraw/7.test "$HARVEY/build/aarch64/out/htdraw" || fail "harvest htdraw"
+rm -f /sys/src/libdraw/7.test /sys/src/libdraw/test.7
+(cd /sys/src/libdisk && objtype=aarch64 mk 7.test) || fail "libdisk test binary"
+cp /sys/src/libdisk/7.test "$HARVEY/build/aarch64/out/hdisktest" || fail "harvest hdisktest"
+rm -f /sys/src/libdisk/7.test /sys/src/libdisk/test.7
+
 echo "== tier tree (/aarch64/bin):"
 ls /aarch64/bin
 echo "-- ip:"
@@ -342,6 +365,10 @@ if [ -z "$NATIVE_LINUX" ]; then
 		"$GUEST:$GUEST_DIR/build/aarch64/out/paqfs" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/stacksmoke" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/netblast" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/hdrawtest" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/harctest" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/htdraw" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/hdisktest" \
 		"$HARVEY/build/aarch64/out/"
 else
 	# native linux: the namespace bound the real checkout — the subset
@@ -379,5 +406,11 @@ done
 [ -s "$HARVEY/build/aarch64/out/netblast" ] || err "build/aarch64/out/netblast missing after rsync-back"
 magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/netblast" | tr -d ' \n')
 [ "$magic" = "00008c47" ] || err "build/aarch64/out/netblast: bad magic $magic (want 00008c47)"
+# 06-05: the tier-0 lib test binaries carry the same magic contract
+for f in hdrawtest harctest htdraw hdisktest; do
+	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
+	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
+	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
+done
 
 echo "== PASS: aarch64 tier-0/tier-1 set built and installed ($(ls "$HARVEY/aarch64/bin" | wc -l | tr -d ' ') entries in aarch64/bin; log: $LOG)"

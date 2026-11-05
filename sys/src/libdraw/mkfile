@@ -73,3 +73,11 @@ UPDATE=\
 	${LIB:/$objtype/%=/386/%}\
 
 </sys/src/cmd/mksyslib
+
+# 06-05: the in-tree test binary (test.c — wordsperline) had no build
+# rule; additive per-target rule mirroring libdisk/libmemdraw.  Never
+# built by default (mksyslib's all/install reference only $LIB), so the
+# amd64 leg's output is unchanged; the 06-05 tier-0 wave builds it
+# per-target for the donor execution evidence (D-06).
+$O.test: test.$O $LIB
+	$LD -o $target $prereq

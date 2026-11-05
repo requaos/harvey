@@ -162,6 +162,11 @@ done
 [ -s "$HARVEY/build/aarch64/out/stacksmoke" ] || err "build/aarch64/out/stacksmoke missing — run sh build/aarch64/subset-build.sh first"
 [ -f "$HARVEY/build/aarch64/tier1-sweep.rc" ] || err "build/aarch64/tier1-sweep.rc missing (06-03 committed sweep)"
 [ -f "$HARVEY/build/aarch64/hello.c" ] || err "build/aarch64/hello.c missing (06-06 self-host canary source, staged as data)"
+# 06-05: the tier-0 lib test binaries (D-06 — built per-target by
+# subset-build.sh, staged below, run by the sweep's libtest block)
+for f in hdrawtest harctest htdraw hdisktest; do
+	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing — run sh build/aarch64/subset-build.sh first"
+done
 
 if [ -z "$NATIVE_LINUX" ]; then
 	command -v limactl >/dev/null 2>&1 || err "limactl not found — run inside the nix devshell"
@@ -251,6 +256,10 @@ if [ -n "$NATIVE_LINUX" ]; then
 	cp "$TMPD/sentinel.txt" "$DONOR/arm64/bin/subset/sentinel.txt"
 	cp "$HARVEY/build/aarch64/tier1-sweep.rc" "$DONOR/arm64/bin/subset/tier1-sweep.rc"
 	cp "$HARVEY/build/aarch64/hello.c" "$DONOR/arm64/bin/subset/hello.c"
+	# 06-05: the tier-0 lib test binaries (D-06)
+	for f in hdrawtest harctest htdraw hdisktest; do
+		cp "$HARVEY/build/aarch64/out/$f" "$DONOR/arm64/bin/subset/$f"
+	done
 else
 	ssh -F "$SSH_CFG" "$GUEST" "mkdir -p $GUEST_DONOR/arm64/bin/subset"
 	for f in $SUBSET_FLAT; do
@@ -263,6 +272,10 @@ else
 	rsync -a -e "$RSYNC_RSH" "$TMPD/sentinel.txt" "$GUEST:$GUEST_DONOR/arm64/bin/subset/sentinel.txt"
 	rsync -a -e "$RSYNC_RSH" "$HARVEY/build/aarch64/tier1-sweep.rc" "$GUEST:$GUEST_DONOR/arm64/bin/subset/tier1-sweep.rc"
 	rsync -a -e "$RSYNC_RSH" "$HARVEY/build/aarch64/hello.c" "$GUEST:$GUEST_DONOR/arm64/bin/subset/hello.c"
+	# 06-05: the tier-0 lib test binaries (D-06)
+	for f in hdrawtest harctest htdraw hdisktest; do
+		rsync -a -e "$RSYNC_RSH" "$HARVEY/build/aarch64/out/$f" "$GUEST:$GUEST_DONOR/arm64/bin/subset/$f"
+	done
 fi
 
 # ---- 2. CONF bootdir patch (marker-guarded, self-healing) + rebake --
@@ -290,6 +303,10 @@ cat > "$TMPD/subset-bootdir.txt" <<'EOF'
 	/$objtype/bin/subset/sentinel.txt	sentinel.txt
 	/$objtype/bin/subset/tier1-sweep.rc	tier1-sweep.rc
 	/$objtype/bin/subset/hello.c	hello.c
+	/$objtype/bin/subset/hdrawtest	hdrawtest
+	/$objtype/bin/subset/harctest	harctest
+	/$objtype/bin/subset/htdraw	htdraw
+	/$objtype/bin/subset/hdisktest	hdisktest
 EOF
 
 cat > "$TMPD/subset-ns-rebake.sh" <<'GUEST_EOF'
@@ -382,35 +399,37 @@ fi
 set -eu
 
 CONF="$DONOR/sys/src/9/arm64/qemu"
-if grep -qF 'tier1-sweep.rc' "$CONF"; then
-	echo "== CONF already carries the tier-1 bootdir block (idempotent rerun)"
-else
-	echo "== adding the tier-1 bootdir block to the donor-copy CONF=qemu"
-	# self-healing (06-03): stale subset bootdir lines from ANY prior
-	# block version are dropped before the current block is inserted,
-	# so the patch converges from every prior state instead of
-	# duplicating.  (Guest scratch — the host .build donor checkout is
-	# only ever mutated by this disclosed patch class.)
-	awk -v bf="$BOOTDIR_TXT" '
-		/\$objtype\/bin\/subset\// { next }
-		/^bootdir$/ { inbd=1; print; next }
-		inbd && /^[^ \t]/ {
+# 06-05: the patch is ALWAYS applied — the self-healing awk drops every
+# prior subset bootdir line before inserting the current block, so reruns
+# converge from any state.  The old `grep -qF tier1-sweep.rc` skip-guard
+# treated a stale (06-03-era) block as current and silently never landed
+# newer members (observed 2026-11-05: the libtest h* lines missing at
+# rebake → 'file does not exist' T1-FAIL libtest-*).
+echo "== refreshing the tier-1 bootdir block in the donor-copy CONF=qemu (drop+insert, converges from any prior state)"
+# self-healing (06-03): stale subset bootdir lines from ANY prior
+# block version are dropped before the current block is inserted,
+# so the patch converges from every prior state instead of
+# duplicating.  (Guest scratch — the host .build donor checkout is
+# only ever mutated by this disclosed patch class.)
+awk -v bf="$BOOTDIR_TXT" '
+	/\$objtype\/bin\/subset\// { next }
+	/^bootdir$/ { inbd=1; print; next }
+	inbd && /^[^ \t]/ {
+		while ((getline l < bf) > 0) print l
+		inbd=0; print; next
+	}
+	{ print }
+	END {
+		if (inbd)
 			while ((getline l < bf) > 0) print l
-			inbd=0; print; next
-		}
-		{ print }
-		END {
-			if (inbd)
-				while ((getline l < bf) > 0) print l
-		}
-	' "$CONF" > "$CONF.tier1"
-	mv "$CONF.tier1" "$CONF"
-fi
+	}
+' "$CONF" > "$CONF.tier1"
+mv "$CONF.tier1" "$CONF"
 echo "== donor CONF bootdir now:"
 sed -n '/^bootdir/,$p' "$CONF"
 
-# assert the staged files (21: 18 h* + sentinel.txt + tier1-sweep.rc + hello.c)
-for f in hrc hgrep hcat hcp hdate hecho hls hmkdir hmv hps hrm hsed htest hwc hipconfig hfactotum hawk hstacksmoke sentinel.txt tier1-sweep.rc hello.c; do
+# assert the staged files (25: 18 h* + 4 libtest h* + sentinel.txt + tier1-sweep.rc + hello.c)
+for f in hrc hgrep hcat hcp hdate hecho hls hmkdir hmv hps hrm hsed htest hwc hipconfig hfactotum hawk hstacksmoke hdrawtest harctest htdraw hdisktest sentinel.txt tier1-sweep.rc hello.c; do
 	[ -s "$DONOR/arm64/bin/subset/$f" ] || {
 		echo "error: staged tier-1 file missing: $DONOR/arm64/bin/subset/$f" >&2
 		exit 1
@@ -620,7 +639,10 @@ grep -q 'stacksmoke: depth 64 ok' "$RUNLOG" || err "captured log lacks the stack
 #   echo ls cat grep sed wc date test rc ps ipconfig factotum awk
 #   + the write-flow round-trip (mkdir cp mv rm — donor venue)
 #   + the D-01 float canary + stacksmoke + T1-DONE
-for m in echo ls cat grep sed wc date test rc ps ipconfig factotum awk mkdir cp mv rm float-d01 stacksmoke; do
+#   + the 06-05 tier-0 lib test binaries (libtest-tdraw/libtest-disktest
+#     — D-6; drawtest/arctest run as evidence captures, not standing
+#     sweep members: their filed faults would trip drive9's fast-fail)
+for m in echo ls cat grep sed wc date test rc ps ipconfig factotum awk mkdir cp mv rm float-d01 stacksmoke libtest-tdraw libtest-disktest; do
 	grep -q "T1-OK $m" "$RUNLOG" || err "captured log lacks T1-OK $m"
 done
 grep -q 'T1-DONE' "$RUNLOG" || err "captured log lacks T1-DONE (the sweep did not run to completion)"
