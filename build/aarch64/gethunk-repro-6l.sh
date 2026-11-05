@@ -244,6 +244,13 @@ SHIM
 			[ "$(uname -s)" = "Linux" ] || { echo "error: amd64/lib/libc.a missing; run 'nix run .#build' once first" >&2; exit 2; }
 			command -v sudo >/dev/null || { echo "error: amd64/lib/libc.a missing and no sudo for the namespace build" >&2; exit 2; }
 			[ -x /bin/rc ] || sudo cp "$PLAN9/bin/rc" /bin/rc
+			_ha=$(uname -m); [ "$_ha" = "arm64" ] && _ha=aarch64
+			_HBIN="${HARVEY_LINUX_BIN:-$HARVEY_ROOT/.build/hostbin-linux-$_ha/bin}"
+			if [ ! -x "$_HBIN/ar" ]; then
+				echo "error: $_HBIN/ar missing — the toolchain's vendored 9cc leg installs iar as hostbin ar; without it mk's bare \`ar\` resolves to GNU ar and libc.a provisioning fails" >&2
+				echo "hostbin contents: $(ls "$_HBIN" 2>/dev/null | tr '\n' ' ')" >&2
+				exit 2
+			fi
 			NSLIBC="$(mktemp "${TMPDIR:-/tmp}/ns-libc.XXXXXX.sh")"
 			printf '%s\n' \
 				'cd /sys/src' \

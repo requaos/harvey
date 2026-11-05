@@ -89,7 +89,20 @@ jobs:
         # populated long ago).
         run: nix run .#setup
       - name: host toolchain (hostbin 6c/7c + plan9port)
-        run: nix run .#toolchain
+        # toolchain.sh's trailing echo masks sub-build failures (same
+        # exit-0 class as 02-12) — assert the products explicitly. iar-as-ar
+        # comes from the vendored 9cc leg and is the first thing to check
+        # when a downstream mk recipe invokes bare `ar`.
+        run: |
+          nix run .#toolchain
+          _a=$(uname -m); [ "$_a" = "arm64" ] && _a=aarch64
+          hb=".build/hostbin-linux-$_a/bin"
+          missing=0
+          for t in pcc cpp ar 6c 6l 8c 8l; do
+            if [ ! -x "$hb/$t" ]; then echo "TOOLCHAIN-MISSING: $hb/$t" >&2; missing=1; fi
+          done
+          if [ "$missing" -ne 0 ]; then echo "hostbin contents:" >&2; ls "$hb" >&2; exit 1; fi
+          echo "TOOLCHAIN-PRODUCTS-OK ($hb)"
       - name: gethunk repro gates (USPACE-01)
         # archive mode builds the teeth (the recorded PREREF pristine
         # compilers) from git — CI-durable from any later checkout;
