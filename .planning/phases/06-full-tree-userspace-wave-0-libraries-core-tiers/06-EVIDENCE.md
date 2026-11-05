@@ -633,3 +633,146 @@ fault run's log).  Green standing gate:
   PUSH** — the KVM-classified verdict lands at first push; the local
   TCG verdict stands as the recorded evidence meanwhile (D-04's
   recorded-either-way letter satisfied).
+
+## 06-09 Harvey-kernel tier venue record (G-06-1, USPACE-04/USPACE-06)
+
+- **Venue design:** a new committed 9k kernel config
+  `sys/src/9k/k10/k10t1` — k10cpu's device/dbgflg/mach/port/dir/lib
+  sections VERBATIM (the poolpanic-proven set; the header comment bars
+  pruning) — with only the `rootdir`/`boot` sections swapped for the
+  venue: 43 files embedded via the 9k mkrootall machinery (the 35-strong
+  amd64 tier-1 read-only set under their h* names + rc/echo/bind under
+  plain names for the boot chain + rc/lib/rcmain + the boot script + the
+  sweep/sentinel/nm-input staged files).  The embedded /boot/boot is
+  `sys/src/9k/k10/root/k10t1.rc`, an rc script (the k10root
+  standalone-boot shape — initcode.c:26-29's "could be a shell script"
+  contract): it sets `path=(/boot /bin .)` first, binds `#p`→/proc,
+  `#d`→/fd, `/boot`→/bin, sets the kernel clock from `#r/rtc` and the
+  hostowner to `sys`, runs the sweep in a CHILD `rc -m /boot/rcmain`
+  (rc sources an rcmain on EVERY invocation — exec.c:130-156's loadboot
+  — and devroot has no /rc/lib/rcmain; the -m is load-bearing on both
+  the shebang and the child), then blocks init forever
+  (k10root.rc:114's idiom).  `sys/src/9k/port/devroot.c`'s Nbootfiles is
+  raised 32→64 (additive only).  The boot harness
+  `build/mm/boot-9k10t1-sweep.sh` is the poolpanic harness's shape
+  (D-03 plain qemu — no minimega/network/srv9/9front anywhere in the
+  venue; capture-before-start; exactly-once accel probe; deadline polls
+  for banner then T1-DONE with the signature early-break set) with the
+  tier marker contract: the expected set COMPUTED from
+  tiers/tier1-cmds.txt (subset-exec.sh:803-814's awk+mapping; the six
+  driver-only exclusions kept; stacksmoke excluded — r9-era, never
+  staged on this venue; float-d01 plus the four venue-mandated SKIP
+  markers required), boundary-anchored `T1-OK m([^A-Za-z0-9.-]|$)`
+  matching (WR-06's fix — the mk<mkdir / cp<cpp substring false-green
+  class), a fixed 24-name SKIP whitelist with the converse assert (a new
+  SKIP name reds the gate), zero T1-FAIL / case-insensitive
+  `panic|trap:` lines, T1-DONE required.  The build driver
+  `build/mm/build-9k10t1.sh` runs the nuke sandwich
+  (build/scripts/build:50-52's shape) in the linux private namespace:
+  `mk nuke && mk CONF=k10cpu 9k10cpu && mk CONF=k10t1 9k10t1 && mk
+  nuke` — the k10cpu leg is the devroot-raise's compile re-proof of the
+  sacred amd64 kernel — with the embedded-count assert (43 addbootfile
+  lines in the generated k10t1.c, counted in-namespace before the
+  trailing nuke) and a git-clean gate on sys/src/9k (systab.c +
+  k10t1.c + .tier1-stage ride .gitignore).
+- **Local run record (the venue's green proof):** commit `36cff6c52`
+  (the harness's commit field), lima guest (linux-aarch64),
+  qemu-system-x86_64 11.1.2 TCG, banner at 5s, T1-DONE at +0s,
+  **`T1-VENUE-PASS ok=36 skip=22+2libtest fail=0 done=yes`**.  Kernel
+  sizes from that build: 9k10cpu.elf 2,022,154 B (the devroot-raise
+  re-proof), 9k10t1.elf 4,225,158 B (the 43-file embed is visible,
+  ~2.1×).  Retained serial log:
+  [evidence/06-09-tier-9k-local.log](evidence/06-09-tier-9k-local.log).
+- **Teeth proof (T1_CLASSIFY_ONLY, the gate's ability to red):** (a) the
+  retained log → rc=0 green; (b) a copy with the `T1-OK awk` line
+  deleted → rc=1 naming `missing markers: awk`; (c) a copy with `T1-OK
+  awk` flipped to `T1-FAIL awk` → rc=1 (`T1-FAIL lines: 1`).
+  Teeth-procedure note: the serial capture has CRLF terminators —
+  doctor CR-aware and diff-check that the doctoring took before
+  classifying (my first pass's `$`-anchored delete silently no-op'd;
+  the harness correctly passed the unchanged log).
+- **Findings the venue surfaced (each fixed in its own commit, re-run to
+  green):**
+  1. `778d4616b` — **6l LP64 double-constant pool emission** (06-REVIEW
+     WR-01's named suspect class on amd64): awk's `%.3f` of 1/3 aborted
+     `division by zero`, seq died `zero increment` — both ride strtod's
+     double constants, which 6l's datblk emitted with hi=0 on LP64 hosts
+     (struct ieee {long l; long h;} is 16 bytes there; the 8-byte emit
+     wrote l's low half + l's zero high half).  Fixed as 7l's 06-03 fix
+     (`2bbca81ed`): emit the two 32-bit halves via `int[2]`.  Byte-level
+     proof: a test link carries the correct 1/3, 1.0, 2^32 constants;
+     the venue then printed T1-OK awk + float-d01 + seq.  6l was 06-03's
+     deferred "no current consumer in the amd64 build" — the venue is
+     the consumer.
+  2. `bba1eeaa8` — **the k10 early KZERO map covered only 0-4MiB**;
+     the 43-file embed pushes the kernel image's data+BSS to 5.16MiB
+     physical, and main()'s `memset(edata, 0, end-edata)` faulted at the
+     first BSS page before the banner (qemu -d int: v=0e write at
+     CR2=0xfffffffff04e13d8 → double/triple fault → qemu -no-reboot
+     exit).  Extended to 8MiB (two more free consecutive PD slots;
+     identity map + its teardown untouched; mmuinit still builds the
+     real map later).  k10cpu runtime re-proof with the change:
+     VERDICT=PASS no-panic-signature boot-continues (local TCG); the
+     x86_64-poolpanic CI leg re-gates it on every push.
+  3. `36542bdbb` — **parse keys each rootdir entry's C symbol name off
+     the SOURCE path**, so the plan's dual-name embeds (hrc+rc,
+     hecho+echo) collided (`_amd64_bin_rc{code,len}` 'multiple
+     initialization' at 6l).  The second name of each pair rides a
+     staged copy (.tier1-stage/rc, .tier1-stage/echo); the 43-entry
+     count and the /boot vocabulary are unchanged.  Same commit: the
+     namespace script's PATH needed the phase-01 `/rc/bin:.` tail
+     (bootmkfile's archive rule execs `membername` from rc/bin —
+     libboot.a6 otherwise builds EMPTY and bootk10cpu.out fails to
+     link).
+  4. `8b55abbda` + `8088471ba` — **venue plumbing the rc-script boot
+     skips** (boot.c's chain normally does both): the clock (date read
+     epoch 0 — `hcat '#r/rtc' > /dev/time`; devrtc registers under
+     letter 'r' and nothing binds it into /dev on this venue, so the
+     first attempt's `/dev/rtc` path did not exist) and the hostowner
+     (init0 sets eve="" so every /proc status line carried an EMPTY user
+     field — 'boot Await 20 10 100 0 0 0 244 13 13', 11 tokens not 12 —
+     and ps(1)'s tokenize then silently returns per process; writing
+     #c/hostowner sets eve AND the process user, sysauth.c:148's
+     hostownerwrite — k10root.rc:28's own idiom).
+  5. `fd544ef42` — **the sweep's 9k libtest SKIP pair is emitted via a
+     block-local helper**: nix/tier1-r9.sh and ledger-r9-append.sh
+     compute the r9 SKIP set by grepping the sweep's TEXT for
+     `echo T1-SKIP <name>` lines (the file is the source of truth), and
+     the two new literal lines grew r9's want-set by a marker r9 RUNS
+     (tdraw) — the local parity run redded 'T1-SKIP set mismatch'.  The
+     file's literal SKIP lines are again exactly r9's set (23 names);
+     the 9k runtime emission is unchanged (24 lines).
+- **Ledger decision (T-06-20):** NO tier-ledger lines are written for
+  the amd64 venue.  The D-14 ledgers' sha256 fields pin the aarch64 tier
+  artifacts and their `:donor`/`:r9` exec venues; amd64 CI regression
+  evidence is not tier-graduation evidence, so D-14's grammar is honored
+  by not writing to it.
+- **Iteration-trap note (harness-level, not a plan deviation):**
+  plan9port mk treats a missing INTERMEDIATE prerequisite as
+  ancient-but-tolerated when the INSTALL target exists — deleting
+  in-tree `6.<name>` binaries without deleting `/amd64/bin/<name>` makes
+  `mk <name>.install` report 'up to date' and skip the relink.  The
+  venue's binaries must be refreshed with BOTH deleted (or by the full
+  clean-checkout build — the CI path in 06-10).  Also: subset-build.sh's
+  darwin leg (vm-run.sh:65) rsyncs the host checkout INTO the guest on
+  every run — a host-side r9 gate run reverts guest-local amd64/bin
+  relinks; run the venues sequentially.
+- **r9 venue parity:** GREEN locally — `nix run .#boot-r9-tier1` rc=0,
+  'ALL STAGES PASS — boot, one typed sweep line, float canary on r9,
+  marker parity + exact SKIP set, T1-DONE', with 'T1-SKIP set equals the
+  known list (23 names)' (the fn-helper keeps the r9 extraction
+  venue-correct).  PLUS an execution-trace byte-parity proof: `rc -x`
+  traces of the 06-07 and 06-09 sweeps with venue=r9 are byte-identical
+  modulo the sweep filename and pids (234 lines each) — the 06-09 arms
+  are inert on r9.  Flake-storm disclosure: seven earlier runs this
+  session redded at six DISTINCT random sites (tr / ipconfig-SKIP /
+  echo / cal / sleep missing markers; float-canary stage deaths ×2) —
+  all on a host under parallel TCG load from the 06-09 venue work; one
+  (run 2's SKIP-set mismatch) was MY extraction bug, found and fixed
+  (`fd544ef42`).  The quiet run greens on demand; the flake class is
+  the recorded rc argv-stack residual (deferred-items, sharpened by
+  these observations).
+- **Hosted-run expectation:** the tier-9k CI job lands in 06-10; its
+  first hosted run is PENDING FIRST PUSH per the 05-13/06-08 precedent —
+  nothing fabricated.  The local TCG run above is the recorded evidence
+  meanwhile.

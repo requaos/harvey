@@ -138,3 +138,29 @@ current task's changes (executor scope boundary — logged, not fixed).
   item: audit rc's pushlist/poplist balance across every op (Xsubshell,
   Xpipefd, Xassign, Xqdol, ...).
   **Status:** open — Phase-10 checklist.
+  **06-09 update:** the residual class DID eat markers during 06-09's r9
+  parity runs — run 1 took the pushword panic at the tr check (missing
+  T1-OK tr; sweep continued), run 5 died at the float-canary stage
+  (sweep rc exited '<bad utf8>').  Both on a host under parallel TCG
+  load; the 06-09 sweep edits are byte-neutral on the r9 path
+  (execution-trace parity proven host-side: rc -x traces of the 06-07
+  and 06-09 sweeps with venue=r9 are byte-identical modulo filename and
+  pids).  The audit item stands, sharpened: the class is live under
+  load, not just in helper subshells.
+
+- plan9port mk: missing-intermediate prereq tolerated when the install
+  target exists
+  status: open
+  **Found during:** 06-09 (the venue binary relink iteration)
+  **What:** `mk <name>.install` in sys/src/cmd reports '<name>.install
+  is up to date' when the in-tree `6.<name>` is DELETED but
+  `/amd64/bin/<name>` exists — the missing intermediate prereq is
+  treated as time-0, so the existing install target is 'newer'.  The
+  relink silently never happens (the venue then embeds stale binaries).
+  Contrast: GNU make errors on the unbuildable prereq.  Iteration rule:
+  delete BOTH the in-tree binary and the installed copy (or run the
+  full clean-checkout build).  Affects any local 'refresh one binary'
+  workflow; CI's clean-checkout path is unaffected.
+  **Status:** open — documented in 06-EVIDENCE.md's 06-09 section;
+  no tree change (the mk behavior is plan9port's; the workaround is
+  procedural).
