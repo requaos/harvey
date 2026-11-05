@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 07
 current_phase_name: r9 PCI/ECAM + virtio-net + devether
 status: verifying
-stopped_at: Completed 07-08-PLAN.md
-last_updated: "2026-11-05T02:44:40.024Z"
+stopped_at: Completed 06-05-PLAN.md
+last_updated: "2026-11-05T02:50:41.245Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 07 execution started
-state_head: fcd92f0bfafee2cde95cdd555747d9d093e6680b
+state_head: ccc979757963d1fcba23d15aaac2ec2b42b05d4e
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 16
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -112,6 +112,7 @@ Progress: [░░░░░░░░░░] 0% (v2.0)
 | Phase 06 P04 | 37 min | 2 tasks | 9 files |
 | Phase 07 P07 | 63 min | 2 tasks | 20 files |
 | Phase 07 P08 | 20 min | 2 tasks | 5 files |
+| Phase 06 P05 | 31 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -251,6 +252,11 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-08: push-before-pin executed — r9 e72abfe..2afa3d6 (19 commits) pushed to requaos/r9 BEFORE the flake.lock advance; the pin commit 06380f2bc names flake.lock ALONE; locked rev == live HEAD == origin/main, owner=requaos (the 05-11 gate shape, T-07-17)
 - [Phase 07]: 07-08: D-10 end state landed — the identical netdev stanza (-netdev user,id=n0 + -device virtio-net-pci-non-transitional,netdev=n0) on all three compose paths + the smoke's nic-bind whole-capture post-pass; the composed smoke green on the default darwin leg (gicv3+hvf) = the first live NIC-on-GICv3 composed boot; R9_GICV2=1 remains the bisection hatch, never the gate default
 - [Phase 07]: 07-08: hosted CI satisfied for real — r9-shell run 41955568449 SUCCESS at headSha 15739d108 (the pushed pin+compose HEAD); the 05-13 PENDING FIRST PUSH substitution NOT needed; legacy harvey.yml's red streak recorded as pre-existing/unrelated (red on every master push since 2026-11-04T12:01Z)
+- [Phase 06]: 06-05: libdynld dynld-aarch64 rename KEPT (D-08 rec (i)) — probe-built green before the wave; zero dynld.h consumers → EXCLUDED:no-consumer with the artifact recorded
+- [Phase 06]: 06-05: liblex archives as libl.a (historical lex-runtime name) — the tier-0 driver maps per-lib archive names explicitly; the first sweep abort at liblex was machinery, not compilation
+- [Phase 06]: 06-05: subset-exec.sh CONF bootdir patch now unconditional drop+insert — the tier1-sweep.rc-keyed skip-guard treated stale blocks as current and silently never landed new members
+- [Phase 06]: 06-05: rc ~ dialect measured — quoting DISABLES wildcarding in ~ patterns; multi-star spans over literal text unreliable; sweep assertions use proven edge-glob shapes / split conditions only
+- [Phase 06]: 06-05: libmemdraw drawtest/arctest fault on aarch64 (Pitfall-3 class) — filed as Phase-10 per-dir checklist per the plan's no-drive-by prohibition; standing sweep carries green libtest members only (drive9 fast-fail interaction); exec=TEST-FAIL:donor
 
 ### Pending Todos
 
@@ -299,8 +305,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T02:44:28.579Z
-Stopped at: Completed 07-08-PLAN.md
+Last session: 2026-11-05T02:50:41.218Z
+Stopped at: Completed 06-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
