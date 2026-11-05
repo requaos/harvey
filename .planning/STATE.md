@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 08
 current_phase_name: r9-tcp-ip-path-devip-compatible-net
 status: executing
-stopped_at: Completed 08-01-PLAN.md
-last_updated: "2026-11-05T19:10:37.709Z"
+stopped_at: Completed 08-02-PLAN.md
+last_updated: "2026-11-05T19:38:55.000Z"
 last_activity: 2026-11-05
-last_activity_desc: Phase 08 execution started
+last_activity_desc: Phase 08 plan 02 executed — event-driven seam + host pins green
 state_head: 26b6f614964c94def0be9776eb4cc4c0d9c2a960
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 27
-  completed_plans: 19
+  completed_plans: 20
 ---
 
 # Project State
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-11-05)
 ## Current Position
 
 Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — EXECUTING
-Plan: 2 of 9
+Plan: 3 of 9
 Status: Ready to execute
-Last activity: 2026-11-05 — Phase 08 execution started
+Last activity: 2026-11-05 — Phase 08 plan 02 executed (seam + host pins green)
 
 Progress: [███████░░░] 71% (v2.0)
 
@@ -120,6 +120,7 @@ Progress: [███████░░░] 71% (v2.0)
 | Phase 07 P09 | 18 min | 4 tasks | 7 files |
 | Phase 07 P10 | 21 min | 4 tasks | 6 files |
 | Phase 08 P01 | 9 min | 2 tasks | 6 files |
+| Phase 08 P02 | 26 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -286,6 +287,10 @@ Recent decisions affecting current work:
 - [Phase 08]: 08-01: timer leg = one-shot arming from poll_at() over the existing 1 ms tick sweep; literal dynamic-CNTP-rearm considered and rejected (A5 resolved)
 - [Phase 08]: 08-01: MAXTTL = 255 recorded from source (sys/src/9k/ip/ip.h:44) — phase research's '64' parenthetical corrected; bridge sets hop_limit 255 at conv creation so smoltcp's 64 default never leaks
 - [Phase 08]: 08-01: boot-test verify invocations carry --arch aarch64 (xtask Arch::from defaults x86_64) — same correction as the 07-01 precedent
+- [Phase 08]: 08-02: OQ-1 RESOLVED PASS-path (pin h, empirical): the udp socket sources 0.0.0.0 on the wire ONLY when the send metadata carries local_address: Some(0.0.0.0) — the naive shape is silently dropped (get_source_address → None on an address-less interface); the bridge sets local_address from the conv's recorded laddr; no wire-layer shim; D-09 dhcpv4 fallback stays unwired (contract §12.6)
+- [Phase 08]: 08-02: smoltcp 'async' feature enabled (Rule 3 blocking fix) — 0.14.0 gates ALL socket waker methods + internal wake() calls behind #[cfg(feature = "async")]; the D-05 waker bridge cannot exist without it; async = [] pulls in zero deps (no executor; Cargo.lock unchanged); the research's 'async outdated' note was self-contradictory — corrected in contract §12.2
+- [Phase 08]: 08-02: devip/waker.rs mounted at the crate root as crate::devip_waker via #[path] — Rust's forbid(unsafe_code) PROPAGATES into submodules (probe-proven), so the named unsafe exception cannot be a child of the forbidden devip module; every acceptance criterion + the safety contract hold structurally
+- [Phase 08]: 08-02: the waker bridge RECORDS into a pending-wake set and drive_stack drains it after the STACK cell drops (netif's wake-after-drop discipline); the seam's clock is its own registration point (set_clock) beside the verbatim DevipHooks {current, block, wake} triple; AcceptPool ops self-enter the cell with partial-announce teardown
 
 ### Pending Todos
 

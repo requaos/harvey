@@ -126,12 +126,12 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   4. The guest takes an address and is reachable: arp + ethermedium bound to devether, static ipconfig assigns IPv4, DHCP works via ipconfig `/net/udp` broadcast fidelity (or the recorded smoltcp dhcpv4 fallback), and the devip ip6 tree + ipconfig IPv6 configuration are demonstrated (NETIP-04, NETIP-05, NETIP-06)
   5. The networking exit gate is green: sustained bidirectional TCP flow + load soak **on the tap leg** (slirp evidence explicitly not accepted — it forgives L2 bugs), with aan available for cpu connections (NETIP-07, NETIP-08)
 
-**Plans:** 1/9 plans executed
+**Plans:** 2/9 plans executed
 **Wave 1**
 - [x] 08-01-PLAN.md — D-03 contract doc (full devip surface enumeration) + smoltcp 0.14.0 pin/lockfile + cfg(dev_ip) + NETIP-01 provenance record (NETIP-01, NETIP-02; D-01..D-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 08-02-PLAN.md — event-driven seam (stack/waker/phyadapt) + host pins incl. OQ-1 DHCP-shaped exchange FIRST + UNSAFE-AUDIT entry (NETIP-02, NETIP-05; D-05)
+- [x] 08-02-PLAN.md — event-driven seam (stack/waker/phyadapt) + host pins incl. OQ-1 DHCP-shaped exchange FIRST + UNSAFE-AUDIT entry (NETIP-02, NETIP-05; D-05)
 - [ ] 08-03-PLAN.md — Harvey gate payloads: ipconfig/ping/udpecho/aan + tcpblast/tcpecho + D-11 addressing seam + bake asserts (NETIP-03..08; D-11, D-12)
 
 **Wave 3** *(blocked on Wave 2 completion)*
