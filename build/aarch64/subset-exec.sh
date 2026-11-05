@@ -516,8 +516,23 @@ for f in hrc hgrep hcat hcp hdate hecho hls hmkdir hmv hps hrm hsed htest hwc hi
 	}
 done
 
+# 06-06: the donor kernel's devroot caps /boot at Nbootfiles=32
+# (sys/src/9/port/devroot.c:13); the full tier-1 bootdir now embeds 66
+# subset files (37 new h* + 4 fixed inputs joined the 25), so the cap
+# is raised in the donor-COPY tree (guest scratch — the same disclosed
+# patch class as the CONF bootdir block; the donor is the execution
+# venue, not the artifact under test, and the pin gate keys on HEAD,
+# not the working tree).  Idempotent: the substitution normalizes any
+# prior value, so a fresh clone converges on the next run.
+DEVROOT="$DONOR/sys/src/9/port/devroot.c"
+sed -i 's/Nbootfiles = [0-9][0-9]*/Nbootfiles = 128/' "$DEVROOT"
+grep -q 'Nbootfiles = 128' "$DEVROOT" || {
+	echo "error: donor devroot Nbootfiles raise did not land" >&2
+	exit 1
+}
+echo "== donor devroot /boot cap raised to Nbootfiles=128 (66-entry tier-1 bootdir)"
+
 mkdir -p "$DIST"
-export DONOR SCRATCH DIST
 EXPORTS=/tmp/subset-exports.$$
 export > "$EXPORTS"
 set +e
