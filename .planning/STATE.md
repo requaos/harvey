@@ -5,11 +5,11 @@ milestone_name: Full System & Drawterm
 current_phase: 07
 current_phase_name: r9 PCI/ECAM + virtio-net + devether
 status: verifying
-stopped_at: Completed 06-05-PLAN.md
-last_updated: "2026-11-05T02:50:41.245Z"
+stopped_at: Completed 06-06-PLAN.md
+last_updated: "2026-11-05T04:00:28.766Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 07 execution started
-state_head: ccc979757963d1fcba23d15aaac2ec2b42b05d4e
+state_head: 775990a72a61b4384c967bb9abf4dc11c1e8fb09
 progress:
   total_phases: 7
   completed_phases: 5
@@ -113,6 +113,7 @@ Progress: [░░░░░░░░░░] 0% (v2.0)
 | Phase 07 P07 | 63 min | 2 tasks | 20 files |
 | Phase 07 P08 | 20 min | 2 tasks | 5 files |
 | Phase 06 P05 | 31 min | 2 tasks | 14 files |
+| Phase 06 P06 | 65 min | 2 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -257,6 +258,8 @@ Recent decisions affecting current work:
 - [Phase 06]: 06-05: subset-exec.sh CONF bootdir patch now unconditional drop+insert — the tier1-sweep.rc-keyed skip-guard treated stale blocks as current and silently never landed new members
 - [Phase 06]: 06-05: rc ~ dialect measured — quoting DISABLES wildcarding in ~ patterns; multi-star spans over literal text unreliable; sweep assertions use proven edge-glob shapes / split conditions only
 - [Phase 06]: 06-05: libmemdraw drawtest/arctest fault on aarch64 (Pitfall-3 class) — filed as Phase-10 per-dir checklist per the plan's no-drive-by prohibition; standing sweep carries green libtest members only (drive9 fast-fail interaction); exec=TEST-FAIL:donor
+- [Phase 06]: 06-06: A3 verified on the FULL path — the guest-compiled binary executed from the srv9 writable prefix and printed 'hello aarch64 harvey' (no COMPILE-ONLY fallback needed); A7 settled: this bc prints 0.333 WITH the leading zero (T1-BCOBS)
+- [Phase 06]: 06-06: venue findings encoded in the gate — donor devroot Nbootfiles raised 32->128 in the donor-COPY tree (disclosed harness-side accommodation); the served rootfs has no /sys so the gate stages yaccpar/lex ncform/sys-include into it; 9front rc terminates words at bare '=' and plan9port rc rejects separated subshells in backquotes (the sweep is subshell-free, fn producers); bc's hardcoded execl(/bin/dc) gets a union-mount shim over /bin
 
 ### Pending Todos
 
@@ -305,8 +308,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T02:50:41.218Z
-Stopped at: Completed 06-05-PLAN.md
+Last session: 2026-11-05T04:00:28.731Z
+Stopped at: Completed 06-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
