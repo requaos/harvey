@@ -431,13 +431,17 @@ use std::path::{Path, PathBuf};
 use std::process::{Command, Stdio};
 use std::time::{Duration, Instant};
 
-const USAGE: &str = "usage: harness trace-syscalls [--boot-chain]\n\
+const USAGE: &str = "usage: harness trace-syscalls [--boot-chain|--tier1]\n\
 \n\
 \x20 (default)     the 04-01 hello-path trace → 04-01-d14-trace.txt\n\
 \x20 --boot-chain  the 05-03 real-chain trace (boot/init/paqfs/rc + sweep)\n\
 \x20               → 05-03-trace.txt\n\
+\x20 --tier1       the 06-07 measure-first tier-1 sweep trace (the sweep\n\
+\x20               sourced under the born-traced arming) → the phase dir's\n\
+\x20               evidence/06-07-trace.txt\n\
 \n\
-Env overrides: HARVEY, HARVEY_VM, BOOT_BUDGET, SRV9_PORT, TRACE_OUT.\n";
+Env overrides: HARVEY, HARVEY_VM, BOOT_BUDGET, SRV9_PORT, TRACE_OUT,\n\
+\x20 R9_SYSCALL_RS (the r9 dispatch-table source for the delta section).\n";
 
 const SRV9_GUEST_IP: &str = "10.0.2.100";
 
@@ -457,6 +461,11 @@ struct Cfg {
     trace_bc_u: PathBuf,
     trace_bc_k: PathBuf,
     runlog_bc: PathBuf,
+    trace_t1_u: PathBuf,
+    trace_t1_k: PathBuf,
+    runlog_t1: PathBuf,
+    artifact_t1: PathBuf,
+    r9_syscall_rs: PathBuf,
     boot_budget: u64,
     srv9_port: u16,
     ssh_cfg: PathBuf,
@@ -489,11 +498,28 @@ fn cfg() -> Cfg {
     let artifact_default = harvey.join(".planning/phases/04-r9-userspace-exec-harvey-r9-abi/04-01-d14-trace.txt");
     let artifact_bc_default =
         harvey.join(".planning/phases/05-shell-boot-one-command-integration/05-03-trace.txt");
+    let artifact_t1_default = harvey.join(
+        ".planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-07-trace.txt",
+    );
     // TRACE_OUT: additive override (gate e uses it to avoid clobbering the
     // committed evidence); applies to whichever mode runs
-    let (artifact, artifact_bc) = match std::env::var("TRACE_OUT") {
-        Ok(v) if !v.is_empty() => (PathBuf::from(&v), PathBuf::from(&v)),
-        _ => (artifact_default, artifact_bc_default),
+    let (artifact, artifact_bc, artifact_t1) = match std::env::var("TRACE_OUT") {
+        Ok(v) if !v.is_empty() => (
+            PathBuf::from(&v),
+            PathBuf::from(&v),
+            PathBuf::from(&v),
+        ),
+        _ => (artifact_default, artifact_bc_default, artifact_t1_default),
+    };
+    // The r9 dispatch table the delta section diffs against (06-07):
+    // Harvey→r9 knowledge is the flake's composition model (D-10's
+    // one-way rule is r9-side only).
+    let r9_syscall_rs = match std::env::var("R9_SYSCALL_RS") {
+        Ok(v) if !v.is_empty() => PathBuf::from(v),
+        _ => harvey
+            .parent()
+            .unwrap_or_else(|| Path::new(".."))
+            .join("r9/aarch64/src/syscall.rs"),
     };
     Cfg {
         guest: format!("lima-{}", vm),
@@ -506,6 +532,11 @@ fn cfg() -> Cfg {
         trace_bc_u: dist.join("9qemu-bootchain.u"),
         trace_bc_k: dist.join("9qemu-bootchain"),
         runlog_bc: dist.join("bootchain-trace-run.log"),
+        trace_t1_u: dist.join("9qemu-t1trace.u"),
+        trace_t1_k: dist.join("9qemu-t1trace"),
+        runlog_t1: dist.join("tier1-trace-run.log"),
+        artifact_t1,
+        r9_syscall_rs,
         harvey,
         vm,
         dist,
@@ -1931,6 +1962,1142 @@ fn main_bc(cfg: &Cfg) -> Result<(), String> {
     Ok(())
 }
 
+// ======================================================================
+// --tier1: the 06-07 measure-first trace of the tier-1 sweep (USPACE-04).
+// ======================================================================
+//
+// The 05-03 rig with the tier-1 sweep as the traced payload: the staged
+// termrc override runs the sweep SOURCED (venue=donor) inside a
+// spin-windowed, stop-armed subshell, and /boot/tracesup (the in-guest
+// supervisor, build/aarch64/tracesup.c) step-traces it AND every
+// born-traced descendant (donor sysproc.c:155), writing one
+// newline-framed fragment stream per pid to /tmp/t1trace on the srv9
+// writable prefix.  The venue is subset-exec.sh's (the 06-06-proven
+// donor gate): the donor's own chain, the same staging set, the same
+// writable prefixes and srvroot staging — with tracing added.
+
+// host path (repo-relative or $TMPD) → staged name in the guest donor
+// tree's arm64/bin/subset/ (== the /boot name after mkrootall).
+// Mirrors subset-exec.sh's SUBSET_* lists (the 06-06 70-file set) plus
+// the two trace assets.  "$TMPD/..." entries are generated at run time.
+const STAGE_T1: &[(&str, &str)] = &[
+    ("aarch64/bin/cat", "hcat"),
+    ("aarch64/bin/cp", "hcp"),
+    ("aarch64/bin/date", "hdate"),
+    ("aarch64/bin/echo", "hecho"),
+    ("aarch64/bin/ls", "hls"),
+    ("aarch64/bin/mkdir", "hmkdir"),
+    ("aarch64/bin/mv", "hmv"),
+    ("aarch64/bin/ps", "hps"),
+    ("aarch64/bin/rm", "hrm"),
+    ("aarch64/bin/sed", "hsed"),
+    ("aarch64/bin/test", "htest"),
+    ("aarch64/bin/wc", "hwc"),
+    ("aarch64/bin/rc", "hrc"),
+    ("aarch64/bin/grep", "hgrep"),
+    ("aarch64/bin/ip/ipconfig", "hipconfig"),
+    ("aarch64/bin/auth/factotum", "hfactotum"),
+    ("aarch64/bin/awk", "hawk"),
+    ("aarch64/bin/bc", "hbc"),
+    ("aarch64/bin/sort", "hsort"),
+    ("aarch64/bin/tr", "htr"),
+    ("aarch64/bin/uniq", "huniq"),
+    ("aarch64/bin/tail", "htail"),
+    ("aarch64/bin/dd", "hdd"),
+    ("aarch64/bin/tar", "htar"),
+    ("aarch64/bin/chmod", "hchmod"),
+    ("aarch64/bin/tee", "htee"),
+    ("aarch64/bin/basename", "hbasename"),
+    ("aarch64/bin/sleep", "hsleep"),
+    ("aarch64/bin/cmp", "hcmp"),
+    ("aarch64/bin/comm", "hcomm"),
+    ("aarch64/bin/fmt", "hfmt"),
+    ("aarch64/bin/join", "hjoin"),
+    ("aarch64/bin/look", "hlook"),
+    ("aarch64/bin/pr", "hpr"),
+    ("aarch64/bin/split", "hsplit"),
+    ("aarch64/bin/strings", "hstrings"),
+    ("aarch64/bin/sum", "hsum"),
+    ("aarch64/bin/md5sum", "hmd5sum"),
+    ("aarch64/bin/sha1sum", "hsha1sum"),
+    ("aarch64/bin/ed", "hed"),
+    ("aarch64/bin/dc", "hdc"),
+    ("aarch64/bin/units", "hunits"),
+    ("aarch64/bin/cal", "hcal"),
+    ("aarch64/bin/touch", "htouch"),
+    ("aarch64/bin/time", "htime"),
+    ("aarch64/bin/seq", "hseq"),
+    ("aarch64/bin/read", "hread"),
+    ("aarch64/bin/du", "hdu"),
+    ("aarch64/bin/xd", "hxd"),
+    ("aarch64/bin/nm", "hnm"),
+    ("aarch64/bin/cpp", "hcpp"),
+    ("aarch64/bin/mk", "hmk"),
+    ("aarch64/bin/yacc", "hyacc"),
+    ("aarch64/bin/lex", "hlex"),
+    ("aarch64/bin/7a", "h7a"),
+    ("aarch64/bin/7c", "h7c"),
+    ("aarch64/bin/7l", "h7l"),
+    ("build/aarch64/out/stacksmoke", "hstacksmoke"),
+    ("build/aarch64/out/hdrawtest", "hdrawtest"),
+    ("build/aarch64/out/harctest", "harctest"),
+    ("build/aarch64/out/htdraw", "htdraw"),
+    ("build/aarch64/out/hdisktest", "hdisktest"),
+    ("$TMPD/sentinel.txt", "sentinel.txt"),
+    ("build/aarch64/tier1-sweep.rc", "tier1-sweep.rc"),
+    ("build/aarch64/hello.c", "hello.c"),
+    ("build/aarch64/tiny.y", "tiny.y"),
+    ("build/aarch64/tiny.l", "tiny.l"),
+    ("build/aarch64/tiny.mk", "tiny.mk"),
+    ("build/aarch64/nm-input.7", "nm-input.7"),
+    ("build/aarch64/tiny.s", "tiny.s"),
+    ("$TMPD/tier1-tracemain.rc", "tier1-tracemain.rc"),
+    ("$TMPD/tracesup.7.out", "tracesup"),
+];
+
+/// The known-content file (subset-exec.sh's exact bytes — the sweep's
+/// wc/md5sum/sha1sum asserts key on them).
+const SENTINEL_TXT: &str = "alpha bravo charlie\n__SUBSET_GREP_LINE__\n";
+
+/// The trace main — runs INSIDE the traced shell: stacksmoke first (its
+/// marker evidences the staged binary before the sweep proper), then the
+/// tier-1 sweep on the donor venue (the write-flow + build-chain +
+/// self-host legs all run).  tier1-sweep.rc's trailing `exit` ends this
+/// shell, which ends the supervisor's root loop.
+const T1_TRACEMAIN_RC: &str = r#"#!/bin/rc
+# 06-07 tier-1 trace main — runs INSIDE the traced shell: stacksmoke
+# first (subset-exec.sh's termrc shape), then the SOURCED tier-1 sweep,
+# donor venue (all legs run — the write-flow set is measured too, and
+# classified separately from the r9-runnable set in the artifact).
+/boot/hstacksmoke
+s=$status
+if(~ $s '') echo T1-OK stacksmoke
+if(! ~ $s '') echo T1-FAIL stacksmoke
+. /boot/tier1-sweep.rc donor
+exit
+"#;
+
+/// The trace termrc override — staged over the served rootfs's
+/// /rc/bin/termrc for the run's duration (restored on exit; the
+/// subset-exec.sh discipline).  The sweep shell rides a spin-windowed
+/// subshell, stop-armed before its first syscall (the spin is the
+/// syscall-free window — 05-03's shape); /boot/tracesup then step-traces
+/// it and every born-traced descendant, writing per-pid fragment files
+/// to /tmp/t1trace (the srv9 writable prefix, read host-side off the
+/// served root).  When the sweep exits, tracesup returns, init's
+/// restart loop brings up the pass-2 interactive rc, and the host's
+/// boot drive lands its shell proof there.
+const T1_TERMRC: &str = r#"#!/bin/rc
+# 06-07 tier-1 TRACE termrc override (restored on exit)
+spinelem = (a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a a)
+fn spin {
+	x = ''
+	for (a in $spinelem)
+		for (b in $spinelem)
+			x = $b^$x
+}
+{
+	spin
+	exec rc /boot/tier1-tracemain.rc
+} &
+spid = $apid
+echo stop > /proc/$spid/ctl
+/boot/tracesup $spid /tmp/t1trace
+echo __T1_TRACE_DONE__
+exit
+"#;
+
+// The tier-1 guest rebuild: the subset-exec.sh subset-ns-rebake.sh shape
+// (self-re-entrant wrap -> --ns -> --build), with the trace staging set's
+// bootdir block and the disclosed devroot cap raise (06-06).
+const GUEST_REBUILD_T1: &str = r#"#!/usr/bin/env bash
+# trace-tier1-ns-rebuild.sh — guest side of harness trace-syscalls
+# --tier1 (the subset-exec.sh subset-ns-rebake.sh shape).  Lives in the
+# guest's /tmp; never committed.
+set -eu
+
+DONOR="${DONOR:-$HOME/9front-donor}"
+SCRATCH="${DONOR_HOSTBIN:-$HOME/9front-hostbin}"
+DIST="${DONOR_DIST:-$HOME/9front-dist}"
+BOOTDIR_TXT="${BOOTDIR_TXT:-/tmp/gsd-t1trace-bootdir.txt}"
+
+if [ "${1:-}" = "--build" ]; then
+	set -eu
+	PATH="$SCRATCH:$HARVEY_LINUX_BIN:$PLAN9/bin:$PATH"
+	export PATH
+	objtype=arm64
+	export objtype
+	FORCERCFORMK=1
+	export FORCERCFORMK
+
+	cd /sys/src/9/arm64
+	# force regeneration of everything derived from the CONF/bootdir:
+	# mkdevc (qemu.c), mkrootall/mkrootc (the subset embed), the link,
+	# and the uImage wrap.  All other objects are cached.
+	rm -f qemu.c qemu.7 qemu.root.s qemu.root.7 qemu.rootc.c qemu.rootc.7 9qemu 9qemu.u
+	mk 'CONF=qemu'
+
+	[ -s 9qemu ] && [ -s 9qemu.u ] || { echo "error: relink produced no kernel" >&2; exit 1; }
+	mkdir -p "$DIST"
+	cp 9qemu "$DIST/9qemu-t1trace"
+	cp 9qemu.u "$DIST/9qemu-t1trace.u"
+	echo "== tier-1 trace kernel assembled: $DIST/9qemu-t1trace{,.u}"
+	exit 0
+fi
+
+if [ "${1:-}" = "--ns" ]; then
+	set -u
+	BUILD_USER="${2:?internal}"
+	ENVFILE="${3:?internal}"
+	. "$ENVFILE"
+
+	[ -d "$DONOR/sys/src/9/arm64" ] || {
+		echo "error: $DONOR does not look like the 9front donor checkout" >&2
+		exit 1
+	}
+
+	mount --bind "$DONOR/sys" /sys
+	mkdir -p /arm64
+	mount --bind "$DONOR/arm64" /arm64
+	mkdir -p /aarch64
+	mount --bind "$DONOR/arm64" /aarch64
+	mkdir -p /rc
+	mount --bind "$DONOR/rc" /rc
+
+	if [ -L /lib ]; then LIBREAL=$(readlink -f /lib); else LIBREAL=/lib; fi
+	NSLIB=/tmp/t1tracelib.$$
+	mkdir -p "$NSLIB"
+	cp -a "$LIBREAL"/. "$NSLIB/"
+	cp -a "$DONOR/lib"/. "$NSLIB/" 2>/dev/null || true
+	chown 0:0 "$NSLIB"
+	chmod 1777 "$NSLIB"
+	mount --bind "$NSLIB" "$LIBREAL"
+
+	unwind() {
+		umount "$LIBREAL" 2>/dev/null || true
+		rm -rf "$NSLIB"
+	}
+	trap unwind EXIT
+
+	set +e
+	su -c ". '$ENVFILE'; bash '$0' --build" "$BUILD_USER"
+	RC=$?
+	exit $RC
+fi
+
+# wrap phase: repo user, devshell env
+set -eu
+
+CONF="$DONOR/sys/src/9/arm64/qemu"
+# self-healing (06-05): drop every prior subset bootdir line, then
+# insert the current block — converges from any state.  Bootdir rows are
+# TAB-indented (an unindented line terminates the section).
+awk -v bf="$BOOTDIR_TXT" '
+	/\$objtype\/bin\/subset\// { next }
+	/^bootdir$/ { inbd=1; print; next }
+	inbd && /^[^ \t]/ {
+		while ((getline l < bf) > 0) print l
+		inbd=0; print; next
+	}
+	{ print }
+	END {
+		if (inbd)
+			while ((getline l < bf) > 0) print l
+	}
+' "$CONF" > "$CONF.t1trace"
+mv "$CONF.t1trace" "$CONF"
+echo "== donor CONF bootdir refreshed with the tier-1 trace block:"
+
+# assert the staged files — a LITERAL list (host-side variables do not
+# cross the ssh/namespace boundary; measured 06-06: unbound-variable
+# abort).  70 = the 06-06 tier-1 set + tracesup + tier1-tracemain.rc.
+for f in hrc hgrep hcat hcp hdate hecho hls hmkdir hmv hps hrm hsed htest hwc hipconfig hfactotum hawk hstacksmoke hdrawtest harctest htdraw hdisktest sentinel.txt tier1-sweep.rc hello.c hbc hsort htr huniq htail hdd htar hchmod htee hbasename hsleep hcmp hcomm hfmt hjoin hlook hpr hsplit hstrings hsum hmd5sum hsha1sum hed hdc hunits hcal htouch htime hseq hread hdu hxd hnm hcpp hmk hyacc hlex tiny.y tiny.l tiny.mk nm-input.7 h7a h7c h7l tiny.s tracesup tier1-tracemain.rc; do
+	[ -s "$DONOR/arm64/bin/subset/$f" ] || {
+		echo "error: staged tier-1 trace file missing: $DONOR/arm64/bin/subset/$f" >&2
+		exit 1
+	}
+done
+
+# the donor kernel's devroot caps /boot at Nbootfiles=32 (devroot.c:13);
+# the 06-06 raise to 128 persists in the donor-COPY tree — re-apply
+# (idempotent normalize; the disclosed harness-side accommodation: the
+# donor is the execution venue, not the artifact under test)
+DEVROOT="$DONOR/sys/src/9/port/devroot.c"
+sed 's/Nbootfiles = [0-9][0-9]*/Nbootfiles = 128/' "$DEVROOT" > "$DEVROOT.t1" && mv "$DEVROOT.t1" "$DEVROOT"
+grep -q 'Nbootfiles = 128' "$DEVROOT" || {
+	echo "error: donor devroot Nbootfiles raise did not land" >&2
+	exit 1
+}
+
+mkdir -p "$DIST"
+export DONOR SCRATCH DIST
+EXPORTS=/tmp/t1trace-exports.$$
+export > "$EXPORTS"
+set +e
+sudo unshare -m bash "$0" --ns "$USER" "$EXPORTS"
+RC=$?
+rm -f "$EXPORTS"
+exit $RC
+"#;
+
+fn preconditions_t1(cfg: &Cfg) -> Result<(), String> {
+    preconditions(cfg)?;
+    for (rel, name) in STAGE_T1 {
+        if rel.starts_with("$TMPD/") {
+            continue; // generated at run time
+        }
+        let p = cfg.harvey.join(rel);
+        if std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0) == 0 {
+            return Err(format!(
+                "{} missing/empty — run subset-build.sh first (the 06-06 tier-1 set)",
+                p.display()
+            ));
+        }
+        // the staged executables are 7l aarch64 binaries (R_MAGIC)
+        if name.starts_with('h') || *name == "tracesup" {
+            let magic = std::fs::read(&p).map_err(|e| e.to_string())?;
+            if magic.len() < 4 || magic[..4] != [0x00, 0x00, 0x8c, 0x47] {
+                return Err(format!(
+                    "{} lacks R_MAGIC 00008c47 — not a 7l aarch64 binary",
+                    p.display()
+                ));
+            }
+        }
+    }
+    let tsrc = cfg.harvey.join("build/aarch64/tracesup.c");
+    if !tsrc.is_file() {
+        return Err(format!("{} missing (06-07)", tsrc.display()));
+    }
+    // the srvroot staging inputs (06-06's venue accommodations)
+    for (rel, what) in [
+        ("sys/lib/yaccpar", "yacc skeleton"),
+        ("sys/lib/lex/ncform", "lex skeleton"),
+        ("sys/include", "committed include tree"),
+        ("aarch64/include", "committed arch headers"),
+        ("aarch64/lib/libc.a", "tier-0 fresh libc.a (subset-build.sh)"),
+    ] {
+        let p = cfg.harvey.join(rel);
+        if std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0) == 0 {
+            return Err(format!("{} missing ({})", p.display(), what));
+        }
+    }
+    if !cfg.rootfs.join("rc/bin/termrc").is_file() {
+        return Err(format!(
+            "{} missing — the srvroot has no termrc to override (run donor-vm-build.sh)",
+            cfg.rootfs.join("rc/bin/termrc").display()
+        ));
+    }
+    eprintln!("== tier-1 preconditions ok (the 06-06 staging set + trace assets present)");
+    Ok(())
+}
+
+fn compile_tracesup(cfg: &Cfg, tmpd: &Path) -> Result<PathBuf, String> {
+    let src = cfg.harvey.join("build/aarch64/tracesup.c");
+    eprintln!("== pushing tracesup.c to the guest checkout");
+    sh_rc(&rsync(
+        cfg,
+        &src.to_string_lossy(),
+        &format!("{}:harvey-build/build/aarch64/tracesup.c", cfg.guest),
+    ))
+    .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync push failed".to_string()))?;
+    // libc + libbio for aarch64 are tier-0 guest artifacts; mk install is
+    // incremental.  tracesup links libbio (Bopen/Bwrite) — 7l autolibs it
+    // via bio.h's #pragma lib.
+    let cmd = "cd /sys/src/libc && objtype=aarch64 mk install && \
+               cd /sys/src/libbio && objtype=aarch64 mk install && \
+               cd \"$HARVEY/build/aarch64\" && \
+               7c -FVw tracesup.c && 7l -o /aarch64/tracesup.7.out tracesup.7";
+    let log = tmpd.join("compile-tracesup.log");
+    let rc = {
+        let fp = std::fs::File::create(&log).map_err(|e| e.to_string())?;
+        let argv = ssh_cmd(
+            cfg,
+            &format!(
+                "cd \"harvey-build\" && nix develop -c bash build/aarch64/nsrun.sh --wrap {}",
+                shq(cmd)
+            ),
+        );
+        eprintln!("+ {}", argv.join(" "));
+        Command::new(&argv[0])
+            .args(&argv[1..])
+            .stdout(fp.try_clone().map_err(|e| e.to_string())?)
+            .stderr(fp)
+            .status()
+            .map_err(|e| e.to_string())?
+            .code()
+            .unwrap_or(-1)
+    };
+    if rc != 0 {
+        return Err(format!(
+            "guest tracesup compile failed (rc={}); log: {}",
+            rc,
+            log.display()
+        ));
+    }
+    let out_bin = tmpd.join("tracesup.7.out");
+    sh_rc(&rsync(
+        cfg,
+        &format!("{}:harvey-build/aarch64/tracesup.7.out", cfg.guest),
+        &out_bin.to_string_lossy(),
+    ))
+    .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync pull failed".to_string()))?;
+    if std::fs::metadata(&out_bin).map(|m| m.len()).unwrap_or(0) == 0 {
+        return Err("tracesup.7.out missing/empty after compile".into());
+    }
+    eprintln!("== tracesup.7.out compiled by vendored 7c/7l");
+    Ok(out_bin)
+}
+
+fn stage_and_rebake_t1(cfg: &Cfg, tmpd: &Path) -> Result<(), String> {
+    // generated staging inputs
+    std::fs::write(tmpd.join("sentinel.txt"), SENTINEL_TXT).map_err(|e| e.to_string())?;
+    std::fs::write(tmpd.join("tier1-tracemain.rc"), T1_TRACEMAIN_RC).map_err(|e| e.to_string())?;
+    let tracesup_bin = compile_tracesup(cfg, tmpd)?;
+
+    eprintln!("== staging the tier-1 set + trace assets into the guest donor tree (arm64/bin/subset/)");
+    for (rel, name) in STAGE_T1 {
+        let src = if let Some(gen) = rel.strip_prefix("$TMPD/") {
+            if gen == "tracesup.7.out" {
+                tracesup_bin.clone()
+            } else {
+                tmpd.join(gen)
+            }
+        } else {
+            cfg.harvey.join(rel)
+        };
+        sh_rc(&rsync(
+            cfg,
+            &src.to_string_lossy(),
+            &format!("{}:9front-donor/arm64/bin/subset/{}", cfg.guest, name),
+        ))
+        .and_then(|rc| (rc == 0).then_some(()).ok_or_else(|| format!("rsync {} failed", rel)))?;
+    }
+
+    // the bootdir block: every staged file rides as /boot/<name>
+    // (mkrootall strips only file-identified executables; text and the
+    // nm-input.7 object ride through as data)
+    let mut bootdir = String::new();
+    for (_, name) in STAGE_T1 {
+        bootdir.push_str(&format!("\t/$objtype/bin/subset/{}\t{}\n", name, name));
+    }
+    let bootdir_path = tmpd.join("t1trace-bootdir.txt");
+    std::fs::write(&bootdir_path, &bootdir).map_err(|e| e.to_string())?;
+    let guest_script = tmpd.join("trace-tier1-ns-rebuild.sh");
+    std::fs::write(&guest_script, GUEST_REBUILD_T1).map_err(|e| e.to_string())?;
+    sh_rc(&rsync(
+        cfg,
+        &bootdir_path.to_string_lossy(),
+        &format!("{}:/tmp/gsd-t1trace-bootdir.txt", cfg.guest),
+    ))
+    .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync bootdir.txt failed".to_string()))?;
+    sh_rc(&rsync(
+        cfg,
+        &guest_script.to_string_lossy(),
+        &format!("{}:/tmp/gsd-t1trace-ns-rebuild.sh", cfg.guest),
+    ))
+    .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync script failed".to_string()))?;
+
+    let log = cfg.dist.join("t1trace-rebuild.log");
+    std::fs::create_dir_all(&cfg.dist).map_err(|e| e.to_string())?;
+    eprintln!("== targeted donor kernel rebake (log: {})", log.display());
+    let rc = {
+        let fp = std::fs::File::create(&log).map_err(|e| e.to_string())?;
+        let argv = ssh_cmd(
+            cfg,
+            "cd \"harvey-build-donor\" && nix develop -c bash /tmp/gsd-t1trace-ns-rebuild.sh",
+        );
+        eprintln!("+ {}", argv.join(" "));
+        Command::new(&argv[0])
+            .args(&argv[1..])
+            .stdout(fp.try_clone().map_err(|e| e.to_string())?)
+            .stderr(fp)
+            .status()
+            .map_err(|e| e.to_string())?
+            .code()
+            .unwrap_or(-1)
+    };
+    if rc != 0 {
+        return Err(format!("guest rebake failed (rc={}); log: {}", rc, log.display()));
+    }
+    sh_rc(&rsync(
+        cfg,
+        &format!("{}:9front-dist/9qemu-t1trace", cfg.guest),
+        &cfg.trace_t1_k.to_string_lossy(),
+    ))
+    .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync kernel failed".to_string()))?;
+    sh_rc(&rsync(
+        cfg,
+        &format!("{}:9front-dist/9qemu-t1trace.u", cfg.guest),
+        &cfg.trace_t1_u.to_string_lossy(),
+    ))
+    .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync kernel.u failed".to_string()))?;
+    if std::fs::metadata(&cfg.trace_t1_u).map(|m| m.len()).unwrap_or(0) == 0 {
+        return Err("9qemu-t1trace.u missing/empty after pull".into());
+    }
+    eprintln!("== tier-1 trace kernel: {}", cfg.trace_t1_u.display());
+    Ok(())
+}
+
+/// Recursive copy (std-only) for the srvroot include-tree staging.
+fn copy_dir_recursive(src: &Path, dst: &Path) -> Result<(), String> {
+    std::fs::create_dir_all(dst).map_err(|e| e.to_string())?;
+    for ent in std::fs::read_dir(src).map_err(|e| e.to_string())? {
+        let ent = ent.map_err(|e| e.to_string())?;
+        let from = ent.path();
+        let to = dst.join(ent.file_name());
+        let meta = ent.metadata().map_err(|e| e.to_string())?;
+        if meta.is_dir() {
+            copy_dir_recursive(&from, &to)?;
+        } else {
+            std::fs::copy(&from, &to).map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+/// Restore the served rootfs's rc/bin/termrc on drop (the subset-exec.sh
+/// EXIT-trap discipline — the override lives only for the run).
+struct TermrcRestore {
+    path: PathBuf,
+    orig: PathBuf,
+}
+
+impl Drop for TermrcRestore {
+    fn drop(&mut self) {
+        let _ = std::fs::copy(&self.orig, &self.path);
+    }
+}
+
+/// The served-root preparation (06-06's venue accommodations, ported):
+/// writable scratch targets + scratch cleanup (both /tmp branches), the
+/// sys/lib skeletons, the include trees + libc.a, and the trace termrc
+/// override.
+fn prep_srvroot_t1(cfg: &Cfg, tmpd: &Path) -> Result<TermrcRestore, String> {
+    let rootfs = &cfg.rootfs;
+    std::fs::create_dir_all(rootfs.join("tmp")).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(rootfs.join("usr/glenda/tmp")).map_err(|e| e.to_string())?;
+    // start each run from a clean scratch (idempotence evidence); the
+    // guest's /tmp is lib/namespace's MCREATE bind of /usr/glenda/tmp, so
+    // BOTH branches are cleaned (measured 06-06)
+    for branch in ["tmp", "usr/glenda/tmp"] {
+        let b = rootfs.join(branch);
+        for d in ["subset", "tier1", "bc-bin", "t1trace"] {
+            let _ = std::fs::remove_dir_all(b.join(d));
+        }
+        for f in [
+            "y.tab.c",
+            "lex.yy.c",
+            "cpp-in.c",
+            "hello",
+            "hello.7",
+            "hello.out",
+            "tiny.7",
+        ] {
+            let _ = std::fs::remove_file(b.join(f));
+        }
+    }
+    // the build-chain skeletons + the canary's include/libc inputs
+    std::fs::create_dir_all(rootfs.join("sys/lib/lex")).map_err(|e| e.to_string())?;
+    std::fs::copy(
+        cfg.harvey.join("sys/lib/yaccpar"),
+        rootfs.join("sys/lib/yaccpar"),
+    )
+    .map_err(|e| e.to_string())?;
+    std::fs::copy(
+        cfg.harvey.join("sys/lib/lex/ncform"),
+        rootfs.join("sys/lib/lex/ncform"),
+    )
+    .map_err(|e| e.to_string())?;
+    let _ = std::fs::remove_dir_all(rootfs.join("aarch64/include"));
+    let _ = std::fs::remove_dir_all(rootfs.join("sys/include"));
+    std::fs::create_dir_all(rootfs.join("aarch64/lib")).map_err(|e| e.to_string())?;
+    copy_dir_recursive(
+        &cfg.harvey.join("aarch64/include"),
+        &rootfs.join("aarch64/include"),
+    )?;
+    copy_dir_recursive(&cfg.harvey.join("sys/include"), &rootfs.join("sys/include"))?;
+    std::fs::copy(
+        cfg.harvey.join("aarch64/lib/libc.a"),
+        rootfs.join("aarch64/lib/libc.a"),
+    )
+    .map_err(|e| e.to_string())?;
+
+    // the termrc override (self-heal a stranded override first, per
+    // subset-exec.sh: the dist assembly copies the donor's verbatim)
+    let termrc = rootfs.join("rc/bin/termrc");
+    if let Ok(cur) = std::fs::read_to_string(&termrc) {
+        if cur.contains("tier1-tracemain.rc") || cur.contains("tier1-sweep.rc") {
+            eprintln!("== served termrc carries a stranded override — restoring the donor's first");
+            std::fs::copy(cfg.donor.join("rc/bin/termrc"), &termrc).map_err(|e| e.to_string())?;
+        }
+    }
+    let orig = tmpd.join("termrc.orig");
+    std::fs::copy(&termrc, &orig).map_err(|e| e.to_string())?;
+    std::fs::write(&termrc, T1_TERMRC).map_err(|e| e.to_string())?;
+    eprintln!("== staged the tier-1 trace termrc override into the served rootfs (restored on exit)");
+    Ok(TermrcRestore { path: termrc, orig })
+}
+
+fn boot_and_trace_t1(cfg: &Cfg, tmpd: &Path) -> Result<Vec<u8>, String> {
+    let qemu = which("qemu-system-aarch64")
+        .map(|p| p.to_string_lossy().into_owned())
+        .unwrap_or_else(|| "qemu-system-aarch64".into());
+    let serial = tmpd.join("serial.sock");
+    let qmp = tmpd.join("qmp.sock");
+    let gdb = tmpd.join("gdb.sock");
+    let mut procs = Procs(Vec::new());
+    let mut err = std::io::stderr();
+
+    // serve the root fs (9P2000) with the writable /tmp scratch unlocked
+    // — subset-exec.sh's gate shape; the trace files land there too.
+    let srv9_log = std::fs::File::create(tmpd.join("srv9.log")).map_err(|e| e.to_string())?;
+    let srv9 = Command::new(&cfg.harness_bin)
+        .arg("srv9")
+        .args([
+            "serve",
+            "--root",
+            &cfg.rootfs.to_string_lossy(),
+            "--host",
+            "127.0.0.1",
+            "--port",
+            &cfg.srv9_port.to_string(),
+            "--writable-prefix",
+            "/tmp",
+            "--writable-prefix",
+            "/usr/glenda/tmp",
+        ])
+        .stdout(srv9_log.try_clone().map_err(|e| e.to_string())?)
+        .stderr(srv9_log)
+        .spawn()
+        .map_err(|e| format!("spawn harness srv9: {}", e))?;
+    let mut srv9 = Some(srv9);
+    let mut listening = false;
+    for _ in 0..60 {
+        if std::net::TcpStream::connect(("127.0.0.1", cfg.srv9_port)).is_ok() {
+            listening = true;
+            break;
+        }
+        if let Some(s) = srv9.as_mut() {
+            if let Ok(Some(_)) = s.try_wait() {
+                procs.push(srv9.take().unwrap());
+                return Err("srv9 exited during startup".into());
+            }
+        }
+        std::thread::sleep(Duration::from_secs(1));
+    }
+    if !listening {
+        return Err(format!("srv9 did not start listening on 127.0.0.1:{}", cfg.srv9_port));
+    }
+
+    let result = (|| -> Result<Vec<u8>, String> {
+        // the traced sweep is slow under TCG stepping — the budget keys
+        // off BOOT_BUDGET with a 7200s floor (never a silent retry)
+        let budget = cfg.boot_budget.max(7200);
+        let append = format!("bootargs=tcp fs={} user=glenda console=0", SRV9_GUEST_IP);
+        let dtb = tmpd.join("virt.dtb");
+        let mut dumper = Command::new(&qemu)
+            .args([
+                "-M", "virt,gic-version=3,highmem-ecam=off",
+                "-cpu", "cortex-a72", "-m", "1G", "-kernel",
+            ])
+            .arg(&cfg.trace_t1_u)
+            .args(["-append", &append])
+            .arg("-machine")
+            .arg(format!("dumpdtb={}", dtb.display()))
+            .args(["-display", "none", "-S"])
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .spawn()
+            .map_err(|e| format!("spawn qemu dumpdtb: {}", e))?;
+        std::thread::sleep(Duration::from_secs(2));
+        let _ = dumper.kill();
+        let _ = dumper.wait();
+        if std::fs::metadata(&dtb).map(|m| m.len()).unwrap_or(0) == 0 {
+            return Err("qemu dumpdtb produced no DTB".into());
+        }
+
+        let qerr = std::fs::File::create(tmpd.join("qemu.err")).map_err(|e| e.to_string())?;
+        let qp = Command::new(&qemu)
+            .args([
+                "-M", "virt,gic-version=3,highmem-ecam=off", "-cpu", "cortex-a72",
+                "-accel", "tcg", "-smp", "1", "-m", "1G", "-kernel",
+            ])
+            .arg(&cfg.trace_t1_u)
+            .args(["-append", &append])
+            .args(["-device", &format!("loader,file={},addr=0x40000000", dtb.display())])
+            .args([
+                "-netdev",
+                &format!(
+                    "user,id=n0,guestfwd=tcp:{}:564-tcp:127.0.0.1:{}",
+                    SRV9_GUEST_IP, cfg.srv9_port
+                ),
+            ])
+            .args(["-device", "virtio-net-pci-non-transitional,netdev=n0"])
+            .args([
+                "-chardev",
+                &format!("socket,id=ser0,path={},server=on,wait=off", serial.display()),
+            ])
+            .args(["-serial", "chardev:ser0"])
+            .args(["-qmp", &format!("unix:{},server=on,wait=off", qmp.display())])
+            .args(["-gdb", &format!("unix:{},server=on,wait=off", gdb.display())])
+            .args(["-S", "-display", "none"])
+            .stdout(qerr.try_clone().map_err(|e| e.to_string())?)
+            .stderr(qerr)
+            .spawn()
+            .map_err(|e| format!("spawn qemu: {}", e))?;
+        procs.push(qp);
+        std::thread::sleep(Duration::from_secs(2));
+        if let Some(Some(_)) = procs.0.last_mut().map(|p| p.try_wait().ok().flatten()) {
+            return Err(format!("qemu exited during launch (see {})", tmpd.join("qemu.err").display()));
+        }
+
+        // wake the GIC redistributor (drift accommodation 2)
+        let poke_log = std::fs::File::create(tmpd.join("gdbpoke.log")).map_err(|e| e.to_string())?;
+        let poke = Command::new(&cfg.harness_bin)
+            .arg("gdbpoke9")
+            .args([
+                "--sock",
+                &gdb.to_string_lossy(),
+                "--watch-file",
+                &cfg.runlog_t1.to_string_lossy(),
+                "--watch-str",
+                "bootargs is",
+                "--deadline",
+                &budget.to_string(),
+            ])
+            .stdout(poke_log.try_clone().map_err(|e| e.to_string())?)
+            .stderr(poke_log)
+            .spawn()
+            .map_err(|e| format!("spawn harness gdbpoke9: {}", e))?;
+        procs.push(poke);
+
+        let log = crate::console::Log::new(&cfg.runlog_t1, 256 * 1024 * 1024, 128 * 1024 * 1024)
+            .map_err(|e| format!("open runlog: {}", e))?;
+        let deadline = Instant::now() + Duration::from_secs(budget);
+        let mut sopt = None;
+        while Instant::now() < deadline {
+            match std::os::unix::net::UnixStream::connect(&serial) {
+                Ok(s) => {
+                    sopt = Some(s);
+                    break;
+                }
+                Err(_) => std::thread::sleep(Duration::from_millis(500)),
+            }
+        }
+        let Some(s) = sopt else {
+            crate::console::fail(&log, "trace-syscalls", "serial socket never appeared", &mut err);
+            return Err("serial socket never appeared".into());
+        };
+        crate::console::spawn_reader(s.try_clone().map_err(|e| e.to_string())?, log.clone());
+        crate::console::qmp_cont(&qmp).map_err(|e| format!("qmp cont failed: {}", e))?;
+        eprintln!("== capture attached, guest resumed (budget {}s)", budget);
+
+        // the shared boot drive answers bootargs/auth and lands its shell
+        // proof on the pass-2 interactive rc — which init's restart loop
+        // brings up only AFTER the traced sweep completes (the probes sent
+        // during the sweep are kbdfs-buffered and consumed there; the
+        // subset-exec.sh/drive9 shape).
+        if crate::console::drive_boot(
+            &s,
+            &log,
+            deadline,
+            budget,
+            "trace-syscalls",
+            crate::console::PromptProbe::ShellOk,
+            &mut err,
+        )
+        .is_err()
+        {
+            return Err("boot drive failed".into());
+        }
+
+        // the sweep ran to completion under trace (the measurement must
+        // be of the GREEN sweep — subset-exec.sh's honesty rule)
+        let capture = std::fs::read(&cfg.runlog_t1).map_err(|e| format!("read runlog: {}", e))?;
+        let text = String::from_utf8_lossy(&capture);
+        for need in ["T1-DONE", "__T1_TRACE_DONE__"] {
+            if !text.contains(need) {
+                return Err(format!(
+                    "captured log lacks {} — the traced sweep did not run to completion",
+                    need
+                ));
+            }
+        }
+        if text.contains("T1-FAIL") {
+            return Err(
+                "captured log contains a T1-FAIL line — the measurement must be of the green sweep"
+                    .into(),
+            );
+        }
+        let panic_re = crate::console::panic_re();
+        if panic_re.is_match(&capture) {
+            return Err("captured log contains a kernel fault line".into());
+        }
+        eprintln!("== traced sweep complete (T1-DONE + __T1_TRACE_DONE__, zero T1-FAIL, zero panic)");
+        Ok(capture)
+    })();
+    if let Some(s) = srv9.take() {
+        procs.push(s);
+    }
+    result
+}
+
+// ---- tier-1 phase 5: parse + artifact --------------------------------------
+
+/// The measured trace, attributed per binary.
+#[derive(Debug, Default)]
+pub struct T1Data {
+    /// proc text name → syscall name → entry-fragment count
+    pub by_name: std::collections::BTreeMap<String, std::collections::BTreeMap<String, u64>>,
+    /// syscall name → number (sys.h-resolved)
+    pub numbers: HashMap<String, u32>,
+    /// pid → text names seen (a pid's name changes at exec)
+    pub pid_names: std::collections::BTreeMap<u32, Vec<String>>,
+    /// pid → total entry fragments
+    pub pid_entries: std::collections::BTreeMap<u32, u64>,
+    pub total_entries: u64,
+    pub malformed: u64,
+}
+
+/// Binaries whose checks run ONLY inside tier1-sweep.rc's
+/// `if(~ $venue donor)` guard this era (r9 has no writable fs — they emit
+/// named T1-SKIP lines there): the write-flow round-trips, the build-chain
+/// fixed inputs, and the self-host canary.  `hello` is the canary's
+/// in-guest product; `bind` is the donor's own /bin/bind serving bc's
+/// /bin/dc union shim (donor-guarded).  Everything else measured is
+/// r9-runnable (the read-only block + libtest-tdraw + stacksmoke run on
+/// both venues).
+pub const T1_WRITEFLOW_BINS: &[&str] = &[
+    "hmkdir", "hcp", "hmv", "hrm", "hbc", "hdd", "htar", "htee", "hchmod", "htouch", "hsplit",
+    "hlook", "hcpp", "hyacc", "hlex", "hmk", "h7a", "h7c", "h7l", "hdisktest", "hello", "bind",
+];
+
+pub fn t1_class(name: &str) -> &'static str {
+    if T1_WRITEFLOW_BINS.contains(&name) {
+        "write-flow"
+    } else {
+        "r9-runnable"
+    }
+}
+
+/// Parse the per-pid fragment files tracesup left in `dir`.  Each line is
+/// exactly one fragment (the C loop frames them); entry fragments parse
+/// with the shared entry_re, return fragments start with " = " and are
+/// skipped.  The filename is the pid; the fragment's own pid field must
+/// agree (a disagreement means gluing — counted malformed, never merged).
+pub fn parse_t1_dir(dir: &Path, defines: &HashMap<String, u32>) -> Result<T1Data, String> {
+    let mut data = T1Data::default();
+    let rx = entry_re();
+    let mut entries: Vec<(u32, PathBuf)> = Vec::new();
+    for ent in std::fs::read_dir(dir).map_err(|e| format!("read {}: {}", dir.display(), e))? {
+        let ent = ent.map_err(|e| e.to_string())?;
+        let name = ent.file_name().to_string_lossy().into_owned();
+        if let Ok(pid) = name.parse::<u32>() {
+            entries.push((pid, ent.path()));
+        }
+    }
+    entries.sort();
+    if entries.is_empty() {
+        return Err(format!("{} carries no per-pid fragment files", dir.display()));
+    }
+    for (pid, path) in entries {
+        let text = std::fs::read(&path).map_err(|e| format!("read {}: {}", path.display(), e))?;
+        for raw in text.split(|&b| b == b'\n') {
+            let line = String::from_utf8_lossy(raw).trim().to_string();
+            if line.is_empty() || line.starts_with('=') {
+                continue;
+            }
+            let Some(m) = rx.find(line.as_bytes()) else {
+                if line.contains(" = ") {
+                    continue; // return fragment with a data dump prefix
+                }
+                data.malformed += 1;
+                continue;
+            };
+            if m.group_str(1, line.as_bytes()).unwrap_or("0").parse::<u32>() != Ok(pid) {
+                data.malformed += 1;
+                continue;
+            }
+            let procname = m.group_str(2, line.as_bytes()).unwrap_or("?").to_string();
+            let name = m.group_str(3, line.as_bytes()).unwrap_or("");
+            if name == "huh?" {
+                return Err(format!(
+                    "donor emitted 'huh?' — an unknown syscall number was traced (pid {})",
+                    pid
+                ));
+            }
+            let Some((number, sysh_name)) = resolve(defines, &name.to_lowercase()) else {
+                return Err(format!(
+                    "unknown syscall name: {} (no matching #define in sys.h)",
+                    name
+                ));
+            };
+            *data
+                .by_name
+                .entry(procname.clone())
+                .or_default()
+                .entry(sysh_name.clone())
+                .or_insert(0) += 1;
+            data.numbers.insert(sysh_name, number);
+            let names = data.pid_names.entry(pid).or_default();
+            if !names.contains(&procname) {
+                names.push(procname);
+            }
+            *data.pid_entries.entry(pid).or_insert(0) += 1;
+            data.total_entries += 1;
+        }
+    }
+    if data.total_entries == 0 {
+        return Err("no entry fragments parsed — the supervisor produced empty files".into());
+    }
+    Ok(data)
+}
+
+/// r9's implemented dispatch set: the `t[NAME as usize] = Some(` lines of
+/// aarch64/src/syscall.rs, lowercased to sys.h names.
+pub fn r9_implemented_set(text: &str) -> Vec<String> {
+    let rx = crate::regex::Regex::new("t\\[([A-Z_0-9]+) as usize\\] = Some\\(").unwrap();
+    let mut out = Vec::new();
+    let mut pos = 0usize;
+    let bytes = text.as_bytes();
+    while let Some(m) = rx.find_at(bytes, pos) {
+        if let Some(name) = m.group_str(1, bytes) {
+            out.push(name.to_lowercase());
+        }
+        pos = m.span.end;
+    }
+    out.sort();
+    out.dedup();
+    out
+}
+
+/// The tier-1 artifact: header (provenance + coverage boundary +
+/// classification + the r9 delta), the per-binary multisets, then the
+/// per-class union tables.
+pub fn artifact_t1(
+    data: &T1Data,
+    runlog: &str,
+    now_iso: &str,
+    r9_sha: &str,
+    r9_impl: Option<Vec<String>>,
+) -> String {
+    let mut s = String::new();
+    s.push_str(&format!("# date: {}\n", now_iso));
+    s.push_str(&format!("# donor pin: {} (9front branch front)\n", DONOR_SHA));
+    s.push_str("# rig: harness trace-syscalls --tier1 (06-07) + build/aarch64/tracesup.c —\n");
+    s.push_str("#   the 05-03 rig's born-traced arming generalized to the tier scale:\n");
+    s.push_str("#   the sweep shell rides a spin-windowed, stop-armed subshell; the\n");
+    s.push_str("#   in-guest supervisor step-traces it and every born-traced descendant\n");
+    s.push_str("#   (donor sysproc.c:155), writing one newline-framed fragment stream per\n");
+    s.push_str("#   pid to /tmp/t1trace on the srv9 writable prefix (no per-fragment\n");
+    s.push_str("#   forks, no serial flood); the host parses + attributes per binary by\n");
+    s.push_str("#   each fragment's own text-name field.\n");
+    s.push_str("# target: build/aarch64/tier1-sweep.rc venue=donor — the full D-09\n");
+    s.push_str("#   membership's sweep SOURCED under the staged trace termrc override\n");
+    s.push_str("#   (subset-exec.sh's D-10 venue); stacksmoke rides the traced shell.\n");
+    s.push_str("# venue: the donor's own chain; srv9 --writable-prefix /tmp\n");
+    s.push_str("#   --writable-prefix /usr/glenda/tmp; srvroot staging (sys/lib\n");
+    s.push_str("#   skeletons, sys/include, aarch64/include + libc.a) per 06-06.\n");
+    s.push_str(&format!("# serial log: {} (gitignored .build evidence)\n", runlog));
+    s.push_str(&format!(
+        "# traced pids: {}; measured syscall entry fragments: {}\n",
+        data.pid_entries.len(),
+        data.total_entries
+    ));
+    if data.malformed > 0 {
+        s.push_str(&format!(
+            "# malformed/glued fragment lines skipped: {}\n",
+            data.malformed
+        ));
+    }
+    s.push_str("# coverage boundary / classification (per-binary; tier1-sweep.rc's\n");
+    s.push_str("#   venue guard is the source of truth):\n");
+    s.push_str("#   r9-runnable — checks that run on BOTH venues (the read-only block\n");
+    s.push_str("#     + libtest-tdraw + stacksmoke): THE DELTA INPUT.\n");
+    s.push_str("#   write-flow — the donor-guarded legs (r9 has no writable fs this\n");
+    s.push_str("#     era; they emit named T1-SKIP lines there): mkdir cp mv rm bc dd\n");
+    s.push_str("#     tar tee chmod touch split look cpp yacc lex mk 7a 7c 7l\n");
+    s.push_str("#     selfhost-compile/selfhost (binaries h7c h7l h7a + the hello\n");
+    s.push_str("#     product) libtest-disktest; the bc shim's bind is the donor's own.\n");
+    s.push_str("#   name caveat: a born-traced child's pre-exec fragments carry its\n");
+    s.push_str("#     parent's text name — the \"rc\" bucket aggregates the sweep\n");
+    s.push_str("#     shell, hrc invocations, and rc fork/backquote shims.\n");
+
+    // unions per class
+    let mut union_run: std::collections::BTreeMap<String, u64> = Default::default();
+    let mut union_wf: std::collections::BTreeMap<String, u64> = Default::default();
+    for (bin, counts) in &data.by_name {
+        let target = if t1_class(bin) == "write-flow" {
+            &mut union_wf
+        } else {
+            &mut union_run
+        };
+        for (name, n) in counts {
+            *target.entry(name.clone()).or_insert(0) += n;
+        }
+    }
+
+    s.push_str(&format!(
+        "# delta vs r9's current dispatch (aarch64/src/syscall.rs @ {}):\n",
+        r9_sha
+    ));
+    match r9_impl {
+        Some(implset) => {
+            let impset: std::collections::HashSet<&str> =
+                implset.iter().map(|s| s.as_str()).collect();
+            let measured: std::collections::HashSet<&str> =
+                union_run.keys().map(|s| s.as_str()).collect();
+            let mut new: Vec<&str> = measured
+                .iter()
+                .filter(|n| !impset.contains(**n))
+                .copied()
+                .collect();
+            new.sort_by_key(|n| data.numbers[*n]);
+            s.push_str(&format!(
+                "#   r9-runnable measured names: {}\n",
+                union_run.len()
+            ));
+            if new.is_empty() {
+                s.push_str("#   NEW (measured, NOT implemented): none — the measured tier-1\n");
+                s.push_str("#     footprint is covered by the current dispatch (measured proof of\n");
+                s.push_str("#     an empty delta; nothing speculative added)\n");
+            } else {
+                s.push_str("#   NEW (measured, NOT implemented) — the dispatch delta:\n");
+                for n in &new {
+                    s.push_str(&format!(
+                        "#     {} {} ({} occurrences)\n",
+                        data.numbers[*n], n, union_run[*n]
+                    ));
+                }
+            }
+            let mut reverse: Vec<&str> = impset
+                .iter()
+                .filter(|n| !measured.contains(**n))
+                .copied()
+                .collect();
+            reverse.sort();
+            s.push_str(&format!(
+                "#   implemented but unmeasured in this run (informational): {}\n",
+                reverse.join(" ")
+            ));
+        }
+        None => {
+            s.push_str("#   delta not computed — r9 syscall.rs not found (set R9_SYSCALL_RS);\n");
+            s.push_str("#     the measured sets below are the authoritative input regardless\n");
+        }
+    }
+
+    s.push_str("#\n# per-binary measured multiset (entry-fragment counts):\n");
+    for (bin, counts) in &data.by_name {
+        let total: u64 = counts.values().sum();
+        let pids = data
+            .pid_names
+            .iter()
+            .filter(|(_, names)| names.contains(bin))
+            .count();
+        let mut parts: Vec<String> = counts.iter().map(|(n, c)| format!("{}={}", n, c)).collect();
+        parts.sort();
+        s.push_str(&format!(
+            "# bin={} class={} pids={} total={} {}\n",
+            bin,
+            t1_class(bin),
+            pids,
+            total,
+            parts.join(" ")
+        ));
+    }
+
+    s.push_str("# union multiset — class r9-runnable (the r9 dispatch input):\n");
+    let mut rows: Vec<(&String, &u64)> = union_run.iter().collect();
+    rows.sort_by_key(|(n, _)| data.numbers[*n]);
+    for (name, count) in rows {
+        s.push_str(&format!("{} {} {}\n", data.numbers[name], name, count));
+    }
+    s.push_str("# union multiset — class write-flow (donor-only this era; r9 T1-SKIP):\n");
+    let mut rows: Vec<(&String, &u64)> = union_wf.iter().collect();
+    rows.sort_by_key(|(n, _)| data.numbers[*n]);
+    for (name, count) in rows {
+        s.push_str(&format!("# {} {} {}\n", data.numbers[name], name, count));
+    }
+    s
+}
+
+fn parse_and_write_t1(cfg: &Cfg, _capture: &[u8]) -> Result<(), String> {
+    // the guest's /tmp is lib/namespace's MCREATE bind of /usr/glenda/tmp
+    // (subset-exec.sh header) — the trace files land there; fall back to
+    // the direct /tmp branch if the bind shape ever changes.
+    let primary = cfg.rootfs.join("usr/glenda/tmp/t1trace");
+    let fallback = cfg.rootfs.join("tmp/t1trace");
+    let dir = if primary.is_dir() { primary } else { fallback };
+    if !dir.is_dir() {
+        return Err(format!(
+            "{} missing — the supervisor wrote no trace dir (see {})",
+            dir.display(),
+            cfg.runlog_t1.display()
+        ));
+    }
+    if !dir.join("_rootdone").is_file() {
+        return Err("t1trace/_rootdone missing — the root loop never finished".into());
+    }
+    if !dir.join("_done").is_file() {
+        return Err("t1trace/_done missing — the supervisor teardown never completed".into());
+    }
+    let defines_text = std::fs::read_to_string(&cfg.sysh)
+        .map_err(|e| format!("read {}: {}", cfg.sysh.display(), e))?;
+    let defines = load_sysh(&defines_text);
+    let data = parse_t1_dir(&dir, &defines)?;
+
+    // the r9 delta (best-effort: sha via git, set via the dispatch table)
+    let r9_sha = Command::new("git")
+        .args(["-C", "../r9", "rev-parse", "--short=12", "HEAD"])
+        .output()
+        .map(|o| String::from_utf8_lossy(&o.stdout).trim().to_string())
+        .unwrap_or_else(|_| "unknown".to_string());
+    let r9_impl = std::fs::read_to_string(&cfg.r9_syscall_rs)
+        .ok()
+        .map(|t| r9_implemented_set(&t));
+
+    let text = artifact_t1(
+        &data,
+        &cfg.runlog_t1.to_string_lossy(),
+        &utc_now_iso(),
+        &r9_sha,
+        r9_impl.as_ref().cloned().map(|mut v| {
+            v.sort();
+            v
+        }),
+    );
+    std::fs::write(&cfg.artifact_t1, &text)
+        .map_err(|e| format!("write {}: {}", cfg.artifact_t1.display(), e))?;
+    eprintln!(
+        "== artifact written: {} ({} pids, {} entry fragments, {} binaries)",
+        cfg.artifact_t1.display(),
+        data.pid_entries.len(),
+        data.total_entries,
+        data.by_name.len()
+    );
+    for (bin, counts) in &data.by_name {
+        let total: u64 = counts.values().sum();
+        eprintln!("   {} ({}): {} fragments", bin, t1_class(bin), total);
+    }
+    Ok(())
+}
+
+fn main_t1(cfg: &Cfg) -> Result<(), String> {
+    preconditions_t1(cfg)?;
+    let tmpd = mkdtemp("trace-syscalls-tier1.")?;
+    let r = (|| {
+        stage_and_rebake_t1(cfg, &tmpd)?;
+        let _guard = prep_srvroot_t1(cfg, &tmpd)?;
+        let capture = boot_and_trace_t1(cfg, &tmpd)?;
+        parse_and_write_t1(cfg, &capture)
+    })();
+    let _ = std::fs::remove_dir_all(&tmpd);
+    r?;
+    eprintln!("== PASS: tier-1 measure-first trace complete");
+    Ok(())
+}
+
 pub fn run(args: &[String]) -> i32 {
     if args.iter().any(|a| a == "--help" || a == "-h") {
         eprint!("{}", USAGE);
@@ -1939,6 +3106,8 @@ pub fn run(args: &[String]) -> i32 {
     let cfg = cfg();
     let r = if args.iter().any(|a| a == "--boot-chain") {
         main_bc(&cfg)
+    } else if args.iter().any(|a| a == "--tier1") {
+        main_t1(&cfg)
     } else {
         main_hello(&cfg)
     };
@@ -2222,5 +3391,185 @@ __GSD_FRAG_234__234 boot Exits 14b6c 0/\"\"\n";
         assert!(text.contains(
             "#   none — opencons's close×3/bind/open×3 appear as a contiguous run"
         ));
+    }
+
+    // ---- tier-1 parser fixtures (06-07) --------------------------------------
+
+    /// Write a fixture dir of per-pid fragment files (tracesup's output
+    /// shape: one newline-framed fragment per line).
+    fn t1_fixture_dir() -> std::path::PathBuf {
+        let dir = std::env::temp_dir().join(format!(
+            "t1-fixture-{}-{}",
+            std::process::id(),
+            std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_nanos())
+                .unwrap_or(0)
+        ));
+        std::fs::create_dir_all(&dir).unwrap();
+        // pid 41: the sweep shell (rc) — rfork/exec/await/pwrite stream
+        std::fs::write(
+            dir.join("41"),
+            "41 rc Rfork 265b0 8119\n\
+             41 rc Exec 265c0 0x34900/\"/boot/hecho\" 0x34a00\n\
+             41 rc Await 265d0 0x7fffefd38 128\n\
+             41 rc Pwrite 14918 1 0x7fffefd38/\"T1-OK echo\\n\" 10 -1\n\
+             41 rc Exits 14b6c 0/\"\"\n",
+        )
+        .unwrap();
+        // pid 42: a born-traced child pre-exec (name rc) then hecho
+        std::fs::write(
+            dir.join("42"),
+            "42 rc Dup 11b60 0 1\n\
+             42 rc Exec 265c0 0x34900/\"/boot/hecho\" 0x34a10\n\
+             42 hecho Open 11ae0 0x20000/\"#c/pid\" 0x0\n\
+             42 hecho Pwrite 14918 1 0x7fffefd38/\"__T1_SENTINEL__\\n\" 15 -1\n\
+             42 hecho Exits 14b6c 0/\"\"\n",
+        )
+        .unwrap();
+        // pid 43: a write-flow binary + a return fragment with a data dump
+        std::fs::write(
+            dir.join("43"),
+            "43 hcp Open 11ae0 0x34900/\"/boot/sentinel.txt\" 0x0\n\
+             43 hcp Pread 14928 3 0x7fffefe84 20 -1\n\
+             43 hcp Pread 14928 3 0x7fffefe84 20 -1 = 20 \"abcdef\" 32235168000 32235186000\n\
+             43 hcp Create 265b0 0x34900/\"/tmp/tier1/copied\" 0x1 0x1b6\n\
+             43 hcp Exits 14b6c 0/\"\"\n",
+        )
+        .unwrap();
+        // malformed lines: a glued pid mismatch + a non-fragment
+        std::fs::write(
+            dir.join("44"),
+            "9999 hls Open 11ae0 0x20000/\"/\" 0x0\n\
+             this is not a fragment at all\n\
+             44 hls Open 11ae0 0x20000/\"/\" 0x0\n\
+             44 hls Exits 14b6c 0/\"\"\n",
+        )
+        .unwrap();
+        std::fs::write(dir.join("_rootdone"), "").unwrap();
+        std::fs::write(dir.join("_done"), "tracesup done root=41 armed=4\n").unwrap();
+        dir
+    }
+
+    #[test]
+    fn t1_parse_attributes_per_fragment_name() {
+        let dir = t1_fixture_dir();
+        let data = parse_t1_dir(&dir, &defines()).expect("parses");
+        // per-name attribution: pid 42's pre-exec dup/exec land in "rc";
+        // its open/pwrite/exits in "hecho"
+        let rc = &data.by_name["rc"];
+        assert_eq!(rc.get("rfork"), Some(&1));
+        assert_eq!(rc.get("exec"), Some(&2));
+        assert_eq!(rc.get("dup"), Some(&1));
+        let hecho = &data.by_name["hecho"];
+        assert_eq!(hecho.get("open"), Some(&1));
+        assert_eq!(hecho.get("pwrite"), Some(&1));
+        assert_eq!(hecho.get("exits"), Some(&1));
+        // the write-flow binary's stream, return-with-dump line handled
+        let hcp = &data.by_name["hcp"];
+        assert_eq!(hcp.get("pread"), Some(&2));
+        assert_eq!(hcp.get("create"), Some(&1));
+        // the malformed pair skipped, the good hls lines kept
+        assert_eq!(data.malformed, 2);
+        assert_eq!(data.by_name["hls"].get("open"), Some(&1));
+        assert_eq!(data.pid_entries.len(), 4);
+        // classification
+        assert_eq!(t1_class("hcp"), "write-flow");
+        assert_eq!(t1_class("hecho"), "r9-runnable");
+        assert_eq!(t1_class("h7c"), "write-flow");
+        assert_eq!(t1_class("rc"), "r9-runnable");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn t1_parse_empty_dir_is_an_error() {
+        let dir = std::env::temp_dir().join(format!("t1-empty-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let err = parse_t1_dir(&dir, &defines()).unwrap_err();
+        assert!(err.contains("no per-pid fragment files"), "err: {}", err);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn t1_parse_unknown_name_is_an_error() {
+        let dir = std::env::temp_dir().join(format!("t1-unknown-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("7"), "7 t Frobnicate 14b6c\n").unwrap();
+        let err = parse_t1_dir(&dir, &defines()).unwrap_err();
+        assert!(err.contains("unknown syscall name: Frobnicate"), "err: {}", err);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn r9_implemented_set_extracts_dispatch_entries() {
+        let text = "\
+static DISPATCH: [Option<Handler>; 55] = {\n\
+\x20   let mut t: [Option<Handler>; 55] = [None; 55];\n\
+\x20   t[BIND as usize] = Some(sys_bind);\n\
+\x20   t[CLOSE as usize] = Some(sys_close);\n\
+\x20   t[PREAD as usize] = Some(sys_pread);\n\
+\x20   t[PWRITE as usize] = Some(sys_pwrite);\n\
+\x20   t\n\
+};\n";
+        let set = r9_implemented_set(text);
+        assert_eq!(set, vec!["bind", "close", "pread", "pwrite"]);
+    }
+
+    #[test]
+    fn artifact_t1_byte_shape() {
+        let dir = t1_fixture_dir();
+        let data = parse_t1_dir(&dir, &defines()).unwrap();
+        let text = artifact_t1(
+            &data,
+            "/x/tier1-trace-run.log",
+            "2026-11-05T04:00:00Z",
+            "2afa3d6ebfde",
+            Some(vec![
+                "await".into(),
+                "close".into(),
+                "dup".into(),
+                "exec".into(),
+                "exits".into(),
+                "open".into(),
+                "pread".into(),
+                "pwrite".into(),
+                "rfork".into(),
+            ]),
+        );
+        assert!(text.starts_with("# date: 2026-11-05T04:00:00Z\n"));
+        assert!(text.contains("# donor pin: 350266104f"));
+        assert!(text.contains("traced pids: 4"));
+        // the r9-runnable union: hecho+hls+rc names; create is hcp-only
+        // (write-flow) and must NOT appear in the runnable union rows
+        assert!(text.contains("#   NEW (measured, NOT implemented): none"));
+        // union rows carry "<number> <name> <count>"
+        assert!(text.contains("\n19 rfork 1\n"), "rfork row present");
+        assert!(text.contains("\n51 pwrite 2\n"), "pwrite row (rc+hecho)");
+        // the write-flow union is comment-framed
+        assert!(text.contains("# 22 create 1\n"));
+        // per-binary lines tag the class
+        assert!(text.contains("# bin=hcp class=write-flow"));
+        assert!(text.contains("# bin=hecho class=r9-runnable"));
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn artifact_t1_reports_a_measured_delta() {
+        let dir = t1_fixture_dir();
+        let data = parse_t1_dir(&dir, &defines()).unwrap();
+        // an r9 set missing pwrite → the delta names it; pread appears
+        // only in the write-flow fixture (hcp), so the classification
+        // keeps it OUT of the r9-runnable delta
+        let text = artifact_t1(
+            &data,
+            "/x/log",
+            "2026-11-05T04:00:00Z",
+            "abc",
+            Some(vec!["close".into(), "exits".into(), "open".into()]),
+        );
+        assert!(text.contains("#     51 pwrite (2 occurrences)"), "delta names pwrite");
+        assert!(text.contains("#     19 rfork"), "delta names rfork");
+        assert!(!text.contains("#     50 pread"), "pread is write-flow-only here — never in the delta");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
