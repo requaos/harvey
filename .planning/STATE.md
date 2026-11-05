@@ -4,17 +4,17 @@ milestone: v2.0
 milestone_name: Full System & Drawterm
 current_phase: 07
 current_phase_name: r9 PCI/ECAM + virtio-net + devether
-status: executing
-stopped_at: Completed 07-07-PLAN.md
-last_updated: "2026-11-05T02:16:34.533Z"
+status: verifying
+stopped_at: Completed 07-08-PLAN.md
+last_updated: "2026-11-05T02:44:40.024Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 07 execution started
-state_head: d1a08212dc7c5a7ae860618e03ac31a7c424cf22
+state_head: fcd92f0bfafee2cde95cdd555747d9d093e6680b
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 16
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-04)
 
 Phase: 07 (r9 PCI/ECAM + virtio-net + devether) — EXECUTING
 Plan: 8 of 8
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-04 — Phase 07 execution started
 
 Progress: [░░░░░░░░░░] 0% (v2.0)
@@ -111,6 +111,7 @@ Progress: [░░░░░░░░░░] 0% (v2.0)
 | Phase 06 P03 | 71 min | 2 tasks | 11 files |
 | Phase 06 P04 | 37 min | 2 tasks | 9 files |
 | Phase 07 P07 | 63 min | 2 tasks | 20 files |
+| Phase 07 P08 | 20 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -247,6 +248,9 @@ Recent decisions affecting current work:
 - [Phase 06]: 06-04: jpg Wave-0 re-verification is forced + state-independent (rm committed headers+generators in the scratch guest, rebuild via the mkfile's own rules, od-assert 7f454c46) — the committed headers satisfy mk without firing the chain; concurrent-session guest churn proved real mid-run-1
 - [Phase 06]: 06-04: generator-audit re-confirmation corrected plan cells against live mkfiles (per the plan's mandate): G5 artifact=o.pcode (cpuobjtype=o via /unix/mkfile); G6 genarch=pcc-native-only (build guard gs/mkfile:164, run guard :149)
 - [Phase 06]: 06-04: namespace/devshell dialect safety (D-02 shadowing class): Plan 9 sed garbles on pipe-inside-pattern and silently fails capture-group extractions, Plan 9 date prints the epoch for -u +fmt — awk index/substr, plain-caret seds, probe-verified ISO date; ssh probes carry </dev/null under rows-loops (stdin drain measured)
+- [Phase 07]: 07-08: push-before-pin executed — r9 e72abfe..2afa3d6 (19 commits) pushed to requaos/r9 BEFORE the flake.lock advance; the pin commit 06380f2bc names flake.lock ALONE; locked rev == live HEAD == origin/main, owner=requaos (the 05-11 gate shape, T-07-17)
+- [Phase 07]: 07-08: D-10 end state landed — the identical netdev stanza (-netdev user,id=n0 + -device virtio-net-pci-non-transitional,netdev=n0) on all three compose paths + the smoke's nic-bind whole-capture post-pass; the composed smoke green on the default darwin leg (gicv3+hvf) = the first live NIC-on-GICv3 composed boot; R9_GICV2=1 remains the bisection hatch, never the gate default
+- [Phase 07]: 07-08: hosted CI satisfied for real — r9-shell run 41955568449 SUCCESS at headSha 15739d108 (the pushed pin+compose HEAD); the 05-13 PENDING FIRST PUSH substitution NOT needed; legacy harvey.yml's red streak recorded as pre-existing/unrelated (red on every master push since 2026-11-04T12:01Z)
 
 ### Pending Todos
 
@@ -295,8 +299,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T02:16:34.508Z
-Stopped at: Completed 07-07-PLAN.md
+Last session: 2026-11-05T02:44:28.579Z
+Stopped at: Completed 07-08-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
