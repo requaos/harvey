@@ -31,7 +31,8 @@
 #			the documented A3 fallback, never the default claim)
 #	T1-OK selfhost	D-11: the guest-compiled binary RAN from the srv9
 #			writable prefix and printed 'hello aarch64 harvey'
-#			(the known-output compare is in the retained log)
+#			(the known-output string is echoed into the serial
+#			log as T1-SELFHOST-OBS — T-06-12)
 #	T1-DONE		the sweep ran to completion
 #
 # The fixed inputs re-express the v1.0 subset-exec.sh step table
@@ -522,6 +523,10 @@ if(~ $venue donor){
 	if(~ $shok 1){
 		if(/boot/hrc -c '/tmp/hello > /tmp/hello.out'){
 			hout=`{/boot/hcat /tmp/hello.out}
+			# the known-output string must appear in the retained
+			# serial log (T-06-12) — observation marker, same class
+			# as T1-BCOBS/T1-XDOBS
+			echo T1-SELFHOST-OBS $hout
 			if(~ $"hout 'hello aarch64 harvey') shrun=1
 		}
 		if(~ $shrun 1) echo T1-OK selfhost
