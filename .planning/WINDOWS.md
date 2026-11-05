@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 36
+open_count: 38
 waived_count: 3
 fixed_count: 2
-total_count: 41
-last_updated: 2026-11-05T02:10:47.035Z
+total_count: 43
+last_updated: 2026-11-05T19:54:26.000Z
 ---
 
 # Broken Windows Ledger
@@ -56,6 +56,8 @@ last_updated: 2026-11-05T02:10:47.035Z
 | 39 | 06 | deviation | build/aarch64/coverage-sweep.sh |  | 06-04: namespace/devshell Plan 9-tool dialect fixes — sed {/pat/!p} group garbled (host), sed s/\|.*$// garbled by hostbin Plan 9 sed (namespace; silently emptied the exclusions in run 2), date -u +fmt prints the epoch under Plan 9 date — awk index/substr + host-precomputed plain-path exclusions + probe-verified ISO date | open |  | 2026-11-05T02:10:46.602Z |  |
 | 40 | 06 | deviation | build/aarch64/generator-scan.sh |  | 06-04: ssh tree probes drained the audit-rows while-loop's stdin (only G1 checked on the first run) — all ssh probe sites carry </dev/null now | open |  | 2026-11-05T02:10:46.815Z |  |
 | 41 | 06 | deviation | build/aarch64/generator-audit.txt |  | 06-04: plan/RESEARCH cells corrected against live mkfiles (plan-mandated re-confirmation): G5 artifact is o.pcode (cpuobjtype=o via /unix/mkfile O=o); G6 genarch is pcc-built native-only (build guard gs/mkfile:164), never built nor run in the aarch64 sweep | open |  | 2026-11-05T02:10:47.035Z |  |
+| 42 | 06 | deviation | .planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/06-05-PLAN.md |  | 06-05 Task-2's literal no-PENDING-CLASSIFY grep contradicts Task-1's mandated append-only seed lines; ran the intent gate (latest-line-per-dir clean) — gate-text repair filed for the next planning pass | open |  | 2026-11-05T02:51:20.644Z |  |
+| 43 | 08 | unmet-truth | r9:aarch64/src/proc.rs |  | 08-04: the NETIP-03 ping-127.0.0.1 truth is UNMET this plan — r9's rfork does not honor RFMEM (eager copy; syscall.rs's documented Phase-4 era limit) and ping's rfork(RFPROC\|RFMEM\|RFFDG) reader/sender pair structurally needs the shared request list; the devip wire exchange itself is proven (request+reply deliver with matching ident/seq); RFMEM decision pending (Rule 4 checkpoint returned 2026-11-05) | open |  | 2026-11-05T19:54:26.000Z |  |
 
 ````json
 [
@@ -589,6 +591,32 @@ last_updated: 2026-11-05T02:10:47.035Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-05T02:10:47.035Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 42,
+    "kind": "deviation",
+    "phase": "06",
+    "file": ".planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/06-05-PLAN.md",
+    "line": null,
+    "description": "06-05 Task-2's literal no-PENDING-CLASSIFY grep contradicts Task-1's mandated append-only seed lines; ran the intent gate (latest-line-per-dir clean) — gate-text repair filed for the next planning pass",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T02:51:20.644Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 43,
+    "kind": "unmet-truth",
+    "phase": "08",
+    "file": "r9:aarch64/src/proc.rs",
+    "line": null,
+    "description": "08-04: the NETIP-03 ping-127.0.0.1 truth is UNMET this plan — r9's rfork does not honor RFMEM (eager copy; syscall.rs's documented Phase-4 era limit) and ping's rfork(RFPROC|RFMEM|RFFDG) reader/sender pair structurally needs the shared request list; the devip wire exchange itself is proven (request+reply deliver with matching ident/seq); RFMEM decision pending (Rule 4 checkpoint returned 2026-11-05)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T19:54:26.000Z",
     "resolved_at": null,
     "milestone": "v2.0"
   }
