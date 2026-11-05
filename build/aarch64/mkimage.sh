@@ -71,8 +71,9 @@ for f in boot init paqfs stacksmoke; do
 done
 [ -s "$OUT/netblast" ] || err "$OUT/netblast missing — run sh build/aarch64/subset-build.sh first"	# 07-04 D-08
 # 08-03: the Phase-8 gate payloads (D-12) — the four full-tree binaries
-# (dir/per-target installs + out/ harvest blocks in subset-build.sh)
-for f in ipconfig ping udpecho aan; do
+# (dir/per-target installs + out/ harvest blocks in subset-build.sh) and
+# the two compiled payloads (tcpblast/tcpecho, netblast shape)
+for f in ipconfig ping udpecho aan tcpblast tcpecho; do
 	[ -s "$OUT/$f" ] || err "$OUT/$f missing — run sh build/aarch64/subset-build.sh first"
 done
 SUBSET="rc grep cat cp date echo ls mkdir mv ps rm sed test wc"
@@ -153,6 +154,9 @@ cp "$BIN/ip/udpecho" "$STAGE/aarch64/bin/ip/udpecho"
 cp "$BIN/aan" "$STAGE/aarch64/bin/aan"
 cp "$OUT/stacksmoke" "$STAGE/aarch64/bin/stacksmoke"
 cp "$OUT/netblast" "$STAGE/aarch64/bin/netblast"
+# 08-03: the soak machinery + echo server bake beside netblast
+cp "$OUT/tcpblast" "$STAGE/aarch64/bin/tcpblast"
+cp "$OUT/tcpecho" "$STAGE/aarch64/bin/tcpecho"
 
 # 3b. 06-07 (D-12): the tier-1 sweep payload — h-prefixed binaries into
 #     /aarch64/bin (the sweep invokes them as /bin/h* on r9 through the
@@ -219,6 +223,8 @@ done
 [ -f "$STAGE/aarch64/bin/ip/ping" ] || err "manifest: aarch64/bin/ip/ping missing"
 [ -f "$STAGE/aarch64/bin/ip/udpecho" ] || err "manifest: aarch64/bin/ip/udpecho missing"
 [ -f "$STAGE/aarch64/bin/aan" ] || err "manifest: aarch64/bin/aan missing"
+[ -f "$STAGE/aarch64/bin/tcpblast" ] || err "manifest: aarch64/bin/tcpblast missing"
+[ -f "$STAGE/aarch64/bin/tcpecho" ] || err "manifest: aarch64/bin/tcpecho missing"
 # 06-07 (D-12): every tier-1 payload path is asserted pre-bake (T-06-15:
 # a stale bake would certify old binaries — presence of the just-staged
 # paths is the tripwire)

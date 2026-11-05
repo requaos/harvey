@@ -304,6 +304,19 @@ echo "== subset cmd: aan (per-target install + out/ harvest, 08-03)"
 (cd /sys/src/cmd && objtype=aarch64 mk aan.install) || fail "cmd aan (per-target install)"
 cp /aarch64/bin/aan "$HARVEY/build/aarch64/out/aan" || fail "harvest aan to out/"
 
+# 08-03: tcpblast + tcpecho — the NETIP-08 bidirectional soak machinery
+# (D-15: slirp proof now, the tap truth verdict is Phase 9's joint gate)
+# and the NETIP-03 tcp/7 echo server.  New payload sources living beside
+# netblast.c; same 7c -FTVw + 7l compile/harvest shape as netblast.
+echo "== boot chain: tcpblast (08-03, NETIP-08/D-15)"
+(cd "$HARVEY/build/aarch64" && objtype=aarch64 7c -FTVw tcpblast.c \
+	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/tcpblast" tcpblast.7 \
+	&& rm -f tcpblast.7) || fail "tcpblast"
+echo "== boot chain: tcpecho (08-03, NETIP-03)"
+(cd "$HARVEY/build/aarch64" && objtype=aarch64 7c -FTVw tcpecho.c \
+	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/tcpecho" tcpecho.7 \
+	&& rm -f tcpecho.7) || fail "tcpecho"
+
 # 06-05: tier-0 lib test binaries (D-06 — in-tree lib tests run on the
 # donor where they exist; subset-exec.sh stages them h*-style and the
 # sweep's libtest markers are the libs' exec=TEST:donor evidence).
@@ -397,6 +410,8 @@ if [ -z "$NATIVE_LINUX" ]; then
 		"$GUEST:$GUEST_DIR/build/aarch64/out/ping" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/udpecho" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/aan" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/tcpblast" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/tcpecho" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/hdrawtest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/harctest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/htdraw" \
@@ -438,8 +453,8 @@ done
 [ -s "$HARVEY/build/aarch64/out/netblast" ] || err "build/aarch64/out/netblast missing after rsync-back"
 magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/netblast" | tr -d ' \n')
 [ "$magic" = "00008c47" ] || err "build/aarch64/out/netblast: bad magic $magic (want 00008c47)"
-# 08-03: the four full-tree gate binaries carry the same magic contract
-for f in ipconfig ping udpecho aan; do
+# 08-03: the six Phase-8 gate binaries carry the same magic contract
+for f in ipconfig ping udpecho aan tcpblast tcpecho; do
 	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
 	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"

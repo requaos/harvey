@@ -1,0 +1,38 @@
+# netaddr.rc — the D-11 single addressing seam for the Phase-8 net gates.
+#
+# One committed harness-side data file defines guest/host addresses per
+# leg; every later gate's assertions and baked fragments derive from it —
+# sourced by the root-tree/lib/netip-*.rc sweeps (08-04/06/07/08) and read
+# by the r9 xtask profiles through the R9_HARVEY_DIR channel.  NO gate
+# hardcodes a 10.0.2.x or other per-leg address anywhere else (Pitfall 9's
+# named failure mode).  Phase 9 lifts this seam into HNET-02's TOML
+# single-sourcing.
+#
+# Shape: rc-syntax key=value assignments, one commented section per leg,
+# keys prefixed by leg so sourcing the whole file binds every leg
+# unambiguously (a bare guestv4 per leg would be last-wins on source).
+# Consumers take the leg prefix they serve.
+
+# --- loopback leg (08-04/05 gates: ping 127.0.0.1, udp echo, tcp/7 echo,
+#     aan drop-and-resume — all NIC-free) ---
+lo_guestv4=127.0.0.1
+
+# --- slirp leg (08-06/07/08 gates: static ipconfig, DHCP via ipconfig's
+#     dhcpclient, ether-leg IPv6, the tcpblast machinery proof) ---
+# qemu -netdev user defaults: vnetwork 10.0.2.0/24, host 10.0.2.2, guest
+# 10.0.2.15 (DHCP start).  Hermetic/unprivileged/CI-able; every slirp-green
+# gate is labeled not-L2-truth per D-10 — the tap verdict is Phase 9's
+# joint gate (D-15).
+slirp_guestv4=10.0.2.15
+slirp_maskv4=255.255.255.0
+slirp_gwv4=10.0.2.2
+# slirp v6: qemu's default v6 prefix is fec0::/64 with the host at fec0::2
+# and the guest at fec0::15.  08-07 probes the exact served shape on the
+# live gate and finalizes these two values then (the plan's sanctioned
+# sequencing — the file and its leg sections land now).
+slirp_guestv6=fec0::15
+slirp_gwv6=fec0::2
+
+# tcpblast host-echo port (the 08-08 slirp soak dials slirp_gwv4:blastport;
+# the sweep owns the host-side echo listener on this port).
+blastport=7777
