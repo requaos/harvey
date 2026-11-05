@@ -81,6 +81,30 @@ done
 [ -f "$HARVEY/rc/lib/rcmain" ] || err "rc/lib/rcmain missing (ships verbatim)"
 [ -f "$HARVEY/adm/timezone/local" ] || err "adm/timezone/local missing (the repo's tz data)"
 
+# 06-07 (D-12, USPACE-06): the tier-1 payload — the full sweep-referenced
+# h* binary set (the 41 r9-runnable + 20 write-flow members; the write-flow
+# binaries bake too — the sweep emits their named T1-SKIP lines from the
+# venue guard this era, and the image is the ONE tier-1 payload for every
+# later venue) + the sweep script + its fixed inputs as /lib data.
+# hdrawtest/harctest are excluded BY DESIGN (the 06-05 faulting libmemdraw
+# pair — never sweep-invoked); hstacksmoke is not sweep-referenced (the
+# image's plain stacksmoke rides the termrc).  Producer: subset-build.sh
+# (the tier-file loops) exactly as for the subset inputs above.
+TIER1_BINS="cat cp date echo ls mkdir mv ps rm sed test wc rc grep awk"
+TIER1_BINS="$TIER1_BINS bc sort tr uniq tail dd tar chmod tee basename sleep cmp comm fmt join look pr split strings sum md5sum sha1sum ed dc units cal touch time seq read du xd nm"
+TIER1_BINS="$TIER1_BINS cpp mk yacc lex 7a 7c 7l"
+for f in $TIER1_BINS; do
+	[ -f "$BIN/$f" ] || err "$BIN/$f missing — run sh build/aarch64/subset-build.sh first (the tier-1 sweep payload)"
+done
+[ -f "$BIN/ip/ipconfig" ] || err "$BIN/ip/ipconfig missing — run sh build/aarch64/subset-build.sh first"
+[ -f "$BIN/auth/factotum" ] || err "$BIN/auth/factotum missing — run sh build/aarch64/subset-build.sh first"
+[ -f "$OUT/hdisktest" ] || err "$OUT/hdisktest missing — run sh build/aarch64/subset-build.sh first"
+[ -f "$OUT/htdraw" ] || err "$OUT/htdraw missing — run sh build/aarch64/subset-build.sh first"
+[ -f "$HARVEY/build/aarch64/tier1-sweep.rc" ] || err "build/aarch64/tier1-sweep.rc missing (the D-10 sweep)"
+for f in tiny.y tiny.l tiny.mk tiny.s nm-input.7 hello.c; do
+	[ -f "$HARVEY/build/aarch64/$f" ] || err "build/aarch64/$f missing (06-06 committed fixed input)"
+done
+
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/mkimage.XXXXXX")
 cleanup() {
 	rm -rf "$TMPD"
@@ -115,6 +139,27 @@ cp "$BIN/ip/ipconfig" "$STAGE/aarch64/bin/ip/ipconfig"
 cp "$BIN/auth/factotum" "$STAGE/aarch64/bin/auth/factotum"
 cp "$OUT/stacksmoke" "$STAGE/aarch64/bin/stacksmoke"
 cp "$OUT/netblast" "$STAGE/aarch64/bin/netblast"
+
+# 3b. 06-07 (D-12): the tier-1 sweep payload — h-prefixed binaries into
+#     /aarch64/bin (the sweep invokes them as /bin/h* on r9 through the
+#     namespace's /bin union), the sweep + fixed inputs as /lib data
+#     (the paqfs image is read-only — data rides /lib, matching
+#     /lib/net-sweep.rc's precedent)
+mkdir -p "$STAGE/lib/tier1"
+for f in $TIER1_BINS; do
+	cp "$BIN/$f" "$STAGE/aarch64/bin/h$f"
+done
+cp "$BIN/ip/ipconfig" "$STAGE/aarch64/bin/hipconfig"
+cp "$BIN/auth/factotum" "$STAGE/aarch64/bin/hfactotum"
+cp "$OUT/htdraw" "$STAGE/aarch64/bin/htdraw"
+cp "$OUT/hdisktest" "$STAGE/aarch64/bin/hdisktest"
+cp "$HARVEY/build/aarch64/tier1-sweep.rc" "$STAGE/lib/tier1-sweep.rc"
+# the known-content sentinel (the same bytes subset-exec.sh bakes — the
+# sweep's wc/md5sum/sha1sum asserts key on them)
+printf 'alpha bravo charlie\n__SUBSET_GREP_LINE__\n' > "$STAGE/lib/tier1/sentinel.txt"
+for f in tiny.y tiny.l tiny.mk tiny.s nm-input.7 hello.c; do
+	cp "$HARVEY/build/aarch64/$f" "$STAGE/lib/tier1/$f"
+done
 
 # 4. bake-time verbatim copies (rcmain: never edited, single source of
 #    truth; timezone: the repo's data, consumed by init's cpenv)
@@ -155,6 +200,17 @@ for f in $SUBSET; do
 done
 [ -f "$STAGE/aarch64/bin/ip/ipconfig" ] || err "manifest: aarch64/bin/ip/ipconfig missing"
 [ -f "$STAGE/aarch64/bin/auth/factotum" ] || err "manifest: aarch64/bin/auth/factotum missing"
+# 06-07 (D-12): every tier-1 payload path is asserted pre-bake (T-06-15:
+# a stale bake would certify old binaries — presence of the just-staged
+# paths is the tripwire)
+for f in $TIER1_BINS; do
+	[ -f "$STAGE/aarch64/bin/h$f" ] || err "manifest: aarch64/bin/h$f missing"
+done
+for p in aarch64/bin/hipconfig aarch64/bin/hfactotum aarch64/bin/htdraw aarch64/bin/hdisktest \
+	lib/tier1-sweep.rc lib/tier1/sentinel.txt lib/tier1/tiny.y lib/tier1/tiny.l \
+	lib/tier1/tiny.mk lib/tier1/tiny.s lib/tier1/nm-input.7 lib/tier1/hello.c; do
+	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
+done
 for p in root env proc dev srv fd bin tmp mnt; do
 	[ -d "$STAGE/$p" ] || err "manifest: mount-point dir /$p missing"
 done

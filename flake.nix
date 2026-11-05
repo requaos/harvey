@@ -118,6 +118,16 @@
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
             ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
+          # 06-07 (D-12, USPACE-04's second venue): the r9-side tier-1
+          # gate — the SAME composed pipeline, the tier-1 payload in the
+          # image, and build/aarch64/tier1-r9.expect driving the sweep
+          # on r9 (one typed line; r9's devcons serves reads).
+          # smokeR9Pkg's shape verbatim; smoke-r9 itself is untouched.
+          tier1R9Pkg = mkScriptApp pkgs "harvey-boot-r9-tier1" ./nix/tier1-r9.sh ''
+            export R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
+            ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -133,6 +143,7 @@
         } // nixpkgs.lib.optionalAttrs (builtins.hasAttr system r9.packages) {
           boot-r9 = mkApp bootR9Pkg;
           boot-r9-smoke = mkApp smokeR9Pkg;
+          boot-r9-tier1 = mkApp tier1R9Pkg;
         });
 
       devShells = forAllSystems (system:

@@ -11,6 +11,13 @@
 #
 #	usage: rc /boot/tier1-sweep.rc [venue]	venue: donor (default) | r9
 #
+# On the donor the sweep + h* binaries are devroot-embedded at /boot.
+# On r9 (06-07, D-12) the sweep bakes at /lib/tier1-sweep.rc, the
+# binaries at /aarch64/bin (invoked as /bin/h* through the namespace
+# union), and the data at /lib/tier1 — the B/D prefix block below maps
+# the paths per venue, and the driver types ONE line at the r9 %
+# prompt (r9's devcons serves reads): `rc /lib/tier1-sweep.rc r9`.
+#
 # Markers over serial (host asserts presence, never interleaving order;
 # TCG-timing tolerant):
 #	T1-OK <name>	the binary's fixed-input check passed
@@ -59,6 +66,18 @@
 
 venue=$1
 if(~ $#venue 0) venue=donor
+
+# Venue path prefixes (06-07, D-12): on the donor the tier-1 set is
+# devroot-embedded at /boot and the fixed inputs ride /boot as data;
+# on r9 the binaries bake into the image's /aarch64/bin (resolved
+# through the namespace's /bin union) and the data rides /lib/tier1
+# (the paqfs image is read-only; /boot on r9 is the kernel's devroot).
+B=/boot
+D=/boot
+if(~ $venue r9){
+	B=/bin
+	D=/lib/tier1
+}
 
 # check NAME CMD... — run the fixed input; zero exit status → T1-OK.
 # A failing entry never aborts the sweep: the command rides if(), its
@@ -123,22 +142,8 @@ psout=`{$B/hps}
 if(~ rc $psout) echo T1-OK ps
 if not echo T1-FAIL ps
 
-# ipconfig: usage-level (network-less guest) — usage text on stderr,
-# non-zero exit; the output check is the proof
-ipcout=`{$B/hipconfig -Z >[2=1]}
-if(~ $ipcout *ipconfig*) echo T1-OK ipconfig
-if not echo T1-FAIL ipconfig
-
-# factotum: backgrounded spawn (v1.0's -n -s subexec shape), then
-# resident-in-ps — bounded settle loop (TCG), never a silent hang
-$B/hfactotum -n -s subexec &
-factok=0
-for(i in 1 2 3 4 5 6 7 8 9 10){
-	if(~ hfactotum `{$B/hps}) factok=1
-	if(~ $factok 0) sleep 1
-}
-if(~ $factok 1) echo T1-OK factotum
-if not echo T1-FAIL factotum
+# (ipconfig + factotum live in the donor-venue guard below — 06-07's
+# measured r9-era gaps; see the note above the coreutils block.)
 
 # awk: field splitting through a pipe (the G1 maketab generator path
 # produced this binary's proctab.c at build time)
@@ -151,6 +156,15 @@ if not echo T1-FAIL awk
 out=`{$B/hawk 'BEGIN{printf "%.3f\n", 1.0/3.0}'}
 if(~ $out 0.333) echo T1-OK float-d01
 if not echo T1-FAIL float-d01
+
+# ipconfig + factotum MOVED into the donor-venue guard (06-07, measured
+# on the r9 venue this plan): ipconfig opens /dev/random at startup
+# (r9 has no devrandom this era — a PRNG masquerading as /dev/random is
+# threat surface, never a shim), and factotum's startup needs the
+# devproc "protect"/"noswap" ctl verbs + a devsrv-service mount
+# (r9's sys_mount is pipe-9P-only this era; the image's auth
+# stub-by-absence already means no factotum on r9).  Both take named
+# T1-SKIP lines on r9 (USPACE-04 transparency: never an unearned T1-OK).
 
 # --- 06-06: coreutils extension (D-09) — read-only checks (run on
 # every venue).  Assertion shapes honor the measured rc ~ dialect
@@ -204,12 +218,14 @@ if not echo T1-FAIL sum
 
 # md5sum/sha1sum: exact known-content asserts — the digests of the
 # baked sentinel (computed at authoring time from its exact 41 bytes:
-# 'alpha bravo charlie\n__SUBSET_GREP_LINE__\n')
+# 'alpha bravo charlie\n__SUBSET_GREP_LINE__\n').  The path in the
+# assert is caret-concatenated from $D — single quotes never expand
+# (rc), so the venue-mapped path must be BUILT, not embedded literal.
 md5out=`{$B/hmd5sum $D/sentinel.txt}
-if(~ $"md5out '6c3d57e94871f9606c5b63c315e76135 $D/sentinel.txt') echo T1-OK md5sum
+if(~ $"md5out '6c3d57e94871f9606c5b63c315e76135 '^$D^/sentinel.txt) echo T1-OK md5sum
 if not echo T1-FAIL md5sum
 sha1out=`{$B/hsha1sum $D/sentinel.txt}
-if(~ $"sha1out '893404a2c36b54f5c7874070d1acefe38f7ce652 $D/sentinel.txt') echo T1-OK sha1sum
+if(~ $"sha1out '893404a2c36b54f5c7874070d1acefe38f7ce652 '^$D^/sentinel.txt) echo T1-OK sha1sum
 if not echo T1-FAIL sha1sum
 
 # ed MOVED into the donor-venue guard (06-07, measured): ed.c ALWAYS
@@ -354,8 +370,9 @@ if(~ $venue donor){
 	# dir carrying our hdc as 'dc' over /bin first (bind -b; /bin/bind
 	# is the donor's own).  The shim binary execs from the srv9
 	# writable prefix — the A3 mechanic the Task-2 canary also gates.
-	# (Donor-guarded: r9's Harvey image carries /bin/dc natively, so
-	# the r9 venue takes the named SKIP until 06-07 wires it.)
+	# (Donor-guarded: the shim needs a writable /tmp, so bc takes the
+	# named T1-SKIP on r9 this era — r9 has no writable fs for the shim
+	# even though its Harvey image carries the dc binary.)
 	bcok=1
 	$B/hmkdir /tmp/bc-bin || bcok=0
 	if(~ $bcok 1){ $B/hcp $B/hdc /tmp/bc-bin/dc || bcok=0 }
@@ -547,6 +564,30 @@ if(~ $venue donor){
 		if not echo T1-FAIL selfhost
 	}
 	if(~ $shok 0) echo T1-FAIL selfhost
+
+	# --- 06-07: ipconfig + factotum (moved from the read-only block —
+	# MEASURED r9-era gaps: ipconfig opens /dev/random at startup (r9
+	# has no devrandom this era); factotum's startup needs the devproc
+	# "protect"/"noswap" ctl verbs and a devsrv-service mount (r9's
+	# sys_mount is pipe-9P-only this era), and the image's auth
+	# stub-by-absence already means no factotum on r9.  Named T1-SKIP
+	# lines there (USPACE-04 transparency). ---
+	# ipconfig: usage-level (network-less guest) — usage text on stderr,
+	# non-zero exit; the output check is the proof
+	ipcout=`{$B/hipconfig -Z >[2=1]}
+	if(~ $ipcout *ipconfig*) echo T1-OK ipconfig
+	if not echo T1-FAIL ipconfig
+
+	# factotum: backgrounded spawn (v1.0's -n -s subexec shape), then
+	# resident-in-ps — bounded settle loop (TCG), never a silent hang
+	$B/hfactotum -n -s subexec &
+	factok=0
+	for(i in 1 2 3 4 5 6 7 8 9 10){
+		if(~ hfactotum `{$B/hps}) factok=1
+		if(~ $factok 0) sleep 1
+	}
+	if(~ $factok 1) echo T1-OK factotum
+	if not echo T1-FAIL factotum
 }
 if not {
 	echo T1-SKIP mkdir
@@ -569,6 +610,8 @@ if not {
 	echo T1-SKIP 7a
 	echo T1-SKIP selfhost-compile
 	echo T1-SKIP selfhost
+	echo T1-SKIP ipconfig
+	echo T1-SKIP factotum
 }
 
 # --- 06-05: tier-0 lib test binaries (D-06 — the in-tree lib tests run
