@@ -468,6 +468,7 @@ datfill(uchar *sbuf, long soff, uchar *dbuf, long doff)
 	long a, l, fl, j;
 	vlong d;
 	int i, c;
+	int fhw[2];
 
 	for(p = datap; p != P; p = p->link) {
 		curp = p;
@@ -511,7 +512,21 @@ datfill(uchar *sbuf, long soff, uchar *dbuf, long doff)
 				nuxi = fnuxi4;
 				break;
 			case 8:
-				cast = (uchar*)p->to.ieee;
+				/*
+				 * Harvey LP64 fix: emit the two 32-bit halves
+				 * explicitly.  On LP64 hosts long is 64-bit, so
+				 * struct Ieee {long l; long h;} is 16 bytes and the
+				 * struct cast emits l's low half then l's zero high
+				 * half — h is never written, and double constants
+				 * land in the literal pool with hi=0 (the 06-03 hawk
+				 * float-canary fault: awk's %.3f of 1/3 aborted in
+				 * strtod's umuldiv guard on the donor).  On Plan 9
+				 * long is 32-bit and Ieee is 8 bytes; two ints give
+				 * the same packed layout on every host.
+				 */
+				fhw[0] = p->to.ieee->l;
+				fhw[1] = p->to.ieee->h;
+				cast = (uchar*)fhw;
 				nuxi = fnuxi8;
 				break;
 			}
