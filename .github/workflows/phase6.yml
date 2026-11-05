@@ -74,6 +74,12 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          # Full history: the gethunk repro gates' archive mode runs
+          # `git archive $PREREF` against the recorded pre-fix ref —
+          # the default shallow checkout (fetch-depth 1) lacks the
+          # object and the gates red in seconds.
+          fetch-depth: 0
       - name: install nix
         uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
       - name: host bin bootstrap (pcc + plan9port userland)
