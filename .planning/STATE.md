@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 07
 current_phase_name: r9 PCI/ECAM + virtio-net + devether
 status: executing
-stopped_at: Completed 07-06-PLAN.md
-last_updated: "2026-11-05T01:09:05.072Z"
+stopped_at: Completed 06-03-PLAN.md
+last_updated: "2026-11-05T01:28:27.665Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 07 execution started
-state_head: 26267b5bb2fd77e4d71d79fbc835b895d31c074e
+state_head: a8e93784cc339c67667f26107d1f69910f8d7872
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 16
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -108,6 +108,7 @@ Progress: [░░░░░░░░░░] 0% (v2.0)
 | Phase 07 P02 | 12min | 2 tasks | 7 files |
 | Phase 07 P05 | 12 min | 2 tasks | 4 files |
 | Phase 07 P06 | 25 min | 2 tasks | 18 files |
+| Phase 06 P03 | 71 min | 2 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -237,6 +238,9 @@ Recent decisions affecting current work:
 - [Phase 07]: 07-06: the pci node's ranges 64-bit MMIO window is parsed pci.rs-local (stride from declared cell counts; the 0b11 space-bits tuple) — fdt::property_range_iter caps child addresses at 2 cells and PCI declares 3; the BAR base comes from the DTB either way
 - [Phase 07]: 07-06: rx_replenish learns the slot being posted (per-slot buffer-page binding) and returns Replenish { offered, notified } (exact nnote under suppression) — the 07-03 seam's sanctioned evolution; 22 port tests green
 - [Phase 07]: 07-06: ring bring-up order = Ring::new chain assembly → queue_enable LAST → DRIVER_OK → rx_replenish pre-posts with ONE notify — the 07-03 boot-order contract (never notify before DRIVER_OK) governs the truth bullet's looser phrasing
+- [Phase 06]: 06-03: the staged termrc override swaps the SERVED rootfs's rc/bin/termrc (guest scratch, trap-restored, self-healing) — the donor init's pass structure runs the sweep once at boot and gives drive9 its shell proof on the pass-2 manual rc; no /lib/namespace edit, no typed console interaction during the sweep
+- [Phase 06]: 06-03: boot-chain ledger honesty (USPACE-04 transparency outranks plan text): stage/stacksmoke BOOT:donor with the 06-03 gate log; 9k/boot, stage/init, cmd/paqfs:paqfs BOOT:donor with the 05-03 real-chain trace (the subset-exec venue boots the DONOR's own chain); PENDING-CHAIN:06-07 added as the transient Task-1 exec vocabulary
+- [Phase 06]: 06-03: the tracer caught 7l's LP64 double-constant pool emission bug (struct Ieee 16 bytes on LP64 hosts; only l's bytes emitted — double constants landed with hi=0; awk float prints aborted). Fixed 2bbca81ed, proven by donor execution (0.333). 6l's embedded-Ieee variant is the same latent class — deferred-items, amd64 untouched
 
 ### Pending Todos
 
@@ -285,8 +289,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T01:09:05.047Z
-Stopped at: Completed 07-06-PLAN.md
+Last session: 2026-11-05T01:27:17.353Z
+Stopped at: Completed 06-03-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
