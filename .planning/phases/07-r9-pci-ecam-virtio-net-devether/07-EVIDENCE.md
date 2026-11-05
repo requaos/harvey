@@ -70,6 +70,13 @@
   - The spawn line self-describes the stanza: `-netdev user,id=n0 -device virtio-net-pci-non-transitional,netdev=n0`.
 - **Hosted CI (r9-shell.yml):** run **41955568449** — <https://github.com/requaos/harvey/actions/runs/41955568449> — **conclusion: success**, run #7, headSha `15739d108595bde0f17b88081dfcc25f2c271848` (the pushed compose commit carrying the pin), 2026-11-05T02:29:42Z → 02:37:05Z on ubuntu-latest (`nix run .#boot-r9-smoke`, TCG). A FRESH hosted run covering the new pin — nothing pending, nothing substituted.
 
+### 07-09 — readnum_content donor-truncation fix + conv_close pin — virtnet gate re-proof at r9 `1c161931000e77edb546a972f33b1adfa89b0b30`
+
+- **arp mode (NETDRV-03 re-proof):** `R9_BOOT_TEST_TIMEOUT=600 cargo xtask boot-test --arch aarch64 --config virtnet` PASS at r9 `1c161931000e77edb546a972f33b1adfa89b0b30` (the G-07-2 fixed HEAD) — banner, real Harvey boot chain, typed arp sweep N=4, netsweep markers + pcap assertion observed.
+- **blast mode (NETDRV-04 re-proof):** `R9_BOOT_TEST_TIMEOUT=600 R9_NET_SWEEP_MODE=blast cargo xtask boot-test --arch aarch64 --config virtnet` PASS on the SAME HEAD (no intermediate r9 commits between the two runs) — typed blast sweep N=256, NET-DONE + pcap assertion observed. Devether behavior changed (readnum_content), so both gates re-prove the data path.
+- Captures/counters are unchanged by this fix (the type-file read path is not exercised by the sweeps): no new logs/pcaps committed — this is an index re-proof row, not an evidence refresh.
+- Host-side pins land at the same HEAD: `port/src/devether_tests.rs` (crate-root) — readnum_content(-1)==` 4294967295 ` byte-exact + the 0/65535 neighbors + the conv_close last-close reset pin (G-07-1's donor-intentional record); port suite 51/51 (+4), `cargo xtask test` green.
+
 ## Regression state at the pinned HEAD (r9 `2afa3d6`, from 07-07's self-check)
 
 | Leg | Command | Result |

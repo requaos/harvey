@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: CR-01
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "`readnum_content(-1)` panics the kernel — `connect -1` is an admitted ctl verb"
   - id: WR-01
     severity: warning
@@ -59,7 +59,7 @@ findings:
     severity: info
     disposition: open
     title: "netblast's `atoi` silently accepts trailing garbage"
-open: 14
+open: 13
 total: 14
 recorded: 2026-11-05T02:57:20.913Z
 ---
@@ -68,7 +68,7 @@ recorded: 2026-11-05T02:57:20.913Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | open | - |
+| CR-01 | critical | fixed | 07-09 (u32 truncation + host pins) |
 | WR-01 | warning | open | - |
 | WR-02 | warning | open | - |
 | WR-03 | warning | open | - |

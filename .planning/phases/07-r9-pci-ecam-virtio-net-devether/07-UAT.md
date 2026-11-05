@@ -19,10 +19,18 @@ expected: |
   "No network binds (#I/#l0)") — bind first, exactly as net-sweep.rc does:
     bind -a '#l' /net
     conv=`{cat /net/ether0/clone}        # prints the fresh conversation id
-  Then:
+  Then (the ORDER is load-bearing — netif scopes connect by the
+  conversation's open lifetime: the ctl redirection's close is a LAST
+  close unless the data chan is already held open, and conv_close's
+  last-close reset clears typ=0 per donor netif.c:446 — pinned as
+  intentional donor behavior by the 07-09 host test; with typ reset the
+  demux skips the reply and the blocked read never wakes):
+    cat /net/ether0/$conv/data &
     echo connect 2054 > /net/ether0/$conv/ctl
-    cat /net/ether0/$conv/data           # with no traffic — must BLOCK
-    (no EOF, no error). Then generate ARP traffic to the guest MAC (from a
+  The backgrounded cat holds the conversation's data chan open (inuse=1
+  across the connect), so the redirection's ctl close is NOT a last
+  close and typ=2054 sticks. With no traffic the read must BLOCK
+  (no EOF, no error). Then generate ARP traffic to the guest MAC (from a
   second conversation: `dd < /lib/test/arp.req > /net/ether0/$other/data`
   after its own clone+connect 2054) and confirm the blocked read wakes and
   returns exactly one whole 64-byte frame (slirp's padded reply), with
