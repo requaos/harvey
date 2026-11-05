@@ -1,7 +1,7 @@
 ---
 phase: 07-r9-pci-ecam-virtio-net-devether
 verified: 2026-11-05T16:07:53Z
-status: human_needed
+status: passed
 score: 38/39 must-haves verified
 covered_files:
   - .planning/phases/07-r9-pci-ecam-virtio-net-devether/07-01-PLAN.md
@@ -42,7 +42,7 @@ covered_files:
   - build/aarch64/subset-build.sh
   - flake.lock
   - nix/boot-r9.sh
-covered_digest: "v2:sha256:04dff2feb3e435a67c098c4330a3ad495f091eeee6185de4625324015df56b99"
+covered_digest: "v2:sha256:fe4db98fa89762e993b9e61922860a8f35d900a4937b94bc999d8bdd15c7e3a5"
 behavior_unverified: 1
 overrides_applied: 0
 decision_coverage:
