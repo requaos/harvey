@@ -90,8 +90,9 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. devether `#l` presents `/net/ether0` per netif.h with live RX/TX packet counters, and the guest's ARP request is observable in a host-side capture (NETDRV-03)
   4. Interrupt accounting is proven under load: INTx level-triggered plumbing with ISR read-to-ack, and a sustained packet blast shows guest and host counters reconciling with no silent virtqueue wedge (NETDRV-04)
 
-**Plans:** 9/9 plans executed
+**Plans:** 9/10 plans executed
 - [x] 07-09-PLAN.md
+- [ ] 07-10-PLAN.md — gap closure round 2 (G-07-1): RX payload-offset fix (drop the +VIRTIO_NET_HDR_LEN slice base on two-descriptor chains) + chain-faithful host pin + virtnet gate re-proof + push-before-pin (NETDRV-03)
 **Wave 1**
 - [x] 07-01-PLAN.md — xtask netdev stanza (D-09/D-10 idle staging) + pcap parser + harvey: initrd channel + idle-NIC regression (NETDRV-03 machinery)
 - [x] 07-03-PLAN.md — from-scratch virtio transport + unsafe-free ring index model + host unit tests + D-01 provenance record (NETDRV-02 transport half)
