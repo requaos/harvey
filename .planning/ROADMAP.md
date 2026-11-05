@@ -90,14 +90,14 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. devether `#l` presents `/net/ether0` per netif.h with live RX/TX packet counters, and the guest's ARP request is observable in a host-side capture (NETDRV-03)
   4. Interrupt accounting is proven under load: INTx level-triggered plumbing with ISR read-to-ack, and a sustained packet blast shows guest and host counters reconciling with no silent virtqueue wedge (NETDRV-04)
 
-**Plans:** 3/8 plans executed
+**Plans:** 4/8 plans executed
 **Wave 1**
 - [x] 07-01-PLAN.md — xtask netdev stanza (D-09/D-10 idle staging) + pcap parser + harvey: initrd channel + idle-NIC regression (NETDRV-03 machinery)
 - [x] 07-03-PLAN.md — from-scratch virtio transport + unsafe-free ring index model + host unit tests + D-01 provenance record (NETDRV-02 transport half)
 - [x] 07-04-PLAN.md — Harvey bootfs payload: 60-byte arp.req fixture, net-sweep.rc, netblast.c, dd into the image (NETDRV-03 payload half)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 07-02-PLAN.md — fdt interrupt-map extensions + pci.rs DTB discovery prints + lowecam moved-window perturbation gate (NETDRV-01)
+- [x] 07-02-PLAN.md — fdt interrupt-map extensions + pci.rs DTB discovery prints + lowecam moved-window perturbation gate (NETDRV-01)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 07-05-PLAN.md — virtnet boot-test profile: Net stage machine + typed sweep + pcap/stats assertion suite + red-path proof (NETDRV-03 gate machinery)
@@ -195,7 +195,7 @@ Two parallel tracks from the v1.0 foundation: userspace {6 → 10} ∥ networkin
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | v1.0 | 8/8 | Complete | 2026-11-02 |
 | 5. Shell Boot + One-Command Integration | v1.0 | 13/13 | Complete | 2026-11-04 |
 | 6. Full-Tree Userspace — Wave 0 + Libraries/Core | v2.0 | 2/8 | In Progress|  |
-| 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 3/8 | In Progress|  |
+| 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 4/8 | In Progress|  |
 | 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | - | Not started | - |
 | 9. Host Networking + boot-r9 Net Modes | v2.0 | - | Not started | - |
 | 10. Userspace Services + GUI Tiers + Bootfs | v2.0 | - | Not started | - |
