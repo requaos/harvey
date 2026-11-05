@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 07
 current_phase_name: r9 PCI/ECAM + virtio-net + devether
 status: verifying
-stopped_at: Completed 06-08-PLAN.md
-last_updated: "2026-11-05T12:58:27.269Z"
+stopped_at: Completed 07-09-PLAN.md
+last_updated: "2026-11-05T14:29:56.076Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 07 execution started
-state_head: 09b4fd21de39145ad1fdb71775bf98aaef9c63e7
+state_head: 69c4cf689a54c5371d5a8c903ef5d670c4d520eb
 progress:
   total_phases: 7
   completed_phases: 5
-  total_plans: 16
-  completed_plans: 16
+  total_plans: 17
+  completed_plans: 17
 ---
 
 # Project State
@@ -116,6 +116,7 @@ Progress: [░░░░░░░░░░] 0% (v2.0)
 | Phase 06 P06 | 65 min | 2 tasks | 14 files |
 | Phase 06 P07 | 4h 27m | 2 tasks | 24 files |
 | Phase 06 P08 | 4h 8m | 2 tasks | 8 files |
+| Phase 07 P09 | 18 min | 4 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -265,6 +266,9 @@ Recent decisions affecting current work:
 - [Phase 06]: 06-08: phase6.yml is a NEW sibling workflow (r9-shell.yml + harvey.yml byte-untouched, explicit-range-diff proven) carrying the full phase-6 pipeline on linux legs (D-16) — wave0-host/tier-donor/tier-r9/x86_64-poolpanic; EVERY action 40-char-SHA pinned (checkout 11d5960a… + upload-artifact ea165f8d…, both API-resolved 2026-11-05; nix-installer 3138316d…, the 05-13 pin); concurrency group cancels superseded runs; hosted run PENDING FIRST PUSH per the 05-13 precedent
 - [Phase 06]: 06-08: USPACE-10 verdict recorded — PASS no-panic-signature boot-continues (local TCG): the pswt-fixed 6c boots 9k10cpu PAST the 01-04 bad-magic pool-panic point (banner 5s, boot.c's root-is-from prompt reached, zero signature lines) — the Phase-2 pswt hypothesis CONFIRMED; the v1.0 carry-over (deferred 02-8) is closed WITH INFORMATION per D-04's recorded-either-way letter
 - [Phase 06]: 06-08: the USPACE-10 verdict harness asserts verdict PRODUCTION (banner + classification file), never the outcome — a FAIL verdict greens the job (information delivered), an empty capture records FAIL no-banner and reds; healthy continuation markers key on the production boot binary's reachable prints ('root is from', boot.c:342) — the plan-named argc=/version... are DEBUG-gated/post-connection (Rule-1 correction)
+- [Phase 07]: 07-09: the fix is exactly the diagnosis — `let v = val as u32 as u64;` reproduces the C conversion int→ulong (32-bit truncation, never sign extension; Plan 9 long/ulong is 32-bit even on amd64, vlong/uvlong are the 64-bit types hence VLNUMSIZE=22); NO saturating clamp and NO underflow guard — the u32 ceiling makes the underflow unreachable and a guard would mask a future width regression
+- [Phase 07]: 07-09: conv_close's last-close reset (typ=0, owner cleared, queue drain, EOF wake — donor 9k netif.c:446) is pinned as INTENTIONAL by a host test rather than repaired — G-07-1 was a test-PROCEDURE defect (connect before holding the conversation open); the corrected read-first-then-connect protocol lives in 07-UAT.md for the verify-work re-run
+- [Phase 07]: 07-09: push-before-pin executed at the fix HEAD — r9 46a2ed2..1c16193 pushed to requaos/r9 BEFORE the flake.lock advance; the pin commit d5df2df38 names flake.lock ALONE; locked rev == live HEAD == origin/main, owner requaos; hosted r9-shell run 42043430592 SUCCESS at headSha eef588612 (and 42043437746 SUCCESS at the subsequent tip carrying these commits)
 
 ### Pending Todos
 
@@ -313,8 +317,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T12:58:27.114Z
-Stopped at: Completed 06-08-PLAN.md
+Last session: 2026-11-05T14:29:55.515Z
+Stopped at: Completed 07-09-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
