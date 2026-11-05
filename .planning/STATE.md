@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 07
 current_phase_name: r9 PCI/ECAM + virtio-net + devether
 status: executing
-stopped_at: Completed 07-05-PLAN.md
-last_updated: "2026-11-05T00:39:50.806Z"
+stopped_at: Completed 07-06-PLAN.md
+last_updated: "2026-11-05T01:09:05.072Z"
 last_activity: 2026-11-04
 last_activity_desc: Phase 07 execution started
-state_head: 1835813b71dc9366367ee3296a271013596a180f
+state_head: 26267b5bb2fd77e4d71d79fbc835b895d31c074e
 progress:
   total_phases: 7
   completed_phases: 5
   total_plans: 16
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -107,6 +107,7 @@ Progress: [░░░░░░░░░░] 0% (v2.0)
 | Phase 06 P02 | 30 min | 3 tasks | 16 files |
 | Phase 07 P02 | 12min | 2 tasks | 7 files |
 | Phase 07 P05 | 12 min | 2 tasks | 4 files |
+| Phase 07 P06 | 25 min | 2 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -232,6 +233,10 @@ Recent decisions affecting current work:
 - [Phase 06]: 06-02: uniform keep-rule = first-path-component awk extraction (colon-stripped); dir:target keeps its dir in the mk sweep (mkpaqfs compiles green under 7c) while host-only semantics live at the driver/staging layer; leaf target filtering only where equipped (auth/factotum drops fgui)
 - [Phase 06]: 06-02: plan9port mk backquote lexer constraints spiked and encoded (no literal newlines; first unquoted close-brace terminates; $1/$$ are lex errors) — single-line brace-free rc filters with single-quoted awk extractions; mkmany + cmd/mkfile carry empty-TARG phantom guards (Rule-1 deviation, parity re-proven)
 - [Phase 06]: 06-02: Task-3 verify gate 2 is defective as written (mk -n never recurses; ip/ipconfig|auth/factotum can never appear in cmd's own output) — intent proven by per-level chain probes; gate-text repair queued for 06-03 planning
+- [Phase 07]: 07-06: the device-VA arena now reserves a map's WHOLE span (vm::next_free_device_va_span; deviceutil uses it) — the one-page bump aliased every multi-page map's tail (the 64 KiB GICD map clobbered the ECAM window's dev-1 page; the bind was the first ECAM consumer after gic::init, latent since 07-02)
+- [Phase 07]: 07-06: the pci node's ranges 64-bit MMIO window is parsed pci.rs-local (stride from declared cell counts; the 0b11 space-bits tuple) — fdt::property_range_iter caps child addresses at 2 cells and PCI declares 3; the BAR base comes from the DTB either way
+- [Phase 07]: 07-06: rx_replenish learns the slot being posted (per-slot buffer-page binding) and returns Replenish { offered, notified } (exact nnote under suppression) — the 07-03 seam's sanctioned evolution; 22 port tests green
+- [Phase 07]: 07-06: ring bring-up order = Ring::new chain assembly → queue_enable LAST → DRIVER_OK → rx_replenish pre-posts with ONE notify — the 07-03 boot-order contract (never notify before DRIVER_OK) governs the truth bullet's looser phrasing
 
 ### Pending Todos
 
@@ -280,8 +285,8 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-05T00:39:50.782Z
-Stopped at: Completed 07-05-PLAN.md
+Last session: 2026-11-05T01:09:05.047Z
+Stopped at: Completed 07-06-PLAN.md
 Resume file: None
 
 ## Operator Next Steps

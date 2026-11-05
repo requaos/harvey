@@ -90,7 +90,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. devether `#l` presents `/net/ether0` per netif.h with live RX/TX packet counters, and the guest's ARP request is observable in a host-side capture (NETDRV-03)
   4. Interrupt accounting is proven under load: INTx level-triggered plumbing with ISR read-to-ack, and a sustained packet blast shows guest and host counters reconciling with no silent virtqueue wedge (NETDRV-04)
 
-**Plans:** 5/8 plans executed
+**Plans:** 6/8 plans executed
 **Wave 1**
 - [x] 07-01-PLAN.md — xtask netdev stanza (D-09/D-10 idle staging) + pcap parser + harvey: initrd channel + idle-NIC regression (NETDRV-03 machinery)
 - [x] 07-03-PLAN.md — from-scratch virtio transport + unsafe-free ring index model + host unit tests + D-01 provenance record (NETDRV-02 transport half)
@@ -103,7 +103,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] 07-05-PLAN.md — virtnet boot-test profile: Net stage machine + typed sweep + pcap/stats assertion suite + red-path proof (NETDRV-03 gate machinery)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 07-06-PLAN.md — virtio-net driver bring-up: BAR/caps/negotiation/queues/ISR handler + GIC ICFGR + bind in the arming window, ether on all virt configs (NETDRV-02 boot half)
+- [x] 07-06-PLAN.md — virtio-net driver bring-up: BAR/caps/negotiation/queues/ISR handler + GIC ICFGR + bind in the arming window, ether on all virt configs (NETDRV-02 boot half)
 
 **Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 07-07-PLAN.md — devether #l + netif model + arp-mode gate green + blast-mode load gate + evidence (NETDRV-03, NETDRV-04)
@@ -195,7 +195,7 @@ Two parallel tracks from the v1.0 foundation: userspace {6 → 10} ∥ networkin
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | v1.0 | 8/8 | Complete | 2026-11-02 |
 | 5. Shell Boot + One-Command Integration | v1.0 | 13/13 | Complete | 2026-11-04 |
 | 6. Full-Tree Userspace — Wave 0 + Libraries/Core | v2.0 | 2/8 | In Progress|  |
-| 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 5/8 | In Progress|  |
+| 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 6/8 | In Progress|  |
 | 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | - | Not started | - |
 | 9. Host Networking + boot-r9 Net Modes | v2.0 | - | Not started | - |
 | 10. Userspace Services + GUI Tiers + Bootfs | v2.0 | - | Not started | - |
