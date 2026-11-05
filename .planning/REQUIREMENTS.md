@@ -26,7 +26,7 @@
 - [x] **NETDRV-01**: r9 PCI/ECAM platform glue: DTB-driven ECAM scan + `interrupt-map`→GICv2 SPI routing — no hardcoded IRQs/addresses (qemu moved the ECAM window once already)
 - [x] **NETDRV-02**: virtio-net driver with split virtqueues, zero-offload feature mask (MAC+STATUS only) from Day 1, barrier-first aarch64 ring code; provenance decision (virtio-drivers crate vs from-scratch `port/src/virtio.rs`) recorded
 - [ ] **NETDRV-03**: devether `#l` presenting `/net/ether0` per netif.h; RX/TX packet counters; guest ARP request observable on the host
-- [ ] **NETDRV-04**: Interrupt accounting + INTx level-triggered plumbing (ISR read-to-ack) proven under load — no silent virtqueue wedges
+- [x] **NETDRV-04**: Interrupt accounting + INTx level-triggered plumbing (ISR read-to-ack) proven under load — no silent virtqueue wedges
 
 ### r9 TCP/IP Path (NETIP)
 
@@ -131,7 +131,7 @@ Each requirement maps to exactly one phase. Populated 2026-11-04 at roadmap crea
 | NETDRV-01 | Phase 7 | Complete |
 | NETDRV-02 | Phase 7 | Complete |
 | NETDRV-03 | Phase 7 | Pending |
-| NETDRV-04 | Phase 7 | Pending |
+| NETDRV-04 | Phase 7 | Complete |
 | NETIP-01 | Phase 8 | Pending |
 | NETIP-02 | Phase 8 | Pending |
 | NETIP-03 | Phase 8 | Pending |
