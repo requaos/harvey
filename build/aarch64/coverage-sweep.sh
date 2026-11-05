@@ -390,6 +390,17 @@ if [ -n "$NATIVE_LINUX" ]; then
 	# hostbin FIRST so the namespace's mk/7a/7c/7l/ar resolve (the
 	# devshell's PATH shape); nsrun.sh's su line appends /rc/bin:. itself.
 	export PATH="$HARVEY_LINUX_BIN:$PATH"
+	# pcc execs cpp by the ABSOLUTE /bin/cpp (pcc.c's doexec) — on a clean
+	# host /bin/cpp is the distro's gcc driver (or absent), which dies on
+	# its own cc1 inside the namespace (x86_64 runner evidence: 9 ×
+	# 'cannot execute cc1' execvp errors, caught by the generator scan's
+	# exec-failure sweep-grep). nix/build.sh installs Harvey's cpp for the
+	# full build; the native-linux sweep needs the same provisioning.
+	if [ -x "$HARVEY_LINUX_BIN/cpp" ]; then
+		sudo cp "$HARVEY_LINUX_BIN/cpp" /bin/cpp || err "could not provision /bin/cpp (Harvey's)"
+	else
+		err "hostbin cpp missing — the toolchain bootstrap above should have built it"
+	fi
 	export COVERAGE_WATCHDOG_MIN="$WATCHDOG_MIN"
 	export COVERAGE_EXCL="$TMPD/excluded-nspaths.txt"
 	bash "$HARVEY/build/aarch64/nsrun.sh" --wrap "bash $TMPD/coverage-sweep-guest.sh" > "$LOG" 2>&1
