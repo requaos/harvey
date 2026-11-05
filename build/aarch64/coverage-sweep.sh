@@ -394,13 +394,12 @@ if [ -n "$NATIVE_LINUX" ]; then
 	# host /bin/cpp is the distro's gcc driver (or absent), which dies on
 	# its own cc1 inside the namespace (x86_64 runner evidence: 9 ×
 	# 'cannot execute cc1' execvp errors, caught by the generator scan's
-	# exec-failure sweep-grep). nix/build.sh installs Harvey's cpp for the
-	# full build; the native-linux sweep needs the same provisioning.
-	if [ -x "$HARVEY_LINUX_BIN/cpp" ]; then
-		sudo cp "$HARVEY_LINUX_BIN/cpp" /bin/cpp || err "could not provision /bin/cpp (Harvey's)"
-	else
-		err "hostbin cpp missing — the toolchain bootstrap above should have built it"
-	fi
+	# exec-failure sweep-grep). nsrun.sh bind-mounts $HARVEY_LINUX_BIN/cpp
+	# over /bin/cpp inside the private mount namespace (the /bin/rc bind's
+	# pattern), so the in-namespace pcc sees Harvey's cpp on every venue
+	# while the host's /bin/cpp is never touched — the permanent host-side
+	# cp nix/build.sh does for the full build is not repeated here.
+	[ -x "$HARVEY_LINUX_BIN/cpp" ] || err "hostbin cpp missing — the toolchain bootstrap above should have built it"
 	export COVERAGE_WATCHDOG_MIN="$WATCHDOG_MIN"
 	export COVERAGE_EXCL="$TMPD/excluded-nspaths.txt"
 	bash "$HARVEY/build/aarch64/nsrun.sh" --wrap "bash $TMPD/coverage-sweep-guest.sh" > "$LOG" 2>&1

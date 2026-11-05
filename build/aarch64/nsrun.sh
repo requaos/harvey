@@ -104,6 +104,22 @@ mount --bind $HARVEY/rc /rc
 [ -e /bin/rc ] || touch /bin/rc
 mount --bind "$PLAN9/bin/rc" /bin/rc
 
+# pcc execs cpp by the absolute /bin/cpp (pcc.c's doexec) — the same
+# absolute-path class as /bin/rc above.  The namespace shares the distro
+# /bin, whose cpp is the gcc driver (or absent) and dies on its own cc1
+# inside the namespace (x86_64 CI-runner evidence: 'cannot execute cc1');
+# nix/build.sh's answer for the full build is a permanent host-side cp.
+# Bind Harvey's hostbin cpp over /bin/cpp instead: same in-namespace
+# effect, zero host mutation (the mount namespace is private; a created
+# mountpoint is an inert empty file on the host, as with /bin/rc above).
+# Conditional on the toolchain's cmd/cpp leg having run (BUILDTOOLCHAIN),
+# so pre-toolchain namespace uses are unaffected; consumers that require
+# cpp hard-check $HARVEY_LINUX_BIN/cpp themselves (coverage-sweep.sh).
+if [ -n "${HARVEY_LINUX_BIN:-}" ] && [ -x "$HARVEY_LINUX_BIN/cpp" ]; then
+	[ -e /bin/cpp ] || touch /bin/cpp
+	mount --bind "$HARVEY_LINUX_BIN/cpp" /bin/cpp
+fi
+
 mkdir -p /mail
 mount --bind $HARVEY/mail /mail
 
