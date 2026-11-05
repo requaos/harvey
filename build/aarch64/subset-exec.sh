@@ -128,10 +128,17 @@ SUBSET_NAMED="ip/ipconfig auth/factotum"
 # rode the 07-04 image block; its tier-1 gate membership lands here.)
 SUBSET_CORE="bc sort tr uniq tail dd tar chmod tee basename sleep cmp comm fmt join look pr split strings sum md5sum sha1sum ed dc units cal touch time seq read du xd nm"
 SUBSET_CHAIN="cpp mk yacc lex"
+# 06-06 Task 2 (D-11 self-host canary): the v1.0-green target toolchain
+# binaries stage h*-prefixed too — the sweep compiles the committed
+# hello.c IN THE GUEST with /boot/h7c + /boot/h7l and runs the product
+# from the srv9 writable prefix; /boot/h7a assembles the committed
+# tiny.s (7c -FTVw emits .7 directly, so 7a gets its own input).
+SUBSET_SELFHOST="7a 7c 7l"
 # 06-06 committed fixed inputs (staged as bootdir DATA): yacc/lex/mk
 # execution-evidence inputs + nm's baked object (produced at authoring
-# time by the build venue's host 7c over the committed hello.c).
-SUBSET_DATA="tiny.y tiny.l tiny.mk nm-input.7"
+# time by the build venue's host 7c over the committed hello.c) + 7a's
+# assemble stub.
+SUBSET_DATA="tiny.y tiny.l tiny.mk nm-input.7 tiny.s"
 
 # Platform split (06-03, Pitfall P6-4): linux runs the donor rebake in
 # the host's own mount namespace (the self-re-entrant script's
@@ -184,6 +191,13 @@ done
 for f in $SUBSET_DATA; do
 	[ -f "$HARVEY/build/aarch64/$f" ] || err "build/aarch64/$f missing (06-06 committed fixed input)"
 done
+# 06-06 Task 2 (D-11): the canary's toolchain binaries + the guest-side
+# compile's header/libc inputs (staged into the srv9-served root below)
+for f in $SUBSET_SELFHOST; do
+	[ -x "$HARVEY/aarch64/bin/$f" ] || err "aarch64/bin/$f missing — run sh build/aarch64/subset-build.sh first"
+done
+[ -d "$HARVEY/aarch64/include" ] || err "aarch64/include missing (the committed arch headers — 02-06 wiring is a precondition)"
+[ -s "$HARVEY/aarch64/lib/libc.a" ] || err "aarch64/lib/libc.a missing — run sh build/aarch64/subset-build.sh first"
 # 06-05: the tier-0 lib test binaries (D-06 — built per-target by
 # subset-build.sh, staged below, run by the sweep's libtest block)
 for f in hdrawtest harctest htdraw hdisktest; do
@@ -248,11 +262,20 @@ done
 # absolute paths (yacc's PARSER=/sys/lib/yaccpar, yacc.c:16; lex's
 # /sys/lib/lex/ncform, lex/lmain.c:17).  Stage Harvey's (the matching
 # skeletons for our vendored tools) into the served root — additive,
-# read-only from the guest side.  (Task 2 extends this block with
-# aarch64/include + aarch64/lib/libc.a for the self-host canary.)
+# read-only from the guest side.
 mkdir -p "$ROOTFS/sys/lib/lex"
 cp "$HARVEY/sys/lib/yaccpar" "$ROOTFS/sys/lib/yaccpar"
 cp "$HARVEY/sys/lib/lex/ncform" "$ROOTFS/sys/lib/lex/ncform"
+# 06-06 Task 2 (D-11 canary): the in-guest 7c/7l resolve headers and
+# autolib via the compiled-in thestring=aarch64 — /aarch64/include and
+# /aarch64/lib/libc.a must exist IN THE SERVED ROOT (7l autolibs libc.a
+# via libc.h's #pragma lib).  Stage Harvey's committed arch include
+# tree + the freshly built libc.a (subset-build's tier-0 fresh-archive
+# product, rsynced back host-side on the darwin leg).
+rm -rf "$ROOTFS/aarch64/include"
+mkdir -p "$ROOTFS/aarch64/lib"
+cp -R "$HARVEY/aarch64/include" "$ROOTFS/aarch64/include"
+cp "$HARVEY/aarch64/lib/libc.a" "$ROOTFS/aarch64/lib/libc.a"
 
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/subset-exec.XXXXXX")
 TERMRC_ORIG="$TMPD/termrc.orig"
@@ -304,6 +327,10 @@ if [ -n "$NATIVE_LINUX" ]; then
 	for f in $SUBSET_DATA; do
 		cp "$HARVEY/build/aarch64/$f" "$DONOR/arm64/bin/subset/$f"
 	done
+	# 06-06 Task 2 (D-11): the canary's toolchain binaries
+	for f in $SUBSET_SELFHOST; do
+		cp "$HARVEY/aarch64/bin/$f" "$DONOR/arm64/bin/subset/h$f"
+	done
 	# 06-05: the tier-0 lib test binaries (D-06)
 	for f in hdrawtest harctest htdraw hdisktest; do
 		cp "$HARVEY/build/aarch64/out/$f" "$DONOR/arm64/bin/subset/$f"
@@ -322,6 +349,10 @@ else
 	rsync -a -e "$RSYNC_RSH" "$HARVEY/build/aarch64/hello.c" "$GUEST:$GUEST_DONOR/arm64/bin/subset/hello.c"
 	for f in $SUBSET_DATA; do
 		rsync -a -e "$RSYNC_RSH" "$HARVEY/build/aarch64/$f" "$GUEST:$GUEST_DONOR/arm64/bin/subset/$f"
+	done
+	# 06-06 Task 2 (D-11): the canary's toolchain binaries
+	for f in $SUBSET_SELFHOST; do
+		rsync -a -e "$RSYNC_RSH" "$HARVEY/aarch64/bin/$f" "$GUEST:$GUEST_DONOR/arm64/bin/subset/h$f"
 	done
 	# 06-05: the tier-0 lib test binaries (D-06)
 	for f in hdrawtest harctest htdraw hdisktest; do
@@ -399,6 +430,10 @@ cat > "$TMPD/subset-bootdir.txt" <<'EOF'
 	/$objtype/bin/subset/tiny.l	tiny.l
 	/$objtype/bin/subset/tiny.mk	tiny.mk
 	/$objtype/bin/subset/nm-input.7	nm-input.7
+	/$objtype/bin/subset/h7a	h7a
+	/$objtype/bin/subset/h7c	h7c
+	/$objtype/bin/subset/h7l	h7l
+	/$objtype/bin/subset/tiny.s	tiny.s
 EOF
 
 cat > "$TMPD/subset-ns-rebake.sh" <<'GUEST_EOF'
@@ -521,11 +556,11 @@ echo "== donor CONF bootdir now:"
 sed -n '/^bootdir/,$p' "$CONF"
 
 # assert the staged files (25 v1.0/06-03/06-05 + 37 h* 06-06 binaries +
-# 4 06-06 data files = 66).  NOTE: this runs inside the generated guest
-# script — it must stay a LITERAL list (the host-side SUBSET_CORE/
-# SUBSET_CHAIN/SUBSET_DATA variables are not exported across the ssh/
+# 4 06-06 data files + 3 canary h7* + tiny.s = 70).  NOTE: this runs
+# inside the generated guest script — it must stay a LITERAL list (the
+# host-side SUBSET_* variables are not exported across the ssh/
 # namespace boundary; measured 2026-11-05: unbound-variable abort)
-for f in hrc hgrep hcat hcp hdate hecho hls hmkdir hmv hps hrm hsed htest hwc hipconfig hfactotum hawk hstacksmoke hdrawtest harctest htdraw hdisktest sentinel.txt tier1-sweep.rc hello.c hbc hsort htr huniq htail hdd htar hchmod htee hbasename hsleep hcmp hcomm hfmt hjoin hlook hpr hsplit hstrings hsum hmd5sum hsha1sum hed hdc hunits hcal htouch htime hseq hread hdu hxd hnm hcpp hmk hyacc hlex tiny.y tiny.l tiny.mk nm-input.7; do
+for f in hrc hgrep hcat hcp hdate hecho hls hmkdir hmv hps hrm hsed htest hwc hipconfig hfactotum hawk hstacksmoke hdrawtest harctest htdraw hdisktest sentinel.txt tier1-sweep.rc hello.c hbc hsort htr huniq htail hdd htar hchmod htee hbasename hsleep hcmp hcomm hfmt hjoin hlook hpr hsplit hstrings hsum hmd5sum hsha1sum hed hdc hunits hcal htouch htime hseq hread hdu hxd hnm hcpp hmk hyacc hlex tiny.y tiny.l tiny.mk nm-input.7 h7a h7c h7l tiny.s; do
 	[ -s "$DONOR/arm64/bin/subset/$f" ] || {
 		echo "error: staged tier-1 file missing: $DONOR/arm64/bin/subset/$f" >&2
 		exit 1
@@ -549,7 +584,7 @@ grep -q 'Nbootfiles = 128' "$DEVROOT" || {
 	echo "error: donor devroot Nbootfiles raise did not land" >&2
 	exit 1
 }
-echo "== donor devroot /boot cap raised to Nbootfiles=128 (66-entry tier-1 bootdir)"
+echo "== donor devroot /boot cap raised to Nbootfiles=128 (70-entry tier-1 bootdir)"
 
 mkdir -p "$DIST"
 export DONOR SCRATCH DIST
@@ -756,16 +791,16 @@ grep -q 'stacksmoke: depth 64 ok' "$RUNLOG" || err "captured log lacks the stack
 # (basename; dir:target maps to the target) EXCEPT the entries whose
 # execution evidence lives elsewhere: 9k/boot + stage/init +
 # cmd/paqfs:paqfs (BOOT:donor via the 05-03 real-chain trace — never
-# swept by name) and cmd/7a cmd/7c cmd/7l cmd/cc (the D-11 canary
-# markers — 06-06 Task 2 asserts those separately).  stage/stacksmoke's
-# marker comes from the termrc override.  On the donor venue every
+# swept by name) and cmd/7c cmd/7l cmd/cc (the D-11 canary markers —
+# selfhost-compile/selfhost asserted beside the computed set; cmd/7a
+# carries its own T1-OK 7a marker from the tiny.s assemble).  On the donor venue every
 # member — including the write-flow and build-chain entries — is an
 # ordinary expected-set member (T1-SKIP lines only exist for r9).
 EXPECTED=$(
 	awk 'NF && $1 !~ /^#/ { print $1 }' "$HARVEY/build/aarch64/tiers/tier1-cmds.txt" |
 	while read -r e; do
 		case "$e" in
-		9k/boot|stage/init|cmd/paqfs:paqfs|cmd/7a|cmd/7c|cmd/7l|cmd/cc) continue ;;
+		9k/boot|stage/init|cmd/paqfs:paqfs|cmd/7c|cmd/7l|cmd/cc) continue ;;
 		stage/stacksmoke) echo stacksmoke; continue ;;
 		esac
 		e="${e#cmd/}"
@@ -773,8 +808,8 @@ EXPECTED=$(
 		echo "${e##*/}"
 	done
 )
-echo "== expected T1-OK marker set (computed from tier1-cmds.txt): $(echo $EXPECTED | wc -w | tr -d ' ') members + float-d01 + libtest ×2"
-for m in $EXPECTED float-d01 libtest-tdraw libtest-disktest; do
+echo "== expected T1-OK marker set (computed from tier1-cmds.txt): $(echo $EXPECTED | wc -w | tr -d ' ') members + float-d01 + libtest ×2 + selfhost ×2"
+for m in $EXPECTED float-d01 libtest-tdraw libtest-disktest selfhost-compile selfhost; do
 	grep -q "T1-OK $m" "$RUNLOG" || err "captured log lacks T1-OK $m"
 done
 grep -q 'T1-DONE' "$RUNLOG" || err "captured log lacks T1-DONE (the sweep did not run to completion)"

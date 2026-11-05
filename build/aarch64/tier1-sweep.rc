@@ -24,7 +24,14 @@
 #			is execution-asserted, not assumed
 #	T1-BCOBS <out>	A7 observation: bc's EXACT float output recorded
 #			in the retained log (not an assert — the assert is
-#			the '.'[0-9]* / '0.'[0-9]* shape pair beside it)
+#			the '.'[0-9]* / '0.'[0-9]* shape pair beside it);
+#			T1-XDOBS <words> is the same class for xd
+#	T1-OK selfhost-compile	D-11: the guest's OWN h7c+h7l compiled and
+#			linked the committed hello.c in /tmp (compile-only is
+#			the documented A3 fallback, never the default claim)
+#	T1-OK selfhost	D-11: the guest-compiled binary RAN from the srv9
+#			writable prefix and printed 'hello aarch64 harvey'
+#			(the known-output compare is in the retained log)
 #	T1-DONE		the sweep ran to completion
 #
 # The fixed inputs re-express the v1.0 subset-exec.sh step table
@@ -481,6 +488,46 @@ if(~ $venue donor){
 	mkout=`{/boot/hmk -f /boot/tiny.mk}
 	if(~ $"mkout *__TINY_MK_OK__*) echo T1-OK mk
 	if not echo T1-FAIL mk
+
+	# --- 06-06 Task 2: the guest self-host canary (D-11) — the
+	# strongest reading of "self-hosted build chain executes": OUR
+	# aarch64 7c/7l compile the committed hello.c in the guest's
+	# writable /tmp scratch (this block's cwd) and the produced binary
+	# RUNS and prints.  Compile and run markers are SEPARATE
+	# (T-06-12: a weaker proof can never masquerade as the strong
+	# one).  Headers + libc resolve from the srv9-served root's
+	# staged /aarch64 tree (thestring=aarch64; 7l autolibs libc.a via
+	# libc.h's #pragma lib). ---------------------------------------
+	# 7a first: the canary path doesn't exercise the assembler (7c
+	# -FTVw emits .7 directly) — assemble the committed tiny.s as
+	# 7a's explicit marker
+	a7ok=1
+	/boot/h7a /boot/tiny.s || a7ok=0
+	if(~ $a7ok 1){ /boot/htest -f /tmp/tiny.7 || a7ok=0 }
+	if(~ $a7ok 1) echo T1-OK 7a
+	if not echo T1-FAIL 7a
+
+	shok=1
+	/boot/h7c -FTVw /boot/hello.c || shok=0
+	if(~ $shok 1){ /boot/h7l -o /tmp/hello hello.7 || shok=0 }
+	if(~ $shok 1) echo T1-OK selfhost-compile
+	if not echo T1-FAIL selfhost-compile
+	# the run marker: exec from the srv9 WRITABLE prefix is the A3
+	# mechanic.  The run rides a forked hrc -c so an exec failure
+	# (perm/not-found class) is the CHILD's error — the sweep keeps
+	# its never-wedge property and emits T1-FAIL selfhost (the
+	# documented A3 fallback then engages host-side, recorded as the
+	# weaker COMPILE-ONLY proof in the ledger + EVIDENCE.md)
+	shrun=0
+	if(~ $shok 1){
+		if(/boot/hrc -c '/tmp/hello > /tmp/hello.out'){
+			hout=`{/boot/hcat /tmp/hello.out}
+			if(~ $"hout 'hello aarch64 harvey') shrun=1
+		}
+		if(~ $shrun 1) echo T1-OK selfhost
+		if not echo T1-FAIL selfhost
+	}
+	if(~ $shok 0) echo T1-FAIL selfhost
 }
 if not {
 	echo T1-SKIP mkdir
@@ -499,6 +546,9 @@ if not {
 	echo T1-SKIP yacc
 	echo T1-SKIP lex
 	echo T1-SKIP mk
+	echo T1-SKIP 7a
+	echo T1-SKIP selfhost-compile
+	echo T1-SKIP selfhost
 }
 
 # --- 06-05: tier-0 lib test binaries (D-06 — the in-tree lib tests run
