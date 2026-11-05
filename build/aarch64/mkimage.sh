@@ -72,6 +72,7 @@ done
 [ -s "$OUT/netblast" ] || err "$OUT/netblast missing — run sh build/aarch64/subset-build.sh first"	# 07-04 D-08
 SUBSET="rc grep cat cp date echo ls mkdir mv ps rm sed test wc"
 SUBSET="$SUBSET dd"	# 07-04: dd joins the image (D-07's sweep writer); append form keeps the edit insertion-only
+SUBSET="$SUBSET bind"	# 07-07: the net-sweep's `bind -a '#l' /net` execs /bin/bind (not an rc builtin)
 for f in $SUBSET; do
 	[ -f "$BIN/$f" ] || err "$BIN/$f missing — run sh build/aarch64/subset-build.sh first"
 done
@@ -98,6 +99,10 @@ mkdir -p "$STAGE/root" "$STAGE/env" "$STAGE/proc" "$STAGE/dev" "$STAGE/srv" \
 	"$STAGE/fd" "$STAGE/bin" "$STAGE/tmp" "$STAGE/mnt" \
 	"$STAGE/boot" "$STAGE/aarch64/bin/ip" "$STAGE/aarch64/bin/auth" \
 	"$STAGE/rc/lib" "$STAGE/rc/bin" "$STAGE/adm/timezone"
+# 2a. /net (07-07, NETDRV-03): the net-sweep's `bind -a '#l' /net` needs
+#     the baked mount-point dir — r9's sys_bind requires the target to
+#     EXIST and the paqfs root is read-only this era (no runtime mkdir).
+mkdir -p "$STAGE/net"
 
 # 3. binaries
 cp "$OUT/boot" "$STAGE/boot/boot"
@@ -153,6 +158,7 @@ done
 for p in root env proc dev srv fd bin tmp mnt; do
 	[ -d "$STAGE/$p" ] || err "manifest: mount-point dir /$p missing"
 done
+[ -d "$STAGE/net" ] || err "manifest: mount-point dir /net missing"	# 07-07 (see 2a)
 [ ! -e "$STAGE/boot/factotum" ] || err "manifest: /boot/factotum present — D-02 auth-stub-by-absence violated"
 
 # rcmain ships byte-verbatim (the amd64-safety constraint keys on image

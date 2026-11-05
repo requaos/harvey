@@ -256,6 +256,13 @@ done < "$TIER1"
 echo "== subset cmd: dd (per-target install, 07-04)"
 (cd /sys/src/cmd && objtype=aarch64 mk dd.install) || fail "cmd dd (per-target install)"
 
+# 07-07: bind joins the image — the net-sweep's `bind -a '#l' /net`
+# forks/execs /bin/bind (bind is NOT an rc builtin; the boot chain's own
+# binds are init's /lib/namespace interpretation, a different mechanism).
+# bind.c is single-file, u.h+libc.h only.  Same insertion-only shape as dd.
+echo "== subset cmd: bind (per-target install, 07-07)"
+(cd /sys/src/cmd && objtype=aarch64 mk bind.install) || fail "cmd bind (per-target install)"
+
 # 07-04: netblast, the D-08 TX-bulk generator, joins the image supply
 # chain beside stacksmoke (same compile/harvest shape)
 echo "== boot chain: netblast (07-04, D-08)"
@@ -332,6 +339,8 @@ for f in rc grep cat cp date echo ls mkdir mv ps rm sed test wc; do
 done
 # 07-04: the seventeenth — dd (D-07's sweep writer)
 [ -x "$HARVEY/aarch64/bin/dd" ] || err "aarch64/bin/dd missing after rsync-back"
+# 07-07: the eighteenth — bind (the net-sweep's `bind -a '#l' /net`)
+[ -x "$HARVEY/aarch64/bin/bind" ] || err "aarch64/bin/bind missing after rsync-back"
 [ -x "$HARVEY/aarch64/bin/ip/ipconfig" ] || err "aarch64/bin/ip/ipconfig missing after rsync-back"
 [ -x "$HARVEY/aarch64/bin/auth/factotum" ] || err "aarch64/bin/auth/factotum missing after rsync-back"
 # 06-03: the tracer's additions — awk (G1 generator path) and the
