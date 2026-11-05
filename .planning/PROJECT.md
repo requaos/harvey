@@ -43,6 +43,7 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 - ✓ Harness hygiene (D-16): fresh serial log per boot-test run, process-group qemu teardown — Phase 5 (05-01); WR-07 keyed survivor sweeps (05-REVIEW-FIX)
 - ✓ Host harness tooling is std-only Rust (`build/harness/`, one binary + subcommands) — zero Python in the harness path — quick task 261103-giq (5/5 equivalence gates)
 - ✓ r9 unsafe surface minimized + gated: static mut → 0, per-process usermem model locked, forbid(unsafe_code) across port/ except two named shims, 160-site audit reconciled — quick task 261103-p64
+- ✓ r9 speaks Ethernet on qemu virt: DTB-driven PCI/ECAM discovery (zero hardcoded constants, moved-window perturbation proof), from-scratch unsafe-free virtio transport, virtio-net driver bind with ISR read-to-ack on both GIC gens, devether `#l` + netif presenting /net/ether0, guest ARP ping-pong + 256-frame TX blast reconciled against host pcaps — Phase 7 (NETDRV-01..04; `07-EVIDENCE.md`; r9 pinned `a5b1b42`; hosted CI green; UAT 2/2)
 
 ### Active
 
@@ -135,6 +136,8 @@ Carried over from v1.0:
 | Python harness tools reimplemented as one std-only Rust binary (`build/harness/`) | User decision 2026-11-03 — the repo converges on Rust (r9 kernel); Python host tooling was a stranded dependency | ✓ Good (5/5 equivalence gates; caught a dead Twstat rename + a trace prompt race latent in the .py) |
 | Maximal unsafe elimination in r9 with an honesty floor (confined+documented beats wrapped-and-hidden); per-process user-memory model locked | User decision 2026-11-03 — audit surface shrinks to named floor modules; Plan 9's per-process route (TTBR0-live in syscall context) is THE model; no Linux-style copy layer may be introduced | ✓ Good (160-site audit reconciled; all boot gates green) |
 | Namespace harness must provide `/bin/rc` (bind `$PLAN9/bin/rc`) — the Dockerfile:42 convention replicated in nsrun.sh | Phase 5 UAT (G-05-1) — the lima VM's undocumented manual /bin/rc masked the gap on every prior leg; first fresh-host run (hosted CI) found it | ✓ Good (byte-identical failure repro → green post-fix) |
+| From-scratch virtio transport in r9 port/ (no virtio-drivers crate), zero-offload mask from Day 1, barrier-first ring model host-pinned before any live device | Phase 7 (D-01/D-03/D-04) — the crate's 2025-09 snapshot carried stale assumptions; an unsafe-free, host-testable state machine keeps the device-is-untrusted boundary auditable | ✓ Good (21→54 host pins; the negotiation machine rejected a live device's offered bits correctly on first bind) |
+| Test delivery, not just counters (gates must read a data file, not only stats/pcap) | Phase 7 UAT (G-07-1) — every automated gate stayed green while inbound frames were counted-but-never-enqueued (RX slice off by VIRTIO_NET_HDR_LEN on two-descriptor chains); only a conversational UAT blocked-read caught it | ✓ Good (two-round diagnosis: protocol lifetime bug, then the real kernel offset bug; chain-faithful pin now covers the Ring↔drain seam) |
 
 ## Evolution
 
@@ -154,4 +157,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-04 at milestone v2.0 start (Full System & Drawterm)*
+*Last updated: 2026-11-05 after Phase 7 (r9 PCI/ECAM + virtio-net + devether)*
