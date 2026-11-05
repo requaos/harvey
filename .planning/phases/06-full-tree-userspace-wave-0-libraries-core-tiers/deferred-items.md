@@ -50,3 +50,21 @@ current task's changes (executor scope boundary — logged, not fixed).
   should be audited at the same time.
   **Status:** open — latent toolchain class, deliberately not fixed in
   06-03 (amd64 leg kept byte-untouched; scope boundary).
+
+- tier cmd binaries have no committed anti-staleness mechanism after a
+  toolchain change
+  status: open
+  **Found during:** 06-03 Task 1 (the 7l LP64 fix's revalidation)
+  **What:** mk's freshness graph never names the toolchain binaries, so
+  after a toolchain fix (e.g. the 06-03 7l fix), tier-1 cmd binaries'
+  `mk install` relinks nothing — stale objects produce stale binaries.
+  D-07's fresh-archive rule covers only the tier-0 `.a` archives.  The
+  06-03 tracer re-run was made honest by the guest tree's .7-clean state
+  (vm-run's host→guest `--delete` rsync swept them) + the fixed 7l
+  copied into the guest hostbin — an operator step, not machinery.
+  06-05/06-06's mass sweeps should decide: per-entry `mk clean` in the
+  tier loops, a committed object sweep on toolchain change, or a
+  documented operator step.  donor-vm-build.sh step 4b's sweep is the
+  in-tree precedent.
+  **Status:** open — needs a decision by the first mass tier wave after
+  any toolchain change.
