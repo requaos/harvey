@@ -70,6 +70,11 @@ for f in boot init paqfs stacksmoke; do
 	[ -s "$OUT/$f" ] || err "$OUT/$f missing — run sh build/aarch64/subset-build.sh first"
 done
 [ -s "$OUT/netblast" ] || err "$OUT/netblast missing — run sh build/aarch64/subset-build.sh first"	# 07-04 D-08
+# 08-03: the Phase-8 gate payloads (D-12) — the four full-tree binaries
+# (dir/per-target installs + out/ harvest blocks in subset-build.sh)
+for f in ipconfig ping udpecho aan; do
+	[ -s "$OUT/$f" ] || err "$OUT/$f missing — run sh build/aarch64/subset-build.sh first"
+done
 SUBSET="rc grep cat cp date echo ls mkdir mv ps rm sed test wc"
 SUBSET="$SUBSET dd"	# 07-04: dd joins the image (D-07's sweep writer); append form keeps the edit insertion-only
 SUBSET="$SUBSET bind"	# 07-07: the net-sweep's `bind -a '#l' /net` execs /bin/bind (not an rc builtin)
@@ -78,6 +83,11 @@ for f in $SUBSET; do
 done
 [ -f "$BIN/ip/ipconfig" ] || err "$BIN/ip/ipconfig missing — run sh build/aarch64/subset-build.sh first"
 [ -f "$BIN/auth/factotum" ] || err "$BIN/auth/factotum missing — run sh build/aarch64/subset-build.sh first"
+# 08-03: ping/udpecho install to bin/ip via the mkmany %.install rule;
+# aan installs to bin/ via cmd's per-target rule
+[ -f "$BIN/ip/ping" ] || err "$BIN/ip/ping missing — run sh build/aarch64/subset-build.sh first"
+[ -f "$BIN/ip/udpecho" ] || err "$BIN/ip/udpecho missing — run sh build/aarch64/subset-build.sh first"
+[ -f "$BIN/aan" ] || err "$BIN/aan missing — run sh build/aarch64/subset-build.sh first"
 [ -f "$HARVEY/rc/lib/rcmain" ] || err "rc/lib/rcmain missing (ships verbatim)"
 [ -f "$HARVEY/adm/timezone/local" ] || err "adm/timezone/local missing (the repo's tz data)"
 
@@ -137,6 +147,10 @@ for f in $SUBSET; do
 done
 cp "$BIN/ip/ipconfig" "$STAGE/aarch64/bin/ip/ipconfig"
 cp "$BIN/auth/factotum" "$STAGE/aarch64/bin/auth/factotum"
+# 08-03: the Phase-8 gate binaries bake beside ipconfig (D-12)
+cp "$BIN/ip/ping" "$STAGE/aarch64/bin/ip/ping"
+cp "$BIN/ip/udpecho" "$STAGE/aarch64/bin/ip/udpecho"
+cp "$BIN/aan" "$STAGE/aarch64/bin/aan"
 cp "$OUT/stacksmoke" "$STAGE/aarch64/bin/stacksmoke"
 cp "$OUT/netblast" "$STAGE/aarch64/bin/netblast"
 
@@ -200,6 +214,11 @@ for f in $SUBSET; do
 done
 [ -f "$STAGE/aarch64/bin/ip/ipconfig" ] || err "manifest: aarch64/bin/ip/ipconfig missing"
 [ -f "$STAGE/aarch64/bin/auth/factotum" ] || err "manifest: aarch64/bin/auth/factotum missing"
+# 08-03: the Phase-8 gate binaries are asserted pre-bake (T-08-05: a
+# missing/stale payload fails the bake loudly)
+[ -f "$STAGE/aarch64/bin/ip/ping" ] || err "manifest: aarch64/bin/ip/ping missing"
+[ -f "$STAGE/aarch64/bin/ip/udpecho" ] || err "manifest: aarch64/bin/ip/udpecho missing"
+[ -f "$STAGE/aarch64/bin/aan" ] || err "manifest: aarch64/bin/aan missing"
 # 06-07 (D-12): every tier-1 payload path is asserted pre-bake (T-06-15:
 # a stale bake would certify old binaries — presence of the just-staged
 # paths is the tripwire)

@@ -276,6 +276,34 @@ echo "== boot chain: netblast (07-04, D-08)"
 	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/netblast" netblast.7 \
 	&& rm -f netblast.7) || fail "netblast"
 
+# 08-03: the Phase-8 gate binaries (NETIP-03..07) build from the full
+# tree as Phase-8-owned payload rules (D-12 — NOT tier-allowlist
+# appends; the Phase 6 tier data files stay untouched).  Each binary is
+# harvested to out/ beside netblast so the host-side magic contract and
+# mkimage.sh's manifest asserts name it.  ipconfig is also a tier-1
+# entry (the v1.0 closure) — this block's re-install is idempotent
+# (mk sees it up-to-date); the harvest-to-out/ is the new payload
+# surface.  Insertion-only beside the 07-04/07-07 blocks per the same
+# Phase-6 collision-avoidance rule (07-04 precedent).
+echo "== subset cmd: ipconfig (dir install + out/ harvest, 08-03)"
+(cd /sys/src/cmd/ip/ipconfig && objtype=aarch64 mk install) || fail "cmd ip/ipconfig (dir install)"
+cp /aarch64/bin/ip/ipconfig "$HARVEY/build/aarch64/out/ipconfig" || fail "harvest ipconfig to out/"
+
+echo "== subset cmd: ping (per-target install + out/ harvest, 08-03)"
+(cd /sys/src/cmd/ip && objtype=aarch64 mk ping.install) || fail "cmd ip ping (per-target install)"
+cp /aarch64/bin/ip/ping "$HARVEY/build/aarch64/out/ping" || fail "harvest ping to out/"
+
+echo "== subset cmd: udpecho (per-target install + out/ harvest, 08-03)"
+(cd /sys/src/cmd/ip && objtype=aarch64 mk udpecho.install) || fail "cmd ip udpecho (per-target install)"
+cp /aarch64/bin/ip/udpecho "$HARVEY/build/aarch64/out/udpecho" || fail "harvest udpecho to out/"
+
+# 08-03: aan links libthread + libauth via #pragma autolib off the
+# tier-0 archives the loop above just rebuilt (Phase 2 landed
+# libthread's aarch64 port; the closure is tier-0-complete).
+echo "== subset cmd: aan (per-target install + out/ harvest, 08-03)"
+(cd /sys/src/cmd && objtype=aarch64 mk aan.install) || fail "cmd aan (per-target install)"
+cp /aarch64/bin/aan "$HARVEY/build/aarch64/out/aan" || fail "harvest aan to out/"
+
 # 06-05: tier-0 lib test binaries (D-06 — in-tree lib tests run on the
 # donor where they exist; subset-exec.sh stages them h*-style and the
 # sweep's libtest markers are the libs' exec=TEST:donor evidence).
@@ -365,6 +393,10 @@ if [ -z "$NATIVE_LINUX" ]; then
 		"$GUEST:$GUEST_DIR/build/aarch64/out/paqfs" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/stacksmoke" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/netblast" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/ipconfig" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/ping" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/udpecho" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/aan" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/hdrawtest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/harctest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/htdraw" \
@@ -406,6 +438,12 @@ done
 [ -s "$HARVEY/build/aarch64/out/netblast" ] || err "build/aarch64/out/netblast missing after rsync-back"
 magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/netblast" | tr -d ' \n')
 [ "$magic" = "00008c47" ] || err "build/aarch64/out/netblast: bad magic $magic (want 00008c47)"
+# 08-03: the four full-tree gate binaries carry the same magic contract
+for f in ipconfig ping udpecho aan; do
+	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
+	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
+	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
+done
 # 06-05: the tier-0 lib test binaries carry the same magic contract
 for f in hdrawtest harctest htdraw hdisktest; do
 	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
