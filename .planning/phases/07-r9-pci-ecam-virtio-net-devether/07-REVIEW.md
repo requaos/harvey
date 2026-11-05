@@ -306,6 +306,91 @@ the existing "bad count" path; or document the sweep as the only caller.
 
 ---
 
+## Incremental Review — 07-09 gap closure
+
+**Reviewed:** 2026-11-05
+**Depth:** standard
+**Scope:** the 07-09 source-change set only — `../r9/port/src/devether.rs`
+(the GREEN fix: `readnum_content` + doc comment, r9 commit `1c16193`) and
+`../r9/port/src/devether_tests.rs` (the RED pins, r9 commit `1e77266`).
+**New findings:** 0 (critical 0, warning 0, info 0). Frontmatter counts above
+are unchanged: the union of findings is the original 14; CR-01's resolution by
+this plan is recorded in the disposition ledger, not here.
+
+### Verdict
+
+The CR-01 fix is correct, donor-exact over the full admitted domain, and the
+new tests assert what they claim. Adversarial pass found no new defects.
+
+### Verification detail (the four review questions)
+
+1. **Donor-exactness over the admitted domain.** Verified against the in-tree
+   donors: `sys/src/9k/port/devcons.c:712` is
+   `readnum(ulong off, char *buf, ulong n, ulong val, int size)` with
+   `snprint(tmp, sizeof(tmp), "%*lud", size-1, val); tmp[size-1] = ' ';`;
+   `sys/src/9k/port/netif.h:40` is `int type;` inside `struct Netfile`;
+   `portdat.h:780` is `NUMSIZE = 12`. `val as u32 as u64` reproduces the C
+   int→ulong conversion bit-for-bit. `write_ctl` admits `typ ∈ [-1, 0xffff]`
+   (devether.rs:693); the u32 view of that domain is {4294967295} ∪
+   [0, 65535], at most 10 digits against NUMSIZE-1=11 columns — every value
+   right-justifies with ≥1 pad space and the trailing space, byte-identical
+   to the donor's `%*lud` + overwrite shape. Boundary 0xffff →
+   `"      65535 "` (6 pad + 5 digits + space) is pinned; -1 →
+   `" 4294967295 "` is pinned byte-exact; the NCTLQID caller's ids 0..7 are
+   unaffected by the cast change (non-negative values are identical under
+   both the old and new code).
+
+2. **Remaining underflow/overflow paths in `readnum_content`.** None. For
+   *any* i64 input, `as u32 as u64` ≤ 4294967295 → `digits.len() ∈ [1,10]` →
+   `pad = NUMSIZE-1-digits.len() ∈ [1,10]` — the subtraction provably cannot
+   underflow, and the slice copy's lengths are equal by construction. The
+   doc comment's "do NOT add a saturating clamp" posture is consistent with
+   the repo's loud-failure convention (a clamp would silently mask a future
+   width regression) and is safe precisely because the truncation bounds the
+   digit count.
+
+3. **Tests assert what they claim.** Every netif.rs citation in the test
+   comments was re-checked against the source: `WaitSet.register` drops
+   pid==0 (netif.rs:328 — hence the nonzero `STUB_PID`); `conv_alloc` is the
+   only store allocator and sets inuse=1 (417-420); `conv_open` errors on a
+   store-less slot (444-446); `conv_close` decrements (487-488) and the
+   inuse==0 reset arm (490-508) clears typ/owner, drains the store queue,
+   and takes the rx waiter set; the multicast gate (589-593) and demux match
+   (599-613) deliver the pinned 2054 frame; the waiter-take at 624-625
+   justifies registering after the pushes; `pop_frame` pops the store before
+   the open check (685-690), so `Pop::Closed` genuinely proves drained +
+   closed. `Pop`'s variants match the test's matches; the `NETIF → convs →
+   fields` chain is pub(crate)-visible from the crate-root test module.
+   `cargo test -p port --lib`: all 4 devether tests pass (51 lib tests
+   total, 0 failed). RED was genuinely RED: at `1e77266` the code has
+   `val as u64`, so `readnum_content(-1)` panics on the `11 - 20` usize
+   underflow — the pin fails before the fix. GREEN touched only the cast +
+   comment; no assertion was weakened.
+
+4. **Panic-introducing constructs reaching the kernel.** None.
+   `devether_tests` is `#[cfg(test)]`-gated (lib.rs:82-83) and lib.rs:3's
+   `#![cfg_attr(not(any(test)), no_std)]` means the module (and its
+   `std::sync::Mutex` wake log) vanishes from kernel builds. The kernel-side
+   change *removed* the only panic path rather than adding one; the
+   publish-once/hook-once asserts the test relies on are pre-existing boot
+   invariants, and grep confirms this test is the only publish/set_hooks
+   caller in the test binary, so the asserts cannot fire from test
+   parallelism.
+
+### Notes (not findings)
+
+- `cargo test --workspace` fails to compile the `aarch64`/`riscv64`/`x86_64`
+  no_std kernel crates under the host test harness (missing `std`/`test`
+  crates). This is a pre-existing repo condition untouched by 07-09 (the
+  diff is port-only); the sanctioned lane is per-crate `cargo test -p port`,
+  matching the virtio_tests precedent.
+- `assert_eq!(id, 0)` in the conv_close pin depends on remaining the only
+  netif-state-mutating test in the binary. True today (grep-verified) and
+  explicitly documented in the test header; a future second netif test must
+  respect the publish-once constraint.
+
+---
+
 _Reviewed: 2026-11-04_
 _Reviewer: the agent (gsd-code-reviewer)_
 _Depth: standard_
