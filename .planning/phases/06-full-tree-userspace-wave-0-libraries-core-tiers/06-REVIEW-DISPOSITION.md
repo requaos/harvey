@@ -5,7 +5,7 @@ titles: json
 findings:
   - id: CR-01
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "tier-donor CI leg cannot pass on a clean runner — no step clones or builds the donor"
   - id: WR-01
     severity: warning
@@ -55,7 +55,7 @@ findings:
     severity: info
     disposition: open
     title: "gethunk reset pattern survives in the out-of-scope linkers"
-open: 13
+open: 12
 total: 13
 recorded: 2026-11-05T13:14:57.959Z
 ---
@@ -63,7 +63,7 @@ recorded: 2026-11-05T13:14:57.959Z
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | open | - |
+| CR-01 | critical | fixed | closed by retirement 2026-11-05 — tier-donor CI leg removed per maintainer direction; the x86_64 venue is Harvey's own kernel (06-09/06-10); venue-pin step asserts the retirement |
 | WR-01 | warning | open | - |
 | WR-02 | warning | open | - |
 | WR-03 | warning | open | - |

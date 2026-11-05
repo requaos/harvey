@@ -8,6 +8,14 @@
 # and linked by 7l) EXECUTE on the 9front donor kernel under qemu -M
 # virt TCG.
 #
+# VENUE SPLIT (06-10, G-06-1; maintainer direction 2026-11-05): this
+# donor gate is the aarch64 LOCAL venue ONLY — driven by hand (darwin
+# provisions the donor via donor-vm-build.sh/lima; native linux needs a
+# natively-built donor tree, and no provisioning driver exists for it
+# this era).  CI never runs it.  The x86_64 CI tier venue is Harvey's
+# OWN kernel via the 06-09 k10t1 pair (build/mm/build-9k10t1.sh +
+# build/mm/boot-9k10t1-sweep.sh) wired as phase6.yml's tier-9k job.
+#
 # 06-03 evolution (D-10): the 22 typed drive9 steps are replaced by the
 # SOURCED in-guest sweep — build/aarch64/tier1-sweep.rc, staged into the
 # donor kernel's devroot as /boot/tier1-sweep.rc via the CONF bootdir
@@ -615,7 +623,7 @@ if [ -n "$NATIVE_LINUX" ]; then
 	if [ $RC -ne 0 ]; then
 		echo "error: native rebake failed (rc=$RC); log: $BUILDLOG" >&2
 		echo "hint: the native leg needs a natively-built donor tree + host helpers" >&2
-		echo "      (06-08's CI job owns the native donor build; darwin: donor-vm-build.sh)" >&2
+		echo "      (no provisioning driver exists for the native leg this era; darwin: donor-vm-build.sh)" >&2
 		exit $RC
 	fi
 else

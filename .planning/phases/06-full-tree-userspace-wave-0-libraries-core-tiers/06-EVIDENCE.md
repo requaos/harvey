@@ -776,3 +776,82 @@ fault run's log).  Green standing gate:
   first hosted run is PENDING FIRST PUSH per the 05-13/06-08 precedent —
   nothing fabricated.  The local TCG run above is the recorded evidence
   meanwhile.
+
+## 06-10 tier-9k CI wiring + tier-donor retirement record (G-06-1, CR-01)
+
+- **Commits:** `a6ef4dbba` (phase6.yml surgery: tier-9k job in,
+  tier-donor leg out, venue-pin step, header rewrite),
+  `0d7c1f537` (coverage venue wording + regen), and the records commit
+  carrying this section + the CR-01 disposition + the subset-exec
+  header venue-split note.
+- **The retirement decision (maintainer direction 2026-11-05, quoted
+  from 06-UAT.md's gap record):** "9front is the donor ONLY because
+  Harvey lacked local arm64/aarch64 support; on amd64/x86_64 CI the
+  donor evidence should come from HARVEY's OWN kernel (9k10cpu — proven
+  booting on the runner by the poolpanic leg), not 9front.  Deliberate
+  direction: focus on harvey + r9, avoid borrowing 9front-specific
+  design decisions that deviate from Harvey's faithful Plan 9 4e
+  implementation."
+- **Rejected alternatives:** (a) CR-01's provisioning arm — wiring a
+  native 9front donor clone/build into the CI job: rejected by the
+  direction itself (9front on x86_64 CI is the anti-goal; the leg also
+  redded EARLIER than the pin gate on the first hosted run — the host
+  toolchain bootstrap died under nixpkgs gcc hardening flags, so the
+  arm's real cost is a second toolchain-bootstrap surface to maintain
+  for evidence the direction does not want); (b) keep the leg RED as a
+  tripwire: rejected — a permanently-red leg trains red-blindness, and
+  the wave0-host venue-pin step is the honest tripwire instead (a
+  silent reintroduction reds the fast leg by grep, not by a 90-minute
+  doomed boot).
+- **What landed in phase6.yml:** the `tier-9k` job (ubuntu-latest,
+  90m) — checkout + nix + setup/toolchain provisioning with the
+  TOOLCHAIN-PRODUCTS-OK assert loop (the clean-runner class the first
+  hosted run redded on), the full amd64 build tee'd to
+  .build/tier-9k-build.log with the BUILD-SWALLOWED-FAIL artifact
+  assert + digest (02-12 exit-0 class), `build/mm/build-9k10t1.sh`
+  (self-asserting; tail to the step summary on failure),
+  `build/mm/boot-9k10t1-sweep.sh` (marker-state digest + log tail
+  captured to the step summary on failure; the result file cat'd on
+  green), and the venue logs uploaded `if: always()` (tier-9k-logs:
+  serial + result + build log).  The `tier-donor` job is REMOVED.
+  wave0-host gained the venue-pin step after grep-hygiene: anchored
+  negative-grep on the retired job key, a self-hosting-safe ERE
+  negative-grep on the donor-gate script basenames (the pattern text
+  contains parentheses + a backslash — it never matches itself), and a
+  positive-grep requiring the tier-9k key.  wave0-host / tier-r9 /
+  x86_64-poolpanic job bodies are byte-preserved (the only wave0-host
+  change is the additive pin step); every action pin, the concurrency
+  group, permissions, and triggers are untouched.
+- **Local validation matrix (2026-11-05, darwin-aarch64 host, inside
+  `nix develop`):**
+
+  | Check | Result |
+  |---|---|
+  | YAML parse + exact job set | JOBS-OK {tier-9k, tier-r9, wave0-host, x86_64-poolpanic} |
+  | SHA-pin regex on every `uses:` | PINS-OK 11/11 (40-char) |
+  | Venue-pin replays host-side | retired-key anchored grep: 0; donor-script ERE: 0; tier-9k anchored grep: 1 |
+  | Referenced-path existence enumeration | every repo-relative path the run blocks name exists (gethunk ×2, coverage-sweep.sh, generator-scan.sh, dir-coverage.txt, tier1-r9.log's producer path, tiers/tier1-cmds.txt, build/mm/build-9k10t1.sh, build/mm/boot-9k10t1-sweep.sh, build/mm/boot-9k10cpu-qemu.sh, aarch64/include/u.h) |
+  | Byte-preservation diff review | tier-r9 BYTE-PRESERVED (679B), x86_64-poolpanic BYTE-PRESERVED (3852B), wave0-host BYTE-PRESERVED modulo the additive 1660B pin step |
+  | tier-9k job structure | 7 steps in plan order; timeout 90; runs-on ubuntu-latest |
+
+- **Coverage regen + normalized-diff record (USPACE-02, D-15):**
+  `nix develop -c sh build/aarch64/coverage-sweep.sh` on the lima guest
+  (linux-aarch64) → COVERAGE-SWEEP-OK (206 visited rows, 15 in-universe
+  exclusions, universe 221; jpg BLOCKER-CHECK host-ELF magic 7f454c46
+  ×2).  Raw diff vs the pre-regen commit: the new venue block +
+  five visited= count flips (auth/lib, awk, jtagfs, spell, upas/smtp —
+  all build=ok unchanged; the disclosed watchdog/second-chance jitter
+  class).  Normalized diff vs the pre-regen commit: the venue block
+  ONLY.  Post-commit gate replay (the workflow's exact
+  `git show HEAD:... | sed visited=N | diff` shape): NO-OP — clean.
+  The generator emission and the committed report's venue block are
+  byte-identical; the jpg note line keeps its count embedding as data.
+- **Hosted run: PENDING FIRST PUSH** (the 05-13/06-08 precedent —
+  harvey master is never pushed from this session): the tier-9k leg's
+  first hosted observation happens on the next push; a human pushes and
+  watches `gh run list --workflow phase6-userspace`.  Nothing
+  fabricated; the local matrix above + the 06-09 local venue green
+  (evidence/06-09-tier-9k-local.log) are the recorded evidence
+  meanwhile.
+- **Ledger lines appended:** none (this plan owns CI wiring + wording,
+  not tier markers — T-06-20's grammar holds).
