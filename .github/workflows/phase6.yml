@@ -139,11 +139,19 @@ jobs:
             exit $rc
           }
           tail -5 "$log"
-          if ! git diff --exit-code build/aarch64/dir-coverage.txt > "$log.diff" 2>&1; then
-            { echo "## ❌ coverage drift diff (committed report vs regen on $(uname -m))"; echo '```'; head -80 "$log.diff"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+          # Drift gate: committed report vs regen, with per-dir visit COUNTS
+          # normalized out — the count jitters with watchdog/second-chance
+          # timing on the build host class (runner: jpg visited=3; lima:
+          # visited=1; verdict ok both). The reach set + build verdicts are
+          # the drift signal; count jitter is measurement noise.
+          git show HEAD:build/aarch64/dir-coverage.txt > .build/dc-committed.txt
+          sed -E 's/visited=[0-9]+/visited=N/g' .build/dc-committed.txt > .build/dc-a.norm
+          sed -E 's/visited=[0-9]+/visited=N/g' build/aarch64/dir-coverage.txt > .build/dc-b.norm
+          if ! diff -u .build/dc-a.norm .build/dc-b.norm > "$log.diff" 2>&1; then
+            { echo "## ❌ coverage drift diff (committed report vs regen on $(uname -m), visit counts normalized)"; echo '```'; head -80 "$log.diff"; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
             exit 1
           fi
-          echo "COVERAGE-DIFF-CLEAN ($(uname -m))"
+          echo "COVERAGE-DIFF-CLEAN ($(uname -m), visit counts normalized)"
       - name: generator .7-magic scan (USPACE-03)
         run: nix develop -c sh build/aarch64/generator-scan.sh
       - name: grep-hygiene gate (D-02)
