@@ -44,6 +44,9 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 - ✓ Host harness tooling is std-only Rust (`build/harness/`, one binary + subcommands) — zero Python in the harness path — quick task 261103-giq (5/5 equivalence gates)
 - ✓ r9 unsafe surface minimized + gated: static mut → 0, per-process usermem model locked, forbid(unsafe_code) across port/ except two named shims, 160-site audit reconciled — quick task 261103-p64
 - ✓ r9 speaks Ethernet on qemu virt: DTB-driven PCI/ECAM discovery (zero hardcoded constants, moved-window perturbation proof), from-scratch unsafe-free virtio transport, virtio-net driver bind with ISR read-to-ack on both GIC gens, devether `#l` + netif presenting /net/ether0, guest ARP ping-pong + 256-frame TX blast reconciled against host pcaps — Phase 7 (NETDRV-01..04; `07-EVIDENCE.md`; r9 pinned `a5b1b42`; hosted CI green; UAT 2/2)
+- ✓ Full-tree aarch64 userspace sweep machinery live: Wave-0 landmines closed (cc/6l gethunk hangs + FPdbleword + 6l LP64 float emission, regression repros committed), dir-coverage proof that mk DIRS reaches every cmd dir (jpg/mahjongg/4a blockers fixed), generator audit with host-toolchain proofs, tiered append-only allowlists (`tiers/*.txt` are data) with artifact+execution marker ledgers as the only gates — 22 outstanding libs compile via the mksyslib portable-C fallback, tier-1 core cmds + guest build chain execute on the donor then r9 — Phase 6 (USPACE-01..06; `06-EVIDENCE.md`; ledgers `build/aarch64/markers/`)
+- ✓ v1.0 pool-panic carry-over closed WITH INFORMATION: pswt-fixed 6c boots 9k10cpu PAST the bad-magic point (PASS no-panic-signature, boot continues) — Phase 6 (USPACE-10; `evidence/poolpanic-verdict.md`; deferred 02-8 retired)
+- ✓ x86_64 CI tier venue is Harvey's OWN kernel: k10t1 config (k10cpu device set verbatim) embeds the amd64 tier-1 set + sweep, boots standalone under plain qemu, green locally; phase6.yml tier-9k leg self-provisions clean runners; 9front tier-donor CI leg retired (9front stays aarch64-local donor only) — Phase 6 gap closure (G-06-1/CR-01; maintainer direction 2026-11-05; hosted run all-four-legs green)
 
 ### Active
 
@@ -58,8 +61,8 @@ Milestone v2.0 headline scope (decomposed into REQ-IDs in REQUIREMENTS.md):
 Carried over from v1.0:
 
 - [ ] Advance the harvey flake.lock r9 pin past the review-fix + unsafe-elimination commits (pin currently at 9549cee; r9 main carries the hardened kernel) — milestone-completion decision; a pin bump needs a fresh hosted CI run to stay honest
-- [ ] Re-test the Phase 1 9k-amd64 embedded-root `bad magic` pool panic against the LP64-fixed 6c (same signature as the pswt.c bug fixed in Phase 2) — deferred-items.md #8
 - [ ] Upstream raspi3b-on-qemu-11.1.2 boot defect (FAR 0xfe215004 — rpi4 MMIO base on the raspi3b machine) — pre-existing, A/B-proven not-a-regression, accepted 2026-11-01; phase-03 deferred-items.md #1
+- [ ] Fix the legacy harvey.yml workflow to build via nix (pre-dates the nix scaffolding; red streak on master since 2026-11-04T12:01Z) — Phase 6 UAT deferred follow-up, backlog 999.1
 
 ### Out of Scope
 
@@ -138,6 +141,9 @@ Carried over from v1.0:
 | Namespace harness must provide `/bin/rc` (bind `$PLAN9/bin/rc`) — the Dockerfile:42 convention replicated in nsrun.sh | Phase 5 UAT (G-05-1) — the lima VM's undocumented manual /bin/rc masked the gap on every prior leg; first fresh-host run (hosted CI) found it | ✓ Good (byte-identical failure repro → green post-fix) |
 | From-scratch virtio transport in r9 port/ (no virtio-drivers crate), zero-offload mask from Day 1, barrier-first ring model host-pinned before any live device | Phase 7 (D-01/D-03/D-04) — the crate's 2025-09 snapshot carried stale assumptions; an unsafe-free, host-testable state machine keeps the device-is-untrusted boundary auditable | ✓ Good (21→54 host pins; the negotiation machine rejected a live device's offered bits correctly on first bind) |
 | Test delivery, not just counters (gates must read a data file, not only stats/pcap) | Phase 7 UAT (G-07-1) — every automated gate stayed green while inbound frames were counted-but-never-enqueued (RX slice off by VIRTIO_NET_HDR_LEN on two-descriptor chains); only a conversational UAT blocked-read caught it | ✓ Good (two-round diagnosis: protocol lifetime bug, then the real kernel offset bug; chain-faithful pin now covers the Ring↔drain seam) |
+| Tier allowlists are committed DATA + append-only; artifact+execution markers are the only gates (mk exit status never trusted) | Phase 6 (D-13/USPACE-04) — allowlist growth is a reviewable diff, never a flag-flip; plan9port mk aborts at first failing recipe and BUILD swallows statuses, so truth lives in committed ledgers | ✓ Good (tier-0/1 green donor→r9→9k; classify-only teeth proven on doctored logs) |
+| x86_64 CI donor evidence comes from Harvey's OWN kernel (k10t1 venue), 9front retired to aarch64-local donor only | User decision 2026-11-05 (G-06-1/CR-01) — 9front was the donor only because Harvey lacked local aarch64; on amd64 CI the evidence now comes from 9k10cpu lineage, and the retirement is CI-asserted (venue-pin step), not prose | ✓ Good (k10t1 standalone green; phase6.yml four legs hosted-green; CR-01 resolved by retirement) |
+| Venue honesty over verdict shape: named T1-SKIP lines, never an unearned T1-OK; evidence names its venue | Phase 6 (06-09) — the embedded-root venue cannot run write-flow/selfhost entries, so it says so in the log instead of masquerading as full-boot equivalence | ✓ Good (36 OK + 24 SKIP census; SKIP-whitelist converse assert blocks vocabulary drift) |
 
 ## Evolution
 
@@ -157,4 +163,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-05 after Phase 7 (r9 PCI/ECAM + virtio-net + devether)*
+*Last updated: 2026-11-05 after Phase 6 (Full-Tree Userspace — Wave 0 + Libraries/Core Tiers; completed out of order after Phase 7)*
