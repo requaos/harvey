@@ -1,20 +1,14 @@
 ---
-status: testing
+status: complete
 phase: 06-full-tree-userspace-wave-0-libraries-core-tiers
 source: [06-VERIFICATION.md]
 started: 2026-11-05T14:35:00Z
-updated: 2026-11-05T15:05:00Z
+updated: 2026-11-05T16:55:00Z
 ---
 
 ## Current Test
 
-number: 2
-name: Host-class watch item — coverage venue on linux-x86_64
-expected: |
-  coverage regen + `git diff --exit-code` green on linux-x86_64, or a flipped
-  per-dir build row reds BY DESIGN and the report's re-baseline standing rule
-  applies (disclosed in 06-EVIDENCE.md as an honest watch item).
-awaiting: user response
+[testing complete]
 
 ## Tests
 
@@ -26,14 +20,15 @@ severity: blocker
 
 ### 2. Host-class watch item: the committed dir-coverage.txt's venue line claims host-independence from a linux-aarch64 build host; the hosted wave0-host runner is linux-x86_64
 expected: coverage regen + `git diff --exit-code` green on linux-x86_64, or a flipped per-dir build row reds BY DESIGN and the report's re-baseline standing rule applies (disclosed in 06-EVIDENCE.md as an honest watch item).
-result: [pending]
+result: pass
+notes: Observed on the runner (run 42068406653): the drift diff redded BY DESIGN with exactly three flips on linux-x86_64 — cmd/go build=ok→fail (a genuine x86_64-host finding, filed to the G-06-1 gap scope), jpg visited=1→3 (visitation-count machinery noise; verdict build=ok unchanged, and the header note line tracks the count). The by-design arm held: the drift gate is the intended venue-skew tripwire; the re-baseline standing rule applies.
 
 ## Summary
 
 total: 2
-passed: 0
+passed: 1
 issues: 1
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
