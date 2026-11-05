@@ -19,6 +19,8 @@
 # loop), in the v1.0 subset order (libc first).  The mk filter emits the
 # sweep in ALLLIBS on-disk order, not in this file's order; libc's primacy
 # is carried by build_aarch64's explicit libc bootstrap line, which stays.
+# The 22 outstanding libs (USPACE-05) append here in 06-05, one line each,
+# after their per-lib artifact gates; no lib is silently dropped.
 libc		# v1.0 gate: subset-build green; also linux-build's explicit nuke/install/clean bootstrap
 libbio		# v1.0 gate: subset-build green (ls/ps/sed/wc/grep closure)
 libregexp	# v1.0 gate: subset-build green (sed closure)

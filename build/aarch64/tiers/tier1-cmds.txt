@@ -36,6 +36,21 @@
 # Seeded 2026-11-04 with the 24-entry v1.0-inherited baseline so the default
 # build never regresses: the v1.0 16-subset, the boot chain, and the guest
 # build chain's already-green members.
+#
+# Documented exclusions from the aarch64 sweep (USPACE-04 transparency —
+# nothing is dropped silently):
+#   ape                 subsystem excluded by milestone decision (not cmd/)
+#   gs                  ghostscript: tier-excluded (Phase 10 long tail)
+#   games               no tier-1 members (Phase 10)
+#   nboot               bootloader tree, not a userspace sweep member
+#   cmd/4a..9l letters  other-arch toolchains are HOST tools via
+#                       BUILDTOOLCHAIN only, never aarch64 targets
+#   cmd/cpp cmd/mk cmd/yacc cmd/lex   D-09 build-chain members awaiting
+#                       their execution gates (append here in 06-06)
+#   cmd/init            staged via the driver-only stage/init entry
+# Everything else not listed above is simply not yet gated: growth is
+# append-a-line after the dir's per-tier gate passes (06-03+).
+#
 # --- v1.0 16-subset: directory commands (subset-build green) ---
 cmd/rc
 cmd/grep
