@@ -37,7 +37,7 @@ covered_files:
   - build/aarch64/smoke-r9.expect
   - nix/boot-r9.sh
   - flake.lock
-covered_digest: "v4:sha256:165da29e20be95e9742b7b7993222febe7a7e72a9e825f2d05cf15"
+covered_digest: "v2:sha256:a615c876116cb6460e380d2c3a0a145eb3ef0f54e464e81b42665c194127ac4d"
 behavior_unverified: 1
 overrides_applied: 0
 decision_coverage:
