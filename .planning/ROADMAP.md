@@ -33,7 +33,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 **v2.0 Full System & Drawterm (Phases 6–12):**
 
 - [ ] **Phase 6: Full-Tree Userspace — Wave 0 + Libraries/Core Tiers** - Landmine fixes + generator audit + tiered allowlist machinery; tier-0 libs and core cmds/build chain execute green on the donor kernel first, then r9
-- [ ] **Phase 7: r9 PCI/ECAM + virtio-net + devether** - *(cross-repo: `../r9`)* DTB-driven PCI discovery, zero-offload virtio-net from Day 1, `/net/ether0`, guest ARP observable on the host
+- [x] **Phase 7: r9 PCI/ECAM + virtio-net + devether** - *(cross-repo: `../r9`)* DTB-driven PCI discovery, zero-offload virtio-net from Day 1, `/net/ether0`, guest ARP observable on the host (completed 2026-11-05)
 - [ ] **Phase 8: r9 TCP/IP Path — devip-Compatible /net** - *(cross-repo: `../r9`)* Loopback-first `/net` with devip-exact file semantics; exit gate is sustained bidirectional TCP on the tap leg, not ping on slirp
 - [ ] **Phase 9: Host Networking + boot-r9 Net Modes** - Hermetic slirp+hostfwd default (CI-able), explicit `--net=slirp|tap|vmnet`, documented linux tap / darwin socket_vmnet legs, doctor-checker
 - [ ] **Phase 10: Userspace Services + GUI Tiers + Bootfs Payload** - Services/IP/auth suites donor-executed; GUI stack compiled with measure-first donor syscall traces; fonts/profiles/ndb staged in bootfs
@@ -90,7 +90,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. devether `#l` presents `/net/ether0` per netif.h with live RX/TX packet counters, and the guest's ARP request is observable in a host-side capture (NETDRV-03)
   4. Interrupt accounting is proven under load: INTx level-triggered plumbing with ISR read-to-ack, and a sustained packet blast shows guest and host counters reconciling with no silent virtqueue wedge (NETDRV-04)
 
-**Plans:** 10/10 plans executed
+**Plans:** 10/10 plans complete
 - [x] 07-09-PLAN.md
 - [x] 07-10-PLAN.md — gap closure round 2 (G-07-1): RX payload-offset fix (drop the +VIRTIO_NET_HDR_LEN slice base on two-descriptor chains) + chain-faithful host pin + virtnet gate re-proof + push-before-pin (NETDRV-03)
 
@@ -198,7 +198,7 @@ Two parallel tracks from the v1.0 foundation: userspace {6 → 10} ∥ networkin
 | 4. r9 Userspace-Exec + Harvey↔r9 ABI | v1.0 | 8/8 | Complete | 2026-11-02 |
 | 5. Shell Boot + One-Command Integration | v1.0 | 13/13 | Complete | 2026-11-04 |
 | 6. Full-Tree Userspace — Wave 0 + Libraries/Core | v2.0 | 8/8 | In Progress|  |
-| 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 10/10 | In Progress|  |
+| 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 10/10 | Complete    | 2026-11-05 |
 | 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | - | Not started | - |
 | 9. Host Networking + boot-r9 Net Modes | v2.0 | - | Not started | - |
 | 10. Userspace Services + GUI Tiers + Bootfs | v2.0 | - | Not started | - |
