@@ -120,13 +120,58 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| *(populated by the roadmapper)* | | |
+| X64-01 | Phase 13 | Pending |
+| X64-02 | Phase 13 | Pending |
+| X64-03 | Phase 13 | Pending |
+| X64-04 | Phase 13 | Pending |
+| X64-05 | Phase 13 | Pending |
+| XEXEC-01 | Phase 14 | Pending |
+| XEXEC-02 | Phase 14 | Pending |
+| XEXEC-03 | Phase 14 | Pending |
+| XEXEC-04 | Phase 14 | Pending |
+| XEXEC-05 | Phase 14 | Pending |
+| USPACE-07 | Phase 15 | Pending |
+| USPACE-08 | Phase 15 | Pending |
+| USPACE-09 | Phase 15 | Pending |
+| DESK-03 | Phase 15 | Pending |
+| HNET-01 | Phase 16 | Pending |
+| HNET-02 | Phase 16 | Pending |
+| HNET-03 | Phase 16 | Pending |
+| HNET-04 | Phase 16 | Pending |
+| HNET-05 | Phase 16 | Pending |
+| NETIP-08 | Phase 16 | Pending |
+| FLUSH-01 | Phase 17 | Pending |
+| FLUSH-02 | Phase 17 | Pending |
+| FLUSH-03 | Phase 17 | Pending |
+| FLUSH-04 | Phase 17 | Pending |
+| AUTH-01 | Phase 18 | Pending |
+| AUTH-02 | Phase 18 | Pending |
+| AUTH-03 | Phase 18 | Pending |
+| AUTH-04 | Phase 18 | Pending |
+| AUTH-05 | Phase 18 | Pending |
+| AUTH-06 | Phase 18 | Pending |
+| AUTH-07 | Phase 18 | Pending |
+| AUTH-08 | Phase 18 | Pending |
+| AUTH-09 | Phase 18 | Pending |
+| CPU-01 | Phase 19 | Pending |
+| CPU-02 | Phase 19 | Pending |
+| CPU-03 | Phase 19 | Pending |
+| CPU-04 | Phase 19 | Pending |
+| DESK-01 | Phase 19 | Pending |
+| DESK-02 | Phase 19 | Pending |
+| DESK-04 | Phase 19 | Pending |
+| DESK-05 | Phase 19 | Pending |
+| DESK-06 | Phase 19 | Pending |
+| DESK-07 | Phase 19 | Pending |
+| INT-05 | Phase 19 | Pending |
+| INT-06 | Phase 19 | Pending |
+| INT-07 | Phase 19 | Pending |
 
 **Coverage:**
 - v2.1 requirements: 46 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 46 ⚠️
+- Mapped to phases: 46/46
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-11-06*
-*Last updated: 2026-11-06 — v2.1 definition at the x86_64 pivot re-scope (v2.0 pending set inherited)*
+*Last updated: 2026-11-06 — v2.1 roadmap created (Phases 13-19; traceability populated)*

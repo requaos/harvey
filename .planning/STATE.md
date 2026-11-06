@@ -3,10 +3,10 @@ gsd_state_version: "1.0"
 milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 status: planning
-last_updated: "2026-11-06T17:24:13.708Z"
+last_updated: "2026-11-06"
 last_activity: 2026-11-06
 progress:
-  total_phases: 0
+  total_phases: 7
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
@@ -19,113 +19,31 @@ progress:
 
 See: .planning/PROJECT.md (updated 2026-11-06)
 
-**Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 9 — Host Networking + boot-r9 Net Modes
+**Core value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
+**Current focus:** Phase 13 — r9 x86_64 Platform Bring-Up
 
 ## Current Position
 
-Phase: Not started (defining requirements)
-Plan: —
-Status: Defining requirements
-Last activity: 2026-11-06 — Milestone v2.1 started
+Phase: 13 of 19 (r9 x86_64 Platform Bring-Up) — first of v2.1's Phases 13-19
+Plan: 0 of TBD in current phase
+Status: Ready to plan
+Last activity: 2026-11-06 — v2.1 roadmap created at the x86_64 pivot re-scope (v2.0 subsumed: Phases 6-8 delivered, 9-12 inherited re-keyed to x86_64)
+
+Progress: [░░░░░░░░░░] 0% (v2.1: 0/7 phases)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 67
-- Average duration: —
-- Total execution time: —
+- Historical: v1.0 — 38 plans / 5 phases (shipped 2026-11-04); v2.0 — 29 plans across Phases 6-8 (subsumed 2026-11-06)
+- v2.1: 0 plans (plan counts set at plan-phase)
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 01 | 4 | - | - |
-| 02 | 7 | - | - |
-| 03 | 6 | - | - |
-| 04 | 8 | - | - |
-| 05 | 13 | - | - |
-| 07 | 10 | - | - |
-| 06 | 10 | - | - |
-| 08 | 9 | - | - |
+| - | - | - | - |
 
-**Recent Trend:**
-- Last 5 plans: —
-- Trend: —
-
-*Updated after each plan completion*
-**Per-Plan Metrics:**
-
-| Plan | Duration | Tasks | Files |
-|------|----------|-------|-------|
-| Phase 01 P01 | 53min | 3 tasks | 12 files |
-| Phase 01 P02 | 6min | 2 tasks | 5 files |
-| Phase 01 P03 | 8min | 2 tasks | 5 files |
-| Phase 01 P04 | 60min | 2 tasks | 9 files |
-| Phase 02 P01 | 13 min | 3 tasks | 46 files |
-| Phase 02 P02 | 5 min | 2 tasks | 13 files |
-| Phase 02 P03 | 19 min | 3 tasks | 28 files |
-| Phase 02 P04 | 4h 41m | 2 tasks | 19 files |
-| Phase 02 P05 | 11h 18m (incl. human-verify wait) | 2 tasks | 7 files |
-| Phase 02 P06 | 6 min | 2 tasks | 9 files |
-| Phase 02 P07 | 47 min | 3 tasks | 16 files |
-| Phase 03 P01 | 13 min | 1 tasks | 2 files |
-| Phase 03 P02 | 5 min | 2 tasks | 12 files |
-| Phase 03 P03 | 30 min (incl. human-decision checkpoint) | 2 tasks | 2 files |
-| Phase 03 P04 | 26 min | 2 tasks | 12 files |
-| Phase 03 P05 | 10 min | 3 tasks | 8 files |
-| Phase 03 P06 | 18 min | 2 tasks | 9 files |
-| Phase 04 P01 | 33min (continuation; prior segment reached the A3 decision checkpoint) | 3 tasks | 14 files |
-| Phase 04 P02 | 15min | 2 tasks | 9 files |
-| Phase 04 P03 | 8m | 3 tasks | 7 files |
-| Phase 04 P04 | 17min | 2 tasks | 10 files |
-| Phase 04 P05 | 31min | 2 tasks | 16 files |
-| Phase 04 P06 | 27min | 2 tasks | 18 files |
-| Phase 04 P07 | 240min | 2 tasks | 12 files |
-| Phase 04 P08 | 40min | 3 tasks | 18 files |
-| Phase 05 P01 | 64 min | 3 tasks | 11 files |
-| Phase 05 P02 | 15 min | 3 tasks | 9 files |
-| Phase 05 P03 | 225 min | 2 tasks | 7 files |
-| Phase 05 P04 | 55 min | 3 tasks | 18 files |
-| Phase 05 P05 | 26 min | 2 tasks | 14 files |
-| Phase 05 P06 | 110 min | 3 tasks | 19 files |
-| Phase 05 P07 | 106 min | 3 tasks | 17 files |
-| Phase 05 P08 | 223 min | 3 tasks | 14 files |
-| Phase 05 P09 | 54 min | 2 tasks | 14 files |
-| Phase 05 P10 | 10 min | 2 tasks | 4 files |
-| Phase 05 P11 | 25 min | 3 tasks | 6 files |
-| Phase 05 P12 | 6 min | 2 tasks | 5 files |
-| Phase 05-shell-boot-one-command-integration P13 | 9 min | 3 tasks | 7 files |
-| Phase 06 P01 | 35 min | 3 tasks | 8 files |
-| Phase 07 P01 | 10min | 2 tasks | 3 files |
-| Phase 07 P03 | 19 min | 2 tasks | 4 files |
-| Phase 07 P04 | 19 min | 2 tasks | 5 files |
-| Phase 07 P04 | 19 min | 2 tasks | 5 files |
-| Phase 06 P02 | 30 min | 3 tasks | 16 files |
-| Phase 07 P02 | 12min | 2 tasks | 7 files |
-| Phase 07 P05 | 12 min | 2 tasks | 4 files |
-| Phase 07 P06 | 25 min | 2 tasks | 18 files |
-| Phase 06 P03 | 71 min | 2 tasks | 11 files |
-| Phase 06 P04 | 37 min | 2 tasks | 9 files |
-| Phase 07 P07 | 63 min | 2 tasks | 20 files |
-| Phase 07 P08 | 20 min | 2 tasks | 5 files |
-| Phase 06 P05 | 31 min | 2 tasks | 14 files |
-| Phase 06 P06 | 65 min | 2 tasks | 14 files |
-| Phase 06 P07 | 4h 27m | 2 tasks | 24 files |
-| Phase 06 P08 | 4h 8m | 2 tasks | 8 files |
-| Phase 07 P09 | 18 min | 4 tasks | 7 files |
-| Phase 07 P10 | 21 min | 4 tasks | 6 files |
-| Phase 08 P01 | 9 min | 2 tasks | 6 files |
-| Phase 08 P02 | 26 min | 2 tasks | 9 files |
-| Phase 08 P03 | 8 min | 2 tasks | 5 files |
-| Phase 08 P04 | 75 min (incl. the blocking-human RFMEM decision wait + continuation) | 2 tasks | 16 files |
-| Phase 06 P09 | 60 min | 2 tasks | 12 files |
-| Phase 06 P10 | 8 min | 2 tasks | 6 files |
-| Phase 08 P05 | 79 min | 2 tasks | 13 files (8 r9 modified + 2 r9 created + 2 Harvey + planning records) |
-| Phase 08 P06 | 50 min | 3 tasks | 15 files (12 r9 modified + 1 r9 created + 2 Harvey + planning records) |
-| Phase 08 P07 | 45 min | 2 tasks | 13 files (6 r9 modified + 2 r9 doc/test + 5 Harvey + planning records) |
-| Phase 08 P08 | 138 min (incl. the two kernel-blocker debugging cycles) | 2 tasks | 14 files (8 r9 modified + 3 Harvey created + 1 Harvey modified + planning records) |
-| Phase 08 P09 | 85 min (incl. the composed-smoke debugging cycles + the two pipeline runs) | 3 tasks | 15 files (3 r9 modified + 5 Harvey created + 4 Harvey modified + planning records) |
+**Recent Trend:** n/a (milestone start)
 
 ## Accumulated Context
 
@@ -134,215 +52,8 @@ Last activity: 2026-11-06 — Milestone v2.1 started
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
-- [Phase 08]: smoltcp 0.14 behind the devip ABI is r9's TCP/IP engine; `../r9/docs/devip-contract.md` is the executable spec (gates assert it; OQ-1 resolved PASS-path — no wire shim, smoltcp dhcpv4 never wired)
-- [Phase 08]: the devip↔smoltcp seam is event-driven with NO periodic polling (BusyCell ownership, NET_DEADLINE from poll_at); blocking paths re-probe after every drive (the gate-caught wakeup-loss fix)
-- [Phase 08]: RFMEM landed per user decision A (Harvey-fidelity-verified: ip/ping.c:572 is Harvey-native) — donor dupseg semantics incl. shared-segment growth (RFMEM families) + the SEMACQUIRE/SEMRELEASE pair
-- [Phase 08]: slirp evidence is labeled `NOT-L2-TRUTH` per D-10; the NETIP-08 tap-leg truth verdict is Phase 9's joint acceptance gate per D-15 — Phase 8 delivered the soak machinery + documented-manual sustained command
-- [Phase 08]: push-before-pin continued — r9 pushed (19f61ed == origin/main) before flake.lock advanced as its own isolated commit; hosted CI green ×2 (boot-smoke + net-smoke)
-- 2026-10-30: Adopt r9 (sibling `../r9`, Rust) as kernel future — Harvey 9k C aarch64 port is Out of Scope
-- 2026-10-30: `aarch64` (not `arm64`) is the project's architecture name — vestiges quarantined in Phase 1
-- Roadmap: Phases 3–4 execute in sibling repo `../r9`; Phase 5 spans both repos
-- [Phase 01]: 01-01: userland preflight in nix/build.sh is sentinel-armed (amd64/.userland-ok) — inert until a build first produces all four kernel-critical binaries, so clean/repairing runs never deadlock (plan Task 1 NOTE)
-- [Phase 01]: 01-01: efiboot.fat is explicit-only (needs a live Plan 9 system: dossrv+/srv+mount); .efi binaries still build+install — unmasked games tree (D-01)
-- [Phase 01]: 01-01: NVAR=BITS*32 in cc.h restores exact Plan 9 256-var-cap semantics on LP64 hosts — fixes 6c stack smash (ql SIGBUS); one shared definition fixes all compiler dirs
-- [Phase 01]: 01-01: git.allow_default_branch_commits=true — sequential-mode execution commits on master (fork workflow); clean-checkout verification clones the default branch
-- [Phase 01]: 01-02: six-site arm64 quarantine in ONE atomic commit 5af5e89bf (D-05 + Pitfall 3 bind-mount coupling); keepers documented (nix host-mapping, lima yaml, a.out.h/mach.h, unix/9cc, dynld-arm64.c)
-- [Phase 01]: 01-02: Phase 1 green gate = amd64 kernel loop — linux-build arch=(amd64), dist/man stages behind WITH_DIST=1 (RESEARCH OQ-2/OQ-3); revert comments in place
-- [Phase 01]: 01-03: KERNDATE derivation anchored to $HARVEY checkout (cd "$HARVEY" && git log -1 --format=%ct) in both nix entry points — HARVEY!=PWD invocations must not pin the caller's repo
-- [Phase 01]: 01-03: reproducibility evidence standard = pinned pair identical + KERNDATE+1 negative control differs + restore matches — falsifies 'deterministic anyway'
-- [Phase 01]: 01-03: guest namespace harnesses need su-proof env: re-source captured exports (BUILD's . buildnamespace) + /rc/bin:. PATH tail (repo rc/bin/membername feeds bootmkfile's archive rule)
-- [Phase 01]: 01-04: TCG-degraded serial capture ACCEPTED by human (2026-10-31, blocking checkpoint) as BUILD-05's phase demonstration — dev fleet has no KVM host; KVM path documented (nix build .#minimega && sudo build/mm/boot-9k10cpu.sh) for any Linux x86_64 host
-- [Phase 01]: 01-04: LP64 wide-constant truncation fixed in amd64 toolchain (6c/swt.c zaddr, 6l/span.c oclass, 6c/cgen.c immconst) — harness surfaced a silently miscompiled kernel; dormant-arch siblings (4c/9c/9a/4l/9l) inventoried + deferred
-- [Phase 01]: 01-04: serial capture attaches BEFORE vm start via launch/start .mm split; banner grep (not the boot timer) is the boot-proof source of truth; minimega -e exit status never trusted (socket-appearance gating)
-- [Phase 02]: audit-7c7l vindicated: cc/pswt.c LP64 switch-sort miscompile (doswit (long)c->val no-op on LP64 → swcmp signed sort disagrees with swit2's signed target compare tree) was the donor kernel's deterministic "bad magic" pool panic; fixed host-independently as (vlong)(int); Phase-1 9k-amd64 pool panic is the same signature (deferred item 8: re-test with fixed 6c)
-- [Phase 02]: donor↔qemu-11.1.2 drift accommodated harness-side only (D-12): gic-version=3, highmem-ecam=off, DTB pre-placement, GICR0 WAKER wake poke via raw-RSP gdbpoke9.py (qemu resets redistributor asleep; donor gic.c never wakes it; no ticks → dead console input), console=0 (kbdfs input device), virtio-net-pci-non-transitional (ethervirtio10 matches only modern 0x1041)
-- [Phase 02]: 02-05: TC-03 gate SATISFIED and human-approved — committed hello.7.out executes on the 9front donor kernel (marker after term% prompt, clean exit, sha256 1c89e099 both sides, three consecutive PASS blocks); scaffolding 02-06 unblocked; hello.7.out is Phase 4's ABI bisect point
-- [Phase 02]: 02-05: guest path resolution — CONF=qemu bootdir embed lands at /boot/hello (devroot exposes only boot/); bootfs.paq is unmounted before the shell so paq-baked binaries are unrunnable at the rc prompt; mkpaqfs not re-run
-- [Phase 02]: 02-05: bake-vs-ufs resolved in build/aarch64/README.md (research OQ-2) — bake-into-bootfs for gates (deterministic), ufs-over-tcp for iteration (ethervirtio10 + ip stack; srv9.py proves host 9P2000/tcp to this guest)
-- [Phase 02]: 02-07: subset lib set = the #pragma-lib closure discovered at link time (libbio libregexp libndb libString libthread lib9p beyond the named libip/libmp/libsec/libauth/libauthsrv); libbio precedes the 7? loop (7a/a.h includes bio.h); factotum ships via per-target install (fgui's graphics stack is out of scope)
-- [Phase 02]: 02-07: mpvecdigmulsub split into its own libmp port file retires the 2021 PORT rename — archive member names now align 1:1 with text symbols (empty-arch dirs get portable C, asm arches cull via reduce, ape's broken-bind reduce can never duplicate-symbol)
-- [Phase 02]: 02-07: srv9.py --writable-prefix (opt-in, scoped) is the guest's writable-scratch mechanism (kernel MCREATE bind already permits /tmp); nix run .#build rc is never trusted — artifact checks + zero-failure-marker log scan are the gate (BUILD's break-glass bash tail swallows statuses, deferred item 12)
-- [Phase 03]: 03-03: tcg/cortex-a72 built-in defaults fire only on the virt arm — existing raspi TOMLs sprout no new argv (backward-compat holds end-to-end, verbose-probe verified); darwin runs TCG this phase (HVF rejects GICv2 on qemu 11.1.2, research P2), hvf remains selectable for a future GICv3 driver
-- [Phase 03]: 03-03: superseded apply_to_qemu_step free function removed outright instead of kept as a delegating shim — xtask-internal API with a single call site; a compat wrapper would be dead code
-- [Phase 03]: 03-03: written raspi3b boot-smoke gate satisfied by substituted A/B evidence (human decision A, 2026-11-01) — identical pre-existing raspi3b-on-qemu-11.1.2 guest abort at FAR 0xfe215004 pre-plan (6a309ae/ae4cd08) and post-plan with byte-identical raspi argv proves NO REGRESSION; upstream defect (rpi4 AUX_ENABLES MMIO on raspi3b machine; suspect init_early_uart_rpi4) deferred
-- [Phase 03]: 03-03: darwin qemu smoke isolation — setsid absent on macOS; backgrounded subshell + pkill -f with bracket-fixed pattern ([q]emu-system-aarch64.*raspi3b) so pkill cannot self-match the harness shell argv
-- [Phase 03]: 03-06: D-12 delivered as --config virtpanic (virt-specific name; mechanism/trigger/dump as decided) — brk #0 hook before trap::unmask_irq() runs the real sync trap path; TrapFrame Debug uses bare x29/x30 names so dump rows are machine-countable (the plan's >=30-row gate was unsatisfiable with annotated names)
-- [Phase 03]: 03-06: RustupState tolerates rustup-absent hosts (nix devshell) — cargo xtask check/test degrade to bins/lib legs via existing Option handling instead of panicking; pre-existing panic proven on the clean tree
-- [Phase 03]: 03-06: evidence commit ordering (D-13/T-03-09) — r9 commits land first, EVIDENCE.md records that exact HEAD SHA (55ca7c4), harvey evidence commit second; the verify gate requires the recorded SHA to match the live checkout
-- [Phase 04]: D-01 AMENDED (04-01, user decision A): qemu 11.1.2 never delivers -initrd for ELF kernels (hw/arm/boot.c: ELF => not-linux), falsifying assumption A3. Root-fs/initrd delivery is now qemu generic loader at a TOML-data PA + xtask-produced fdtput-patched DTB copy carrying /chosen linux,initrd-start/end (two 32-bit BE cells, hi first — dtc has no 8-byte type). Kernel /chosen discovery/validation/reservation unchanged; ELF boot preserved per D-05. — D-01's locked mechanism (qemu -initrd + DTB /chosen) was written against the assumption that qemu loads -initrd for ELF kernels; source inspection + serial evidence falsified it. The loader+patched-DTB replacement keeps every downstream consumer (kernel /chosen parse, validation, pagealloc reservation) identical — only the host-side delivery and DTB handoff change.
-- [Phase 04]: D-14 measured hello-path syscall set (04-01, donor pin 350266104f, primary startsyscall+/proc/N/syscall method): 51 pwrite, 14 open (#c/pid), 50 pread, 4 close, 8 exits — fmt/pool pulls no brk_/segbrk on this path. 04-06/07/08 implement exactly this set plus D-14's named core. — Measured, not guessed (D-14). The open/pread/close triplet is the exits path resolving its own pid via #c/pid; the absence of brk_/segbrk settles the fmt/pool watch item by evidence.
-- [Phase 04]: Harvey libflate adler32 is the seed-0 variant (mkpaqfs writes adler32(0,...)); r9's paqfs reader reproduces it via adler2::Adler32::from_checksum(0) — proven against fixture block headers (root block 0x479d0ee0) — RFC 1950 seeds s1=1; Harvey seeds s1=0. Fixture bytes proved the mismatch (seed-1 yields 0x579d0ee1). from_checksum(0) keeps the plan-mandated adler2 crate instead of a hand-rolled checksum.
-- [Phase 04]: r9 has no full-RAM kernel map: runtime access to a physical range (initrd) maps it explicitly via kernel_pagetable().map_phys_range with VaMapping::Offset(KZERO) — vminit's DTB convention, reused post-boot — 04-02 plan assumed an existing KZERO+PA physical-map convention that does not exist (vminit maps only DTB+kernel sections). 04-04's fault handler reads the initrd through the same mapping.
-- [Phase 04]: paqfs reader API grew root_dir()/read_dir() beyond the plan sketch — directory listing is required by the boot root-walk and 04-05 devroot; stateless-per-call invariant preserved — The 4-method sketch (open_image/read_block/walk/read_at) cannot express listing a directory's entries.
-- [Phase 04]: Boot serial evidence emits banner FIRST, then initrd marker, then paqfs root-entry lines — the 04-01 marker block moved below the banner print — 04-02 acceptance pins emission order (banner first); 04-01's greps were order-insensitive and remain satisfied.
-- [Phase 04]: 04-03 publication gate resolved: user selected 'publish' — D-05/D-07 kernel-side ABI contract published as locked (35-field frame, sp@248/pc@256/psr@264/type@272, size 280 stride 288; OQ-3 type-field = kernel-side informational)
-- [Phase 04]: 04-03: ESR_EL1/FAR_EL1 are never frame fields — read live at trap() entry, passed as dispatcher args (04-04 fault handler signature fault::user_fault(frame, esr, far))
-- [Phase 04]: 04-03: ureg-check missing-Harvey policy — skip+continue for bare builds (layer-1 const asserts guard), FAIL boot-test runs; R9_HARVEY_DIR env override, default ../harvey
-- [Phase 04]: 04-04: kernel-stack VA allocation rides vm::next_free_device_page4k (the kernel-VA bump allocator) — 4 contiguous VA pages per proc, each a fresh pagealloc page, contiguity asserted loudly
-- [Phase 04]: 04-04: exec maps the two seed pages into the proc's INACTIVE root table via map_to's temp-recursive dance and writes contents via KZERO+PA aliases; the fault handler maps demand pages into the ACTIVE user table and writes through the user VA — two edit paths, split by table liveness
-- [Phase 04]: 04-04: fault handler kills on already-mapped-page faults (mapping_log lookup, the donor fault() existence check) — remapping a live page would silently zero its contents
-- [Phase 04]: 04-04: r9 user address-space policy constants landed (D-11): USTACKTOP=0x0000_8000_0000_0000, USTKSIZE=16 MiB, USTOP=USTACKTOP-16MiB in exec.rs
-- [Phase 04]: 04-05: trap-entry stack switch removed (9front no-switch shape) — the old entry poisoned every frame's x0 with the interrupt-stack address; EL0 entry only via trap_return
-- [Phase 04]: 04-05: staged-init supply chain landed — stage-build.sh (lima 7c/7l) → build/aarch64/out/ → cargo xtask initrd (mkpaqfs) → target/bootfs.paq; initrd path in config is workspace-relative (dtb emission base)
-- [Phase 04]: 04-05: WR-01 closed — TTBR0 identity map torn down at first exec with the console-liveness proof print; D-12 experiments deleted; tick print cfg(not(dev_exec))-gated (Pitfall 3)
-- [Phase 04]: 04-06: syscall dispatch landed — implemented set is exactly the 04-01 trace {pwrite(51), open(14), pread(50), close(4), exits(8)} ∪ {exec(7)}; no brk_/segbrk (trace-settled); loud-unimplemented + -1 for everything else; per-access user-VA validation (T-04-11)
-- [Phase 04]: 04-06: SC#2 SATISFIED — committed hello.7.out (sha256 1c89e099…) exec'd by staged init on r9/qemu-virt prints via the real EL0 svc path; evidence 04-06-sc2-boot.log at r9 HEAD 230fc74 (D-13 ordering)
-- [Phase 04]: 04-06: Rule-1 fix — demand-pager file reads clamped to the exact segment content end (unclamped reads bled paqfs syms bytes into bss tails; poisoned exits()'s onex[i].f into an indirect call to 'tas.s')
-- [Phase 04]: 04-06: dat.rs Mode bitflags replaced with frozen Plan 9 open-mode constants (deferred #1 resolved); DEV_ROOT/DEV_CONS chan.dev routing until the devtab era; pagealloc gains deallocate_physpage; proc records kstack PAs for the EXITS free
-- [Phase 04]: 04-07: return-side CURKSTACK load enforces the per-process entry-stack invariant (an entry-side switch is impossible on aarch64 without the 04-05 x0-clobber)
-- [Phase 04]: 04-07: swtch.S rewritten symmetric — the imported sequence could never round-trip (latent, never called on aarch64)
-- [Phase 04]: 04-07: 1 ms tick slice + init's calibrated spin (preemption evidence needs a CPU-bound EL0 window with live peers); syscall int-width args masked to 32 bits (donor va_arg semantics)
-- [Phase 04]: 04-07: exec_bootstrap IRQ-masked until first EL0 entry — boot orchestration is a non-preemptible critical section; invariant: PSTATE.I=0 only at EL0 or the stateless sched wfi (heisenbug exposure closed by construction, root cause = deferred-items #4)
-- [Phase 04]: 04-08: note delivery resolves CURFRAME on the IRQ boundary (preemption-safe — deliver to the proc actually returning to EL0); delivery write window validated user-writable THEN forced resident (never a kernel write to a bad/unmapped user VA)
-- [Phase 04]: 04-08: NOTED takes dispatch's no-writeback special return on success (donor dosyscall case); sys_noted validates resume pc/sp BEFORE the 280-byte restore; exec clears note machinery, rfork inherits the handler (donor semantics)
-- [Phase 04]: 04-08: 7c caches a plain static load in a register across a spin loop (volatile included) — a note-handler-set flag must be read through a real C call or the store is never observed (caught by the SC#4 gate)
-- [Phase 05]: 05-01: note-timeout race root-caused to the trap_return tail's post-restore x9 clobber (psr re-read + CURKSTACK load); fixed by the uniform frame+288 final-sp step — every restored frame sits at entry-stack-top-288 by construction, so no post-pops scratch is needed. 20/20 virtnotes + 20/20 virtmulti clean, twice. r9 83cbbbe.
-- [Phase 05]: 05-01: long is 32-bit in Plan 9 C on every arch (7c SZ_LONG=4; only vlong is 64-bit); the donor kernel's va_arg(list,long) reads the slot's low half — pread/pwrite's n is now masked to 32 bits in r9 (61e6a70). stacksmoke's deep recursion exposed the deviation; Harvey libc stays donor-pristine.
-- [Phase 05]: 05-01: D-16 harness hygiene landed r9-side (c2f141e): fresh serial log per run + qemu spawned as process-group leader + group kill at teardown — phase-04 deferred #2 closed.
-- [Phase 05]: [Phase 05]: 05-02: bootr9.c hand-written bootconf supplies SIX symbols, not four — method[]/cpuflag/rootdir/bootdisk plus main()→boot() and cfs=0 — because the awk mkbootconf generator emits all six and the 7l link cannot resolve without them (boot.h's extern cfs; libc startup needs main)
-- [Phase 05]: [Phase 05]: 05-02: BOOTFILES trimmed to the real 7l closure by reference analysis — paq.7 is the lone trim (embed-only table never names it); bootcache.7 stays for statbuf (settime/local extern it), bootip.7 via local.c's configip, printstub.7 linked explicitly so its fmt stubs beat libc's fmtlock members
-- [Phase 05]: [Phase 05]: 05-02: build/aarch64/out/ ownership — subset-build.sh syncs its four boot-chain binaries per-file (no --delete); stage-build.sh keeps wholesale --delete for the staged-init supply chain (05-10's "unchanged" constraint); last writer wins, and mkimage.sh's manifest assert names the fix
-- [Phase 05]: [Phase 05]: 05-02: adm/timezone/local is copied into the staged tree at bake time from the repo's adm/timezone/local (not committed to root-tree/) — the action text's "copy at bake time" governs over the files_modified listing
-- [Phase 05]: 05-03: the real-chain donor trace is the measure-first gate for the kernel stream — 26 syscalls measured (16 NEW vs Phase 4: bind, chdir, dup, alarm, fauth, sleep, pipe, create, fd2path, brk_, unmount, seek, fversion, stat, fstat, mount); 05-04..05-09 implement exactly this set — Measured on the 9front donor with the 05-03 rig (born-traced arming + tagged fragments); opencons provably captured; REMOVE/WSTAT never fired (loud-unimplemented stays)
-- [Phase 05]: 05-03: donor trace accommodations that do NOT carry to r9: devcons /dev/cons reads Egreg by design on the donor (kbdfs-served consoles) so the sweep was sourced not typed; r9's devcons serves reads (D-06) and 05-09 drives the console for real — opencons's bind #c MBEFORE pins the kernel cons into the chain's fd 0 on the donor; the donor's devcons refuses Qcons reads (Egreg) — the trace termrc sources the sweep instead
-- [Phase 05]: 05-03 finding for 05-08: the image's scoped /lib/namespace needs the k10root-style re-mount (mount -a #s/boot /root; bind -a /root /) BEFORE its /root-prefixed bin binds — newns's RFCNAMEG wipe discards boot's mount table — proven empirically on the donor: the trace namespace file with exactly that shape let init's newns resolve /bin/rc; without it the replay fails soft and init's exec stalls
-- [Phase 05]: exec maps data+bss eagerly (05-04): phase-04 deferred #3 lands — real binaries pass cold syscall-arg pages; T-05-06 no-nested-paging holds; D-09 pinned wording (text fault-in + stack growth) untouched
-- [Phase 05]: rfork namespace semantics follow fork(2)/9k sysrfork (05-04 plan-text inversion corrected): RFPROC+neither shares Arc<Lock<Pgrp>>, RFNAMEG deep-copies, RFCNAMEG wipes; non-RFPROC split re-groups the caller
-- [Phase 05]: staged init binds #p at /proc itself (donor shape) — the namespace era retired the routing scaffold; xtask initrd tree ships empty proc/ (Pitfall-8)
-- [Phase 05]: /rootfs.img synthesized by devroot pulled forward from 05-05 Task 2 (the 05-04 gate needs dirstat(paqfile)); real image entry always wins; 05-05 hardens
-- [Phase 05]: sys_brk_ landed in 05-04 per the dispatch-note mandate (brk_ ×28); boot dirstat mallocs are gate-load-bearing; brk_ = bss-break set with USTOP cap
-- [Phase 05]: multi-config verify ordering: all aarch64 configs share target/.../debug/aarch64 — the config under gate must build LAST (the raspi4b leg otherwise overwrites the virtshell ELF)
-- [Phase 05]: [Phase 05] 05-06: rfork fd-group semantics follow fork(2)+9k sysproc.c — the plan's bullet inverts RFFDG vs default (NEITHER share / RFFDG copy / RFCFDG empty); the donor governs — the phase's THIRD flag inversion (05-04 RFNAMEG, 05-05 RFENVG precedents). libc fork()=rfork(RFPROC|RFFDG|RFREND)=COPY is exactly what connectembed's child dup/close choreography requires; the staged init's rfork(RFPROC|RFMEM) children now SHARE its fd table (fork(2)) and the fan proves them green
-- [Phase 05]: [Phase 05] 05-06: the pipe is TWO cross-connected queues in ONE Arc-shared Pipe (9k devpipe.c — the plan's own semantic reference — governs): paqfs's io(1) reads AND writes fd 1, which a single FIFO cannot serve (a server would consume its own replies); the plan's "single shared queue" prose names the shared pipe STATE both ends reference
-- [Phase 05]: [Phase 05] 05-06: FdGroup slots are heap-backed (Vec) — an inline [Option<Chan>; 32] (~5.7 KB) in Proc::new overflowed the 16 KiB kstack into the proc's root-table page (the rfork chain's construction); no giant stack temporaries in proc construction is now a pattern rule
-- [Phase 05]: [Phase 05] 05-06: fault::ensure_user_resident closes the cold-syscall-buffer class (phase-04 deferred #3's post-exec half): paqfs's emalloc'd heap buffers are brk_-grown demand pages whose first touch was the kernel's pread write — explicit zero-page-in before deref (04-08's T-04-16 pattern generalized); never a nested fault, so T-05-06 holds. Wired into pread/pwrite/errstr/await/fd2path/pipe's buffer paths
-- [Phase 05]: [Phase 05] 05-06: sys_seek (SEEK 39, measured ×72) landed via the gate's iterate-discipline + RFNOTEG accepted as a no-op (per-pid notes have no group to split; paqfs's rfork requires it); devsrv/devdup live boot-chain exercise is 05-07's (boot.c:141 fversion precedes :144 srvcreate — the plan's gate prose inverted that order; semantics host-pinned)
-- [Phase 05]: [Phase 05]: 05-07: the 9P session rides the chan (the donor's c->mux) — fversion parks the Arc<Mnt> on the pipe fd's chan and Chan::dup clones it, so devsrv's posted clone carries the session to settime's/newns's second mounts of #s/boot (a fresh Tattach fid per mount; the session is shared)
-- [Phase 05]: [Phase 05]: 05-07: one outstanding RPC per devmnt session via an AtomicBool (an MCS lock across the blocking recv would spin-deadlock an IRQ-masked contender; contention errors loudly, never wedges); the pgrp-lock-across-blocking-walk hazard is documented + deferred (the namec chain-snapshot fix lands with the first measured concurrent caller — the staged-init wedge proved the shape)
-- [Phase 05]: [Phase 05]: 05-07: per-RPC read counts clamp to 4072 (devpipe's 4096 atomic-write bound minus IOHDRSZ) even at negotiated msize 8192 — the pipe write is whole-message-or-fail; the donor's iounit clamp with the era's transport binding
-- [Phase 05]: [Phase 05]: 05-07: exec through the mount stages the WHOLE binary eagerly (proc.rs ByteBacking::Mnt, Arc-shared, 16 MiB loud cap) — the trap-context pager must never RPC; syscall context is where blocking belongs. sys_exec resolves via namec now (the Phase-4 devroot-only prefix scaffold retired — D-03)
-- [Phase 05]: [Phase 05]: 05-07: mkimage.sh asserts out/init is the REAL init at bake time (rodata markers) — the 05-02 'last writer wins' out/ ownership means r9's boot-test bake (stage-build.sh) re-pollutes; the bake fails loudly instead of booting the staged chain. The aarch64 seek ABI is the generated _seek stub's FOUR args (rv ptr, fd, offset, base) with the result written through *rv (the donor sysfile.c sysseek comment is the authority; 05-06's slot-0-as-fd reading was wrong)
-- [Phase 05]: [Phase 05] 05-08: the console DEL posts "interrupt" to the note GROUPS of the console's readers (blocked waiters ∪ the current reader) — the plan's sanctioned foreground-group scoping for the notepg machinery; r9 grew real note-group ids for it (Proc.noteid: fresh per construction, rfork inherits unless RFNOTEG, non-RFPROC RFNOTEG re-groups the caller — 9k sysproc.c), so init's rfork(RFNOTEG)'d shell children are interrupted without init ever seeing the note.
-- [Phase 05]: [Phase 05] 05-08: DEL (0x7f) discards the in-assembly partial line and fails the reading syscall -1/"interrupted" (the donor's qread-under-a-note → rc's Eintr re-prompt); no input ECHO this era (documented devcons delta — typed bytes never re-write to the wire); sleep(0) yields via preempt(); a sleeper wakes only on expiry (the donor's note-interruptible tsleep is a documented era limit — no measured caller interrupts a sleep).
-- [Phase 05]: [Phase 05] 05-08: two gate-caught fixes — (1) launchers spawning qemu's stdio serial in the background MUST pass <&0 explicitly: a non-interactive sh redirects a backgrounded command's stdin from /dev/null (POSIX), silently starving console input (run-r9.sh); (2) pick_next no longer skips the current proc — a proc that blocks via sched() stays current while the sched loop runs, so a tick-readied waiter was unpickable (the cons-read deadlock); the scan still starts at cur+1 (the readied current is picked last — fairness kept).
-- [Phase 05]: [Phase 05]: 05-09: devproc qid re-encoded pid*8+slot (note 1, status 2, args 3, ctl 4) — transient internals, note path byte-identical (Pitfall 5); Proc.argv recorded at EVERY exec (install_image shared) with ARGV_CAP 256 + documented truncation; rfork inherits pri but NOT argv (truthful-args: pre-exec reads EMPTY)
-- [Phase 05]: [Phase 05]: 05-09: #c/pid landed via a devproc-style injected current-pid hook — getpid() resolves so init's pri-10 write names the real pid (the designed warning is gone); devproc ctl accepts+records "pri N" (Proc.pri — the plan's honest degradation, no scheduler priority this era), unknown verbs loud
-- [Phase 05]: [Phase 05]: 05-09: mount-table fid aliasing fix — namec's redirects fid-CLONE DEV_MNT heads (devmnt::clone_chan, the zero-name Twalk idiom) instead of bare-dup; a redirect's open+close must never Tclunk the table's server-side fid (the ls /bin → ps exec gate failure)
-- [Phase 05]: [Phase 05]: 05-09: stat(5) records carry FOUR strings (muid added) — dirreadall's statcheck walks four and rejects three (convM2D.c); devproc fixed, the same latent shape in devcons/devroot/devenv/devsrv/devdup deferred (no dirreadall consumer this era)
-- [Phase 05]: [Phase 05]: 05-09: dispatch table closed against the 05-03 measured set — REMOVE/WSTAT/FWSTAT/OSEEK never measured → loud-None; FAUTH loud-None per D-02; the kernel's syscall attack surface is exactly the measured set (T-05-18)
-- [Phase 05]: [Phase 05]: 05-09: the input-wedge flake (2/~7 early sweep runs wedged at a prompt read; 6 consecutive clean passes since; never reproduced under the cons watchdog) documented-not-fixed — this plan's diffs don't touch the cons/wake/note/sched/timer paths; top debug candidate for 05-12/05-13's CI leg
-- [Phase 05]: 05-10: r9 packages.kernel-virt builds the virtshell kernel in a sandboxed derivation — toolchain via toolchainFor/fromRustupToolchainFile (D-09), deps vendored from BOTH Cargo.lock and the rust-src library lockfile (the -Z build-std sysroot graph has its own crates.io members); layout: kernel-virt.elf + aarch64/lib/virt-gicv2.dtb (the 05-11 consumption contract); debug profile (the gate default — no release canonical exists) — D-11 pins a kernel-only package; the two-lockfile vendoring is the idiomatic nix-rust shape for -Z build-std in a sandbox (the plan's sanctioned executor latitude)
-- [Phase 05]: 05-10: D-10 inversion landed r9-side — uregcheck::harvey_dir returns Result; unset/empty R9_HARVEY_DIR is a named error (names the variable + required checkout contents); initrd/boot-test auto-bake/ureg-check all require it; set-but-headerless keeps the two-tier shape (standalone skip, boot-test fail); r9 CI untouched — 05-CONTEXT D-10's one-way inversion: r9 knows nothing about sibling checkouts by default; the explicit contract keeps the r9-side regression gates (D-12) working against the unchanged staged-init supply chain (RESEARCH OQ-2 lowest-risk answer)
-- [Phase 05]: [Phase 05]: 05-11: r9 main pushed to origin BEFORE locking (33a9273..9549cee, 80 commits — 05-01 + 05-04..05-10) so the github:requaos/r9 pin resolves from a clean clone (INT-03's leg); flake.lock then pinned 9549cee with the locked-rev==live-HEAD gate + owner=requaos metadata check
-- [Phase 05]: [Phase 05]: 05-11: subset-build.sh owns BOTH transports — additive NATIVE_LINUX leg (nsrun.sh sudo-unshare, artifacts land in place via the binds, no rsync-back, host toolchain auto-bootstrap mirrors vm-run.sh) — the plan's 'linux → the same script natively' was impossible as shipped (hard limactl requirement); darwin leg byte-identical and gate-proven
-- [Phase 05]: [Phase 05]: 05-11: compose-app contract — kernel/DTB arrive ONLY via the nix-controlled R9_KERNEL_PKG store path (presence validated before launch, T-05-21); qemu runs as a foreground child (not exec) so the EXIT trap reclaims the mktemp DTB dir; cp-from-store needs chmod u+w before fdtput (store files are r--r--r-- and cp duplicates the mode); pkgs.git rides runtimeInputs so the KERNDATE derivation works inside the app
-- [Phase 05]: [Phase 05]: 05-11: boot-r9 app gated by (builtins.hasAttr system r9.packages) — r9 ships no x86_64-darwin package (out of project scope) and an ungated reference broke whole-flake evaluation; x86_64-linux full program eval deferred to 05-13's native CI because r9's kernel-virt embeds genuine IFD (importCargoLock reads a Cargo.lock inside the built toolchain — foreign-system eval builds a foreign-system toolchain)
-- [Phase 05]: 05-12: the smoke spawns qemu directly from expect over -nographic stdio (the A6 pick) — the build.bash/drive-r9-proven shape; expect's spawn makes qemu a session/group leader on both hosts so one group-kill teardown works everywhere, the shell-side bracket-fixed pkill a pure fallback
-- [Phase 05]: 05-12: the retained smoke evidence is run TWO's capture — the hygiene-proving second pass (run 2 green after run 1's rm -f proves no stale-log/orphan assist); the two gate logs were byte-shaped-identical but genuinely independent (distinct mktemp DTB dirs in the diff)
-- [Phase 05-shell-boot-one-command-integration]: 05-13: GH-run leg substituted per the orchestrator's explicit no-push rule: the workflow was authored + locally validated, and the exact pipeline it encodes ran green natively on aarch64-linux from a pristine clone at dc8299575 — 05-EVIDENCE.md records the hosted run as PENDING FIRST PUSH (nothing fabricated)
-- [Phase 05-shell-boot-one-command-integration]: 05-13: DeterminateSystems nix-installer-action pinned to commit 3138316df39ed29be04236d7ffc686fa525866aa (v23 resolved via the GitHub API; T-05-24 supply-chain rule)
-- [Phase 05-shell-boot-one-command-integration]: 05-13: the flake.lock r9 pin stays at 9549cee (NOT re-pinned to cbbc8e4): the docs commit is docs-only (same kernel image), and re-pinning to an unpushed local commit would break the clean-checkout leg the pin exists to serve
-- [Phase 07]: [Phase 07]: 07-01: netdev stanza emission lives in r9 config.rs::apply_virt_netdev (the shared qemu apply-path module), called from both aarch64-virt spawn sites with a per-step pcap path (target/qemu-<config>.pcap / target/boot-test-<config>.pcap); riscv64 MMIO leg + raspi/x86_64 argv byte-untouched, unit-test-pinned
-- [Phase 07]: [Phase 07]: 07-01: pcap parser accepts BOTH classic-pcap byte orders — qemu 11.1.2 filter-dump writes the header host-endian (measured: bytes d4c3b2a1 on the LE gate hosts; magic VALUE 0xa1b2c3d4 either way); the plan text's literal a1b2c3d4 od expectation is the big-endian order — corrected substance check run, parser pins both shapes
-- [Phase 07]: [Phase 07]: 07-01: plan verify commands ran with --arch aarch64 added (xtask Arch::from defaults to x86_64; every historical boot-test invocation carries the flag)
-- [Phase 07]: 07-03: RingMem::fence(order) trait method with a core-fence default (dmb ish/ishld per RESEARCH codegen) — the mock overrides to record op ORDER, so the virtio barrier sandwich is test-proven as a sequence; zero new unsafe/asm in port::virtio (#[forbid(unsafe_code)])
-- [Phase 07]: 07-03: avail pre-linking is literal (Ring::new writes each avail entry to its slot's chain head once; post re-writes the fixed value inside the §2.7.13 sequence); a fresh ascending DescPool reproduces ethervirtio.c's 2i chain-head layout organically; MAX_QSIZE=256 loud ceiling implements the accept-256-never-downsize EDGE-PROBE assumption
-- [Phase 07]: 07-03: used-ring validation beyond the plan's named checks (Rule 2): odd ids rejected as device faults (chain heads are even — aliasing guard), direction guards on tx_post/rx_replenish — the T-07-05 device-untrusted boundary's completed shape
-- [Phase 07]: 07-04: sweep dd syntax is the dash-pair form (dd -if fixture -of datafile) — the baked sys/src/cmd/dd.c parses dash-prefixed key/value pairs (iskey requires the dash), so the classic if=/of= form fails on the guest with dd: bad arg
-- [Phase 07]: 07-04: insertion-only edits to the shared build scripts (SUBSET append, separate mk dd.install and manifest assert lines) — the acceptance zero-deletion constraint and Phase-6 collision avoidance govern over the prose alphabetical-in-list placement
-- [Phase 07]: 07-04: net-sweep.rc connect step pre-checks test -e on the ctl file — a redirect-open failure is an uncatchable rc Xerror (aborts without the named FAIL line); the || on the echo covers the write-failure (Ebadctl) class
-- [Phase 07]: 07-04: mkimage.sh trailer magic re-extracted with od -j — the Harvey host dd shadows POSIX dd on the devshell PATH (D-02 hostbin-shadowing class), leaving the classic-syntax extraction empty and the bake red; od is never shadowed (no Plan 9 od exists)
-- [Phase 06]: 06-02: Task-2 checkpoint resolved planned-layout (user 2026-11-04) — tier data files, entry forms, filter hooks, COVERAGE_SWEEP disengagement, and the D-14 ledger grammar committed exactly as presented; ledgers committed header-only to pin the grammar before 06-03's first append
-- [Phase 06]: 06-02: uniform keep-rule = first-path-component awk extraction (colon-stripped); dir:target keeps its dir in the mk sweep (mkpaqfs compiles green under 7c) while host-only semantics live at the driver/staging layer; leaf target filtering only where equipped (auth/factotum drops fgui)
-- [Phase 06]: 06-02: plan9port mk backquote lexer constraints spiked and encoded (no literal newlines; first unquoted close-brace terminates; $1/$$ are lex errors) — single-line brace-free rc filters with single-quoted awk extractions; mkmany + cmd/mkfile carry empty-TARG phantom guards (Rule-1 deviation, parity re-proven)
-- [Phase 06]: 06-02: Task-3 verify gate 2 is defective as written (mk -n never recurses; ip/ipconfig|auth/factotum can never appear in cmd's own output) — intent proven by per-level chain probes; gate-text repair queued for 06-03 planning
-- [Phase 07]: 07-06: the device-VA arena now reserves a map's WHOLE span (vm::next_free_device_va_span; deviceutil uses it) — the one-page bump aliased every multi-page map's tail (the 64 KiB GICD map clobbered the ECAM window's dev-1 page; the bind was the first ECAM consumer after gic::init, latent since 07-02)
-- [Phase 07]: 07-06: the pci node's ranges 64-bit MMIO window is parsed pci.rs-local (stride from declared cell counts; the 0b11 space-bits tuple) — fdt::property_range_iter caps child addresses at 2 cells and PCI declares 3; the BAR base comes from the DTB either way
-- [Phase 07]: 07-06: rx_replenish learns the slot being posted (per-slot buffer-page binding) and returns Replenish { offered, notified } (exact nnote under suppression) — the 07-03 seam's sanctioned evolution; 22 port tests green
-- [Phase 07]: 07-06: ring bring-up order = Ring::new chain assembly → queue_enable LAST → DRIVER_OK → rx_replenish pre-posts with ONE notify — the 07-03 boot-order contract (never notify before DRIVER_OK) governs the truth bullet's looser phrasing
-- [Phase 06]: 06-03: the staged termrc override swaps the SERVED rootfs's rc/bin/termrc (guest scratch, trap-restored, self-healing) — the donor init's pass structure runs the sweep once at boot and gives drive9 its shell proof on the pass-2 manual rc; no /lib/namespace edit, no typed console interaction during the sweep
-- [Phase 06]: 06-03: boot-chain ledger honesty (USPACE-04 transparency outranks plan text): stage/stacksmoke BOOT:donor with the 06-03 gate log; 9k/boot, stage/init, cmd/paqfs:paqfs BOOT:donor with the 05-03 real-chain trace (the subset-exec venue boots the DONOR's own chain); PENDING-CHAIN:06-07 added as the transient Task-1 exec vocabulary
-- [Phase 06]: 06-03: the tracer caught 7l's LP64 double-constant pool emission bug (struct Ieee 16 bytes on LP64 hosts; only l's bytes emitted — double constants landed with hi=0; awk float prints aborted). Fixed 2bbca81ed, proven by donor execution (0.333). 6l's embedded-Ieee variant is the same latent class — deferred-items, amd64 untouched
-- [Phase 06]: 06-04: the sweep gained a second-chance visitation pass — plan9port mk recipes abort at the first failing command (measured), so container loops stop at the first failing sibling; the plan's adjacency truth (ipconfig + 6 siblings visited) is otherwise unreachable with tier-0 libs outstanding
-- [Phase 06]: 06-04: jpg Wave-0 re-verification is forced + state-independent (rm committed headers+generators in the scratch guest, rebuild via the mkfile's own rules, od-assert 7f454c46) — the committed headers satisfy mk without firing the chain; concurrent-session guest churn proved real mid-run-1
-- [Phase 06]: 06-04: generator-audit re-confirmation corrected plan cells against live mkfiles (per the plan's mandate): G5 artifact=o.pcode (cpuobjtype=o via /unix/mkfile); G6 genarch=pcc-native-only (build guard gs/mkfile:164, run guard :149)
-- [Phase 06]: 06-04: namespace/devshell dialect safety (D-02 shadowing class): Plan 9 sed garbles on pipe-inside-pattern and silently fails capture-group extractions, Plan 9 date prints the epoch for -u +fmt — awk index/substr, plain-caret seds, probe-verified ISO date; ssh probes carry </dev/null under rows-loops (stdin drain measured)
-- [Phase 07]: 07-08: push-before-pin executed — r9 e72abfe..2afa3d6 (19 commits) pushed to requaos/r9 BEFORE the flake.lock advance; the pin commit 06380f2bc names flake.lock ALONE; locked rev == live HEAD == origin/main, owner=requaos (the 05-11 gate shape, T-07-17)
-- [Phase 07]: 07-08: D-10 end state landed — the identical netdev stanza (-netdev user,id=n0 + -device virtio-net-pci-non-transitional,netdev=n0) on all three compose paths + the smoke's nic-bind whole-capture post-pass; the composed smoke green on the default darwin leg (gicv3+hvf) = the first live NIC-on-GICv3 composed boot; R9_GICV2=1 remains the bisection hatch, never the gate default
-- [Phase 07]: 07-08: hosted CI satisfied for real — r9-shell run 41955568449 SUCCESS at headSha 15739d108 (the pushed pin+compose HEAD); the 05-13 PENDING FIRST PUSH substitution NOT needed; legacy harvey.yml's red streak recorded as pre-existing/unrelated (red on every master push since 2026-11-04T12:01Z)
-- [Phase 06]: 06-05: libdynld dynld-aarch64 rename KEPT (D-08 rec (i)) — probe-built green before the wave; zero dynld.h consumers → EXCLUDED:no-consumer with the artifact recorded
-- [Phase 06]: 06-05: liblex archives as libl.a (historical lex-runtime name) — the tier-0 driver maps per-lib archive names explicitly; the first sweep abort at liblex was machinery, not compilation
-- [Phase 06]: 06-05: subset-exec.sh CONF bootdir patch now unconditional drop+insert — the tier1-sweep.rc-keyed skip-guard treated stale blocks as current and silently never landed new members
-- [Phase 06]: 06-05: rc ~ dialect measured — quoting DISABLES wildcarding in ~ patterns; multi-star spans over literal text unreliable; sweep assertions use proven edge-glob shapes / split conditions only
-- [Phase 06]: 06-05: libmemdraw drawtest/arctest fault on aarch64 (Pitfall-3 class) — filed as Phase-10 per-dir checklist per the plan's no-drive-by prohibition; standing sweep carries green libtest members only (drive9 fast-fail interaction); exec=TEST-FAIL:donor
-- [Phase 06]: 06-06: A3 verified on the FULL path — the guest-compiled binary executed from the srv9 writable prefix and printed 'hello aarch64 harvey' (no COMPILE-ONLY fallback needed); A7 settled: this bc prints 0.333 WITH the leading zero (T1-BCOBS)
-- [Phase 06]: 06-06: venue findings encoded in the gate — donor devroot Nbootfiles raised 32->128 in the donor-COPY tree (disclosed harness-side accommodation); the served rootfs has no /sys so the gate stages yaccpar/lex ncform/sys-include into it; 9front rc terminates words at bare '=' and plan9port rc rejects separated subshells in backquotes (the sweep is subshell-free, fn producers); bc's hardcoded execl(/bin/dc) gets a union-mount shim over /bin
-- [Phase 06]: 06-08: phase6.yml is a NEW sibling workflow (r9-shell.yml + harvey.yml byte-untouched, explicit-range-diff proven) carrying the full phase-6 pipeline on linux legs (D-16) — wave0-host/tier-donor/tier-r9/x86_64-poolpanic; EVERY action 40-char-SHA pinned (checkout 11d5960a… + upload-artifact ea165f8d…, both API-resolved 2026-11-05; nix-installer 3138316d…, the 05-13 pin); concurrency group cancels superseded runs; hosted run PENDING FIRST PUSH per the 05-13 precedent
-- [Phase 06]: 06-08: USPACE-10 verdict recorded — PASS no-panic-signature boot-continues (local TCG): the pswt-fixed 6c boots 9k10cpu PAST the 01-04 bad-magic pool-panic point (banner 5s, boot.c's root-is-from prompt reached, zero signature lines) — the Phase-2 pswt hypothesis CONFIRMED; the v1.0 carry-over (deferred 02-8) is closed WITH INFORMATION per D-04's recorded-either-way letter
-- [Phase 06]: 06-08: the USPACE-10 verdict harness asserts verdict PRODUCTION (banner + classification file), never the outcome — a FAIL verdict greens the job (information delivered), an empty capture records FAIL no-banner and reds; healthy continuation markers key on the production boot binary's reachable prints ('root is from', boot.c:342) — the plan-named argc=/version... are DEBUG-gated/post-connection (Rule-1 correction)
-- [Phase 07]: 07-09: the fix is exactly the diagnosis — `let v = val as u32 as u64;` reproduces the C conversion int→ulong (32-bit truncation, never sign extension; Plan 9 long/ulong is 32-bit even on amd64, vlong/uvlong are the 64-bit types hence VLNUMSIZE=22); NO saturating clamp and NO underflow guard — the u32 ceiling makes the underflow unreachable and a guard would mask a future width regression
-- [Phase 07]: 07-09: conv_close's last-close reset (typ=0, owner cleared, queue drain, EOF wake — donor 9k netif.c:446) is pinned as INTENTIONAL by a host test rather than repaired — G-07-1 was a test-PROCEDURE defect (connect before holding the conversation open); the corrected read-first-then-connect protocol lives in 07-UAT.md for the verify-work re-run
-- [Phase 07]: 07-09: push-before-pin executed at the fix HEAD — r9 46a2ed2..1c16193 pushed to requaos/r9 BEFORE the flake.lock advance; the pin commit d5df2df38 names flake.lock ALONE; locked rev == live HEAD == origin/main, owner requaos; hosted r9-shell run 42043430592 SUCCESS at headSha eef588612 (and 42043437746 SUCCESS at the subsequent tip carrying these commits)
-- [Phase 07]: 07-10: the fix is exactly the diagnosis — virtio_net_frame_offset() == 0 with NO bounds guard/clamp/min: next_used's used-len validation (12 <= len <= 12+4096) already constrains frame_len <= 4096 = the payload page capacity, so the offset-0 slice is in-page by construction; a guard would mask a future chain-layout regression
-- [Phase 07]: 07-10: the rx_chain_tests pin covers the Ring<->pci.rs seam ONLY — deliberately NOT a full rx_ingress/pop_frame drive: netif::publish is once-per-process and devether_tests' conv_close pin already consumes it in this test binary; the slice->rx_ingress leg stays host-covered by 07-09's synthetic drive and the end-to-end confirmation is the guest UAT re-run (verify-work's)
-- [Phase 07]: 07-10: push-before-pin executed at the fix HEAD — r9 1c16193..a5b1b42 (2 commits) pushed to requaos/r9 BEFORE the flake.lock advance; the pin commit 91f6ab9aa names flake.lock ALONE; locked rev == live HEAD == origin/main, owner requaos; hosted r9-shell run 42058021884 SUCCESS at headSha 1dca03c25 (and 42058871366 SUCCESS at the subsequent tip 0f10a351 carrying these commits)
-
-- [Phase 07]: From-scratch virtio transport in r9 port/ (D-01: virtio-drivers crate rejected) — unsafe-free, host-testable negotiation/ring state machine; the device-is-untrusted boundary stays auditable; provenance recorded in r9 HowItWorks.md
-- [Phase 07]: Test delivery, not just counters — every automated gate stayed green while inbound frames were counted-but-never-enqueued (pci.rs RX slice off by VIRTIO_NET_HDR_LEN on two-descriptor chains); only the conversational UAT blocked-read caught it. Chain-faithful pin (rx_chain_tests) now covers the Ring↔drain seam
-- [Phase 07]: netif scopes `connect` by conversation open lifetime (donor netif.c:446 last-close typ reset) — pinned as intentional by devether_tests; test/protocol procedures must hold a reference across connect
-- [Phase 07]: Push-before-pin discipline extended to fixes: every r9 landing pushes to requaos/r9, then flake.lock advances as its own structural-assert-gated commit with fresh hosted CI (07-08/09/10; CI runs 41955568449/42043430592/42058021884)
-- [Phase 08]: 08-01: Accept pool depth = 128 (devip-exact Maxincall) with 2048/2048-byte socket buffers = 512 KiB per announced conv (12.5% of r9's 4 MiB QuickFit arena); ≤2 concurrent announced TCP convs in the phase gates (OQ-3 resolved, math in docs/devip-contract.md §12.3)
-- [Phase 08]: 08-01: tcp checksum/tcpporthogdefense ctl verbs accepted-and-recorded with a netlog note (no smoltcp mechanism; D-08 full-fidelity over loud-unimplemented) (OQ-4 resolved)
-- [Phase 08]: 08-01: one smoltcp Interface per bound ipifc with address-class demux (127/8 and ::1 → loopback; else → ether) (OQ-5 resolved)
-- [Phase 08]: 08-01: timer leg = one-shot arming from poll_at() over the existing 1 ms tick sweep; literal dynamic-CNTP-rearm considered and rejected (A5 resolved)
-- [Phase 08]: 08-01: MAXTTL = 255 recorded from source (sys/src/9k/ip/ip.h:44) — phase research's '64' parenthetical corrected; bridge sets hop_limit 255 at conv creation so smoltcp's 64 default never leaks
-- [Phase 08]: 08-01: boot-test verify invocations carry --arch aarch64 (xtask Arch::from defaults x86_64) — same correction as the 07-01 precedent
-- [Phase 08]: 08-02: OQ-1 RESOLVED PASS-path (pin h, empirical): the udp socket sources 0.0.0.0 on the wire ONLY when the send metadata carries local_address: Some(0.0.0.0) — the naive shape is silently dropped (get_source_address → None on an address-less interface); the bridge sets local_address from the conv's recorded laddr; no wire-layer shim; D-09 dhcpv4 fallback stays unwired (contract §12.6)
-- [Phase 08]: 08-05: the tcp blocking paths re-probe after EVERY drive (probe → drive → re-probe → register/arm → block) — on loopback the drive completes the handshake synchronously and a waker fired mid-drive readies a RUNNING proc (a no-op), so without the re-probe the later block wedges (the gate-caught wakeup-loss; icmp/udp's read shape generalized to tcp's connect + write-full paths)
-- [Phase 08]: 08-05: the accept pool IS tcp's incall queue — the listen open pops the oldest connected member and materializes a NEW conv around its socket (fs_new_call_tcp), then refills; RST-died members prune (T-08-09); the parked listen open arms every pool member's recv waker on its pid (smoltcp's set_state fires recv wakers on every transition); the pool tears down at conv close / the announcer's close/hangup (never a live-socket leak)
-- [Phase 08]: 08-05: hangupxmit ≡ close() on the wire — smoltcp's egress emits FIN only once the segment covers the TX buffer's tail (the FIN never precedes queued data); the donor's close-vs-hangupxmit distinction is the rq flush smoltcp lacks — recorded mapping corner in proto.rs
-- [Phase 08]: 08-05: netlog carries the DONOR's Log* bit values (ip.h:485-500) — the 08-04 placeholder's ad-hoc bits replaced; the D-13 netlog-activity marker is the ctl-acceptance print `netlog: flags set <mask>` (clean gate traffic produces no netlog packet lines)
-- [Phase 08]: 08-05: the tcp host pins run SINGLE-THREADED with an on-block injection seam (ON_BLOCK one-shot + BLOCK_RELAY standing; the scripted answer fires from INSIDE the park, recorded by BLOCK_COUNT) — two host std threads genuinely race the seam's BusyCell fail-fast (the guest's single-CPU IRQ-masked invariant cannot hold across host threads)
-- [Phase 08]: 08-05: the virtip gate consumes the Harvey-baked bootfs.paq AS-IS (the harvey: initrd channel — no auto-bake); fixture changes require a manual `sh build/aarch64/mkimage.sh` rebake before the gate run (the stale-bake failure mode cost one debug cycle)
-- [Phase 08]: 08-05: two pre-existing kernel gaps recorded (deferred + WINDOWS #44/#45), NOT fixed (scope boundary): the 4 MiB arena drains under a fork+exec spin loop (exec staging teardown suspect), and namec's walk_one never union-consults (Creat on a top-level /net file misses the bound #I member — the fixture uses `>>`, open-first)
-- [Phase 08]: 08-02: smoltcp 'async' feature enabled (Rule 3 blocking fix) — 0.14.0 gates ALL socket waker methods + internal wake() calls behind #[cfg(feature = "async")]; the D-05 waker bridge cannot exist without it; async = [] pulls in zero deps (no executor; Cargo.lock unchanged); the research's 'async outdated' note was self-contradictory — corrected in contract §12.2
-- [Phase 08]: 08-02: devip/waker.rs mounted at the crate root as crate::devip_waker via #[path] — Rust's forbid(unsafe_code) PROPAGATES into submodules (probe-proven), so the named unsafe exception cannot be a child of the forbidden devip module; every acceptance criterion + the safety contract hold structurally
-- [Phase 08]: 08-02: the waker bridge RECORDS into a pending-wake set and drive_stack drains it after the STACK cell drops (netif's wake-after-drop discipline); the seam's clock is its own registration point (set_clock) beside the verbatim DevipHooks {current, block, wake} triple; AcceptPool ops self-enter the cell with partial-announce teardown
-- [Phase 08]: 08-03: netaddr.rc keys are leg-prefixed (lo_/slirp_) — bare duplicate guestv4 per leg would be last-wins-on-source, silently binding the slirp address into loopback gates; the prefixed shape keeps wholesale sourcing unambiguous and every acceptance grep passes on the substring (D-11's anti-Pitfall-9 intent enforced inside the seam file itself)
-- [Phase 08]: 08-03: out/ harvest is the payload magic-contract surface while /aarch64/bin stays the bake source — subset-build.sh od-asserts out/ post-rsync, mkimage.sh stages from bin/ and asserts staged paths pre-bake; a missing/stale payload fails loudly at both layers (T-08-05); slirp v6 pair recorded provisional (fec0::15/fec0::2) with 08-07's live probe named as finalizer in-file
-- [Phase 08]: 08-04: RFMEM landed in r9 per the blocking-human decision (option A) with the donor dupseg semantics EXTENDED to growth — the checkpoint premise 'ping does not brk_-grow post-fork' was falsified at the gate (the receiver faulted on the sender's malloc-grown page), so RFMEM families carry the shared break: sys_brk_'s family arm births grown pages shared into every member, the rfork bss sweep closes the untouched-page hole, SHARED_PAGES PA-keyed refcounts gate frees at the last sharer (r9 4298fc0)
-- [Phase 08]: 08-04: SEMACQUIRE(37)/SEMRELEASE(38) implemented (9k sysproc.c semantics; wait queues keyed by the word's PA so RFMEM sharers contend on one queue) — the contended libc lock() path is reachable only with shared memory; the syscall table grows by 2 (both NON-networking; NETIP-02's no-network-syscalls contract intact); TSEMACQUIRE stays loud-None
-- [Phase 08]: 08-04: udpecho's `echo' service name never resolves without cs (libc identtrans passes it through verbatim — the research's 'libc/nettrans service table' claim falsified by announce.c); the udp gate discovers the server's kernel-picked port from /net/udp/N/local (a nonzero port proves the announce completed by single-CPU syscall atomicity)
-- [Phase 08]: 08-04: rc fixtures must HOLD a devip conv's ctl open across a multi-command exchange (closeconv resets on last close — the per-command `echo verb > ctl` shape loses the conv between commands); the fixture rides rc's `<>[4]` redirect (the rc(1) man page's newconn precedent)
-- [Phase 06]: [Phase 06] 06-09: the Harvey-kernel amd64 tier venue (k10t1) inherits k10cpu's device set VERBATIM; only rootdir/boot differ. The venue never writes tier-ledger lines (D-14 stays aarch64-pure, T-06-20). The 9k SKIP whitelist is fixed at 24 names with a converse assert; the sweep's 9k libtest SKIPs ride a block-local fn so the r9 gate's sweep-text extraction stays venue-correct. — The venue surfaced five real fixes — 6l LP64 double constants (778d4616b, the WR-01 class on amd64), the k10 early KZERO map raised to 8MiB for the 43-file embed (bba1eeaa8), parse cname uniqueness for dual-name embeds (36542bdbb), rc-script boot plumbing (#r/rtc clock + hostowner; 8b55abbda/8088471ba), and the r9-extraction interaction (fd544ef42) — each fixed in-tree and re-proven green, per the maintainer's in-tree-fix constraint.
-- [Phase 06]: [Phase 06]: 06-10: tier-donor CI leg REMOVED (not kept red as tripwire) per maintainer direction 2026-11-05 — on x86_64 CI donor evidence comes from Harvey's OWN kernel (9k10cpu lineage); the wave0-host venue-pin step (anchored job-key negative-grep + self-hosting-safe donor-script ERE + tier-9k positive-grep) is the honest tripwire — a permanently-red leg trains red-blindness — G-06-1 / CR-01 closed by retirement. CR-01's provisioning arm (wire a native 9front donor build into CI) rejected: borrowing 9front-specific design decisions is the deliberate anti-goal, and the first hosted run redded the leg earlier than the pin gate (host toolchain bootstrap under nixpkgs gcc hardening) — a second bootstrap surface to maintain for unwanted evidence.
-- [Phase 06]: [Phase 06]: 06-10: the coverage report's venue line discloses host-class visit-count jitter (reach set + per-dir verdicts host-independent, proven identical linux-aarch64 vs linux-x86_64); counts stay embedded as data — jpg's note line included — and the D-15 normalized drift gate carries the tolerance (dropping data to quiet a green gate is the wrong direction) — USPACE-02 wording truthfulness under both linux host classes; the gate normalizes visited=N, so the committed report's count embeddings are information, not drift.
-
- - [Phase 08]: 08-06: the two-core seam — StackState carries the loopback core (08-04's field, the host pins' home) + the ether core; every conv records its CoreSel at socket creation (demux on raddr for connect, laddr for announce — wildcard → ether-when-bound); the single-core fallback keeps the loopback gates byte-identical (a conv's socket handle is valid only in its own core's SocketSet)
- - [Phase 08]: 08-06: the RX-IRQ leg is a WAKE, never a poll — note_rx_pending() drains the devip waiter set after the BusyCell drops (tick_check's sibling shape; the no-waiters arm sets STACK_DEBT for the next devip op's drain); pci.rs's RX retire calls it cfg(dev_ip)-gated right after rx_ingress
- - [Phase 08]: 08-06: the /net/arp view is snoop-fed at the ADAPTER (both receive() and transmit() — smoltcp's neighbor cache has no accessor; wire codecs parse, never hand-rolled); the netif frame stores carry global ingress seq stamps so the three-conv merge preserves arrival order; the gratuitous ARP is crafted devip-side (wire codecs) on every ether address add (the donor's areg=sendgarp — smoltcp never sends one)
- - [Phase 08]: 08-06: the D-17 minimal CSPRNG is a pure-safe-Rust ChaCha20 DRBG in devcons (no new crate, no unsafe — the forbid holds), seeded LAZILY at first read from the DTB's /chosen/rng-seed (the arch hook re-parses the DTB off the recorded VA — the plan's 'seeded at first read via fdt.rs'), jitter-mixed (CNTFRQ^CNTPCT^ticks) at seed and per read; random ≡ urandom this era; Phase 11 supersedes
- - [Phase 08]: 08-06: the static fixture never pre-binds ether — ipconfig's own binddevice does the clone+bind (the plan text's pre-bind step would fail ipconfig's bind with 'interface already bound' under the era's per-medium singleton rule); ipconfig runs UNMODIFIED (D-09) — `ip/ipconfig -g $gw ether /net/ether0 add $guest $mask` per its usage
- - [Phase 08]: 08-06: the xtask pcap assertions take the seam addresses as PARAMETERS (host-hermetic pins) — the netaddr.rc reader (rc KEY=VALUE via R9_HARVEY_DIR) resolves pre-spawn for static mode (a harness bug fails before a wasted TCG boot); no 10.0.2.x literal in the new assertions (D-11/Pitfall 9)
- - [Phase 08]: 08-07: the OQ-1 bridge predicate keys on the self-table's accept-all flag (the addselfcache null-address side effect IS the absorbed-DHCP marker — contract §12.6's dated 08-07 note): an unspecified-laddr conv sends 0.0.0.0 ONLY in that window; on an ADDRESSED iface it keeps smoltcp's source selection (the wedge pin caught the naive laddr-only predicate sourcing 0.0.0.0 there)
- - [Phase 08]: 08-07: the icmpv6 bridge's recorded corners (contract §8's dated note): the ICMP_USEAD6 prefix is WRITE-SIDE ONLY (reads deliver the full packet from the IP6 header); the wire src is smoltcp's RFC 6724 selection (icmp sockets have no per-send override — the pre-autoconf RS src=:: corner is unreachable with slaac OFF); NDISC traffic never surfaces to the socket (recvra sees nothing — recorded divergence); the read-synth ttl is the conv's configured ttl
- - [Phase 08]: 08-07: try = tentative recorded devip-side, NEVER pushed to smoltcp; the post-window add confirms+pushes (the DAD lifecycle); NO DAD NS emission on try — the donor's own NS would land in the TX-snooped /net/arp as a WAIT entry for the tentative address and ipconfig's arp-scan DAD (ipv6.c:425-455) would read it as a FALSE DUPLICATE
- - [Phase 08]: 08-07: the slirp v6 probe verdict (2026-11-06, recorded in netaddr.rc + the 08-07 SUMMARY): slirp answers ND for fec0::2 (the guest's NS got an NA) AND serves ICMPv6 echo (3/3 replies); NO unsolicited RAs in the window; the guest's one extra v6 frame is its own MLDv2 solicited-node join report.  netaddr.rc's guestv6/gwv6 finalized fec0::15/fec0::2
- - [Phase 08]: 08-07: format_ip's "::"-compression-followed-by-more-groups printed a TRIPLE colon ("fec0:::2") — latent since 08-04 (the v4-only gates never printed that shape); caught by the v6-verb pin's status assertion; the /net/arp v6 lines + ipselftab + ipconfig's DAD-scan tokenization all ride this printer (r9 8a30e64)
-- [Phase 08]: 08-08: the fd op-ref pattern replaces the checked-out-chan take/store in pread/pwrite (r9 a81143e) — the take emptied the fd slot for the op's duration, so a shared-fd-group sibling's concurrent op on the SAME fd saw "pwrite: bad fd" and wedged; the libthread shape (aan's blocked reader proc + writer main on one netfd) is exactly that interleave, first exercised by the aan gate
-- [Phase 08]: 08-08: sys_rendezvous re-verifies the pairing after EVERY sched() wake (r9 688ed87) — r9's wake model is pid-keyed/flat, not channel-keyed like the donor's Rendez, so a STALE devip net-waiter registration (left by a completed listen, drained by a later tick/RX sweep) readied a rendezvous-parked proc with NO pairing; the aan server main faulted on the resulting nil q->head (addr 0x40 = Thread.next); every other blocking primitive already re-checked — rendezvous was the lone gap
-- [Phase 08]: 08-08: the aan gate's scripted drop is IN-BAND — the fixture transmits one plain command line (`rc /lib/netip-aan-drop.rc <port>`) and the SERVER-side rc runs the baked walk+hangup script against its own /net/tcp; the earlier client-side walk INSIDE the held-fd block leaked payloads into the held pipe twice (an rc redirect-stack/fd-reuse corner, root cause unpinned — deferred + WINDOWS #46)
-- [Phase 08]: 08-08: aan flow-control rule recorded (deferred-items): Nbuf=10 unacked messages, and ONLY data messages drain the window — the 8 s sync beacons carry the acked count but aan.c's fromnet skips nb=0/msg=-1 before the ack processing; a >10-line one-direction burst with a silent far end wedges the sender forever (measured)
-- [Phase 08]: 08-08: the fault autopsy landed (r9 a01089d) — unresolvable() now names the faulting process (pid+name), dumps the TrapFrame, and dumps the live proc table with parent pid + exec argv (the spawn topology distinguishes libthread proccreate children from fork+exec'd commands); diagnosed the aan gate's wild read from these prints alone
-- [Phase 08]: 08-08: the soak's host echo endpoint binds 127.0.0.1 only (T-08-14 — the guest reaches it via slirp's gateway forwarding; no external interface) and spawns pre-qemu / joins post-run; R9_NETIP_SOAK_ROUNDS plumbs the count into the typed fixture line (default 64 = TCG scale; the D-16 sustained command with 4096 committed verbatim in the fixture header); the pcap assertion's byte threshold scales rounds x 32 KiB / 2 so the override is honest at every scale
-- [Phase 08]: 08-08: NETIP-07 marked Complete (its last declaring plan); NETIP-08 correctly stays Pending — 08-09 also declares it (the #2388 shared-ID gate) and the tap-leg truth verdict is Phase 9's joint acceptance gate (D-15)
-- [Phase 08]: 08-09: virtshell gains devip (r9 14b2f23) — the PACKAGED kernel shipped without #I (dev = [exec, bootchain, ether]); D-13's composed smoke through the pinned pipeline requires cfg(dev_ip) in the package — inert until a bind lands; the plain smoke re-proven green on the devip kernel
-- [Phase 08]: 08-09: EtherDev drops its netif convs (r9 19f61ed) — the unbind+rebind leak ('ether-type already in use') closed by impl Drop + ipifc's unbind taking the core OUT of the STACK cell before the drop (the seam never holds STACK across netif's locks); first live exercise: the smoke's static→dhcp unbind+rebind
-- [Phase 08]: 08-09: the composed smoke's stage ORDER is load-bearing (measured): ether legs FIRST (a single blocked devip waiter per exchange — the multi-waiter RX-IRQ wake wedged/panicked with the loopback servers blocked on BOTH GIC gens; static-alone passes), then unbind, loopback legs LAST (the two-core wildcard demux wedged the udp leg when ether stayed bound); both ether unbinds orphan-free by construction; the full rationale lives in the driver header so the order is never simplified back
-- [Phase 08]: 08-09: typed-input discipline (measured): a >256-byte typed console line truncates at the PL011-side ring with no reader-visible signal (wedgedbg line=255) — short typed lines + rc continuation lines paced per-line in smoke-r9-net.expect; the quoted-'FAIL' token keeps an echoed line from tripping the abort regex
-- [Phase 08]: 08-09: push-before-pin executed at the phase-complete HEAD — r9 a5b1b42..19f61ed (30 commits) pushed to requaos/r9 BEFORE the lock advanced; the pin commit d8080f115 names flake.lock ALONE; locked rev == live HEAD == origin/main, owner requaos; hosted r9-shell run 42171968459 SUCCESS at headSha bfc7fd8de (BOTH jobs — the new net-smoke + boot-smoke — the composed net smoke green in hosted TCG CI on its first run)
-- [Phase 08]: 08-09: the at-pin packaged proof runs the CI shape on the darwin host (R9_GICV2=1): the pre-existing rc argv-stack flake residual ('pushword but no argv!') is HVF-timing-exposed (2/~6 HVF runs today incl. the plain 05-12 smoke — NOT devip-correlated: the plain smoke re-passed 2/2 on the devip kernel) and has never fired on TCG all phase; recorded WINDOWS #49
-- [Phase 08]: 08-09: NETIP-08 stays PENDING past the phase (the #2388 ready subset marked NETIP-03/04/05 Complete) — its letter names the tap leg, Phase 9's joint acceptance gate (D-15); the machinery + the documented-manual soak command + the handoff list are committed (08-EVIDENCE.md + netip-soak.rc's header)
+- [v2.1 re-scope 2026-11-06]: Pivot target aarch64 → x86_64; v2.0 subsumed (6-8 delivered, 9-12 inherited re-keyed); aarch64 frozen at the v2.0 pin
+- [v2.1 re-scope 2026-11-06]: Three-track end state — Harvey-on-9k standalone ∥ Harvey-on-r9 (v2.1 proving ground) → r9 as complete Rust port of Harvey (future milestone)
 
 ### Pending Todos
 
@@ -350,24 +61,8 @@ None yet.
 
 ### Blockers/Concerns
 
-- ~~Phase 5: note-delivery timing race~~ RESOLVED by 05-01 — trap_return x9 clobber root-caused + buried (20/20 ×2; DEL gate re-exercises every smoke)
-- ~~Phase 5: stack-growth never exercised~~ RESOLVED by 05-01/05-04 — stacksmoke forces 3 demand-paged stack page-ins per run through the real EL0 path, in every exec-profile boot
-- ~~Phase 5: harness qemu cleanup (phase-04 deferred #2)~~ RESOLVED — D-16 fresh-log + process-group teardown; WR-07 keyed survivor sweeps
-- ~~Phase 5: cold-pointer syscall aborts (phase-04 deferred #3)~~ RESOLVED — eager data+bss at exec (05-04) + usermem fused validate+reside + CR-02 stat/fstat
-- Phase 5 residue: 13 open Info findings (05-REVIEW-DISPOSITION.md) + the input-wedge note (never reproduced under the cons watchdog; tick-FIFO-drain fix d8496d3 likely closed the class) + hosted CI has exactly one green run — none goal-blocking
-- Phase 8 residue: 20 open review findings (08-REVIEW-DISPOSITION.md — CR-01 conv_close FIN-drop, CR-02 permanent-send-error wedge, CR-03 semacquire wakeup loss, CR-04 ipifc multicast panic, CR-05 unbind stale-handle aliasing, CR-06 tcp_gc aliasing, CR-07 the multi-waiter RX-wake class also in deferred-items; 6 WR incl. RFMEM OOM-path page leaks; 7 IN) + WINDOWS #44/#45 (fork+exec arena drain, namec union-create) + #47–50 — weigh CR-01/02/03/06 before Phase 9's tap leg puts real peers on the stack; none blocked the phase gates (gate shapes are single-connection; the review names why)
-- NETIP-08 tap-leg truth verdict is Phase 9's (D-15) — Phase 8 shipped the soak machinery + slirp proof with NOT-L2-TRUTH labels
-- Phase 7 residue: 13 open review findings (07-REVIEW-DISPOSITION.md — WR-01..08 hardening gaps incl. the cap-walk loud-abort holes + WR-05 WaitSet-16-vs-MAX_PROCS-64 + WR-06 used-id slot-liveness; IN-01..05 hygiene) + proc-table reaping fix + vm-run.sh race (phase-07 deferred-items.md); none goal-blocking
-- ~~Pin advisory: harvey flake.lock r9 pin behind r9 main~~ RESOLVED by Phase 8's push-before-pin — pin now at 19f61ed == origin/main with hosted CI green (the milestone-close bump will re-check)
-- 9k-amd64 post-banner `bad magic` pool panic — same signature as the pswt.c LP64 bug fixed in Phase 2; re-test with the fixed 6c (deferred-items.md #8) before relying on the harness for deeper smoke signals
-- Hygiene debt: Phase 1 review items (01-REVIEW-DISPOSITION.md) + Phase 2's 13 open Info findings (02-REVIEW-DISPOSITION.md) + Phase 3's 5 open warnings / 10 open Info (03-REVIEW-DISPOSITION.md) + upstream raspi3b-on-qemu-11.1.2 defect (phase-03 deferred-items.md #1, human-accepted A/B evidence); none goal-blocking
-
-### Quick Tasks Completed
-
-| # | Description | Date | Commit | Directory |
-|---|-------------|------|--------|-----------|
-| 261104-cms | Comment hygiene sweep: planning-artifact citations removed from source comments + narrative headers compressed across r9 (56 files) and harvey (47 files); why preserved sans citations; comment-only proven by diff-invariant + full gates (port 80/80, 5 profiles, toolchain+namespace builds) | 2026-11-04 | ac6f0dbf8 | [261104-cms-comment-hygiene-sweep-across-harvey-r9-r](./quick/261104-cms-comment-hygiene-sweep-across-harvey-r9-r/) |
-| 261105-slx | Fix the legacy harvey.yml workflow to build via nix so it is green moving forward (backlog 999.1) | 2026-11-06 | 33d9dc8eb | [261105-slx-fix-the-legacy-harvey-yml-workflow-to-bu](./quick/261105-slx-fix-the-legacy-harvey-yml-workflow-to-bu/) |
+- aarch64 is FROZEN at the v2.0 pin — all v2.1 work keys to x86_64; do not "fix" aarch64 paths in passing
+- raspi3b-on-qemu-11.1.2 boot defect — accepted (pre-existing, A/B-proven not-a-regression); tracked in PROJECT.md Active
 
 ## Deferred Items
 
@@ -375,30 +70,11 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
-| deferred_items | 02-1: bare `sh BUILDTOOLCHAIN` link fails on darwin (9l shim only via nix driver) | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 02-2: 9cc libmach LP64 hswal stride beyond commonllp64 (adotout/crackhdr paths) | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 02-4: guest toolchain ensure re-runs full setup despite sentinels (benign, minutes) | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 02-6: gethunk reset-not-accumulate in 6l/obj.c + cc/macbody (7l fixed; untriggered) | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 02-8: re-test 9k-amd64 bad-magic pool panic with pswt.c-fixed 6c | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 02-9: libc mkfile `everything` hardcoded object glob lacks `.7` | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 02-10: ar member staleness — no pruning of removed sources | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 02-11: ape reduce bind fails in linux namespace (port-cull silently off; harmless today) | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 02-12: `nix run .#build` exit status always 0 (break-glass bash tail swallows failures) | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 03-1: upstream raspi3b-on-qemu-11.1.2 boot defect (A/B-proven pre-existing; accepted) | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 04-4: miniz-inflate heisenbug exposure-eliminated by construction, root cause unisolated | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 05: input-wedge watch item (~1/6 early sweep runs; never reproduced under the cons watchdog; tick-FIFO-drain fix d8496d3 likely closed the class) | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 01-1: dormant-arch toolchain siblings share the LP64 wide-constant bug class | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 05 review Info tier: 13 open Info findings (05-REVIEW-DISPOSITION.md) — doc/comment/hardening nits | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 05: hosted CI has exactly one green run (r9-shell.yml) — history accumulates on master pushes | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 05: flake.lock r9 pin behind r9 main — bump with a fresh hosted run at next milestone open | acknowledged | 2026-11-04 | v1.0 |
-| deferred_items | 05: exit-time fd-group sweep landed (261104-b4p) but server-lifecycle consumers remain future work | acknowledged | 2026-11-04 | v1.0 |
+| CI | harvey.yml nix rewrite — hosted green run pending first push (backlog 999.1) | Open | 2026-11-05 | v2.0 → v2.1 carry |
+| aarch64 | Re-activation of the aarch64 target | Frozen at v2.0 pin; re-derivable | 2026-11-06 | v2.1 |
 
 ## Session Continuity
 
-Last session: 2026-11-06T14:10:50.304Z
-Stopped at: Host migration captured + pushed (darwin-aarch64 -> NixOS linux-x86_64); Phase 10 planned, ready to execute — pending x86_64 target-pivot decision on the new host
-Resume file: .planning/HOSTS.md
-
-## Operator Next Steps
-
-- Start the next milestone with /gsd-new-milestone
+Last session: 2026-11-06 (v2.1 roadmap creation)
+Stopped at: v2.1 ROADMAP.md + STATE.md written; REQUIREMENTS.md traceability populated — awaiting user approval, then `/gsd:plan-phase 13`
+Resume file: None
