@@ -1,183 +1,132 @@
-# Requirements: Harvey OS — v2.0 Full System & Drawterm
+# Requirements: Harvey OS — v2.1 x86_64 Pivot + r9 Kernel Flush-Out
 
-**Defined:** 2026-11-04
-**Core Value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Milestone goal:** One command — `nix run .#boot-r9` — brings up a complete Harvey system (full aarch64 userspace, in-guest p9sk1 auth, tap/bridge networking) that a host drawterm connects to for an interactive rio desktop session.
+**Defined:** 2026-11-06
+**Core Value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
+**Milestone goal:** Re-target Harvey+r9 from aarch64 to x86_64 under qemu/KVM and use Harvey's full amd64 userspace to functionally harden ("flush out") the r9 kernel — delivering the inherited v2.0 payoff (auth, cpu/drawterm, rio) on x86_64 — as the proving ground en route to r9 becoming a complete Rust port of Harvey.
 
-**Research basis:** `.planning/research/SUMMARY.md` (HIGH confidence; in-tree verified). Decisive finding: Plan 9 networking is a file-interface contract — libc `dial()`/`announce()`/`listen()` are pure I/O on `/net` (zero net syscalls in `sys.h`), so any TCP provider must present devip's exact file tree.
+**Inheritance:** v2.0 (subsumed 2026-11-06) delivered Phases 6–8 (USPACE-01..06, NETDRV-01..04, NETIP-01..07, USPACE-10 — see `.planning/milestones/v2.0-REQUIREMENTS.md`). The 26 pending v2.0 requirements are inherited below, re-keyed to x86_64 where arch-bound.
 
-## v2.0 Requirements
+## v2.1 Requirements
 
-### Full aarch64 Userspace (USPACE)
+### r9 x86_64 Platform Bring-Up (X64)
 
-- [x] **USPACE-01**: Wave-0 landmine fixes land before any tier: `cc/macbody` + `6l/obj.c` gethunk reset-not-accumulate bugs fixed (they fire as silent build HANGS at full-tree scale), with regression proof
-- [x] **USPACE-02**: Structural mk blockers for a full-tree aarch64 sweep fixed (jpg/mkfile-class `oc` derivation, mahjongg cpp, `4a` lex.c) so the DIRS recursion reaches every cmd dir
-- [x] **USPACE-03**: Cross-compiled-generator audit: every build-then-run generator in swept mkfiles builds with the host toolchain (7c output never runs on the host); CI reds on `.7`-magic generator artifacts
-- [x] **USPACE-04**: Tiered allowlist machinery: per-dir append-only allowlist growth (never a flag-flip); per-tier EXECUTION gates on the 9front donor kernel FIRST, then r9 via measure-first traces; artifact+execution markers are the only gates (namespace-build mk exit status is always 0)
-- [x] **USPACE-05**: All remaining libraries compile for aarch64 (22 of 35 outstanding: libdraw, libmemdraw, libmemlayer, libframe, libcontrol, libhtml, libhttpd, libdisk, libflate, libgeometry, liblex, libplumb, libventi/liboventi, …) via the `mksyslib` portable-C fallback (stale committed `.6`/`.8` objects NOT cargo-culted)
-- [x] **USPACE-06**: Core commands + self-hosted build chain compile and donor-execute: shell/coreutils + 7a/7c/7l/cc/cpp/mk/yacc/lex as aarch64 binaries
-- [ ] **USPACE-07**: Session daemons + services compile and donor-execute: aux/listen, mntgen, ndb/cs+dns, exportfs, ip/ suite (ipconfig, ping), auth/ suite (~80 files)
-- [ ] **USPACE-08**: GUI stack compiles: libdraw family + rio + acme + sam + plumb; donor-kernel syscall traces for rio/acme/sam captured (measure-first — libthread programs exercise unmeasured kernel corners)
-- [ ] **USPACE-09**: Long tail compiles: upas + lp + remaining cmd dirs; fossil + venti compile-gated and documented as unverifiable this milestone (no block device in r9); gs included (753 files)
-- [x] **USPACE-10**: v1.0 carry-over: 9k-amd64 embedded-root `bad magic` pool panic re-tested against the pswt.c-fixed 6c (v1.0 deferred-items #8)
+- [ ] **X64-01**: r9 boots on qemu x86_64 (q35-vs-pc machine decision recorded with rationale) via a recorded DTB-free boot protocol (decided against 9k's existing multiboot path or equivalent) — the Phase-3-style platform gate: banner, timer ticks, serial input echo
+- [ ] **X64-02**: APIC interrupt plumbing (LAPIC + IOAPIC) + HPET/PIT timers proven under load — the GICv2/GICv3 equivalent; INTx level-triggered virtio ISR read-to-ack re-proven
+- [ ] **X64-03**: PCI/ECAM discovery without DTB (ACPI MCFG or the fixed q35 window) with a moved-window perturbation proof — NETDRV-01's no-hardcoded-constants discipline carried to x86_64
+- [ ] **X64-04**: virtio-net binds on x86_64 (arch-neutral `port/` carry-over) and devether presents `/net/ether0` with the guest ARP observable on the host — the NETDRV gates re-proven
+- [ ] **X64-05**: r9's flake ships an x86_64 kernel package; acceptance gates run KVM-native by default with the TCG fallback documented
 
-### r9 Network Driver (NETDRV)
+### Harvey amd64 Userspace on r9 (XEXEC)
 
-- [x] **NETDRV-01**: r9 PCI/ECAM platform glue: DTB-driven ECAM scan + `interrupt-map`→GICv2 SPI routing — no hardcoded IRQs/addresses (qemu moved the ECAM window once already)
-- [x] **NETDRV-02**: virtio-net driver with split virtqueues, zero-offload feature mask (MAC+STATUS only) from Day 1, barrier-first aarch64 ring code; provenance decision (virtio-drivers crate vs from-scratch `port/src/virtio.rs`) recorded
-- [x] **NETDRV-03**: devether `#l` presenting `/net/ether0` per netif.h; RX/TX packet counters; guest ARP request observable on the host
-- [x] **NETDRV-04**: Interrupt accounting + INTx level-triggered plumbing (ISR read-to-ack) proven under load — no silent virtqueue wedges
+- [ ] **XEXEC-01**: amd64 Ureg/TrapFrame ABI contract published and build-enforced — the `aarch64/ABI.md` equivalent: offsets frozen, const asserts + xtask ureg-check with a negative control
+- [ ] **XEXEC-02**: Harvey amd64 binaries exec on r9 x86_64 through the real EL/syscall path (measured-set dispatch carries; staged-init + hello-equivalent proof)
+- [ ] **XEXEC-03**: full boot chain boot(8)→init→rc reaches the interactive `% ` prompt on x86_64 with the expect smoke gate green twice consecutively (boot-r9-smoke equivalent)
+- [ ] **XEXEC-04**: tier machinery re-keyed to `objtype=amd64`: tier-0 libraries + tier-1 core commands proven executing on r9-x86_64 (donor venue per Phase-6 D: Harvey's own 9k kernel, k10t1)
+- [ ] **XEXEC-05**: `/net` stack re-gated on x86_64: loopback ping/udp/tcp echo, static + DHCP ipconfig, and the composed net smoke all green on the new arch
 
-### r9 TCP/IP Path (NETIP)
+### r9 Kernel Flush-Out (FLUSH)
 
-- [x] **NETIP-01**: TCP implementation decision FINAL and recorded before driver-dependent plans (research recommends smoltcp 0.14 behind the devip ABI vs a staged Rust port of `sys/src/9k/ip`; same-axis virtio provenance decision)
-- [x] **NETIP-02**: `/net` file tree with devip-exact semantics: tcp/udp/icmp clone/ctl/data/status + ipifc; loopback + null mediums land FIRST
-- [x] **NETIP-03**: TCP debuggable without the NIC: `ping 127.0.0.1`, udp echo, in-guest tcp/7 echo over loopback
-- [x] **NETIP-04**: arp + ethermedium bound to devether; static ipconfig assigns an IPv4 address; guest reachable from host
-- [x] **NETIP-05**: DHCP guest configuration via ipconfig (`/net/udp` broadcast fidelity) or smoltcp dhcpv4 fallback
-- [x] **NETIP-06**: IPv6: devip ip6 tree + ipconfig IPv6 configuration
-- [x] **NETIP-07**: aan session-reliability layer available for cpu connections
-- [ ] **NETIP-08**: Networking exit gate: sustained bidirectional TCP flow + load soak on the tap leg (slirp forgives L2 bugs — ping on slirp is not a gate)
+- [ ] **FLUSH-01**: Phase-8 review CR classes closed with tests (or explicitly dispositioned with rationale): conv_close FIN-drop, permanent-send-error wedge, semacquire wakeup loss, ipifc multicast panic, unbind stale-handle aliasing, tcp_gc aliasing, multi-waiter RX-wake
+- [ ] **FLUSH-02**: RFMEM OOM-path page leaks (the 6 WR findings) closed with refcount proofs
+- [ ] **FLUSH-03**: Phase-7 WR hardening gaps closed: cap-walk loud-abort holes, WaitSet-16-vs-MAX_PROCS-64 sizing, used-id slot-liveness
+- [ ] **FLUSH-04**: known kernel windows closed or gated: fork+exec arena drain (WINDOWS #44), namec union-create miss (WINDOWS #45) — every flush-out fix lands with a pin (host test or boot-test gate) per the established discipline
 
-### Host Networking (HNET)
+### Userspace Tiers on amd64 (USPACE — continuing v2.0 numbering, re-keyed)
 
-- [ ] **HNET-01**: slirp+hostfwd hermetic default: hostfwd bound to 127.0.0.1 for BOTH tcp/17010 and tcp/567 (drawterm dials the auth server directly); zero privilege; CI-able
-- [ ] **HNET-02**: `--net=slirp|tap|vmnet` explicit mode selection on the boot app (no silent auto-downgrade); netdev stanza single-sourced as data in r9 platform TOML, consumed by Harvey's flake
-- [ ] **HNET-03**: linux tap/bridge leg (qemu-bridge-helper + br0) documented per-distro and tested — the L2-truth leg
-- [ ] **HNET-04**: darwin socket_vmnet leg (root daemon + fd handoff) documented as opt-in (builtin vmnet is entitlement-walled on nixpkgs qemu — ad-hoc signature)
+- [ ] **USPACE-07**: Session daemons + services compile and execute: aux/listen, mntgen, ndb/cs+dns, exportfs, ip/ suite, auth/ suite (~80 files) — on the k10t1 (9k amd64) venue, then r9-x86_64
+- [ ] **USPACE-08**: GUI stack compiles for amd64 (libdraw family + rio + acme + sam + plumb) and donor-kernel syscall traces for rio/acme/sam are captured (measure-first input for r9 kernel growth)
+- [ ] **USPACE-09**: Long tail compiles for amd64: upas + lp + remaining cmd dirs; fossil + venti compile-gated (runtime-unverifiable — no block device in r9); gs included
+
+### r9 TCP/IP Path — exit gate (NETIP — continuing)
+
+- [ ] **NETIP-08**: Networking exit gate: sustained bidirectional TCP flow + load soak on the **tap leg** on x86_64 (slirp forgives L2 bugs — ping on slirp is not a gate)
+
+### Host Networking (HNET — continuing)
+
+- [ ] **HNET-01**: slirp+hostfwd hermetic default: hostfwd bound to 127.0.0.1 for BOTH tcp/17010 and tcp/567; zero privilege; CI-able
+- [ ] **HNET-02**: `--net=slirp|tap|vmnet` explicit mode selection on the boot app (no silent auto-downgrade); netdev stanza single-sourced as data in r9's x86_64 platform TOML, consumed by Harvey's flake
+- [ ] **HNET-03**: linux tap/bridge leg (qemu-bridge-helper + br0) documented per-distro and tested on the primary host — the L2-truth leg
+- [ ] **HNET-04**: darwin socket_vmnet leg documented as opt-in documented-manual (builtin vmnet is entitlement-walled on nixpkgs qemu)
 - [ ] **HNET-05**: doctor-style checker diagnosing privileged host setup, printing exact sudo/bridge/firewall remediation
 
-### In-Guest Auth Domain (AUTH)
+### In-Guest Auth Domain (AUTH — continuing)
 
-- [ ] **AUTH-01**: Bake-time domain generator: machine key + `/adm/keys` + nvram-substitute + ndb entries produced as ONE hash-paired unit (all four p9sk1 configs agree by construction); demo domain loudly labeled DEMO; pairing fails loud
-- [ ] **AUTH-02**: r9 `/dev/random` CSPRNG (DTB-seeded) for p9sk1 challenges
+- [ ] **AUTH-01**: Bake-time domain generator: machine key + `/adm/keys` + nvram-substitute + ndb entries produced as ONE hash-paired unit; demo domain loudly labeled DEMO; pairing fails loud
+- [ ] **AUTH-02**: r9 `/dev/random` CSPRNG for p9sk1 challenges, seeded from an x86_64-appropriate entropy source (no DTB — e.g. RDRAND/jitter mix), re-keyed from v2.0's DTB-seeded design
 - [ ] **AUTH-03**: r9 devcap `#¤` (caphash/capuse) — the `auth_chuid` path the cpu server depends on
 - [ ] **AUTH-04**: keyfs starts non-interactively over the baked `/adm/keys`; authsrv listens on tcp/567
 - [ ] **AUTH-05**: ndb content for the guest domain (authdom, hostid, sys, ether) staged in the image
 - [ ] **AUTH-06**: In-guest loopback p9sk1 probe (auth/debug) green BEFORE any drawterm attempt; non-hostowner speaksfor gate
-- [ ] **AUTH-07**: Serial-visible auth logging from day one (p9sk1 failures are opaque otherwise)
+- [ ] **AUTH-07**: Serial-visible auth logging from day one
 - [ ] **AUTH-08**: secstore available for persistent key storage beyond baked keys
 - [ ] **AUTH-09**: writable-`/adm` + nvram-substitute scoping decided and documented (baked+paired for CI; host-9P `/adm` mount for real use)
 
-### CPU Service (CPU)
+### CPU Service (CPU — continuing)
 
-- [ ] **CPU-01**: r9 `#!` exec (tcp17010 is literally `#!/bin/cpu -R`, execl'd by listen — small but load-bearing)
-- [ ] **CPU-02**: `service=cpu` bootconf path: plan9.ini delivered via DTB `/chosen/bootargs` → cpurc runs instead of termrc (bootr9.c currently hardcodes terminal)
-- [ ] **CPU-03**: aux/listen + tcp17010 live at boot; exportfs served; r9 implements WSTAT/FWSTAT/REMOVE (exportfs Twstat path)
-- [ ] **CPU-04**: Full `cpu -R` remoteside flow verified end-to-end: p9any→p9sk1 → auth_chuid → client exportfs mounted at /mnt/term → stdio from /mnt/term/dev/cons → rc -li
+- [ ] **CPU-01**: r9 `#!` exec (tcp17010 is literally `#!/bin/cpu -R`, execl'd by listen)
+- [ ] **CPU-02**: `service=cpu` bootconf path: plan9.ini delivered via the x86_64 boot-protocol equivalent of DTB `/chosen/bootargs` → cpurc runs instead of termrc (re-keyed)
+- [ ] **CPU-03**: aux/listen + tcp17010 live at boot; exportfs served; r9 implements WSTAT/FWSTAT/REMOVE
+- [ ] **CPU-04**: Full `cpu -R` remoteside flow verified end-to-end: p9any→p9sk1 → auth_chuid → client exportfs at /mnt/term → stdio from /mnt/term/dev/cons → rc -li
 
-### Drawterm + rio Desktop (DESK)
+### Drawterm + rio Desktop (DESK — continuing)
 
-- [ ] **DESK-01**: Flake drawterm app: provenance decision recorded (research recommends nixpkgs 9front drawterm + wrapper); wrapper pins `-O`, scrubs `$cpu`/`$auth`/`$PASS`, prints the exact connect line
-- [ ] **DESK-02**: profile `case cpu` binds /mnt/term/dev over /dev and execs rio (draw device exists only in-session; serial marker proves rio did NOT start at boot)
+- [ ] **DESK-01**: Flake drawterm app: provenance decision recorded; wrapper pins `-O`, scrubs `$cpu`/`$auth`/`$PASS`, prints the exact connect line
+- [ ] **DESK-02**: profile `case cpu` binds /mnt/term/dev over /dev and execs rio (serial marker proves rio did NOT start at boot)
 - [ ] **DESK-03**: `/lib/font/bit/*` + glenda-style lib/profile + `/lib/ndb/local` template staged in bootfs with manifest assertions
-- [ ] **DESK-04**: r9 devssl `#D` (rc4_256/sha1) so drawterm sessions can run encrypted via pushssl; `-e clear` remains the documented fallback. Recorded tension: stronger crypto on this path is blocked by PROTOCOL compatibility, not primitives — 4e cpu negotiates only `rc4_256 sha1`, and drawterm's TLS mode is rcpu+dp9ik (a different protocol stack Harvey doesn't serve; that's the hardening milestone). In the hermetic default (hostfwd→127.0.0.1) session bytes never leave the host.
+- [ ] **DESK-04**: r9 devssl `#D` (rc4_256/sha1) for encrypted sessions via pushssl; `-e clear` documented fallback (stronger crypto is PROTOCOL-blocked — the hardening milestone)
 - [ ] **DESK-05**: plumb/plumber runs in the drawterm session
 - [ ] **DESK-06**: `-G` text-mode drawterm interop gate in CI via hostfwd (scripted login → shell marker)
-- [ ] **DESK-07**: Human-accepted graphical rio leg on darwin AND linux (window opens, mouse works, typed input lands)
+- [ ] **DESK-07**: Human-accepted graphical rio leg on linux AND darwin (drawterm is host-side; the darwin leg connects to the linux-hosted guest)
 
-### Integration (INT — continuing v1.0 numbering)
+### Integration (INT — continuing)
 
-- [ ] **INT-05**: `nix run .#boot-r9` remains the ONE command — now brings up the full system (net + auth + cpu listener); boot-r9-smoke extended to the new chain
-- [ ] **INT-06**: r9 flake.lock pin advanced past the networking commits as its OWN commit + fresh hosted CI run (push-before-pin; never bundled with the feature needing it)
-- [ ] **INT-07**: Clean-checkout proof of the full v2.0 chain on darwin-aarch64 and linux
+- [ ] **INT-05**: `nix run .#boot-r9` remains the ONE command on x86_64 — brings up the full system (net + auth + cpu listener); boot-r9-smoke extended to the new chain
+- [ ] **INT-06**: r9 flake.lock pin advances via push-before-pin as its OWN commit + fresh hosted CI run (never bundled)
+- [ ] **INT-07**: Clean-checkout proof of the full v2.1 chain on linux-x86_64 (darwin documented-manual)
 
 ## Future Requirements
 
-Deferred to future milestones. Tracked but not in the v2.0 roadmap.
+Deferred to future milestones. Tracked but not in the v2.1 roadmap.
 
-- virtio-9p host mount in r9 qemu-virt (collapses userland iteration time)
-- SMP via PSCI; PL031 RTC; virtio-blk
+- Rust port of Harvey userspace into r9 — the north star's final track; starts only after r9 is proven/flushed under the C userspace
+- aarch64 re-activation (frozen at the v2.0 pin; TCG-bootable history preserved)
+- virtio-9p host mount in r9 (collapses userland iteration time)
+- SMP bring-up (x86_64: INIT-SIPI-SIPI; aarch64: PSCI); RTC; virtio-blk
 - virtio-gpu / framebuffer console in r9 (native graphics without drawterm)
-- fossil/venti RUNTIME (needs a block device — compile-only in v2.0)
-- APE port to aarch64 (POSIX environment)
-- Go userland if plan9/arm64 support ever lands upstream
-- dp9ik + rcpu + TLS 1.2/1.3 server-side (the TLS/security hardening milestone — replaces DESK-04's era crypto)
-- Harvey-on-r9 for amd64 (replace 9k on the primary arch)
-- Hardware aarch64 bring-up (r9 already has raspi3b/4b base)
+- fossil/venti RUNTIME (needs a block device — compile-only in v2.1)
+- dp9ik + rcpu + TLS 1.2/1.3 server-side (the TLS/security hardening milestone)
+- Hardware targets beyond qemu
 
 ## Out of Scope
 
-Explicitly excluded from v2.0. Documented to prevent scope creep.
+Explicitly excluded from v2.1. Documented to prevent scope creep.
 
 | Feature | Reason |
 |---------|--------|
-| APE (`sys/src/ape`) | No arm64 in `ape/lib/ap` (verified); a separate port, not a cmd dir; nothing in the drawterm session path needs it |
-| Go userland on aarch64 | Go unsupported on plan9/arm64 |
-| Harvey 9k (C kernel) aarch64 port | Superseded by r9 adoption (2026-10-30); 9k stays amd64 reference |
+| aarch64 as an active development target | Frozen at the v2.0 pin (2026-11-06 pivot): TCG-bootable history preserved, v2.1 phases key to x86_64 only |
+| Rust port of Harvey userspace | The north star's final track, deliberately a FUTURE milestone — v2.1 exists to flush out r9 under the C userspace first |
+| Harvey 9k (C kernel) aarch64 port | Superseded by r9 adoption (2026-10-30); 9k stays the amd64 standalone kernel + donor venue |
+| virtio MSI-X | INTx remains the one interrupt truth this milestone; MSI-X is future hardening |
 | e1000 / other NIC models | virtio-net only; one driver, one truth |
 | virtio-gpu / framebuffer in r9 | The draw device arrives over 9P from drawterm — the entire point of the drawterm architecture |
 | dp9ik / rcpu / TLS server-side | Different auth+session protocol stack (9front); Harvey is 4e p9sk1 — hardening milestone scope |
-| MSI / v2m virtio interrupts | GICv2 has no MSI on this machine; INTx level-triggered SPIs from the DTB interrupt-map only |
 | slirp as a correctness target | Hermetic default + CI leg only; it forgives L2 bugs — tap is the truth leg (NETIP-08) |
-| DHCPv6 / SLAAC tooling | IPv6 scoped to devip ip6 + static/ipconfig configuration (NETIP-06) |
+| DHCPv6 / SLAAC tooling | IPv6 scoped to devip ip6 + static/ipconfig configuration |
+| APE | Nothing in the v2.1 session path needs it (amd64 APE exists in-tree if ever wanted) |
 
 ## Traceability
 
-Each requirement maps to exactly one phase. Populated 2026-11-04 at roadmap creation (v2.0 = Phases 6–12, continuing v1.0 numbering).
+Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 phases start at 13 — v1.0 = 1–5, v2.0 = 6–12, archived).
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| USPACE-01 | Phase 6 | Complete |
-| USPACE-02 | Phase 6 | Complete |
-| USPACE-03 | Phase 6 | Complete |
-| USPACE-04 | Phase 6 | Complete |
-| USPACE-05 | Phase 6 | Complete |
-| USPACE-06 | Phase 6 | Complete |
-| USPACE-07 | Phase 10 | Pending |
-| USPACE-08 | Phase 10 | Pending |
-| USPACE-09 | Phase 10 | Pending |
-| USPACE-10 | Phase 6 | Complete |
-| NETDRV-01 | Phase 7 | Complete |
-| NETDRV-02 | Phase 7 | Complete |
-| NETDRV-03 | Phase 7 | Complete |
-| NETDRV-04 | Phase 7 | Complete |
-| NETIP-01 | Phase 8 | Complete |
-| NETIP-02 | Phase 8 | Complete |
-| NETIP-03 | Phase 8 | Complete |
-| NETIP-04 | Phase 8 | Complete |
-| NETIP-05 | Phase 8 | Complete |
-| NETIP-06 | Phase 8 | Complete |
-| NETIP-07 | Phase 8 | Complete |
-| NETIP-08 | Phase 8 | Pending — machinery proven on slirp (08-08/08-09); the tap-leg truth verdict is Phase 9's joint acceptance gate (D-15) |
-| HNET-01 | Phase 9 | Pending |
-| HNET-02 | Phase 9 | Pending |
-| HNET-03 | Phase 9 | Pending |
-| HNET-04 | Phase 9 | Pending |
-| HNET-05 | Phase 9 | Pending |
-| AUTH-01 | Phase 11 | Pending |
-| AUTH-02 | Phase 11 | Pending |
-| AUTH-03 | Phase 11 | Pending |
-| AUTH-04 | Phase 11 | Pending |
-| AUTH-05 | Phase 11 | Pending |
-| AUTH-06 | Phase 11 | Pending |
-| AUTH-07 | Phase 11 | Pending |
-| AUTH-08 | Phase 11 | Pending |
-| AUTH-09 | Phase 11 | Pending |
-| CPU-01 | Phase 12 | Pending |
-| CPU-02 | Phase 12 | Pending |
-| CPU-03 | Phase 12 | Pending |
-| CPU-04 | Phase 12 | Pending |
-| DESK-01 | Phase 12 | Pending |
-| DESK-02 | Phase 12 | Pending |
-| DESK-03 | Phase 10 | Pending |
-| DESK-04 | Phase 12 | Pending |
-| DESK-05 | Phase 12 | Pending |
-| DESK-06 | Phase 12 | Pending |
-| DESK-07 | Phase 12 | Pending |
-| INT-05 | Phase 12 | Pending |
-| INT-06 | Phase 12 | Pending |
-| INT-07 | Phase 12 | Pending |
+| *(populated by the roadmapper)* | | |
 
 **Coverage:**
-- v2.0 requirements: 50 total
-- Mapped to phases: 50 ✓
-- Unmapped: 0
-
-**Mapping notes:**
-- DESK-03 (bootfs fonts/profile/ndb payload) maps to Phase 10, not Phase 12 — research stages the payload with the GUI tier so Phases 11–12 never block on it; Phase 12 consumes it.
-- USPACE-10 (v1.0 carry-over pool-panic re-test) rides Phase 6's Wave 0 — cheapest known-signature verification, alongside the gethunk landmine fixes.
+- v2.1 requirements: 46 total
+- Mapped to phases: 0 (pending roadmap)
+- Unmapped: 46 ⚠️
 
 ---
-*Requirements defined: 2026-11-04*
-*Last updated: 2026-11-04 — traceability populated at v2.0 roadmap creation*
+*Requirements defined: 2026-11-06*
+*Last updated: 2026-11-06 — v2.1 definition at the x86_64 pivot re-scope (v2.0 pending set inherited)*
