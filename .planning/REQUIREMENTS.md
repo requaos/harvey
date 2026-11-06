@@ -32,9 +32,9 @@
 
 - [x] **NETIP-01**: TCP implementation decision FINAL and recorded before driver-dependent plans (research recommends smoltcp 0.14 behind the devip ABI vs a staged Rust port of `sys/src/9k/ip`; same-axis virtio provenance decision)
 - [x] **NETIP-02**: `/net` file tree with devip-exact semantics: tcp/udp/icmp clone/ctl/data/status + ipifc; loopback + null mediums land FIRST
-- [ ] **NETIP-03**: TCP debuggable without the NIC: `ping 127.0.0.1`, udp echo, in-guest tcp/7 echo over loopback
-- [ ] **NETIP-04**: arp + ethermedium bound to devether; static ipconfig assigns an IPv4 address; guest reachable from host
-- [ ] **NETIP-05**: DHCP guest configuration via ipconfig (`/net/udp` broadcast fidelity) or smoltcp dhcpv4 fallback
+- [x] **NETIP-03**: TCP debuggable without the NIC: `ping 127.0.0.1`, udp echo, in-guest tcp/7 echo over loopback
+- [x] **NETIP-04**: arp + ethermedium bound to devether; static ipconfig assigns an IPv4 address; guest reachable from host
+- [x] **NETIP-05**: DHCP guest configuration via ipconfig (`/net/udp` broadcast fidelity) or smoltcp dhcpv4 fallback
 - [x] **NETIP-06**: IPv6: devip ip6 tree + ipconfig IPv6 configuration
 - [x] **NETIP-07**: aan session-reliability layer available for cpu connections
 - [ ] **NETIP-08**: Networking exit gate: sustained bidirectional TCP flow + load soak on the tap leg (slirp forgives L2 bugs — ping on slirp is not a gate)
@@ -134,12 +134,12 @@ Each requirement maps to exactly one phase. Populated 2026-11-04 at roadmap crea
 | NETDRV-04 | Phase 7 | Complete |
 | NETIP-01 | Phase 8 | Complete |
 | NETIP-02 | Phase 8 | Complete |
-| NETIP-03 | Phase 8 | Pending |
-| NETIP-04 | Phase 8 | Pending |
-| NETIP-05 | Phase 8 | Pending |
+| NETIP-03 | Phase 8 | Complete |
+| NETIP-04 | Phase 8 | Complete |
+| NETIP-05 | Phase 8 | Complete |
 | NETIP-06 | Phase 8 | Complete |
 | NETIP-07 | Phase 8 | Complete |
-| NETIP-08 | Phase 8 | Pending |
+| NETIP-08 | Phase 8 | Pending — machinery proven on slirp (08-08/08-09); the tap-leg truth verdict is Phase 9's joint acceptance gate (D-15) |
 | HNET-01 | Phase 9 | Pending |
 | HNET-02 | Phase 9 | Pending |
 | HNET-03 | Phase 9 | Pending |

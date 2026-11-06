@@ -34,7 +34,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 
 - [x] **Phase 6: Full-Tree Userspace — Wave 0 + Libraries/Core Tiers** - Landmine fixes + generator audit + tiered allowlist machinery; tier-0 libs and core cmds/build chain execute green on the donor kernel first, then r9 (completed 2026-11-05)
 - [x] **Phase 7: r9 PCI/ECAM + virtio-net + devether** - *(cross-repo: `../r9`)* DTB-driven PCI discovery, zero-offload virtio-net from Day 1, `/net/ether0`, guest ARP observable on the host (completed 2026-11-05)
-- [ ] **Phase 8: r9 TCP/IP Path — devip-Compatible /net** - *(cross-repo: `../r9`)* Loopback-first `/net` with devip-exact file semantics; exit gate is sustained bidirectional TCP on the tap leg, not ping on slirp
+- [x] **Phase 8: r9 TCP/IP Path — devip-Compatible /net** - *(cross-repo: `../r9`)* Loopback-first `/net` with devip-exact file semantics; exit gate is sustained bidirectional TCP on the tap leg, not ping on slirp (completed 2026-11-06; the NETIP-08 tap-leg truth verdict is Phase 9's joint acceptance gate per D-15)
 - [ ] **Phase 9: Host Networking + boot-r9 Net Modes** - Hermetic slirp+hostfwd default (CI-able), explicit `--net=slirp|tap|vmnet`, documented linux tap / darwin socket_vmnet legs, doctor-checker
 - [ ] **Phase 10: Userspace Services + GUI Tiers + Bootfs Payload** - Services/IP/auth suites donor-executed; GUI stack compiled with measure-first donor syscall traces; fonts/profiles/ndb staged in bootfs
 - [ ] **Phase 11: In-Guest p9sk1 Auth Domain** - Hash-paired bake-time domain generator; keyfs + authsrv on tcp/567 + ndb; r9 devcap + `/dev/random`; loopback p9sk1 probe green before any drawterm
@@ -132,7 +132,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   4. The guest takes an address and is reachable: arp + ethermedium bound to devether, static ipconfig assigns IPv4, DHCP works via ipconfig `/net/udp` broadcast fidelity (or the recorded smoltcp dhcpv4 fallback), and the devip ip6 tree + ipconfig IPv6 configuration are demonstrated (NETIP-04, NETIP-05, NETIP-06)
   5. The networking exit gate is green: sustained bidirectional TCP flow + load soak **on the tap leg** (slirp evidence explicitly not accepted — it forgives L2 bugs), with aan available for cpu connections (NETIP-07, NETIP-08)
 
-**Plans:** 8/9 plans executed
+**Plans:** 9/9 plans executed
 **Wave 1**
 - [x] 08-01-PLAN.md — D-03 contract doc (full devip surface enumeration) + smoltcp 0.14.0 pin/lockfile + cfg(dev_ip) + NETIP-01 provenance record (NETIP-01, NETIP-02; D-01..D-04)
 
@@ -156,7 +156,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] 08-08-PLAN.md — aan scripted drop-and-resume on loopback + tcpblast bidirectional soak machinery on slirp + documented manual soak command (NETIP-07, NETIP-08; D-14, D-15, D-16)
 
 **Wave 8** *(blocked on Wave 7 completion)*
-- [ ] 08-09-PLAN.md — composed net smoke + CI net-smoke job + 08-EVIDENCE.md + push-before-pin + flake.lock advance (D-13, D-16)
+- [x] 08-09-PLAN.md — composed net smoke + CI net-smoke job + 08-EVIDENCE.md + push-before-pin + flake.lock advance (D-13, D-16)
 
 ### Phase 9: Host Networking + boot-r9 Net Modes
 

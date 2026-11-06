@@ -6,15 +6,15 @@ current_phase: 08
 current_phase_name: r9 TCP/IP Path — devip-Compatible /net
 status: executing
 stopped_at: Phase 10 context gathered
-last_updated: "2026-11-06T04:45:15.000Z"
+last_updated: "2026-11-06T06:25:00.000Z"
 last_activity: 2026-11-06
-last_activity_desc: Phase 08 plan 08 executed — the aan drop-and-resume gate (NETIP-07) green on tcp loopback (the scripted hangup kills the underlying conn, both ends see it, the client redials, a second marker round-trip completes the resume — NIC-free, D-14) + the tcpblast bidirectional soak machinery green on slirp (2 MiB each way, zero RSTs, guest stats reconcile — labeled NOT-L2-TRUTH, D-15) + the D-16 documented-manual sustained-soak command committed in the fixture header; two pre-existing kernel bugs fixed en route (the fd op-ref pattern, the sys_rendezvous re-verification)
-state_head: 28b709df82574e40dfe5e89e2083178f8316646a
+last_activity_desc: Phase 08 plan 09 executed — PHASE 08 COMPLETE: the composed net smoke (D-13) green through the PACKAGED pipeline at the pin (exit 0, the CI shape) AND in hosted CI (run 42171968459, both jobs success — the new net-smoke job + the untouched boot-smoke); 08-EVIDENCE.md consolidates every gate × r9 SHA × pin × verdict × run with every slirp-green gate labeled NOT-L2-TRUTH; push-before-pin executed (r9 a5b1b42..19f61ed pushed BEFORE the pin; d8080f115 names flake.lock ALONE; locked == live == origin, owner requaos); two r9 fixes the composed smoke required (virtshell devip 14b2f23, the EtherDev Drop 19f61ed); four pre-existing defects recorded (WINDOWS #47-50) incl. the multi-waiter RX-wake blocker-class for Phase 9/12
+state_head: bfc7fd8de4609ff097aff8d69453d36257f682b1
 progress:
   total_phases: 7
   completed_phases: 7
   total_plans: 29
-  completed_plans: 28
+  completed_plans: 29
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-11-05)
 
 ## Current Position
 
-Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — EXECUTING
+Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — COMPLETE (9/9 plans; the NETIP-08 tap-leg truth verdict is Phase 9's joint acceptance gate per D-15)
 Plan: 9 of 9
-Status: Ready to execute
-Last activity: 2026-11-06 — Phase 08 plan 08 executed (aan drop-and-resume + tcpblast soak machinery green; NETIP-07 complete, NETIP-08's machinery proven on slirp — the tap verdict is Phase 9's)
+Status: Phase complete — ready for Phase 9 planning
+Last activity: 2026-11-06 — Phase 08 plan 09 executed (composed net smoke + CI net-smoke job + evidence index + push-before-pin + pin advance; NETIP-03/04/05 complete, NETIP-08 pending Phase 9's tap leg)
 
 Progress: [████████░░] 83% (v2.0)
 
@@ -130,6 +130,7 @@ Progress: [████████░░] 83% (v2.0)
 | Phase 08 P06 | 50 min | 3 tasks | 15 files (12 r9 modified + 1 r9 created + 2 Harvey + planning records) |
 | Phase 08 P07 | 45 min | 2 tasks | 13 files (6 r9 modified + 2 r9 doc/test + 5 Harvey + planning records) |
 | Phase 08 P08 | 138 min (incl. the two kernel-blocker debugging cycles) | 2 tasks | 14 files (8 r9 modified + 3 Harvey created + 1 Harvey modified + planning records) |
+| Phase 08 P09 | 85 min (incl. the composed-smoke debugging cycles + the two pipeline runs) | 3 tasks | 15 files (3 r9 modified + 5 Harvey created + 4 Harvey modified + planning records) |
 
 ## Accumulated Context
 
@@ -335,6 +336,13 @@ Recent decisions affecting current work:
 - [Phase 08]: 08-08: the fault autopsy landed (r9 a01089d) — unresolvable() now names the faulting process (pid+name), dumps the TrapFrame, and dumps the live proc table with parent pid + exec argv (the spawn topology distinguishes libthread proccreate children from fork+exec'd commands); diagnosed the aan gate's wild read from these prints alone
 - [Phase 08]: 08-08: the soak's host echo endpoint binds 127.0.0.1 only (T-08-14 — the guest reaches it via slirp's gateway forwarding; no external interface) and spawns pre-qemu / joins post-run; R9_NETIP_SOAK_ROUNDS plumbs the count into the typed fixture line (default 64 = TCG scale; the D-16 sustained command with 4096 committed verbatim in the fixture header); the pcap assertion's byte threshold scales rounds x 32 KiB / 2 so the override is honest at every scale
 - [Phase 08]: 08-08: NETIP-07 marked Complete (its last declaring plan); NETIP-08 correctly stays Pending — 08-09 also declares it (the #2388 shared-ID gate) and the tap-leg truth verdict is Phase 9's joint acceptance gate (D-15)
+- [Phase 08]: 08-09: virtshell gains devip (r9 14b2f23) — the PACKAGED kernel shipped without #I (dev = [exec, bootchain, ether]); D-13's composed smoke through the pinned pipeline requires cfg(dev_ip) in the package — inert until a bind lands; the plain smoke re-proven green on the devip kernel
+- [Phase 08]: 08-09: EtherDev drops its netif convs (r9 19f61ed) — the unbind+rebind leak ('ether-type already in use') closed by impl Drop + ipifc's unbind taking the core OUT of the STACK cell before the drop (the seam never holds STACK across netif's locks); first live exercise: the smoke's static→dhcp unbind+rebind
+- [Phase 08]: 08-09: the composed smoke's stage ORDER is load-bearing (measured): ether legs FIRST (a single blocked devip waiter per exchange — the multi-waiter RX-IRQ wake wedged/panicked with the loopback servers blocked on BOTH GIC gens; static-alone passes), then unbind, loopback legs LAST (the two-core wildcard demux wedged the udp leg when ether stayed bound); both ether unbinds orphan-free by construction; the full rationale lives in the driver header so the order is never simplified back
+- [Phase 08]: 08-09: typed-input discipline (measured): a >256-byte typed console line truncates at the PL011-side ring with no reader-visible signal (wedgedbg line=255) — short typed lines + rc continuation lines paced per-line in smoke-r9-net.expect; the quoted-'FAIL' token keeps an echoed line from tripping the abort regex
+- [Phase 08]: 08-09: push-before-pin executed at the phase-complete HEAD — r9 a5b1b42..19f61ed (30 commits) pushed to requaos/r9 BEFORE the lock advanced; the pin commit d8080f115 names flake.lock ALONE; locked rev == live HEAD == origin/main, owner requaos; hosted r9-shell run 42171968459 SUCCESS at headSha bfc7fd8de (BOTH jobs — the new net-smoke + boot-smoke — the composed net smoke green in hosted TCG CI on its first run)
+- [Phase 08]: 08-09: the at-pin packaged proof runs the CI shape on the darwin host (R9_GICV2=1): the pre-existing rc argv-stack flake residual ('pushword but no argv!') is HVF-timing-exposed (2/~6 HVF runs today incl. the plain 05-12 smoke — NOT devip-correlated: the plain smoke re-passed 2/2 on the devip kernel) and has never fired on TCG all phase; recorded WINDOWS #49
+- [Phase 08]: 08-09: NETIP-08 stays PENDING past the phase (the #2388 ready subset marked NETIP-03/04/05 Complete) — its letter names the tap leg, Phase 9's joint acceptance gate (D-15); the machinery + the documented-manual soak command + the handoff list are committed (08-EVIDENCE.md + netip-soak.rc's header)
 
 ### Pending Todos
 
