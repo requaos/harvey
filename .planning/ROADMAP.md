@@ -67,11 +67,22 @@ Full detail: `.planning/milestones/v2.0-ROADMAP.md`
   5. r9's flake ships an x86_64 kernel package and the acceptance gates run KVM-native by default, with the TCG fallback documented (X64-05)
 **Plans**: 6 plans
 Plans:
+**Wave 1**
 - [ ] 13-01-PLAN.md — q35 boot channel: config_q35.toml, TOML-driven -cdrom xtask arm, grub-mkrescue ISO, mb2 header in l.S — boot-test x86_64 banner gate green twice (X64-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 13-02-PLAN.md — main9-x64 rewrite + platform/q35 tree + mb2 parser + old-gen retirement — memory map on serial, gated (X64-01)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 13-03-PLAN.md — LAPIC + CPUID-gated TSC-deadline/periodic timer + IDT dispatch + serial echo — the Phase-3-style gate green twice, KVM + TCG (X64-01, X64-02)
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 13-04-PLAN.md — ACPI mini-parser (RSDP→XSDT→MCFG/MADT) + PCIEXBAR-programming ECAM discovery + recursive walk — the moved-window perturbation gate (X64-03)
+
+**Wave 5** *(blocked on Wave 4 completion)*
 - [ ] 13-05-PLAN.md — MADT-driven IOAPIC + four-seam virtio-net bind + devether /net/ether0 + kernel-side ARP netgate — ping-pong/TX-bulk reconcile + pcap gate (X64-04, X64-02)
+
+**Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 13-06-PLAN.md — flake kernel-x64 package + reproducible boot-iso + KVM-native gate loop + TCG fallback docs + CI leg + 13-EVIDENCE.md consolidation (X64-05)
 
 ### Phase 14: Harvey amd64 Userspace on r9
