@@ -104,14 +104,16 @@ for(w in $routes){
 
 # assertion 3: /net/ndb is written (ipconfig's first-interface putndb —
 # beprimary==1 on the fresh gate).  Read-based: the record carries the
-# ip=<lease> line.
+# ip=<lease> line.  (The 'ip='$var CONCATENATION — a bare '=' terminates
+# an rc word (the 06-05 dialect lesson; an unquoted one is a parse-time
+# shell killer, uncatchable by the FAIL discipline).)
 ndb=`{cat /net/ndb} || {
 	echo netip: FAIL ndb >[1=2]
 	exit ndb
 }
 found=0
 for(w in $ndb){
-	if(~ $w ip=$slirp_guestv4)
+	if(~ $w 'ip='$slirp_guestv4)
 		found=1
 }
 ~ $found 1 || {
