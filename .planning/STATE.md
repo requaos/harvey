@@ -6,15 +6,15 @@ current_phase: 08
 current_phase_name: r9 TCP/IP Path — devip-Compatible /net
 status: executing
 stopped_at: Phase 10 context gathered
-last_updated: "2026-11-06T01:13:25.008Z"
+last_updated: "2026-11-06T01:33:44.000Z"
 last_activity: 2026-11-06
-last_activity_desc: Phase 08 plan 05 executed — the tcp module (accept pool + blocking connect bridge) + observability landed; the tcp/7 echo gate green end-to-end; NETIP-03's three legs all committed gates
-state_head: 7a3e068fbe8a703ca7b84f0ae468c06e755a295e
+last_activity_desc: Phase 08 plan 06 executed — /dev/random (D-17) + the ethermedium binding (EtherDev, snoop-fed /net/arp, gratuitous ARP) + the RX-IRQ wake + the static ipconfig gate green on slirp (labeled not-L2-truth); NETIP-04's slirp leg green
+state_head: 1e5754f1c5da25dd305b6970e933728f2cedf0e4
 progress:
   total_phases: 7
   completed_phases: 7
   total_plans: 29
-  completed_plans: 25
+  completed_plans: 26
 ---
 
 # Project State
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-11-05)
 ## Current Position
 
 Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — EXECUTING
-Plan: 6 of 9
+Plan: 7 of 9
 Status: Ready to execute
-Last activity: 2026-11-06 — Phase 08 plan 05 executed (tcp module + netlog/route + the tcp/7 echo gate green)
+Last activity: 2026-11-06 — Phase 08 plan 06 executed (D-17 /dev/random + the ethermedium binding + the static ipconfig gate green on slirp)
 
 Progress: [████████░░] 83% (v2.0)
 
@@ -127,6 +127,7 @@ Progress: [████████░░] 83% (v2.0)
 | Phase 06 P09 | 60 min | 2 tasks | 12 files |
 | Phase 06 P10 | 8 min | 2 tasks | 6 files |
 | Phase 08 P05 | 79 min | 2 tasks | 13 files (8 r9 modified + 2 r9 created + 2 Harvey + planning records) |
+| Phase 08 P06 | 50 min | 3 tasks | 15 files (12 r9 modified + 1 r9 created + 2 Harvey + planning records) |
 
 ## Accumulated Context
 
@@ -313,6 +314,13 @@ Recent decisions affecting current work:
 - [Phase 06]: [Phase 06] 06-09: the Harvey-kernel amd64 tier venue (k10t1) inherits k10cpu's device set VERBATIM; only rootdir/boot differ. The venue never writes tier-ledger lines (D-14 stays aarch64-pure, T-06-20). The 9k SKIP whitelist is fixed at 24 names with a converse assert; the sweep's 9k libtest SKIPs ride a block-local fn so the r9 gate's sweep-text extraction stays venue-correct. — The venue surfaced five real fixes — 6l LP64 double constants (778d4616b, the WR-01 class on amd64), the k10 early KZERO map raised to 8MiB for the 43-file embed (bba1eeaa8), parse cname uniqueness for dual-name embeds (36542bdbb), rc-script boot plumbing (#r/rtc clock + hostowner; 8b55abbda/8088471ba), and the r9-extraction interaction (fd544ef42) — each fixed in-tree and re-proven green, per the maintainer's in-tree-fix constraint.
 - [Phase 06]: [Phase 06]: 06-10: tier-donor CI leg REMOVED (not kept red as tripwire) per maintainer direction 2026-11-05 — on x86_64 CI donor evidence comes from Harvey's OWN kernel (9k10cpu lineage); the wave0-host venue-pin step (anchored job-key negative-grep + self-hosting-safe donor-script ERE + tier-9k positive-grep) is the honest tripwire — a permanently-red leg trains red-blindness — G-06-1 / CR-01 closed by retirement. CR-01's provisioning arm (wire a native 9front donor build into CI) rejected: borrowing 9front-specific design decisions is the deliberate anti-goal, and the first hosted run redded the leg earlier than the pin gate (host toolchain bootstrap under nixpkgs gcc hardening) — a second bootstrap surface to maintain for unwanted evidence.
 - [Phase 06]: [Phase 06]: 06-10: the coverage report's venue line discloses host-class visit-count jitter (reach set + per-dir verdicts host-independent, proven identical linux-aarch64 vs linux-x86_64); counts stay embedded as data — jpg's note line included — and the D-15 normalized drift gate carries the tolerance (dropping data to quiet a green gate is the wrong direction) — USPACE-02 wording truthfulness under both linux host classes; the gate normalizes visited=N, so the committed report's count embeddings are information, not drift.
+
+ - [Phase 08]: 08-06: the two-core seam — StackState carries the loopback core (08-04's field, the host pins' home) + the ether core; every conv records its CoreSel at socket creation (demux on raddr for connect, laddr for announce — wildcard → ether-when-bound); the single-core fallback keeps the loopback gates byte-identical (a conv's socket handle is valid only in its own core's SocketSet)
+ - [Phase 08]: 08-06: the RX-IRQ leg is a WAKE, never a poll — note_rx_pending() drains the devip waiter set after the BusyCell drops (tick_check's sibling shape; the no-waiters arm sets STACK_DEBT for the next devip op's drain); pci.rs's RX retire calls it cfg(dev_ip)-gated right after rx_ingress
+ - [Phase 08]: 08-06: the /net/arp view is snoop-fed at the ADAPTER (both receive() and transmit() — smoltcp's neighbor cache has no accessor; wire codecs parse, never hand-rolled); the netif frame stores carry global ingress seq stamps so the three-conv merge preserves arrival order; the gratuitous ARP is crafted devip-side (wire codecs) on every ether address add (the donor's areg=sendgarp — smoltcp never sends one)
+ - [Phase 08]: 08-06: the D-17 minimal CSPRNG is a pure-safe-Rust ChaCha20 DRBG in devcons (no new crate, no unsafe — the forbid holds), seeded LAZILY at first read from the DTB's /chosen/rng-seed (the arch hook re-parses the DTB off the recorded VA — the plan's 'seeded at first read via fdt.rs'), jitter-mixed (CNTFRQ^CNTPCT^ticks) at seed and per read; random ≡ urandom this era; Phase 11 supersedes
+ - [Phase 08]: 08-06: the static fixture never pre-binds ether — ipconfig's own binddevice does the clone+bind (the plan text's pre-bind step would fail ipconfig's bind with 'interface already bound' under the era's per-medium singleton rule); ipconfig runs UNMODIFIED (D-09) — `ip/ipconfig -g $gw ether /net/ether0 add $guest $mask` per its usage
+ - [Phase 08]: 08-06: the xtask pcap assertions take the seam addresses as PARAMETERS (host-hermetic pins) — the netaddr.rc reader (rc KEY=VALUE via R9_HARVEY_DIR) resolves pre-spawn for static mode (a harness bug fails before a wasted TCG boot); no 10.0.2.x literal in the new assertions (D-11/Pitfall 9)
 
 ### Pending Todos
 

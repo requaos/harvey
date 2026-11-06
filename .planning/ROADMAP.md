@@ -132,7 +132,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   4. The guest takes an address and is reachable: arp + ethermedium bound to devether, static ipconfig assigns IPv4, DHCP works via ipconfig `/net/udp` broadcast fidelity (or the recorded smoltcp dhcpv4 fallback), and the devip ip6 tree + ipconfig IPv6 configuration are demonstrated (NETIP-04, NETIP-05, NETIP-06)
   5. The networking exit gate is green: sustained bidirectional TCP flow + load soak **on the tap leg** (slirp evidence explicitly not accepted — it forgives L2 bugs), with aan available for cpu connections (NETIP-07, NETIP-08)
 
-**Plans:** 5/9 plans executed
+**Plans:** 6/9 plans executed
 **Wave 1**
 - [x] 08-01-PLAN.md — D-03 contract doc (full devip surface enumeration) + smoltcp 0.14.0 pin/lockfile + cfg(dev_ip) + NETIP-01 provenance record (NETIP-01, NETIP-02; D-01..D-04)
 
@@ -147,7 +147,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] 08-05-PLAN.md — tcp proto (accept pool, blocking connect, listen/err, close/hangup mapping) + tcp/7 echo + netlog/stats/iproute/ipselftab/ndb (NETIP-02, NETIP-03; D-07)
 
 **Wave 5** *(blocked on Wave 4 completion)*
-- [ ] 08-06-PLAN.md — D-17 /dev/random + /dev/urandom, ethermedium + EtherDev + snoop-fed /net/arp + gratuitous ARP + static ipconfig gate on slirp (NETIP-02, NETIP-04; D-17)
+- [x] 08-06-PLAN.md — D-17 /dev/random + /dev/urandom, ethermedium + EtherDev + snoop-fed /net/arp + gratuitous ARP + static ipconfig gate on slirp (NETIP-02, NETIP-04; D-17)
 
 **Wave 6** *(blocked on Wave 5 completion)*
 - [ ] 08-07-PLAN.md — DHCP via unmodified ipconfig over /net/udp broadcast fidelity + IPv6 (icmpv6 full-packet bridge, add6/ra6/try) (NETIP-05, NETIP-06; D-06, D-09, D-10)
