@@ -2,15 +2,19 @@
 gsd_state_version: "1.0"
 milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
+current_phase: 13
+current_phase_name: first of v2.1's Phases 13-19
 status: planning
-last_updated: "2026-11-06"
+stopped_at: Phase 13 context gathered
+last_updated: "2026-11-06T18:42:49.152Z"
 last_activity: 2026-11-06
+last_activity_desc: "v2.1 roadmap created at the x86_64 pivot re-scope (v2.0 subsumed: Phases 6-8 delivered, 9-12 inherited re-keyed to x86_64)"
+state_head: 7aedc93744cf2105a9f100006e77696eba9ab726
 progress:
-  total_phases: 7
+  total_phases: 1
   completed_phases: 0
   total_plans: 0
   completed_plans: 0
-  percent: 0
 ---
 
 # Project State
@@ -75,6 +79,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06 (v2.1 roadmap creation)
-Stopped at: v2.1 ROADMAP.md + STATE.md written; REQUIREMENTS.md traceability populated — awaiting user approval, then `/gsd:plan-phase 13`
-Resume file: None
+Last session: 2026-11-06T18:42:49.133Z
+Stopped at: Phase 13 context gathered
+Resume file: .planning/phases/13-r9-x86-64-platform-bring-up/13-CONTEXT.md
