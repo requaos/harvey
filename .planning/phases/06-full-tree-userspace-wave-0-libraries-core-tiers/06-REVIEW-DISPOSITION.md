@@ -49,7 +49,7 @@ findings:
     title: "tracesup.c armed/kids arrays grow without a bounds check"
   - id: WR-05
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "mkimage.sh line 235 is dead, known-broken code left armed"
   - id: WR-06
     severity: warning
@@ -61,11 +61,11 @@ findings:
     title: "ledger-r9-append.sh uses bash-only process substitution under #!/bin/sh, plus undisciplined grep/sha256sum"
   - id: WR-08
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "gethunk-repro-6l.sh's \"built fresh every run\" claim is narrower than the code"
-open: 6
+open: 4
 total: 15
-recorded: 2026-11-06T00:18:46.482Z
+recorded: 2026-11-06T00:24:24.778Z
 ---
 
 # Phase 06: Code Review Disposition
@@ -83,10 +83,10 @@ recorded: 2026-11-06T00:18:46.482Z
 | CR-01 | critical | fixed | closed by retirement 2026-11-05 — tier-donor CI leg removed per maintainer direction; the x86_64 venue is Harvey's own kernel (06-09/06-10); venue-pin step asserts the retirement (not in the current review) |
 | WR-03 | warning | open | - (not in the current review) |
 | WR-04 | warning | open | - (not in the current review) |
-| WR-05 | warning | open | - (not in the current review) |
+| WR-05 | warning | fixed | resolved by IN-01 fix `aed40c38d` — the dead dd trailer line it named was deleted (not in the current review) |
 | WR-06 | warning | open | - (not in the current review) |
 | WR-07 | warning | open | - (not in the current review) |
-| WR-08 | warning | open | - (not in the current review) |
+| WR-08 | warning | fixed | resolved by IN-05 fix `d0d186ccd` — staleness key now watches every 6l source (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
 Set `deferred` by hand and put the reason in the Source cell; both are preserved. A `|` in the reason is kept as prose and escaped on the next run.
