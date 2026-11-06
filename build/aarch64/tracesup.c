@@ -171,7 +171,7 @@ main(int argc, char *argv[])
 	char path[256], state[32];
 	Dir *dirs;
 	int *preexist, *armed, *kids;
-	int npre, narmed, nkids, i, n, pid, rootpid, me, ofd, kid;
+	int npre, narmed, nkids, cap, i, n, pid, rootpid, me, ofd, kid;
 	long deadline;
 
 	verbose = 0;
@@ -223,9 +223,13 @@ main(int argc, char *argv[])
 		loopchild(rootpid, 0, argv[1]);
 		exits(nil);	/* loopchild never returns */
 	}
-	armed = malloc((npre + 4096) * sizeof(int));
-	kids = malloc((npre + 4096) * sizeof(int));
-	armed[narmed++] = rootpid;
+	/* fixed capacity: the pre-existing snapshot plus 4096 of headroom;
+	 * the poll loop's inserts are bounds-checked against cap — a
+	 * silent overrun would corrupt the supervisor mid-run (WR-04) */
+	cap = npre + 4096;
+	armed = malloc(cap * sizeof(int));
+	kids = malloc(cap * sizeof(int));
+	armed[narmed++] = rootpid;	/* cap >= 4096: these first inserts can't overflow */
 	armed[narmed++] = me;
 	kids[nkids++] = kid;
 
@@ -252,6 +256,11 @@ main(int argc, char *argv[])
 				continue;	/* died mid-scan */
 			if(strcmp(state, "Stopped") != 0)
 				continue;	/* not a born-traced self-stop */
+			/* bounds check BEFORE the rfork: the overflow must be
+			 * loud, and a loop child forked for an unrecorded pid
+			 * would outlive a sysfatal raised after the fork */
+			if(narmed >= cap || nkids >= cap)
+				sysfatal("tracesup: too many processes (max %d)", cap);
 			/* arm: one untraced loop process per traced pid */
 			kid = rfork(RFPROC|RFFDG|RFREND|RFNOWAIT);
 			if(kid == 0){
