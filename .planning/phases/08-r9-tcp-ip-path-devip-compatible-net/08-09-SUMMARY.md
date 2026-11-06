@@ -22,9 +22,9 @@ affects: [Phase 9 (the tap-leg truth verdict re-runs THIS phase's soak machinery
 actuals:
   tokens: 20500   # (63,517-char Harvey diff excl. the retained .log captures + 3,726-char r9 diff + ~12,000-char this SUMMARY + ~3,000-char STATE/ROADMAP/REQUIREMENTS/WINDOWS/deferred edits) / 4 — vs estimate 45,000 (confidence: low; the debugging cycles weren't in the estimate)
   tasks: 3
-  commits: 7      # 2 r9 (14b2f23, 19f61ed) + 4 Harvey production (174f7bc30, ef9b89c5c, d8080f115, bfc7fd8de) + 1 pending Harvey metadata commit (this file + the evidence CI row + STATE/ROADMAP/REQUIREMENTS/WINDOWS).  The measured Harvey ledger window 19ada7f3a..bfc7fd8de carries exactly this plan's 4 commits — NO concurrent-session traffic this window.
+  commits: 8      # MEASURED: 2 r9 (14b2f23, 19f61ed) + 6 Harvey (174f7bc30, ef9b89c5c, d8080f115, bfc7fd8de + daac7e6a1 the metadata commit + d506fadf3 the follow-up CI-row record per the 07-09/10 both-runs convention).  The measured Harvey ledger window 19ada7f3a..d506fadf3 carries exactly this plan's 6 commits — NO concurrent-session traffic this window.
 plan_head_before: 19ada7f3a49e1a9e322850e6c1c713e44de3c1bb   # Harvey ledger base (#3968) — 08-08's metadata commit
-plan_head_after: bfc7fd8de4609ff097aff8d69453d36257f682b1    # Harvey HEAD at SUMMARY write (the pushed HEAD) — the metadata commit follows per the atomic close-out order
+plan_head_after: d506fadf3    # Harvey HEAD at close — the pin+compose+CI-job HEAD is bfc7fd8de4609ff097aff8d69453d36257f682b1 (the first hosted run's headSha); daac7e6a1 is the metadata commit (the second run 42173127408's headSha); d506fadf3 records that run in the evidence
 
 # Tech tracking
 tech-stack:
