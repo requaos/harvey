@@ -312,7 +312,7 @@ cleanup() {
 trap cleanup EXIT
 
 # the known-content file baked into the guest as /boot/sentinel.txt
-# (deterministic wc counts: 2 lines, 4 words, 40 bytes)
+# (deterministic wc counts: 2 lines, 4 words, 41 bytes)
 printf 'alpha bravo charlie\n__SUBSET_GREP_LINE__\n' > "$TMPD/sentinel.txt"
 
 # ---- 1. stage the tier-1 binaries + sweep data into the donor tree --
