@@ -18,8 +18,23 @@ COMMIT="${1:?usage: ledger-r9-append.sh <gate-commit-40hex>}"
 EVIDENCE=".planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-07-tier1-r9.log"
 DATE=2026-11-05
 
+# Resolve a host grep once (D-02): the greps below need -oE, which
+# plan9 grep lacks — but a hardcoded /usr/bin/grep breaks on
+# NixOS-class hosts, so fall back to PATH.
+GREP=$(command -v /usr/bin/grep || command -v grep) || { echo "error: no host grep found" >&2; exit 1; }
+
+# sha256sum is linux-only; darwin's spelling is shasum -a 256
+# (run-gate.sh:89-95's idiom)
+sha256() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | awk '{print $1}'
+	else
+		shasum -a 256 "$1" | awk '{print $1}'
+	fi
+}
+
 # the SKIP set, extracted verbatim from the sweep's r9-venue SKIP lines
-SKIP=$(grep -oE '(^|[[:space:]])echo T1-SKIP [A-Za-z0-9.-]+' "$SWEEP" | awk '{print $NF}' | sort -u | tr '\n' ' ')
+SKIP=$("$GREP" -oE '(^|[[:space:]])echo T1-SKIP [A-Za-z0-9.-]+' "$SWEEP" | awk '{print $NF}' | sort -u | tr '\n' ' ')
 
 # entry → (dir, bin, artifact) mapping mirrors the existing ledger lines
 emit() {
@@ -29,11 +44,11 @@ emit() {
 		# reuse the ledger's latest cmd/cc sha256 (7c's sha256 is
 		# unchanged since 06-06's gate, so the archive is provably
 		# unchanged; the r9 line is a SKIP — the archive wasn't run).
-		sha=$(grep 'dir=cmd/cc ' "$LEDGER" | tail -1 | grep -oE 'sha256=[a-f0-9]+' | cut -d= -f2)
+		sha=$("$GREP" 'dir=cmd/cc ' "$LEDGER" | tail -1 | "$GREP" -oE 'sha256=[a-f0-9]+' | cut -d= -f2)
 		[ -n "$sha" ] || { echo "error: no prior cmd/cc sha256 in the ledger" >&2; exit 1; }
 	else
 		[ -f "$HARVEY/$art" ] || { echo "error: artifact $art missing" >&2; exit 1; }
-		sha=$(sha256sum "$HARVEY/$art" | cut -d' ' -f1)
+		sha=$(sha256 "$HARVEY/$art")
 	fi
 	case " $SKIP " in
 	*" $bin "*)
@@ -53,7 +68,12 @@ emit() {
 	echo "tier=1 dir=$dir bin=$bin sha256=$sha exec=$exec evidence=$EVIDENCE commit=$COMMIT date=$DATE" >> "$LEDGER"
 }
 
-while IFS= read -r line; do
+# plain pipe, not < <(...): the script runs under /bin/sh (dash on the
+# CI host), which has no process substitution (WR-07).  The loop only
+# reads the tier file and appends to the ledger — no state crosses the
+# subshell boundary; an emit failure exits the subshell non-zero and
+# set -e stops the parent the same as before.
+awk 'NF && $1 !~ /^#/ { print $1 }' "$TIERFILE" | while IFS= read -r line; do
 	case "$line" in ''|'#'*) continue ;; esac
 	e="$line"
 	case "$e" in
@@ -73,6 +93,6 @@ while IFS= read -r line; do
 	*) art="aarch64/bin/$bin" ;;
 	esac
 	emit "$e" "$bin" "$art"
-done < <(awk 'NF && $1 !~ /^#/ { print $1 }' "$TIERFILE")
+done
 
 echo "== appended $(awk 'NF && $1 !~ /^#/' "$TIERFILE" | wc -l | tr -d ' ') r9-venue lines to $LEDGER"
