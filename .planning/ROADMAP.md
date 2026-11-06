@@ -65,7 +65,14 @@ Full detail: `.planning/milestones/v2.0-ROADMAP.md`
   3. PCI/ECAM discovery works without DTB (ACPI MCFG or the fixed q35 window) with zero hardcoded addresses — the moved-window perturbation boot-test still finds and binds the device (X64-03)
   4. virtio-net binds on x86_64 through the arch-neutral `port/` transport and devether presents `/net/ether0` with live RX/TX counters — the guest's ARP request is observable in a host-side capture (X64-04)
   5. r9's flake ships an x86_64 kernel package and the acceptance gates run KVM-native by default, with the TCG fallback documented (X64-05)
-**Plans**: TBD
+**Plans**: 6 plans
+Plans:
+- [ ] 13-01-PLAN.md — q35 boot channel: config_q35.toml, TOML-driven -cdrom xtask arm, grub-mkrescue ISO, mb2 header in l.S — boot-test x86_64 banner gate green twice (X64-01)
+- [ ] 13-02-PLAN.md — main9-x64 rewrite + platform/q35 tree + mb2 parser + old-gen retirement — memory map on serial, gated (X64-01)
+- [ ] 13-03-PLAN.md — LAPIC + CPUID-gated TSC-deadline/periodic timer + IDT dispatch + serial echo — the Phase-3-style gate green twice, KVM + TCG (X64-01, X64-02)
+- [ ] 13-04-PLAN.md — ACPI mini-parser (RSDP→XSDT→MCFG/MADT) + PCIEXBAR-programming ECAM discovery + recursive walk — the moved-window perturbation gate (X64-03)
+- [ ] 13-05-PLAN.md — MADT-driven IOAPIC + four-seam virtio-net bind + devether /net/ether0 + kernel-side ARP netgate — ping-pong/TX-bulk reconcile + pcap gate (X64-04, X64-02)
+- [ ] 13-06-PLAN.md — flake kernel-x64 package + reproducible boot-iso + KVM-native gate loop + TCG fallback docs + CI leg + 13-EVIDENCE.md consolidation (X64-05)
 
 ### Phase 14: Harvey amd64 Userspace on r9
 **Goal**: The core value lands on x86_64 — Harvey amd64 binaries exec on r9 through the re-derived ABI contract, the boot chain reaches the interactive `% ` prompt via one command, and the tier + `/net` gate machinery runs keyed to `objtype=amd64` (no new toolchain work — 6c/6a/6l already green). **Work spans both repos plus the flake glue.**
