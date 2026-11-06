@@ -25,6 +25,36 @@ test -e /lib/netaddr.rc || {
 }
 . /lib/netaddr.rc
 
+# the D-17 random-device leg (08-06): /dev/random must exist and serve
+# fresh bytes — ipconfig's unconditional truerand() sysfatals without it
+# (research Pitfall P-I).  Two 16-byte reads: each must serve 16 bytes,
+# and the two samples must differ (the DRBG jitter-mixes on every read;
+# the counter alone guarantees freshness).  The kernel prints
+# `devcons: random seeded' at the first read's seed — the gate asserts
+# that marker host-side (08-06 Task 1's verify).  The hash tool is the
+# tier-1 payload's h-prefixed sha1sum (the base subset carries none).
+r1=`{dd -if /dev/random -bs 16 -count 1 >[2]/dev/null | wc -c} || {
+	echo netip: FAIL random >[1=2]
+	exit random
+}
+~ $r1 16 || {
+	echo netip: FAIL random >[1=2]
+	exit random
+}
+h1=`{dd -if /dev/random -bs 16 -count 1 >[2]/dev/null | hsha1sum} || {
+	echo netip: FAIL random >[1=2]
+	exit random
+}
+h2=`{dd -if /dev/random -bs 16 -count 1 >[2]/dev/null | hsha1sum} || {
+	echo netip: FAIL random >[1=2]
+	exit random
+}
+~ $"h1" $"h2" && {
+	echo netip: FAIL randomfresh >[1=2]
+	exit randomfresh
+}
+echo netip: random ok
+
 # attach the #I device tree at /net
 bind -a '#I' /net || {
 	echo netip: FAIL bind >[1=2]
