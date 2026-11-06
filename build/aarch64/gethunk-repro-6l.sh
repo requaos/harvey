@@ -225,8 +225,9 @@ SHIM
 			exit 2
 		fi
 		# fixed pair: built fresh from the working tree every run — the gate
-		# never trusts hostbin staleness.
-		if [ ! -x "$SCRATCH/fixed-bin/6l" ] || [ "$HARVEY_ROOT/sys/src/cmd/6l/obj.c" -nt "$SCRATCH/fixed-bin/6l" ]; then
+		# never trusts hostbin staleness.  The key watches every 6l source,
+		# not just obj.c (the 06-09 LP64 fix touched asm.c too).
+		if [ ! -x "$SCRATCH/fixed-bin/6l" ] || [ -n "$(find "$HARVEY_ROOT/sys/src/cmd/6l" -name '*.[ch]' -newer "$SCRATCH/fixed-bin/6l" 2>/dev/null)" ]; then
 			build_pair "$HARVEY_ROOT" "$SCRATCH/fixed-bin"
 		fi
 		FIXBIN="$SCRATCH/fixed-bin"
