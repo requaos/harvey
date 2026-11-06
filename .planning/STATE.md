@@ -2,19 +2,20 @@
 gsd_state_version: "1.0"
 milestone: v2.0
 milestone_name: Full System & Drawterm
-current_phase: 08
-current_phase_name: r9 TCP/IP Path — devip-Compatible /net
-status: executing
-stopped_at: Phase 10 context gathered
-last_updated: "2026-11-06T06:25:00.000Z"
+current_phase: 9
+current_phase_name: Host Networking + boot-r9 Net Modes
+status: planning
+stopped_at: Phase 08 complete, ready to plan Phase 9
+last_updated: "2026-11-06T06:53:19.914Z"
 last_activity: 2026-11-06
-last_activity_desc: Phase 08 plan 09 executed — PHASE 08 COMPLETE: the composed net smoke (D-13) green through the PACKAGED pipeline at the pin (exit 0, the CI shape) AND in hosted CI (run 42171968459, both jobs success — the new net-smoke job + the untouched boot-smoke); 08-EVIDENCE.md consolidates every gate × r9 SHA × pin × verdict × run with every slirp-green gate labeled NOT-L2-TRUTH; push-before-pin executed (r9 a5b1b42..19f61ed pushed BEFORE the pin; d8080f115 names flake.lock ALONE; locked == live == origin, owner requaos); two r9 fixes the composed smoke required (virtshell devip 14b2f23, the EtherDev Drop 19f61ed); four pre-existing defects recorded (WINDOWS #47-50) incl. the multi-waiter RX-wake blocker-class for Phase 9/12
-state_head: bfc7fd8de4609ff097aff8d69453d36257f682b1
+last_activity_desc: Phase 08 complete, transitioned to Phase 9
+state_head: 2c8384a730254c6ee2555828effc84621171f6f8
 progress:
   total_phases: 7
   completed_phases: 7
-  total_plans: 29
+  total_plans: 39
   completed_plans: 29
+  percent: 74
 ---
 
 # Project State
@@ -28,17 +29,17 @@ See: .planning/PROJECT.md (updated 2026-11-05)
 
 ## Current Position
 
-Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — COMPLETE (9/9 plans; the NETIP-08 tap-leg truth verdict is Phase 9's joint acceptance gate per D-15)
-Plan: 9 of 9
-Status: Phase complete — ready for Phase 9 planning
-Last activity: 2026-11-06 — Phase 08 plan 09 executed (composed net smoke + CI net-smoke job + evidence index + push-before-pin + pin advance; NETIP-03/04/05 complete, NETIP-08 pending Phase 9's tap leg)
+Phase: 9 — Host Networking + boot-r9 Net Modes
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-11-06 — Phase 08 complete, transitioned to Phase 9
 
-Progress: [████████░░] 83% (v2.0)
+Progress: [███████░░░] 74% (v2.0)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 59
+- Total plans completed: 67
 - Average duration: —
 - Total execution time: —
 
@@ -53,6 +54,7 @@ Progress: [████████░░] 83% (v2.0)
 | 05 | 13 | - | - |
 | 07 | 10 | - | - |
 | 06 | 10 | - | - |
+| 08 | 9 | - | - |
 
 **Recent Trend:**
 - Last 5 plans: —
@@ -394,7 +396,7 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-06T01:13:24.954Z
-Stopped at: Phase 10 context gathered
+Stopped at: Phase 08 complete, ready to plan Phase 9
 Resume file: .planning/phases/10-userspace-services-gui-tiers-bootfs-payload/10-CONTEXT.md
 
 ## Operator Next Steps
