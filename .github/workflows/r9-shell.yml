@@ -38,3 +38,29 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
       - name: boot r9 + harvey aarch64 userland smoke
         run: nix run .#boot-r9-smoke
+
+  # 08-09 (D-16): the short NET gates run in hosted CI — the composed
+  # net smoke (D-13) drives the user-visible flows through the packaged
+  # kernel's devip #I tree in ONE boot: ping 127.0.0.1, udp echo, tcp/7
+  # echo, ipconfig static + dhcp (the baked fixtures' markers, both
+  # NOT-L2-TRUTH venue labels — slirp evidence is never L2 truth; the
+  # tap verdict is Phase 9's joint gate).  The SUSTAINED soak stays
+  # documented-manual on dev hosts (TCG on every automated venue) — the
+  # exact invocation lives in build/aarch64/root-tree/lib/netip-soak.rc's
+  # header and 08-EVIDENCE.md.
+  # Supply chain (the 06-08 rule): this job's checkout is pinned to v4's
+  # API-resolved commit — 11d5960a326750d5838078e36cf38b85af677262,
+  # resolved via the GitHub API 2026-11-06 (repos/actions/checkout
+  # refs/tags/v4 == commits?sha=v4) — and the nix-installer rides the
+  # header's pinned SHA.  The boot-smoke job's `@v4` tag predates this
+  # rule and stays as-is (not this plan's file region to churn).
+  net-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90 # TCG scale; the smoke's own per-stage 600s timeouts localize failures
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 — API-resolved 2026-11-06 (the 06-08 rule)
+      - name: install nix
+        # pinned SHA (see header): the supply-chain rule
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: composed net smoke (boot-r9-net-smoke)
+        run: nix run .#boot-r9-net-smoke
