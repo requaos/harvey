@@ -106,7 +106,9 @@ tree_find_7gen() {
 BAD=0
 
 # --- 1. runs=always artifact magic asserts ----------------------------------
-"$GREP" '^G[0-9] site=' "$AUDIT" > /tmp/gsd-genscan-rows.$$ || err "audit carries no G rows"
+# ERE [0-9]+, not [0-9]: the audit's maintenance rule numbers the next row
+# G10 — a single-digit selector would silently skip double-digit rows (WR-03)
+"$GREP" -E '^G[0-9]+ site=' "$AUDIT" > /tmp/gsd-genscan-rows.$$ || err "audit carries no G rows"
 trap 'rm -f /tmp/gsd-genscan-rows.$$' EXIT
 while read -r row; do
 	# positional field extraction (the audit grammar is fixed field
