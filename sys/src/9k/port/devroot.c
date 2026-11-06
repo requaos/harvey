@@ -151,10 +151,8 @@ rootgen(Chan *c, char *name, Dirtab*, int, int s, Dir *dp)
 		}
 		if(t >= l->ndir)
 			return -1;
-if(t < 0){
-print("rootgen %#llux %d %d\n", c->qid.path, s, t);
-panic("whoops");
-}
+		if(t < 0)
+			panic("rootgen: negative index %d (qid %#llux)", t, c->qid.path);
 		d = &l->dir[t];
 		devdir(c, d->qid, d->name, d->length, eve, d->perm, dp);
 		return 1;
