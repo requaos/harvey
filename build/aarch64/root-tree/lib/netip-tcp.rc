@@ -73,6 +73,29 @@ for(w in $selftab){
 	exit selftab
 }
 
+# the netlog observability leg (D-07/D-13): arm the netlog flags BEFORE
+# the echo run — the ctl acceptance prints `netlog: flags set <mask>' on
+# the serial (the netlog-activity marker: clean gate traffic legitimately
+# produces no netlog packet lines, so the ctl-acceptance print proves the
+# path live).  TWO notes on the redirect shapes here:
+#
+# (1) `>>' not `>': rc's `>' is Creat-first (rc/exec.c Xwrite), and
+#     Creat on a TOP-LEVEL /net file misses — r9's walk_one resolves the
+#     union head only (the rootfs's /net), never the bound #I member
+#     (namec's documented no-union-consult shape; the two-level-deep ctl
+#     writes work because their PARENT resolves through the union).
+#     `>>' is open-first — /net/log exists and opens OWRITE fine.
+# (2) test -e first: a failed redirect open is an uncatchable rc Xerror
+#     that would abort without the named FAIL line.
+test -e /net/log || {
+	echo netip: FAIL netlog >[1=2]
+	exit netlog
+}
+echo set tcp udp icmp >> /net/log || {
+	echo netip: FAIL netlog >[1=2]
+	exit netlog
+}
+
 # the tcp/7 echo leg (NETIP-03's third leg): tcpecho announces tcp!*!7
 # (a NUMERIC port — no no-cs service-name discovery needed; the udp leg's
 # discovery dance was for `echo' passing identtrans verbatim).  tcpecho
@@ -176,6 +199,36 @@ if (~ $outsegs '' 0) {
 	exit tcpstats
 }
 echo netip: tcp stats ok
+
+# the top-level surface leg (Task 2): /net/ndb reads cleanly (empty until
+# ipconfig writes it — the contract's 1024-byte free-form buffer), and
+# /net/iproute carries the loopback's local route line in the contract's
+# "%-15I %-4M %-15I %4.4s %4.4s %3s\n" format (the ipifc add wrote it —
+# the ifc column names the interface, so no address literal is needed
+# here at all).  The reads ride backquote capture (no redirect-to-create
+# path — see the netlog leg's note).
+ndbcontent=`{cat /net/ndb} || {
+	echo netip: FAIL ndb >[1=2]
+	exit ndb
+}
+routes=`{cat /net/iproute} || {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+~ $#routes 0 && {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+found=0
+for(w in $routes){
+	if(~ $w loopback0)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+echo netip: tcp files ok
 
 echo netip: NETIP-DONE
 exit ''
