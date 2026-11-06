@@ -183,7 +183,36 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   3. The long tail is swept: upas + lp + the remaining cmd dirs compile; fossil + venti are compile-gated and documented as runtime-unverifiable this milestone (no block device in r9); gs (753 files) is included (USPACE-09)
   4. The bootfs payload is staged with manifest assertions: `/lib/font/bit/*`, a glenda-style lib/profile, and a `/lib/ndb/local` template are present in the baked image (DESK-03)
 
-**Plans**: TBD
+**Plans:** 10 plans (0/10 complete)
+**Wave 1**
+- [ ] 10-01-PLAN.md — Tier machinery extension to tiers 2/3/4 + the one-way grammar checkpoint + the cmd/aux:listen end-to-end tracer (USPACE-07; D-13/D-14)
+
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 10-02-PLAN.md — DESK-03 bootfs payload: full 36MB fonts + EARLY 1024M headroom proof, trimmed glenda profile, ndb/local template substitution, manifest asserts (DESK-03; D-13/D-14/D-15)
+
+**Wave 3** *(blocked on Wave 2)*
+- [ ] 10-03-PLAN.md — D-01a vendored ape arm64 slice + per-arch ape headers + default.aarch64.h; libap.a wired; compress pcc-route tracer; gs wall-fall evidence (USPACE-09 enabler)
+
+**Wave 4** *(blocked on Wave 3)*
+- [ ] 10-04-PLAN.md — Tier-2 full roster (ip tree, ndb, aux/listen, mntgen, exportfs, auth suite) + driver completion + compile sweep + COMPILE-ONLY ledger (USPACE-07 compile half; D-06)
+
+**Wave 5** *(blocked on Wave 4)*
+- [ ] 10-05-PLAN.md — Tier-2 functional probes on the donor: cs/dns/exportfs/listen/mntgen/ipconfig+ping/auth-shallow (10 probes) + T2-OK:donor ledger supersedes (USPACE-07 execution half; D-03/D-05)
+
+**Wave 6** *(blocked on Wave 5)*
+- [ ] 10-06-PLAN.md — Phase-6 checklist: libmemdraw LP64 audit + drawtest/arctest rejoin donor-green; stale test targets; libdynld:128; rc argv-stack audit (USPACE-08 prerequisite)
+
+**Wave 7** *(blocked on Wave 6)*
+- [ ] 10-07-PLAN.md — Tier-3 GUI compile wave (rio/acme/sam/samterm/plumb/stats/winwatch/page/proof/screenlock) + the D-12 headless plumber probe (USPACE-08 compile half)
+
+**Wave 8** *(blocked on Wave 7)*
+- [ ] 10-08-PLAN.md — GUI trace rig: draw9 serve-only draw server + trace --gui + scripted-interaction traces of rio/acme/sam+samterm, darwin documented-manual (USPACE-08 trace half; D-08/D-09a/D-10a/D-11)
+
+**Wave 9** *(blocked on Wave 8)*
+- [ ] 10-09-PLAN.md — Tier-4 long tail: derived roster + games filter + mass compile + fix-or-exempt + coverage regen + gs donor render smoke (USPACE-09; D-01/D-02/D-07)
+
+**Wave 10** *(blocked on Wave 9)*
+- [ ] 10-10-PLAN.md — phase10.yml compile-gate CI sibling (D-11a) + 10-EVIDENCE.md consolidation + closeout declarations (all four requirements)
 **UI hint**: yes
 
 ### Phase 11: In-Guest p9sk1 Auth Domain
@@ -231,7 +260,7 @@ Two parallel tracks from the v1.0 foundation: userspace {6 → 10} ∥ networkin
 | 7. r9 PCI/ECAM + virtio-net + devether | v2.0 | 10/10 | Complete    | 2026-11-05 |
 | 8. r9 TCP/IP Path — devip-Compatible /net | v2.0 | 3/9 | In Progress | - |
 | 9. Host Networking + boot-r9 Net Modes | v2.0 | - | Not started | - |
-| 10. Userspace Services + GUI Tiers + Bootfs | v2.0 | - | Not started | - |
+| 10. Userspace Services + GUI Tiers + Bootfs | v2.0 | 0/10 | Planned | - |
 | 11. In-Guest p9sk1 Auth Domain | v2.0 | - | Not started | - |
 | 12. CPU Service + Drawterm + rio Desktop | v2.0 | - | Not started | - |
 
