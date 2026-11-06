@@ -1,24 +1,22 @@
-# Harvey OS — Build Revival + aarch64 Port
+# Harvey OS — Build Revival + r9 Adoption
 
 ## What This Is
 
-Harvey OS is a Plan 9 4th Edition derivative operating system (C, mk-based build, dual kernel trees: legacy `sys/src/9/` and active amd64 `sys/src/9k/`). This project revives the dormant upstream build (last upstream commit 2022-03-30), modernizes the dev environment with Nix, ports the userspace to aarch64 — and ultimately adopts **r9** (sibling repo `../r9`, a Rust reimplementation of the Plan 9 kernel) as Harvey's kernel, including adding/completing aarch64 support in r9 (qemu `-M virt`, beyond its current raspi3b/4b focus).
+Harvey OS is a Plan 9 4th Edition derivative operating system (C, mk-based build, dual kernel trees: legacy `sys/src/9/` and active amd64 `sys/src/9k/`). This project revived the dormant upstream build (last upstream commit 2022-03-30), modernized the dev environment with Nix, and proved Harvey's userspace on the **r9** kernel (sibling repo `../r9`, a Rust reimplementation of the Plan 9 kernel) on aarch64 through v2.0. At v2.1 (2026-11-06) the target pivoted to **x86_64**: Harvey's full amd64 userspace now serves to functionally flush out r9 as a kernel — en route to the north star of r9 becoming a complete Rust port of Harvey running on its own kernel, with Harvey-standalone-on-9k preserved throughout.
 
 ## Core Value
 
-Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
+Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
 
-## Current Milestone: v2.0 Full System & Drawterm
+## Current Milestone: v2.1 x86_64 Pivot + r9 Kernel Flush-Out
 
-**Goal:** One command — `nix run .#boot-r9` — brings up a complete Harvey system (full aarch64 userspace, in-guest p9sk1 auth, tap/bridge networking) that a host drawterm connects to for an interactive rio desktop session.
+**Goal:** Re-target Harvey+r9 from aarch64 to x86_64 under qemu/KVM and use Harvey's full amd64 userspace to functionally harden ("flush out") the r9 kernel — delivering the inherited v2.0 payoff (auth, cpu/drawterm, rio) on x86_64 — as the proving ground en route to r9 becoming a complete Rust port of Harvey.
 
 **Target features:**
-- Full aarch64 userspace: ALL of `sys/src/cmd` + remaining libraries compile for aarch64, GUI stack included (libdraw/libmemdraw/libmemlayer/libframe, rio)
-- r9 virtio-net driver + TCP/IP path for the guest (kernel devether/devip vs Harvey userspace ip stack — resolved in research)
-- tap/bridge host networking: real L2 virtio-net; documented per-host privileged setup (darwin vmnet, linux tap)
-- In-guest p9sk1 auth: auth server + keyfs + factotum + ndb; drawterm logs in with user/password
-- cpu server service: guest listens on tcp/17010, drawterm serves /dev/draw + mouse back over 9P, guest runs rio on it (r9 needs NO framebuffer/gpu driver — the draw device arrives via drawterm)
-- Host-side drawterm supplied by the flake (e.g. `nix run .#drawterm`) so the whole session is reproducible from clean checkouts
+- r9 x86_64 platform bring-up: qemu q35/pc platform layer (boot protocol without DTB, APIC/HPET, PCI/ECAM glue into the arch-neutral `port/` virtio stack), KVM-native acceptance gates
+- Harvey amd64 userspace on r9: re-derived exec/ABI contract (amd64 Ureg/TrapFrame), boot chain boot→init→rc on x86_64; tier machinery re-keyed to `objtype=amd64` (no new toolchain work — 6c/6a/6l already green)
+- Kernel flush-out: the open review backlog (20 Phase-8 + 13 Phase-7 CR/WR findings) closed as real userspace load lands on the kernel
+- Inherited v2.0 goals re-keyed to x86_64: host net modes (linux-native tap), services/GUI tiers + bootfs payload, in-guest p9sk1 auth, cpu service + drawterm + rio desktop
 
 ## Requirements
 
@@ -52,18 +50,16 @@ Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — repr
 
 ### Active
 
-Milestone v2.0 headline scope (decomposed into REQ-IDs in REQUIREMENTS.md):
+Milestone v2.1 headline scope (decomposed into REQ-IDs in REQUIREMENTS.md; v2.0's delivered Phases 6–8 are recorded in Validated below):
 
-- [ ] Full aarch64 userspace build: all of `sys/src/cmd` + remaining libraries compile and install under `/aarch64/`
-- [ ] r9 guest networking: virtio-net device + a working TCP/IP path, plumbed to a host tap/bridge
-- [ ] In-guest p9sk1 auth domain: auth server, keyfs, factotum, ndb populated for the guest
-- [ ] cpu service on tcp/17010: drawterm connects, authenticates, and lands in an interactive rio desktop
-- [ ] Flake-supplied host drawterm + documented per-host tap/bridge setup (darwin vmnet, linux tap)
+- [ ] r9 x86_64 platform bring-up on qemu q35/pc with KVM-native acceptance gates
+- [ ] Harvey amd64 userspace executes on r9: re-derived exec/ABI contract, boot→init→rc chain, tier machinery re-keyed to `objtype=amd64`
+- [ ] r9 kernel flush-out: the open review backlog (Phases 7–8 CR/WR findings) closed under real userspace load
+- [ ] Inherited v2.0 payoff on x86_64: host net modes, services/GUI tiers + bootfs payload, in-guest p9sk1 auth, cpu + drawterm + rio
 
 Carried over from v1.0:
 
-- [ ] Advance the harvey flake.lock r9 pin past the review-fix + unsafe-elimination commits (pin currently at 9549cee; r9 main carries the hardened kernel) — milestone-completion decision; a pin bump needs a fresh hosted CI run to stay honest
-- [ ] Upstream raspi3b-on-qemu-11.1.2 boot defect (FAR 0xfe215004 — rpi4 MMIO base on the raspi3b machine) — pre-existing, A/B-proven not-a-regression, accepted 2026-11-01; phase-03 deferred-items.md #1
+- [ ] Upstream raspi3b-on-qemu-11.1.2 boot defect (FAR 0xfe215004 — rpi4 MMIO base on the raspi3b machine) — pre-existing, A/B-proven not-a-regression, accepted 2026-11-01; phase-03 deferred-items.md #1 (aarch64-frozen with the v2.0 pin)
 - [x] Fix the legacy harvey.yml workflow to build via nix (pre-dates the nix scaffolding; red streak on master since 2026-11-04T12:01Z) — Phase 6 UAT deferred follow-up, backlog 999.1 — workflow rewritten onto the nix pipeline 2026-11-05; hosted green run PENDING FIRST PUSH (261105-slx)
 
 ### Out of Scope
@@ -74,11 +70,12 @@ Carried over from v1.0:
 - TLS/security modernization (TLS 1.2 cap, RC4/DES/NULL ciphers) — separate hardening milestone
 - Dual `9` vs `9k` kernel-tree deduplication — rendered moot by r9 adoption
 - Go-based userland on aarch64 — Go is unsupported on plan9/arm64
-- x86_64-darwin host support — repo targets aarch64 hosts first
+- Rust port of Harvey userspace into r9 — the north star's final track, deliberately a FUTURE milestone: v2.1 exists to prove and flush out r9 under the C userspace first
+- aarch64 as an active development target — frozen at the v2.0 pin (2026-11-06): TCG-bootable history preserved, all v2.1 phases key to x86_64; re-derivable later if wanted
 
 ## Context
 
-- **Kernel future is r9**: sibling repo `../r9` (Rust reimplementation of the Plan 9 kernel; cargo workspace: `port/` portable code + per-arch crates `x86_64/`, `riscv64/`, `aarch64/`; xtask build/qemu/boot-test runners). r9's aarch64 now targets raspi3b/raspi4b AND qemu `-M virt` (Phase 3: cfg-gated platform tree, committed virt-gicv2 DTB, GICv2 + generic timer + PL011 IRQ echo, `cargo xtask boot-test` acceptance harness, `virtpanic` debug config); still no userspace exec path — that is Phase 4. Harvey supplies the userspace, libc, toolchain, and dist machinery; r9 supplies the kernel. r9 has its own flake (R9-05) — commits land on `main` of the `requaos/r9` fork.
+- **Kernel future is r9**: sibling repo `../r9` (Rust reimplementation of the Plan 9 kernel; cargo workspace: `port/` portable code + per-arch crates `x86_64/`, `riscv64/`, `aarch64/`; xtask build/qemu/boot-test runners). r9's aarch64 now targets raspi3b/raspi4b AND qemu `-M virt` (Phase 3: cfg-gated platform tree, committed virt-gicv2 DTB, GICv2 + generic timer + PL011 IRQ echo, `cargo xtask boot-test` acceptance harness, `virtpanic` debug config); through v2.0 it carries the full shell/net substrate on aarch64 (exec, namespace/devices, devether/devip — Phases 4–8). The `x86_64/` crate is the v2.1 bring-up target — lean today (uart16550, pio, trap, vsvm; no platform tree, no APIC/PCI glue) — while `port/` (proc/exec/syscalls, virtio transport, devip, devether) is arch-neutral and carries over whole. Harvey supplies the userspace, libc, toolchain, and dist machinery; r9 supplies the kernel. r9 has its own flake (R9-05) — commits land on `main` of the `requaos/r9` fork.
 - **Upstream dormant**: Harvey-OS/harvey last commit 2022-03-30; CI was a fragile expect+qemu bootstrap on EOL Ubuntu 21.10 (`.planning/codebase/CONCERNS.md`)
 - **Build system**: mk + mkfiles; host tools built by `sys/src/cmd/*/BUILD` scripts; kernel build runs in a Linux mount namespace emulating Plan 9's root layout (`sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE` → `BUILD_SETUP_NAMESPACE` → `BUILD` → `build/scripts/linux-build`)
 - **Nix scaffolding**: `flake.nix` + `nix/*.sh`; on darwin the namespace build runs in a lima VM (virtiofs subdir binds yield empty trees, so the VM build rsyncs to guest-local disk and pulls `amd64/`+`386/` back)
@@ -87,7 +84,8 @@ Carried over from v1.0:
 - **Naming tension**: in-tree vestiges (`build_arm64`, empty `arm64/` dir, mkdirs) use `arm64`; 9front convention is also `arm64`; project decision is `aarch64` — the toolchain phase starts by renaming/quarantining the vestiges.
 - **Known upstream breakage**: `sys/src/cmd/jpg/mkfile:56-68` derives a nonexistent `oc` compiler from `cputype=unix`, aborting the cmd DIRS loop before `ip/`+`venti/` → root-embedding kernels (k10cpuf/k10f) can't find `/amd64/bin/ip/ipconfig`; `4a` `rfork bind lex.c` failure; `mahjonng` cpp breakage noted in Dockerfile TODO
 - **VM orchestration**: minimega (`../minimega` read-only clone for reference; the flake fetches+builds it via `nix/minimega.nix`, pinned tag 3.3.0) manages amd64 test VMs on Linux/KVM hosts with `.mm` scripts. It is x86/KVM-centric upstream — aarch64/r9 test boots use plain qemu instead. On darwin, KVM is unavailable; minimega runs on linux hosts (or the lima guest, TCG-slow). **Now unblocked on the linux-x86_64 primary host** (Phase 6 D-03's deferral condition — "no amd64 dev host" — no longer holds).
-- **2026-11-06 host migration**: primary dev host moved darwin-aarch64 → NixOS linux-x86_64; full audit log + clean-clone resumption checklist + case-collision hazard notes live in `.planning/HOSTS.md`. User direction at migration included a possible **x86_64 target pivot** (aarch64 guests are TCG everywhere; x86_64 guests get KVM on the new host) — a milestone-level re-scope conversation pending on the new machine; Phase 10's plans are aarch64-keyed, so the decision should land before Phase 10 execution.
+- **2026-11-06 host migration**: primary dev host moved darwin-aarch64 → NixOS linux-x86_64; full audit log + clean-clone resumption checklist + case-collision hazard notes live in `.planning/HOSTS.md`. User direction at migration included a possible **x86_64 target pivot** (aarch64 guests are TCG everywhere; x86_64 guests get KVM on the new host) — a milestone-level re-scope conversation pending on the new machine; Phase 10's plans are aarch64-keyed, so the decision should land before Phase 10 execution. **Decided 2026-11-06 at the v2.1 re-scope**: target pivoted to x86_64, v2.0 subsumed (Phases 6–8 delivered, 9–12 inherited re-keyed) — see Current Milestone.
+- **Three-track end state (user direction 2026-11-06)**: (1) Harvey runs standalone on its own 9k kernel (kept green throughout); (2) Harvey runs on the r9 kernel (v2.1's proving ground on x86_64 — the point is to functionally flush out r9); (3) ultimately r9 becomes a complete Rust port of Harvey running on its own kernel (future milestone; porting starts only after r9 is proven under the C userspace).
 - **riscv64 cautionary tale**: `riscv64/mkfile` references a `jc/jl/ja` toolchain never committed — vaporware scaffolding. Hard rule: toolchain (7l-linked hello-world) lands before any arch dir/mkfile.
 
 ## Constraints
@@ -150,6 +148,8 @@ Carried over from v1.0:
 | smoltcp 0.14 behind the devip ABI as r9's TCP/IP engine; the contract doc is the executable spec | Phase 8 (D-01..D-04, NETIP-01) — the file tree IS the contract: gates assert the doc, man-vs-source divergences flagged in it, and the supply chain is crates.io pin + committed lockfile with a joint same-axis provenance record | ✓ Good (36/36 must-haves; OQ-1 DHCP-fidelity resolved empirically PASS-path — no wire shim, smoltcp dhcpv4 socket never wired) |
 | Event-driven devip↔smoltcp seam with NO periodic polling (BusyCell single ownership, NET_DEADLINE armed from poll_at, STACK_DEBT drain) | Phase 8 (D-05) — the seam has no polling cadence to save it from a missed waker, so the whole mapping is pinned host-side before any guest gate depends on it | ✓ Good (152-pin port suite + all guest gates green; the wakeup-loss class was gate-caught once and fixed by re-probe-after-drive) |
 | Implement RFMEM in r9 at the moment the tracer surfaces the gap (donor dupseg + growth families + refcount-gated free) | Phase 8 08-04 blocking-human checkpoint, user decision A conditioned on Harvey fidelity (verified: ip/ping.c:572 RFMEM is Harvey-native, not a 9front artifact) — tracer-first doctrine pays foundational gaps when surfaced, not later | ✓ Good (ping/udp/tcp gates green; the checkpoint's "no post-fork brk_ growth" premise was falsified at the gate and the full donor growth semantics landed) |
+| Pivot target aarch64 → x86_64 at v2.1, subsuming v2.0 (Phases 6–8 delivered; 9–12 inherited re-keyed) | User decision 2026-11-06 — amd64 userspace+toolchain already green in-tree, r9 `port/` is arch-neutral, KVM-native gates on the linux-x86_64 host; aarch64 frozen at its green pin | — Pending |
+| Three-track end state: Harvey-on-9k standalone ∥ Harvey-on-r9 → r9 as a complete Rust port of Harvey | User direction 2026-11-06 — Harvey-on-r9 is the r9 flush-out vehicle; the Rust port follows only after r9 is proven on x86_64 | — Pending |
 
 ## Evolution
 
@@ -169,4 +169,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-06 after Phase 8 (r9 TCP/IP Path — devip-Compatible /net)*
+*Last updated: 2026-11-06 after the v2.0→v2.1 milestone re-scope (x86_64 target pivot)*

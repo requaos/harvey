@@ -1,20 +1,16 @@
 ---
 gsd_state_version: "1.0"
-milestone: v2.0
-milestone_name: Full System & Drawterm
-current_phase: 10
-current_phase_name: Userspace Services + GUI Tiers + Bootfs Payload
-status: executing
-stopped_at: Host migration captured + pushed (darwin-aarch64 -> NixOS linux-x86_64); Phase 10 planned, ready to execute — pending x86_64 target-pivot decision on the new host
-last_updated: "2026-11-06T14:10:50.356Z"
+milestone: v2.1
+milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
+status: planning
+last_updated: "2026-11-06T17:24:13.708Z"
 last_activity: 2026-11-06
-last_activity_desc: Phase 08 complete, transitioned to Phase 9
-state_head: 52ebfd560d731983c791ce0348593de5fe2c2709
 progress:
-  total_phases: 7
-  completed_phases: 8
-  total_plans: 39
-  completed_plans: 29
+  total_phases: 0
+  completed_phases: 0
+  total_plans: 0
+  completed_plans: 0
+  percent: 0
 ---
 
 # Project State
@@ -28,12 +24,10 @@ See: .planning/PROJECT.md (updated 2026-11-06)
 
 ## Current Position
 
-Phase: 10 (Userspace Services + GUI Tiers + Bootfs Payload) — READY TO EXECUTE
-Plan: Not started
-Status: Ready to execute
-Last activity: 2026-11-06 — Phase 08 complete, transitioned to Phase 9
-
-Progress: [███████░░░] 74% (v2.0)
+Phase: Not started (defining requirements)
+Plan: —
+Status: Defining requirements
+Last activity: 2026-11-06 — Milestone v2.1 started
 
 ## Performance Metrics
 
