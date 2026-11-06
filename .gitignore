@@ -99,6 +99,11 @@ amd64/.userland-ok
 # 05-12 smoke transient capture (a passing copy lands in the phase dir)
 /build/aarch64/smoke-r9.log
 
+# 08-09 composed net smoke transient captures (passing copies land in the phase dir)
+/build/aarch64/smoke-r9-net.log
+/build/aarch64/smoke-r9-net-gicv2.log
+/build/aarch64/smoke-r9-net-hvf.log
+
 # 06-07 tier-1 r9-gate transient capture (a passing copy lands in the phase dir)
 /build/aarch64/tier1-r9.log
 

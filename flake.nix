@@ -118,6 +118,23 @@
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
             ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
+          # 08-09 (D-13, NETIP-03's composed leg): the composed NET
+          # smoke as a flake app — the SAME composed pipeline as
+          # boot-r9-smoke (R9_KERNEL_PKG store path, build → bake →
+          # DTB patch) but launched under build/aarch64/smoke-r9-net.expect,
+          # which drives the user-visible net flows through the packaged
+          # kernel's devip #I tree in ONE boot (ping 127.0.0.1, udp
+          # echo, tcp/7 echo, ipconfig static + dhcp — the baked
+          # fixtures' markers, both NOT-L2-TRUTH venue labels, and the
+          # NET-SMOKE: ALL STAGES PASS completion marker) and exits
+          # 0/1 for CI.  smoke-r9's behavior is untouched; the
+          # packaged kernel carries devip from 08-09's virtshell dev
+          # entry.  smokeR9Pkg's shape verbatim.
+          netSmokeR9Pkg = mkScriptApp pkgs "harvey-boot-r9-net-smoke" ./nix/smoke-r9-net.sh ''
+            export R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
+            ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
           # 06-07 (D-12, USPACE-04's second venue): the r9-side tier-1
           # gate — the SAME composed pipeline, the tier-1 payload in the
           # image, and build/aarch64/tier1-r9.expect driving the sweep
@@ -143,6 +160,7 @@
         } // nixpkgs.lib.optionalAttrs (builtins.hasAttr system r9.packages) {
           boot-r9 = mkApp bootR9Pkg;
           boot-r9-smoke = mkApp smokeR9Pkg;
+          boot-r9-net-smoke = mkApp netSmokeR9Pkg;
           boot-r9-tier1 = mkApp tier1R9Pkg;
         });
 
