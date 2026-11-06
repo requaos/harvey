@@ -5,16 +5,16 @@ milestone_name: Full System & Drawterm
 current_phase: 08
 current_phase_name: r9 TCP/IP Path — devip-Compatible /net
 status: executing
-stopped_at: Phase 06 complete + verified; Phase 08 executing (plan 4 of 9 next)
-last_updated: "2026-11-05T23:37:32.504Z"
-last_activity: 2026-11-05
-last_activity_desc: Phase 06 complete, transitioned to Phase 08
-state_head: 0acb410792fea55b7c3d03792019b45013bc0899
+stopped_at: Completed 08-05-PLAN.md
+last_updated: "2026-11-06T00:38:04.000Z"
+last_activity: 2026-11-06
+last_activity_desc: Phase 08 plan 05 executed — the tcp module (accept pool + blocking connect bridge) + observability landed; the tcp/7 echo gate green end-to-end; NETIP-03's three legs all committed gates
+state_head: 92a914e32ba42e22b7d4312e106a20d8d2538f37
 progress:
   total_phases: 7
   completed_phases: 6
   total_plans: 29
-  completed_plans: 24
+  completed_plans: 25
 ---
 
 # Project State
@@ -28,17 +28,17 @@ See: .planning/PROJECT.md (updated 2026-11-05)
 
 ## Current Position
 
-Phase: 08 — r9 TCP/IP Path — devip-Compatible /net
-Plan: 5
+Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — EXECUTING
+Plan: 6 of 9
 Status: Ready to execute
-Last activity: 2026-11-05 — Phase 06 complete, transitioned to Phase 08
+Last activity: 2026-11-06 — Phase 08 plan 05 executed (tcp module + netlog/route + the tcp/7 echo gate green)
 
 Progress: [████████░░] 83% (v2.0)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 58
+- Total plans completed: 59
 - Average duration: —
 - Total execution time: —
 
@@ -126,6 +126,7 @@ Progress: [████████░░] 83% (v2.0)
 | Phase 08 P04 | 75 min (incl. the blocking-human RFMEM decision wait + continuation) | 2 tasks | 16 files |
 | Phase 06 P09 | 60 min | 2 tasks | 12 files |
 | Phase 06 P10 | 8 min | 2 tasks | 6 files |
+| Phase 08 P05 | 79 min | 2 tasks | 13 files (8 r9 modified + 2 r9 created + 2 Harvey + planning records) |
 
 ## Accumulated Context
 
@@ -293,6 +294,13 @@ Recent decisions affecting current work:
 - [Phase 08]: 08-01: MAXTTL = 255 recorded from source (sys/src/9k/ip/ip.h:44) — phase research's '64' parenthetical corrected; bridge sets hop_limit 255 at conv creation so smoltcp's 64 default never leaks
 - [Phase 08]: 08-01: boot-test verify invocations carry --arch aarch64 (xtask Arch::from defaults x86_64) — same correction as the 07-01 precedent
 - [Phase 08]: 08-02: OQ-1 RESOLVED PASS-path (pin h, empirical): the udp socket sources 0.0.0.0 on the wire ONLY when the send metadata carries local_address: Some(0.0.0.0) — the naive shape is silently dropped (get_source_address → None on an address-less interface); the bridge sets local_address from the conv's recorded laddr; no wire-layer shim; D-09 dhcpv4 fallback stays unwired (contract §12.6)
+- [Phase 08]: 08-05: the tcp blocking paths re-probe after EVERY drive (probe → drive → re-probe → register/arm → block) — on loopback the drive completes the handshake synchronously and a waker fired mid-drive readies a RUNNING proc (a no-op), so without the re-probe the later block wedges (the gate-caught wakeup-loss; icmp/udp's read shape generalized to tcp's connect + write-full paths)
+- [Phase 08]: 08-05: the accept pool IS tcp's incall queue — the listen open pops the oldest connected member and materializes a NEW conv around its socket (fs_new_call_tcp), then refills; RST-died members prune (T-08-09); the parked listen open arms every pool member's recv waker on its pid (smoltcp's set_state fires recv wakers on every transition); the pool tears down at conv close / the announcer's close/hangup (never a live-socket leak)
+- [Phase 08]: 08-05: hangupxmit ≡ close() on the wire — smoltcp's egress emits FIN only once the segment covers the TX buffer's tail (the FIN never precedes queued data); the donor's close-vs-hangupxmit distinction is the rq flush smoltcp lacks — recorded mapping corner in proto.rs
+- [Phase 08]: 08-05: netlog carries the DONOR's Log* bit values (ip.h:485-500) — the 08-04 placeholder's ad-hoc bits replaced; the D-13 netlog-activity marker is the ctl-acceptance print `netlog: flags set <mask>` (clean gate traffic produces no netlog packet lines)
+- [Phase 08]: 08-05: the tcp host pins run SINGLE-THREADED with an on-block injection seam (ON_BLOCK one-shot + BLOCK_RELAY standing; the scripted answer fires from INSIDE the park, recorded by BLOCK_COUNT) — two host std threads genuinely race the seam's BusyCell fail-fast (the guest's single-CPU IRQ-masked invariant cannot hold across host threads)
+- [Phase 08]: 08-05: the virtip gate consumes the Harvey-baked bootfs.paq AS-IS (the harvey: initrd channel — no auto-bake); fixture changes require a manual `sh build/aarch64/mkimage.sh` rebake before the gate run (the stale-bake failure mode cost one debug cycle)
+- [Phase 08]: 08-05: two pre-existing kernel gaps recorded (deferred + WINDOWS #44/#45), NOT fixed (scope boundary): the 4 MiB arena drains under a fork+exec spin loop (exec staging teardown suspect), and namec's walk_one never union-consults (Creat on a top-level /net file misses the bound #I member — the fixture uses `>>`, open-first)
 - [Phase 08]: 08-02: smoltcp 'async' feature enabled (Rule 3 blocking fix) — 0.14.0 gates ALL socket waker methods + internal wake() calls behind #[cfg(feature = "async")]; the D-05 waker bridge cannot exist without it; async = [] pulls in zero deps (no executor; Cargo.lock unchanged); the research's 'async outdated' note was self-contradictory — corrected in contract §12.2
 - [Phase 08]: 08-02: devip/waker.rs mounted at the crate root as crate::devip_waker via #[path] — Rust's forbid(unsafe_code) PROPAGATES into submodules (probe-proven), so the named unsafe exception cannot be a child of the forbidden devip module; every acceptance criterion + the safety contract hold structurally
 - [Phase 08]: 08-02: the waker bridge RECORDS into a pending-wake set and drive_stack drains it after the STACK cell drops (netif's wake-after-drop discipline); the seam's clock is its own registration point (set_clock) beside the verbatim DevipHooks {current, block, wake} triple; AcceptPool ops self-enter the cell with partial-announce teardown
@@ -355,7 +363,7 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-05T23:37:32.280Z
-Stopped at: Phase 06 complete + verified; Phase 08 executing (plan 4 of 9 next)
+Stopped at: Completed 08-05-PLAN.md
 Resume file: None
 
 ## Operator Next Steps
