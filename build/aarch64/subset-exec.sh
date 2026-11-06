@@ -822,8 +822,11 @@ EXPECTED=$(
 	done
 )
 echo "== expected T1-OK marker set (computed from tier1-cmds.txt): $(echo $EXPECTED | wc -w | tr -d ' ') members + float-d01 + libtest ×2 + selfhost ×2"
+# per-marker asserts are boundary-anchored ERE (WR-06): an unanchored
+# substring grep false-greens on superset names (mk matches mkdir, cp
+# matches cpp) — the shape proven in build/mm/boot-9k10t1-sweep.sh
 for m in $EXPECTED float-d01 libtest-tdraw libtest-disktest selfhost-compile selfhost; do
-	"$GREP" -q "T1-OK $m" "$RUNLOG" || err "captured log lacks T1-OK $m"
+	"$GREP" -qE 'T1-OK '"$m"'([^A-Za-z0-9.-]|$)' "$RUNLOG" || err "captured log lacks T1-OK $m"
 done
 "$GREP" -q 'T1-DONE' "$RUNLOG" || err "captured log lacks T1-DONE (the sweep did not run to completion)"
 # USPACE-04 honesty: a failing entry must red the gate (the sweep's
