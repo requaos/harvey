@@ -656,7 +656,7 @@ fi
 # killed run left the override in place, restore the donor's file from
 # the pristine donor checkout first (the dist assembly copies it
 # verbatim — donor-ns-build.sh's srvroot step).
-if [ -f "$ROOTFS/rc/bin/termrc" ] && grep -qF 'tier1-sweep.rc' "$ROOTFS/rc/bin/termrc"; then
+if [ -f "$ROOTFS/rc/bin/termrc" ] && "$GREP" -qF 'tier1-sweep.rc' "$ROOTFS/rc/bin/termrc"; then
 	echo "== served termrc still carries a stranded 06-03 override — restoring the donor's first"
 	cp "$DONOR/rc/bin/termrc" "$ROOTFS/rc/bin/termrc"
 fi
@@ -696,7 +696,7 @@ echo "== serving $ROOTFS on 127.0.0.1:$SRV9_PORT (9P2000; writable prefixes /tmp
 SRV9_PID=$!
 # poll for the 'srv9: serving' line the Rust server prints after listen()
 i=0
-while ! grep -q 'srv9: serving' "$TMPD/srv9.log" 2>/dev/null; do
+while ! "$GREP" -q 'srv9: serving' "$TMPD/srv9.log" 2>/dev/null; do
 	i=$((i + 1))
 	if [ $i -gt 60 ]; then
 		cat "$TMPD/srv9.log" >&2 || true
@@ -772,7 +772,7 @@ set -e
 if [ -n "$POKE_PID" ]; then
 	wait "$POKE_PID" 2>/dev/null || true
 	if [ -s "$TMPD/gdbpoke.log" ]; then
-		grep -q 'poked' "$TMPD/gdbpoke.log" || {
+		"$GREP" -q 'poked' "$TMPD/gdbpoke.log" || {
 			cat "$TMPD/gdbpoke.log" >&2
 			err "GICR WAKER wake poke failed — redistributor asleep; see boot-9qemu.sh header drift note 2"
 		}
@@ -788,14 +788,14 @@ if [ $RC -ne 0 ]; then
 	# userspace fault trips drive9's panic fast-fail but never stops
 	# the sweep — USPACE-04's never-wedge edge)
 	echo "== sweep marker state at failure:" >&2
-	grep -oE 'T1-(OK|FAIL|SKIP) [A-Za-z0-9.-]+|T1-DONE' "$RUNLOG" >&2 || true
+	"$GREP" -oE 'T1-(OK|FAIL|SKIP) [A-Za-z0-9.-]+|T1-DONE' "$RUNLOG" >&2 || true
 	exit 1
 fi
 
 # ---- 4. assertions (defense in depth; the driver already proved boot)
-grep -qiE '9front|Plan 9' "$RUNLOG" || err "captured log lacks the 9front/Plan 9 banner"
-grep -q 'term% ' "$RUNLOG" || err "captured log lacks the rc prompt signature"
-grep -q 'stacksmoke: depth 64 ok' "$RUNLOG" || err "captured log lacks the stacksmoke marker"
+"$GREP" -qiE '9front|Plan 9' "$RUNLOG" || err "captured log lacks the 9front/Plan 9 banner"
+"$GREP" -q 'term% ' "$RUNLOG" || err "captured log lacks the rc prompt signature"
+"$GREP" -q 'stacksmoke: depth 64 ok' "$RUNLOG" || err "captured log lacks the stacksmoke marker"
 # the tier-1 swept marker set (presence-based, never interleaving
 # order — tier1-sweep.rc's check table is the source of truth).
 # 06-06: the expected set is COMPUTED from the D-13 tier file (never a
@@ -822,15 +822,15 @@ EXPECTED=$(
 )
 echo "== expected T1-OK marker set (computed from tier1-cmds.txt): $(echo $EXPECTED | wc -w | tr -d ' ') members + float-d01 + libtest ×2 + selfhost ×2"
 for m in $EXPECTED float-d01 libtest-tdraw libtest-disktest selfhost-compile selfhost; do
-	grep -q "T1-OK $m" "$RUNLOG" || err "captured log lacks T1-OK $m"
+	"$GREP" -q "T1-OK $m" "$RUNLOG" || err "captured log lacks T1-OK $m"
 done
-grep -q 'T1-DONE' "$RUNLOG" || err "captured log lacks T1-DONE (the sweep did not run to completion)"
+"$GREP" -q 'T1-DONE' "$RUNLOG" || err "captured log lacks T1-DONE (the sweep did not run to completion)"
 # USPACE-04 honesty: a failing entry must red the gate (the sweep's
 # never-wedge edge is about continuation, not about passing)
-if grep -q 'T1-FAIL' "$RUNLOG"; then
+if "$GREP" -q 'T1-FAIL' "$RUNLOG"; then
 	err "captured log contains a T1-FAIL line — a swept binary failed"
 fi
-if grep -qiE 'panic|trap:' "$RUNLOG"; then
+if "$GREP" -qiE 'panic|trap:' "$RUNLOG"; then
 	err "captured log contains a kernel fault line"
 fi
 
