@@ -1,0 +1,137 @@
+#!/bin/rc
+# netip-dhcp.rc — the NETIP-05 DHCP gate fixture (08-07): the REAL
+# baked ipconfig (unmodified, D-09/D-12 — the 08-03 payload) in its
+# DEFAULT mode on an ether (the dhcpclient path, main.c's doadd→
+# dhcpquery): bind ether → the `add :: ::' preconfig (absorbed
+# devip-side, P-F) → announce udp!*!68 + headers → the full-size Bootp
+# DORA broadcast exchange → the lease configures the guest (ip4cfg's
+# add + the default route) → putndb's /net/ndb write.  The sweep
+# asserts /net/ipselftab (the lease), /net/iproute (the default via
+# the gateway), /net/ndb (non-empty), and a ping to the gateway.
+#
+# Sourced by the gate harness (R9_NETIP_SWEEP=dhcp), never typed at a
+# prompt (the sourced-not-typed discipline — net-sweep.rc's precedent).
+#
+# Addresses come from /lib/netaddr.rc (the D-11 seam) — the slirp_ leg.
+# NO hardcoded 10.0.2.x outside that seam (Pitfall 9's discipline).
+#
+# ipconfig does the whole DHCP flow ITSELF (binddevice's clone + `bind
+# ether /net/ether0', the dhcpclient state machine, ip4cfg, putndb) —
+# the gate's point is the real binary's fidelity over /net (D-09: the
+# smoltcp dhcp socket stays unwired).  The fixture NEVER pre-binds: a
+# pre-bind would fail ipconfig's own bind with "interface already
+# bound" (the era's per-medium singleton rule).  ipconfig runs in the
+# foreground with its own timeout posture (dhcpquery: 10 s per try, 2
+# tries, then sysfatal "no success with DHCP" — the fixture's || arm
+# catches a non-nil exit either way); dhcpwatch's lease renewal is
+# explicitly out of scope this phase (the plan's flagged assumption —
+# the gate proves the initial DORA + configuration + ndb write).
+#
+# Every failed step prints `netip: FAIL <stage>' to stderr and exits
+# non-nil (rc's || idiom per command; backquote capture for the reads).
+# Success prints `netip: dhcp ok'; the run ends with NETIP-DONE.
+#
+# THE VENUE LABEL (D-10, Pitfall 9): this gate runs on qemu -netdev
+# user (slirp — its built-in DHCP server is the only server on the
+# leg) — hermetic, unprivileged, CI-able, and explicitly NOT L2 truth
+# (slirp's DHCP answers forgive marginal L2 bugs; the broadcast path
+# on real L2 is Phase 9's tap-leg re-run).  The final marker prints
+# the label INTO the gate log so the evidence can never be re-read as
+# tap-venue proof (D-15's joint acceptance).
+
+# the D-11 seam (test -e first: a failed source is uncatchable)
+test -e /lib/netaddr.rc || {
+	echo netip: FAIL seam >[1=2]
+	exit seam
+}
+. /lib/netaddr.rc
+
+# attach the #I device tree at /net
+bind -a '#I' /net || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+
+# the DHCP leg: the REAL ipconfig in its default mode on an ether
+# (DORA over /net/udp broadcast — the fidelity corners a minimal stack
+# skips).  truerand() rides the D-17 /dev/random (init() calls
+# srand(truerand()) unconditionally).  The lease answer is the seam's
+# guestv4 (slirp's DHCP start).
+ip/ipconfig ether /net/ether0 || {
+	echo netip: FAIL ipconfig >[1=2]
+	exit ipconfig
+}
+
+# assertion 1: /net/ipselftab lists the leased guest address (word-wise
+# exact match — the rc ~ dialect lesson: a plain literal word compare).
+selftab=`{cat /net/ipselftab} || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+found=0
+for(w in $selftab){
+	if(~ $w $slirp_guestv4)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+
+# assertion 2: /net/iproute shows the default route via the gateway —
+# the DHCP-supplied gateway became the default (adddefroute's
+# `add 0 0 <gw>').
+routes=`{cat /net/iproute} || {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+foundgw=0
+founddef=0
+for(w in $routes){
+	if(~ $w $slirp_gwv4)
+		foundgw=1
+	if(~ $w 0.0.0.0)
+		founddef=1
+}
+~ $foundgw 1 || {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+~ $founddef 1 || {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+
+# assertion 3: /net/ndb is written (ipconfig's first-interface putndb —
+# beprimary==1 on the fresh gate).  Read-based: the record carries the
+# ip=<lease> line.
+ndb=`{cat /net/ndb} || {
+	echo netip: FAIL ndb >[1=2]
+	exit ndb
+}
+found=0
+for(w in $ndb){
+	if(~ $w ip=$slirp_guestv4)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL ndb >[1=2]
+	exit ndb
+}
+
+# assertion 4: ping the gateway — the lease's datapath works (ping
+# exits non-nil on any lost message; its own -n count bounds the leg,
+# its internal alarm bounds each wait).
+ip/ping -n 3 $slirp_gwv4 || {
+	echo netip: FAIL ping >[1=2]
+	exit ping
+}
+
+echo netip: dhcp ok
+
+# the venue label rides the gate log itself (D-10) — never re-read
+# slirp-green as L2 proof.
+echo netip: NOT-L2-TRUTH slirp venue
+
+echo netip: NETIP-DONE
+exit ''
