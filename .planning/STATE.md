@@ -5,14 +5,14 @@ milestone_name: Full System & Drawterm
 current_phase: 10
 current_phase_name: Userspace Services + GUI Tiers + Bootfs Payload
 status: executing
-stopped_at: Phase 08 complete, ready to plan Phase 9
-last_updated: "2026-11-06T12:21:56.464Z"
+stopped_at: Host migration captured + pushed (darwin-aarch64 -> NixOS linux-x86_64); Phase 10 planned, ready to execute — pending x86_64 target-pivot decision on the new host
+last_updated: "2026-11-06T14:10:50.356Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 08 complete, transitioned to Phase 9
-state_head: 772a6752968f7b5afc0a0e03c27022a0879e5d84
+state_head: 52ebfd560d731983c791ce0348593de5fe2c2709
 progress:
   total_phases: 7
-  completed_phases: 7
+  completed_phases: 8
   total_plans: 39
   completed_plans: 29
 ---
@@ -401,9 +401,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T07:00:00Z
-Stopped at: Phase 08 complete (verified 36/36, review dispositioned), ready to plan Phase 9
-Resume file: None
+Last session: 2026-11-06T14:10:50.304Z
+Stopped at: Host migration captured + pushed (darwin-aarch64 -> NixOS linux-x86_64); Phase 10 planned, ready to execute — pending x86_64 target-pivot decision on the new host
+Resume file: .planning/HOSTS.md
 
 ## Operator Next Steps
 
