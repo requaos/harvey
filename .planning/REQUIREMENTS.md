@@ -35,7 +35,7 @@
 - [ ] **NETIP-03**: TCP debuggable without the NIC: `ping 127.0.0.1`, udp echo, in-guest tcp/7 echo over loopback
 - [ ] **NETIP-04**: arp + ethermedium bound to devether; static ipconfig assigns an IPv4 address; guest reachable from host
 - [ ] **NETIP-05**: DHCP guest configuration via ipconfig (`/net/udp` broadcast fidelity) or smoltcp dhcpv4 fallback
-- [ ] **NETIP-06**: IPv6: devip ip6 tree + ipconfig IPv6 configuration
+- [x] **NETIP-06**: IPv6: devip ip6 tree + ipconfig IPv6 configuration
 - [ ] **NETIP-07**: aan session-reliability layer available for cpu connections
 - [ ] **NETIP-08**: Networking exit gate: sustained bidirectional TCP flow + load soak on the tap leg (slirp forgives L2 bugs — ping on slirp is not a gate)
 
@@ -137,7 +137,7 @@ Each requirement maps to exactly one phase. Populated 2026-11-04 at roadmap crea
 | NETIP-03 | Phase 8 | Pending |
 | NETIP-04 | Phase 8 | Pending |
 | NETIP-05 | Phase 8 | Pending |
-| NETIP-06 | Phase 8 | Pending |
+| NETIP-06 | Phase 8 | Complete |
 | NETIP-07 | Phase 8 | Pending |
 | NETIP-08 | Phase 8 | Pending |
 | HNET-01 | Phase 9 | Pending |

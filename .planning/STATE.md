@@ -6,15 +6,15 @@ current_phase: 08
 current_phase_name: r9 TCP/IP Path — devip-Compatible /net
 status: executing
 stopped_at: Phase 10 context gathered
-last_updated: "2026-11-06T01:43:17.037Z"
+last_updated: "2026-11-06T02:21:14.000Z"
 last_activity: 2026-11-06
-last_activity_desc: Phase 08 plan 06 executed — /dev/random (D-17) + the ethermedium binding (EtherDev, snoop-fed /net/arp, gratuitous ARP) + the RX-IRQ wake + the static ipconfig gate green on slirp (labeled not-L2-truth); NETIP-04's slirp leg green
-state_head: 33d9dc8ebc8fd8103a86ea72eb2b3fcff0466f34
+last_activity_desc: Phase 08 plan 07 executed — the DHCP gate (NETIP-05) green via the REAL unmodified ipconfig dhcpclient over /net/udp broadcast fidelity (pcap DORA proof, lease 10.0.2.15, /net/ndb written — never the smoltcp dhcp socket) + the IPv6 gate (NETIP-06) green (the icmpv6 full-packet bridge + ipifc add6/ra6/try + the NS/NA + 3/3 echo replies with the gateway) — both labeled not-L2-truth (slirp venue)
+state_head: 9f9a833da4d5ee6355c1729e79d1e43903ab41b4
 progress:
   total_phases: 7
   completed_phases: 7
   total_plans: 29
-  completed_plans: 26
+  completed_plans: 27
 ---
 
 # Project State
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-11-05)
 ## Current Position
 
 Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — EXECUTING
-Plan: 7 of 9
+Plan: 8 of 9
 Status: Ready to execute
-Last activity: 2026-11-06 — Completed quick task 261105-slx: legacy harvey.yml rewritten onto the nix pipeline (backlog 999.1; PENDING FIRST PUSH)
+Last activity: 2026-11-06 — Phase 08 plan 07 executed (DHCP + IPv6 gates green on slirp — DORA pcap proof + the icmpv6 bridge; both labeled not-L2-truth)
 
 Progress: [████████░░] 83% (v2.0)
 
@@ -128,6 +128,7 @@ Progress: [████████░░] 83% (v2.0)
 | Phase 06 P10 | 8 min | 2 tasks | 6 files |
 | Phase 08 P05 | 79 min | 2 tasks | 13 files (8 r9 modified + 2 r9 created + 2 Harvey + planning records) |
 | Phase 08 P06 | 50 min | 3 tasks | 15 files (12 r9 modified + 1 r9 created + 2 Harvey + planning records) |
+| Phase 08 P07 | 45 min | 2 tasks | 13 files (6 r9 modified + 2 r9 doc/test + 5 Harvey + planning records) |
 
 ## Accumulated Context
 
@@ -321,6 +322,11 @@ Recent decisions affecting current work:
  - [Phase 08]: 08-06: the D-17 minimal CSPRNG is a pure-safe-Rust ChaCha20 DRBG in devcons (no new crate, no unsafe — the forbid holds), seeded LAZILY at first read from the DTB's /chosen/rng-seed (the arch hook re-parses the DTB off the recorded VA — the plan's 'seeded at first read via fdt.rs'), jitter-mixed (CNTFRQ^CNTPCT^ticks) at seed and per read; random ≡ urandom this era; Phase 11 supersedes
  - [Phase 08]: 08-06: the static fixture never pre-binds ether — ipconfig's own binddevice does the clone+bind (the plan text's pre-bind step would fail ipconfig's bind with 'interface already bound' under the era's per-medium singleton rule); ipconfig runs UNMODIFIED (D-09) — `ip/ipconfig -g $gw ether /net/ether0 add $guest $mask` per its usage
  - [Phase 08]: 08-06: the xtask pcap assertions take the seam addresses as PARAMETERS (host-hermetic pins) — the netaddr.rc reader (rc KEY=VALUE via R9_HARVEY_DIR) resolves pre-spawn for static mode (a harness bug fails before a wasted TCG boot); no 10.0.2.x literal in the new assertions (D-11/Pitfall 9)
+ - [Phase 08]: 08-07: the OQ-1 bridge predicate keys on the self-table's accept-all flag (the addselfcache null-address side effect IS the absorbed-DHCP marker — contract §12.6's dated 08-07 note): an unspecified-laddr conv sends 0.0.0.0 ONLY in that window; on an ADDRESSED iface it keeps smoltcp's source selection (the wedge pin caught the naive laddr-only predicate sourcing 0.0.0.0 there)
+ - [Phase 08]: 08-07: the icmpv6 bridge's recorded corners (contract §8's dated note): the ICMP_USEAD6 prefix is WRITE-SIDE ONLY (reads deliver the full packet from the IP6 header); the wire src is smoltcp's RFC 6724 selection (icmp sockets have no per-send override — the pre-autoconf RS src=:: corner is unreachable with slaac OFF); NDISC traffic never surfaces to the socket (recvra sees nothing — recorded divergence); the read-synth ttl is the conv's configured ttl
+ - [Phase 08]: 08-07: try = tentative recorded devip-side, NEVER pushed to smoltcp; the post-window add confirms+pushes (the DAD lifecycle); NO DAD NS emission on try — the donor's own NS would land in the TX-snooped /net/arp as a WAIT entry for the tentative address and ipconfig's arp-scan DAD (ipv6.c:425-455) would read it as a FALSE DUPLICATE
+ - [Phase 08]: 08-07: the slirp v6 probe verdict (2026-11-06, recorded in netaddr.rc + the 08-07 SUMMARY): slirp answers ND for fec0::2 (the guest's NS got an NA) AND serves ICMPv6 echo (3/3 replies); NO unsolicited RAs in the window; the guest's one extra v6 frame is its own MLDv2 solicited-node join report.  netaddr.rc's guestv6/gwv6 finalized fec0::15/fec0::2
+ - [Phase 08]: 08-07: format_ip's "::"-compression-followed-by-more-groups printed a TRIPLE colon ("fec0:::2") — latent since 08-04 (the v4-only gates never printed that shape); caught by the v6-verb pin's status assertion; the /net/arp v6 lines + ipselftab + ipconfig's DAD-scan tokenization all ride this printer (r9 8a30e64)
 
 ### Pending Todos
 
