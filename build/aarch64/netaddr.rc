@@ -27,9 +27,13 @@ slirp_guestv4=10.0.2.15
 slirp_maskv4=255.255.255.0
 slirp_gwv4=10.0.2.2
 # slirp v6: qemu's default v6 prefix is fec0::/64 with the host at fec0::2
-# and the guest at fec0::15.  08-07 probes the exact served shape on the
-# live gate and finalizes these two values then (the plan's sanctioned
-# sequencing — the file and its leg sections land now).
+# and the guest at fec0::15.  FINALIZED from the 08-07 probe run
+# (2026-11-06, R9_NETIP_SWEEP=v6 on the live gate): slirp answers ND for
+# fec0::2 (the guest's NS got an NA) AND serves ICMPv6 echo there (3/3
+# echo replies); it emitted NO unsolicited RAs in the gate window (the
+# only non-echo/ND v6 frame was the guest's own MLDv2 solicited-node
+# group-join report at the address add).  host→guest v6 reachability is
+# deferred to Phase 9's tap leg per D-10/D-15 (no hostfwd this phase).
 slirp_guestv6=fec0::15
 slirp_gwv6=fec0::2
 

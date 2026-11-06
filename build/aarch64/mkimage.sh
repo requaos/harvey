@@ -214,6 +214,8 @@ done
 [ -f "$STAGE/lib/netip-static.rc" ] || err "manifest: lib/netip-static.rc missing from staged tree"
 # 08-07 (NETIP-05): the DHCP gate fixture must be baked
 [ -f "$STAGE/lib/netip-dhcp.rc" ] || err "manifest: lib/netip-dhcp.rc missing from staged tree"
+# 08-07 (NETIP-06): the IPv6 gate fixture must be baked
+[ -f "$STAGE/lib/netip-v6.rc" ] || err "manifest: lib/netip-v6.rc missing from staged tree"
 [ -f "$STAGE/aarch64/bin/netblast" ] || err "manifest: aarch64/bin/netblast missing from staged tree"
 
 # 5a. init identity: out/ was shared with the

@@ -1,0 +1,103 @@
+#!/bin/rc
+# netip-v6.rc — the NETIP-06 IPv6 gate fixture (08-07): the REAL baked
+# ipconfig (unmodified, D-09/D-12 — the 08-03 payload) in its static v6
+# mode on the ether leg: bind ether → ip6cfg's `try <guestv6> /64' (the
+# tentative DAD window) → the /net/arp dup scan → the confirming `add'
+# (the v6 address reaches the smoltcp ether iface).  Then the sweep
+# asserts /net/ipselftab (guestv6), pings the v6 gateway (ICMPv6 echo
+# over the full-packet icmpv6 bridge — P-E), and reads /net/arp for the
+# gateway's v6 entry post-ND.
+#
+# Sourced by the gate harness (R9_NETIP_SWEEP=v6), never typed at a
+# prompt (the sourced-not-typed discipline — net-sweep.rc's precedent).
+#
+# Addresses come from /lib/netaddr.rc (the D-11 seam) — the slirp_ leg's
+# v6 pair (guestv6/gwv6, finalized from the recorded 08-07 probe — the
+# plan's sanctioned sequencing).  NO hardcoded fec0:: outside that seam.
+#
+# ipconfig does the whole v6 flow ITSELF (binddevice's clone + `bind
+# ether /net/ether0', ip6cfg's try/DAD/add) — the gate's point is the
+# real binary's fidelity over /net.  The fixture NEVER pre-binds (the
+# era's per-medium singleton rule; 08-06's deviation record).
+#
+# Every failed step prints `netip: FAIL <stage>' to stderr and exits
+# non-nil (rc's || idiom per command; backquote capture for the reads;
+# NO bare `=' in any literal word — the 06-05 rc dialect lesson).
+# Success prints `netip: v6 ok'; the run ends with NETIP-DONE.
+#
+# THE VENUE LABEL (D-10, Pitfall 9): slirp (qemu -netdev user) —
+# hermetic, unprivileged, and explicitly NOT L2 truth (slirp's ND/echo
+# behavior forgives marginal L2 bugs).  The final marker prints the
+# label INTO the gate log; the tap-leg verdict is Phase 9's joint
+# acceptance gate (D-15).
+
+# the D-11 seam (test -e first: a failed source is uncatchable)
+test -e /lib/netaddr.rc || {
+	echo netip: FAIL seam >[1=2]
+	exit seam
+}
+. /lib/netaddr.rc
+
+# attach the #I device tree at /net
+bind -a '#I' /net || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+
+# the static v6 configuration: the REAL ipconfig's Vadd path with a v6
+# laddr — ip6cfg(0) writes `try' then (post-DAD-window) `add'; the
+# kernel's tentative/confirmed lifecycle is the devip model's truth.
+# truerand() rides the D-17 /dev/random.
+ip/ipconfig ether /net/ether0 add $slirp_guestv6 /64 || {
+	echo netip: FAIL ipconfig >[1=2]
+	exit ipconfig
+}
+
+# assertion 1: /net/ipselftab lists the guest's v6 address (word-wise
+# exact match — format_ip prints the seam's compressed form).
+selftab=`{cat /net/ipselftab} || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+found=0
+for(w in $selftab){
+	if(~ $w $slirp_guestv6)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+
+# assertion 2: ping -6 the gateway — ICMPv6 echo over the full-packet
+# bridge (ping builds/parses the IP6 header itself; the kernel splits/
+# synthesizes).  The probe-pinned reply expectation (the 08-07 SUMMARY
+# records the probe): slirp answers v6 echo at its gateway address.
+ip/ping -6 -n 3 $slirp_gwv6 || {
+	echo netip: FAIL ping >[1=2]
+	exit ping
+}
+
+# assertion 3: /net/arp lists the gateway's v6 entry post-ND (the
+# snoop-fed view: our NS recorded the target WAIT, the NA completed it).
+arpview=`{cat /net/arp} || {
+	echo netip: FAIL arpview >[1=2]
+	exit arpview
+}
+found=0
+for(w in $arpview){
+	if(~ $w $slirp_gwv6)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL arpview >[1=2]
+	exit arpview
+}
+echo netip: v6 ok
+
+# the venue label rides the gate log itself (D-10) — never re-read
+# slirp-green as L2 proof.
+echo netip: NOT-L2-TRUTH slirp venue
+
+echo netip: NETIP-DONE
+exit ''
