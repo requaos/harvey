@@ -1,0 +1,131 @@
+#!/bin/rc
+# netip-static.rc — the NETIP-04 static-ipconfig gate fixture (08-06):
+# the REAL baked ipconfig (unmodified, D-09/D-12 — the 08-03 payload)
+# configures the seam's static IPv4 on the ether leg: bind ether → add →
+# the -g default route, all through the devip /net file tree.  The sweep
+# then asserts /net/ipselftab (the address), /net/iproute (the default
+# via the gateway), pings the gateway for replies, and reads /net/arp for
+# the gateway entry post-ping.
+#
+# Sourced by the gate harness (R9_NETIP_SWEEP=static), never typed at a
+# prompt (the sourced-not-typed discipline — net-sweep.rc's precedent).
+#
+# Addresses come from /lib/netaddr.rc (the D-11 seam) — the slirp_ leg.
+# NO hardcoded 10.0.2.x outside that seam (Pitfall 9's discipline).
+#
+# ipconfig does the whole static flow ITSELF (binddevice's clone + `bind
+# ether /net/ether0', ip4cfg's `add', the -g default route) — the gate's
+# point is the real binary's fidelity over /net.  The fixture NEVER
+# pre-binds: a pre-bind would fail ipconfig's own bind with "interface
+# already bound" (the era's per-medium singleton rule).
+#
+# Every failed step prints `netip: FAIL <stage>' to stderr and exits
+# non-nil (rc's || idiom per command; backquote capture for the reads —
+# the netlog leg's no-redirect-to-create note).  Success legs print their
+# ok markers (`netip: static ok', `netip: arp view ok'); the run ends
+# with NETIP-DONE.
+#
+# THE VENUE LABEL (D-10, Pitfall 9): this gate runs on qemu -netdev user
+# (slirp) — hermetic, unprivileged, CI-able, and explicitly NOT L2 truth
+# (slirp answers ARP for the gateway itself and forgives marginal L2
+# bugs).  The final marker prints the label INTO the gate log so the
+# evidence can never be re-read as tap-venue proof; the tap-leg verdict
+# is Phase 9's joint acceptance gate (D-15).
+
+# the D-11 seam (test -e first: a failed source is uncatchable)
+test -e /lib/netaddr.rc || {
+	echo netip: FAIL seam >[1=2]
+	exit seam
+}
+. /lib/netaddr.rc
+
+# attach the #I device tree at /net
+bind -a '#I' /net || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+
+# the static configuration leg: the REAL ipconfig in static mode (its
+# argv shape per the usage: type dev [verb] [laddr [mask]]) with the
+# seam's values + the -g default route.  truerand() rides the D-17
+# /dev/random (init() calls srand(truerand()) unconditionally — the
+# sysfatal path is unreachable now).
+ip/ipconfig -g $slirp_gwv4 ether /net/ether0 add $slirp_guestv4 $slirp_maskv4 || {
+	echo netip: FAIL ipconfig >[1=2]
+	exit ipconfig
+}
+
+# assertion 1: /net/ipselftab lists the guest address (word-wise exact
+# match — the rc ~ dialect lesson: a plain literal word compare).
+selftab=`{cat /net/ipselftab} || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+found=0
+for(w in $selftab){
+	if(~ $w $slirp_guestv4)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+
+# assertion 2: /net/iproute shows the default route via the gateway —
+# the default target word (0.0.0.0) and the gateway word (the route's
+# nexthop) both appear (the add 0 0 <gw> wrote them; the pcap carries
+# the wire-level proof).
+routes=`{cat /net/iproute} || {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+foundgw=0
+founddef=0
+for(w in $routes){
+	if(~ $w $slirp_gwv4)
+		foundgw=1
+	if(~ $w 0.0.0.0)
+		founddef=1
+}
+~ $foundgw 1 || {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+~ $founddef 1 || {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+echo netip: static ok
+
+# assertion 3: ping the gateway — replies arrive over the ether leg
+# (ping exits non-nil on any lost message; its own -n count bounds the
+# leg, its internal alarm bounds each wait).
+ip/ping -n 3 $slirp_gwv4 || {
+	echo netip: FAIL ping >[1=2]
+	exit ping
+}
+
+# assertion 4: /net/arp lists the gateway entry post-ping (the snoop-fed
+# view: our solicitation recorded WAIT, slirp's reply completed it to
+# OK).
+arpview=`{cat /net/arp} || {
+	echo netip: FAIL arpview >[1=2]
+	exit arpview
+}
+found=0
+for(w in $arpview){
+	if(~ $w $slirp_gwv4)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL arpview >[1=2]
+	exit arpview
+}
+echo netip: arp view ok
+
+# the venue label rides the gate log itself (D-10) — never re-read
+# slirp-green as L2 proof.
+echo netip: NOT-L2-TRUTH slirp venue
+
+echo netip: NETIP-DONE
+exit ''
