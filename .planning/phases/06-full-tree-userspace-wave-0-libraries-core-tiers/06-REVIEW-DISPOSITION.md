@@ -13,27 +13,27 @@ findings:
     title: "coverage-sweep.sh unconditionally overwrites the host's /bin/cpp outside the namespace"
   - id: IN-01
     severity: info
-    disposition: open
+    disposition: fixed
     title: "mkimage.sh keeps a dead dd trailer extraction"
   - id: IN-02
     severity: info
-    disposition: open
+    disposition: fixed
     title: "subset-exec.sh defines the D-02 GREP idiom but barely uses it"
   - id: IN-03
     severity: info
-    disposition: open
+    disposition: fixed
     title: "subset-exec.sh sentinel comment says \"40 bytes\"; the fixture is 41"
   - id: IN-04
     severity: info
-    disposition: open
+    disposition: fixed
     title: "subset-exec.sh rebake comment undercounts the tier-1 bootdir (66 vs 70)"
   - id: IN-05
     severity: info
-    disposition: open
+    disposition: fixed
     title: "gethunk fixed-bin staleness key watches only obj.c"
   - id: IN-06
     severity: info
-    disposition: open
+    disposition: fixed
     title: "devroot.c carries a pre-existing debug `panic(\"whoops\")` remnant"
   - id: CR-01
     severity: critical
@@ -63,9 +63,9 @@ findings:
     severity: warning
     disposition: open
     title: "gethunk-repro-6l.sh's \"built fresh every run\" claim is narrower than the code"
-open: 12
+open: 6
 total: 15
-recorded: 2026-11-05T23:47:14.586Z
+recorded: 2026-11-06T00:18:46.482Z
 ---
 
 # Phase 06: Code Review Disposition
@@ -74,12 +74,12 @@ recorded: 2026-11-05T23:47:14.586Z
 |---------|----------|-------------|--------|
 | WR-01 | warning | fixed | 06-REVIEW-FIX.md |
 | WR-02 | warning | fixed | 06-REVIEW-FIX.md |
-| IN-01 | info | open | - |
-| IN-02 | info | open | - |
-| IN-03 | info | open | - |
-| IN-04 | info | open | - |
-| IN-05 | info | open | - |
-| IN-06 | info | open | - |
+| IN-01 | info | fixed | 06-REVIEW-FIX.md |
+| IN-02 | info | fixed | 06-REVIEW-FIX.md |
+| IN-03 | info | fixed | 06-REVIEW-FIX.md |
+| IN-04 | info | fixed | 06-REVIEW-FIX.md |
+| IN-05 | info | fixed | 06-REVIEW-FIX.md |
+| IN-06 | info | fixed | 06-REVIEW-FIX.md |
 | CR-01 | critical | fixed | closed by retirement 2026-11-05 — tier-donor CI leg removed per maintainer direction; the x86_64 venue is Harvey's own kernel (06-09/06-10); venue-pin step asserts the retirement (not in the current review) |
 | WR-03 | warning | open | - (not in the current review) |
 | WR-04 | warning | open | - (not in the current review) |
