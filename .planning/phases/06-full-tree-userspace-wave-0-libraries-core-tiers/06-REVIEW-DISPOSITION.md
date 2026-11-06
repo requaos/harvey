@@ -41,11 +41,11 @@ findings:
     title: "tier-donor CI leg cannot pass on a clean runner — no step clones or builds the donor"
   - id: WR-03
     severity: warning
-    disposition: deferred
+    disposition: fixed
     title: "generator-scan.sh's audit-row selector silently skips G10+ rows"
   - id: WR-04
     severity: warning
-    disposition: deferred
+    disposition: fixed
     title: "tracesup.c armed/kids arrays grow without a bounds check"
   - id: WR-05
     severity: warning
@@ -53,11 +53,11 @@ findings:
     title: "mkimage.sh line 235 is dead, known-broken code left armed"
   - id: WR-06
     severity: warning
-    disposition: deferred
+    disposition: fixed
     title: "subset-exec.sh marker asserts are unanchored substring greps (mk⊂mkdir, cp⊂cpp)"
   - id: WR-07
     severity: warning
-    disposition: deferred
+    disposition: fixed
     title: "ledger-r9-append.sh uses bash-only process substitution under #!/bin/sh, plus undisciplined grep/sha256sum"
   - id: WR-08
     severity: warning
@@ -65,7 +65,7 @@ findings:
     title: "gethunk-repro-6l.sh's \"built fresh every run\" claim is narrower than the code"
 open: 0
 total: 15
-recorded: 2026-11-06T01:15:52.154Z
+recorded: 2026-11-06T01:33:44.395Z
 ---
 
 # Phase 06: Code Review Disposition
@@ -81,11 +81,11 @@ recorded: 2026-11-06T01:15:52.154Z
 | IN-05 | info | fixed | 06-REVIEW-FIX.md |
 | IN-06 | info | fixed | 06-REVIEW-FIX.md |
 | CR-01 | critical | fixed | closed by retirement 2026-11-05 — tier-donor CI leg removed per maintainer direction; the x86_64 venue is Harvey's own kernel (06-09/06-10); venue-pin step asserts the retirement (not in the current review) |
-| WR-03 | warning | deferred | maintainer deferred 2026-11-05 (post --all fix-run triage) \\ (not in the current review) |
-| WR-04 | warning | deferred | maintainer deferred 2026-11-05 (post --all fix-run triage) \\ (not in the current review) |
+| WR-03 | warning | fixed | 06-REVIEW-FIX.md (not in the current review) |
+| WR-04 | warning | fixed | 06-REVIEW-FIX.md (not in the current review) |
 | WR-05 | warning | fixed | resolved by IN-01 fix `aed40c38d` — the dead dd trailer line it named was deleted (not in the current review) |
-| WR-06 | warning | deferred | maintainer deferred 2026-11-05 (post --all fix-run triage) \\ (not in the current review) |
-| WR-07 | warning | deferred | maintainer deferred 2026-11-05 (post --all fix-run triage) \\ (not in the current review) |
+| WR-06 | warning | fixed | 06-REVIEW-FIX.md (not in the current review) |
+| WR-07 | warning | fixed | 06-REVIEW-FIX.md (not in the current review) |
 | WR-08 | warning | fixed | resolved by IN-05 fix `d0d186ccd` — staleness key now watches every 6l source (not in the current review) |
 
 Dispositions: `open` (recorded, not yet triaged), `fixed`, `skipped`, `deferred`.
