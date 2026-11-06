@@ -6,10 +6,10 @@ current_phase: 08
 current_phase_name: r9 TCP/IP Path — devip-Compatible /net
 status: executing
 stopped_at: Phase 10 context gathered
-last_updated: "2026-11-06T01:33:44.000Z"
+last_updated: "2026-11-06T01:43:17.037Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 08 plan 06 executed — /dev/random (D-17) + the ethermedium binding (EtherDev, snoop-fed /net/arp, gratuitous ARP) + the RX-IRQ wake + the static ipconfig gate green on slirp (labeled not-L2-truth); NETIP-04's slirp leg green
-state_head: 1e5754f1c5da25dd305b6970e933728f2cedf0e4
+state_head: 33d9dc8ebc8fd8103a86ea72eb2b3fcff0466f34
 progress:
   total_phases: 7
   completed_phases: 7
@@ -31,7 +31,7 @@ See: .planning/PROJECT.md (updated 2026-11-05)
 Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — EXECUTING
 Plan: 7 of 9
 Status: Ready to execute
-Last activity: 2026-11-06 — Phase 08 plan 06 executed (D-17 /dev/random + the ethermedium binding + the static ipconfig gate green on slirp)
+Last activity: 2026-11-06 — Completed quick task 261105-slx: legacy harvey.yml rewritten onto the nix pipeline (backlog 999.1; PENDING FIRST PUSH)
 
 Progress: [████████░░] 83% (v2.0)
 
@@ -343,6 +343,7 @@ None yet.
 | # | Description | Date | Commit | Directory |
 |---|-------------|------|--------|-----------|
 | 261104-cms | Comment hygiene sweep: planning-artifact citations removed from source comments + narrative headers compressed across r9 (56 files) and harvey (47 files); why preserved sans citations; comment-only proven by diff-invariant + full gates (port 80/80, 5 profiles, toolchain+namespace builds) | 2026-11-04 | ac6f0dbf8 | [261104-cms-comment-hygiene-sweep-across-harvey-r9-r](./quick/261104-cms-comment-hygiene-sweep-across-harvey-r9-r/) |
+| 261105-slx | Fix the legacy harvey.yml workflow to build via nix so it is green moving forward (backlog 999.1) | 2026-11-06 | 33d9dc8eb | [261105-slx-fix-the-legacy-harvey-yml-workflow-to-bu](./quick/261105-slx-fix-the-legacy-harvey-yml-workflow-to-bu/) |
 
 ## Deferred Items
 
