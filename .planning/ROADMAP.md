@@ -132,7 +132,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
   4. The guest takes an address and is reachable: arp + ethermedium bound to devether, static ipconfig assigns IPv4, DHCP works via ipconfig `/net/udp` broadcast fidelity (or the recorded smoltcp dhcpv4 fallback), and the devip ip6 tree + ipconfig IPv6 configuration are demonstrated (NETIP-04, NETIP-05, NETIP-06)
   5. The networking exit gate is green: sustained bidirectional TCP flow + load soak **on the tap leg** (slirp evidence explicitly not accepted — it forgives L2 bugs), with aan available for cpu connections (NETIP-07, NETIP-08)
 
-**Plans:** 7/9 plans executed
+**Plans:** 8/9 plans executed
 **Wave 1**
 - [x] 08-01-PLAN.md — D-03 contract doc (full devip surface enumeration) + smoltcp 0.14.0 pin/lockfile + cfg(dev_ip) + NETIP-01 provenance record (NETIP-01, NETIP-02; D-01..D-04)
 
@@ -153,7 +153,7 @@ Full detail: `.planning/milestones/v1.0-ROADMAP.md`
 - [x] 08-07-PLAN.md — DHCP via unmodified ipconfig over /net/udp broadcast fidelity + IPv6 (icmpv6 full-packet bridge, add6/ra6/try) (NETIP-05, NETIP-06; D-06, D-09, D-10)
 
 **Wave 7** *(blocked on Wave 6 completion)*
-- [ ] 08-08-PLAN.md — aan scripted drop-and-resume on loopback + tcpblast bidirectional soak machinery on slirp + documented manual soak command (NETIP-07, NETIP-08; D-14, D-15, D-16)
+- [x] 08-08-PLAN.md — aan scripted drop-and-resume on loopback + tcpblast bidirectional soak machinery on slirp + documented manual soak command (NETIP-07, NETIP-08; D-14, D-15, D-16)
 
 **Wave 8** *(blocked on Wave 7 completion)*
 - [ ] 08-09-PLAN.md — composed net smoke + CI net-smoke job + 08-EVIDENCE.md + push-before-pin + flake.lock advance (D-13, D-16)

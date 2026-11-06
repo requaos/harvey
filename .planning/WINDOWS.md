@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 39
+open_count: 40
 waived_count: 3
 fixed_count: 3
-total_count: 45
-last_updated: 2026-11-05T23:55:00.000Z
+total_count: 46
+last_updated: 2026-11-06T03:05:00.000Z
 ---
 
 # Broken Windows Ledger
@@ -58,6 +58,7 @@ last_updated: 2026-11-05T23:55:00.000Z
 | 41 | 06 | deviation | build/aarch64/generator-audit.txt |  | 06-04: plan/RESEARCH cells corrected against live mkfiles (plan-mandated re-confirmation): G5 artifact is o.pcode (cpuobjtype=o via /unix/mkfile O=o); G6 genarch is pcc-built native-only (build guard gs/mkfile:164), never built nor run in the aarch64 sweep | open |  | 2026-11-05T02:10:47.035Z |  |
 | 42 | 06 | deviation | .planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/06-05-PLAN.md |  | 06-05 Task-2's literal no-PENDING-CLASSIFY grep contradicts Task-1's mandated append-only seed lines; ran the intent gate (latest-line-per-dir clean) — gate-text repair filed for the next planning pass | open |  | 2026-11-05T02:51:20.644Z |  |
 | 43 | 08 | unmet-truth | r9:aarch64/src/proc.rs |  | 08-04: the NETIP-03 ping-127.0.0.1 truth is MET — RFMEM landed per the blocking-human decision (option A, donor dupseg semantics): Data/Bss pages share under RFMEM with PA-keyed refcount-gated frees, RFMEM families carry the shared break (sys_brk_ family arm births grown pages shared — the checkpoint's 'ping does not brk_-grow post-fork' premise was falsified at the gate and the donor's shared-segment growth is the implemented semantics), the rfork bss sweep closes the untouched-page hole, and SEMACQUIRE(37)/SEMRELEASE(38) implemented for the contended libc lock() path; virtip gate green (netip: ping ok + NETIP-DONE), 8/8 regression profiles green, r9 4298fc0 | fixed |  | 2026-11-05T19:54:26.000Z | 2026-11-05T22:30:00.000Z |
+| 46 | 08 | deviation | .planning/phases/08-r9-tcp-ip-path-devip-compatible-net/deferred-items.md |  | 08-08: rc redirect-stack/fd-reuse corner — a file-open redirect (`> file`) or an in-block `>[2]/dev/null` on a backquote dd INSIDE a subshell block carrying a held-open fd redirect (`} >[6]/mnt/data`) leaks the payload into the held fd's pipe (measured twice in-guest; root cause unpinned — suspect class: doredir re-applies a stale ROPEN record whose from-fd was closed/reused, Dup() return unchecked at rc plan9.c:583); 08-08's aan fixture sidesteps by construction (the drop moved in-band via baked /lib/netip-aan-drop.rc; dd summary rides the console); recorded in the phase's deferred-items.md | open |  | 2026-11-06T03:05:00.000Z |  |
 | 44 | 08 | deviation | r9:aarch64/src/proc.rs |  | 08-05: kernel arena (4 MiB QuickFit) drains under a spin loop of short-lived fork+exec — ~1400 iterations of /bin/cat from a fixture's port-discovery spin exhausted it (oom size=4160 panic); exec staging teardown (ByteBacking::Mnt) is the suspect; fixture-side workaround applied (invoke the baked name so the spin terminates) | open |  | 2026-11-05T23:35:00.000Z |  |
 | 45 | 08 | deviation | r9:port/src/namec.rs |  | 08-05: Creat on a top-level file of a union-mounted dir misses non-head members — walk_one never consults the union chain (documented shape); rc's `>` is Creat-first so `> /net/log` failed with 'namec: device has no create'; fixture uses `>>` (open-first); the two-level-deep ctl writes unaffected | open |  | 2026-11-05T23:55:00.000Z |  |
 
@@ -620,6 +621,19 @@ last_updated: 2026-11-05T23:55:00.000Z
     "reason": "",
     "recorded_at": "2026-11-05T19:54:26.000Z",
     "resolved_at": "2026-11-05T22:30:00.000Z",
+    "milestone": "v2.0"
+  },
+  {
+    "id": 46,
+    "kind": "deviation",
+    "phase": "08",
+    "file": ".planning/phases/08-r9-tcp-ip-path-devip-compatible-net/deferred-items.md",
+    "line": null,
+    "description": "08-08: rc redirect-stack/fd-reuse corner — a file-open redirect (`> file`) or an in-block `>[2]/dev/null` on a backquote dd INSIDE a subshell block carrying a held-open fd redirect (`} >[6]/mnt/data`) leaks the payload into the held fd's pipe (measured twice in-guest; root cause unpinned — suspect class: doredir re-applies a stale ROPEN record whose from-fd was closed/reused, Dup() return unchecked at rc plan9.c:583); 08-08's aan fixture sidesteps by construction (the drop moved in-band via baked /lib/netip-aan-drop.rc; dd summary rides the console); recorded in the phase's deferred-items.md",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-06T03:05:00.000Z",
+    "resolved_at": null,
     "milestone": "v2.0"
   }
 ]

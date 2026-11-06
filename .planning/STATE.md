@@ -6,15 +6,15 @@ current_phase: 08
 current_phase_name: r9 TCP/IP Path — devip-Compatible /net
 status: executing
 stopped_at: Phase 10 context gathered
-last_updated: "2026-11-06T02:21:14.000Z"
+last_updated: "2026-11-06T04:45:15.000Z"
 last_activity: 2026-11-06
-last_activity_desc: Phase 08 plan 07 executed — the DHCP gate (NETIP-05) green via the REAL unmodified ipconfig dhcpclient over /net/udp broadcast fidelity (pcap DORA proof, lease 10.0.2.15, /net/ndb written — never the smoltcp dhcp socket) + the IPv6 gate (NETIP-06) green (the icmpv6 full-packet bridge + ipifc add6/ra6/try + the NS/NA + 3/3 echo replies with the gateway) — both labeled not-L2-truth (slirp venue)
-state_head: 9f9a833da4d5ee6355c1729e79d1e43903ab41b4
+last_activity_desc: Phase 08 plan 08 executed — the aan drop-and-resume gate (NETIP-07) green on tcp loopback (the scripted hangup kills the underlying conn, both ends see it, the client redials, a second marker round-trip completes the resume — NIC-free, D-14) + the tcpblast bidirectional soak machinery green on slirp (2 MiB each way, zero RSTs, guest stats reconcile — labeled NOT-L2-TRUTH, D-15) + the D-16 documented-manual sustained-soak command committed in the fixture header; two pre-existing kernel bugs fixed en route (the fd op-ref pattern, the sys_rendezvous re-verification)
+state_head: 28b709df82574e40dfe5e89e2083178f8316646a
 progress:
   total_phases: 7
   completed_phases: 7
   total_plans: 29
-  completed_plans: 27
+  completed_plans: 28
 ---
 
 # Project State
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-11-05)
 ## Current Position
 
 Phase: 08 (r9-tcp-ip-path-devip-compatible-net) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Status: Ready to execute
-Last activity: 2026-11-06 — Phase 08 plan 07 executed (DHCP + IPv6 gates green on slirp — DORA pcap proof + the icmpv6 bridge; both labeled not-L2-truth)
+Last activity: 2026-11-06 — Phase 08 plan 08 executed (aan drop-and-resume + tcpblast soak machinery green; NETIP-07 complete, NETIP-08's machinery proven on slirp — the tap verdict is Phase 9's)
 
 Progress: [████████░░] 83% (v2.0)
 
@@ -129,6 +129,7 @@ Progress: [████████░░] 83% (v2.0)
 | Phase 08 P05 | 79 min | 2 tasks | 13 files (8 r9 modified + 2 r9 created + 2 Harvey + planning records) |
 | Phase 08 P06 | 50 min | 3 tasks | 15 files (12 r9 modified + 1 r9 created + 2 Harvey + planning records) |
 | Phase 08 P07 | 45 min | 2 tasks | 13 files (6 r9 modified + 2 r9 doc/test + 5 Harvey + planning records) |
+| Phase 08 P08 | 138 min (incl. the two kernel-blocker debugging cycles) | 2 tasks | 14 files (8 r9 modified + 3 Harvey created + 1 Harvey modified + planning records) |
 
 ## Accumulated Context
 
@@ -327,6 +328,13 @@ Recent decisions affecting current work:
  - [Phase 08]: 08-07: try = tentative recorded devip-side, NEVER pushed to smoltcp; the post-window add confirms+pushes (the DAD lifecycle); NO DAD NS emission on try — the donor's own NS would land in the TX-snooped /net/arp as a WAIT entry for the tentative address and ipconfig's arp-scan DAD (ipv6.c:425-455) would read it as a FALSE DUPLICATE
  - [Phase 08]: 08-07: the slirp v6 probe verdict (2026-11-06, recorded in netaddr.rc + the 08-07 SUMMARY): slirp answers ND for fec0::2 (the guest's NS got an NA) AND serves ICMPv6 echo (3/3 replies); NO unsolicited RAs in the window; the guest's one extra v6 frame is its own MLDv2 solicited-node join report.  netaddr.rc's guestv6/gwv6 finalized fec0::15/fec0::2
  - [Phase 08]: 08-07: format_ip's "::"-compression-followed-by-more-groups printed a TRIPLE colon ("fec0:::2") — latent since 08-04 (the v4-only gates never printed that shape); caught by the v6-verb pin's status assertion; the /net/arp v6 lines + ipselftab + ipconfig's DAD-scan tokenization all ride this printer (r9 8a30e64)
+- [Phase 08]: 08-08: the fd op-ref pattern replaces the checked-out-chan take/store in pread/pwrite (r9 a81143e) — the take emptied the fd slot for the op's duration, so a shared-fd-group sibling's concurrent op on the SAME fd saw "pwrite: bad fd" and wedged; the libthread shape (aan's blocked reader proc + writer main on one netfd) is exactly that interleave, first exercised by the aan gate
+- [Phase 08]: 08-08: sys_rendezvous re-verifies the pairing after EVERY sched() wake (r9 688ed87) — r9's wake model is pid-keyed/flat, not channel-keyed like the donor's Rendez, so a STALE devip net-waiter registration (left by a completed listen, drained by a later tick/RX sweep) readied a rendezvous-parked proc with NO pairing; the aan server main faulted on the resulting nil q->head (addr 0x40 = Thread.next); every other blocking primitive already re-checked — rendezvous was the lone gap
+- [Phase 08]: 08-08: the aan gate's scripted drop is IN-BAND — the fixture transmits one plain command line (`rc /lib/netip-aan-drop.rc <port>`) and the SERVER-side rc runs the baked walk+hangup script against its own /net/tcp; the earlier client-side walk INSIDE the held-fd block leaked payloads into the held pipe twice (an rc redirect-stack/fd-reuse corner, root cause unpinned — deferred + WINDOWS #46)
+- [Phase 08]: 08-08: aan flow-control rule recorded (deferred-items): Nbuf=10 unacked messages, and ONLY data messages drain the window — the 8 s sync beacons carry the acked count but aan.c's fromnet skips nb=0/msg=-1 before the ack processing; a >10-line one-direction burst with a silent far end wedges the sender forever (measured)
+- [Phase 08]: 08-08: the fault autopsy landed (r9 a01089d) — unresolvable() now names the faulting process (pid+name), dumps the TrapFrame, and dumps the live proc table with parent pid + exec argv (the spawn topology distinguishes libthread proccreate children from fork+exec'd commands); diagnosed the aan gate's wild read from these prints alone
+- [Phase 08]: 08-08: the soak's host echo endpoint binds 127.0.0.1 only (T-08-14 — the guest reaches it via slirp's gateway forwarding; no external interface) and spawns pre-qemu / joins post-run; R9_NETIP_SOAK_ROUNDS plumbs the count into the typed fixture line (default 64 = TCG scale; the D-16 sustained command with 4096 committed verbatim in the fixture header); the pcap assertion's byte threshold scales rounds x 32 KiB / 2 so the override is honest at every scale
+- [Phase 08]: 08-08: NETIP-07 marked Complete (its last declaring plan); NETIP-08 correctly stays Pending — 08-09 also declares it (the #2388 shared-ID gate) and the tap-leg truth verdict is Phase 9's joint acceptance gate (D-15)
 
 ### Pending Todos
 
