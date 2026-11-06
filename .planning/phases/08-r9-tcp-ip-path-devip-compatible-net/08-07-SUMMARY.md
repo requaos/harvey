@@ -21,9 +21,9 @@ affects: [08-08 (aan + the tcpblast soak ride the ether leg the gates proved), 0
 actuals:
   tokens: 41000   # (130,269-char r9 diff + 12,572-char Harvey plan-file diff + ~17,000-char this SUMMARY + ~4,000-char STATE/ROADMAP/REQUIREMENTS edits) / 4 — vs estimate 58,000 (confidence: low)
   tasks: 2
-  commits: 8      # 5 r9 (37e77fb, e57e5f7, 8a30e64, 8bb29a2, 89ab75f) + 2 Harvey production (a37b78509, 9f9a833da) + 1 pending Harvey metadata commit (this file + STATE/ROADMAP/REQUIREMENTS).  The measured Harvey ledger window 15957628b..9f9a833da is 3 commits — one is the concurrent phase-10 session's docs(10) (disjoint files; reconciled here per the 08-06 precedent)
+  commits: 10     # 5 r9 (37e77fb, e57e5f7, 8a30e64, 8bb29a2, 89ab75f) + 4 Harvey production (a37b78509, 9f9a833da, 41bed1534 metadata, 089637446 the fixture fix) + 1 pending correction commit (this file's attribution fix).  The measured Harvey ledger window 15957628b..HEAD carries one concurrent phase-10 docs commit (3896817e3 — disjoint files; reconciled per the 08-06 precedent)
 plan_head_before: 15957628bbd2332227ec3b6328e4db274b1c3c67   # Harvey ledger base (#3968)
-plan_head_after: 9f9a833da4d5ee6355c1729e79d1e43903ab41b4    # Harvey HEAD at SUMMARY write — the metadata commit follows this write per the atomic close-out order
+plan_head_after: 9f9a833da4d5ee6355c1729e79d1e43903ab41b4    # Harvey HEAD at the first SUMMARY write — the metadata + fixture-fix + correction commits follow per the atomic close-out order
 
 # Tech tracking
 tech-stack:
@@ -130,8 +130,9 @@ Each task was committed atomically across the two repos:
 
 **Follow-up (review-caught):**
 7. **The icmpv6 write's short-drop bound is the donor's IPICMPSZ (r9)** — `89ab75f` (fix)
+8. **The dhcp fixture's rc-dialect repair (Harvey)** — `089637446` (fix — `a37b78509` had captured the pre-fix fixture; see Deviation 3)
 
-**Plan metadata:** (Harvey repo — this SUMMARY + STATE/ROADMAP/REQUIREMENTS, committed after this write per the atomic close-out order)
+**Plan metadata:** `41bed1534` (Harvey — this SUMMARY + STATE/ROADMAP/REQUIREMENTS) + one pending correction commit (this file's Deviation-3 attribution + the commit accounting)
 
 ## Files Created/Modified
 
@@ -186,7 +187,7 @@ Each task was committed atomically across the two repos:
 - **Fix:** the `'ip='$slirp_guestv4` concatenation idiom; the fixture's header now names the discipline.  (The gate's DORA itself had already succeeded in that run — the failure was purely the fixture's parse.)
 - **Files modified:** build/aarch64/root-tree/lib/netip-dhcp.rc
 - **Verification:** the re-baked gate runs green (the PASS line's marker assertions include the fixture's own)
-- **Committed in:** `a37b78509` (the Task-1 Harvey commit carries the fixed file)
+- **Committed in:** `089637446` (the follow-up fix commit — `a37b78509` had captured the pre-fix fixture; the gate's green runs rode the working tree, and the correction lands there)
 
 **4. [Rule 2 - Missing critical] The icmpv6 write's short-drop bound was 40+4, not the donor's IPICMPSZ (40+8)**
 - **Found during:** post-commit review (before any gate flow exercised it — ping writes 64 bytes)
