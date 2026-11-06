@@ -243,4 +243,4 @@ Two parallel tracks from the v1.0 foundation: userspace {6 → 10} ∥ networkin
 **Source phase:** 06
 **Deferred at:** 2026-11-05 during /gsd-verify-work 06 session completion
 **Follow-ups:**
-- [ ] Test 1: Fix the legacy harvey.yml workflow to build via nix so it is green moving forward (pre-dates this work; red streak on master recorded since 2026-11-04T12:01Z — pre-existing/unrelated to Phase 6) (deferred 2026-11-05)
+- [x] Test 1: Fix the legacy harvey.yml workflow to build via nix so it is green moving forward (pre-dates this work; red streak on master recorded since 2026-11-04T12:01Z — pre-existing/unrelated to Phase 6) (deferred 2026-11-05) — workflow rewritten onto the nix pipeline 2026-11-05; hosted green run PENDING FIRST PUSH (261105-slx)

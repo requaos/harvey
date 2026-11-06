@@ -62,7 +62,7 @@ Carried over from v1.0:
 
 - [ ] Advance the harvey flake.lock r9 pin past the review-fix + unsafe-elimination commits (pin currently at 9549cee; r9 main carries the hardened kernel) — milestone-completion decision; a pin bump needs a fresh hosted CI run to stay honest
 - [ ] Upstream raspi3b-on-qemu-11.1.2 boot defect (FAR 0xfe215004 — rpi4 MMIO base on the raspi3b machine) — pre-existing, A/B-proven not-a-regression, accepted 2026-11-01; phase-03 deferred-items.md #1
-- [ ] Fix the legacy harvey.yml workflow to build via nix (pre-dates the nix scaffolding; red streak on master since 2026-11-04T12:01Z) — Phase 6 UAT deferred follow-up, backlog 999.1
+- [x] Fix the legacy harvey.yml workflow to build via nix (pre-dates the nix scaffolding; red streak on master since 2026-11-04T12:01Z) — Phase 6 UAT deferred follow-up, backlog 999.1 — workflow rewritten onto the nix pipeline 2026-11-05; hosted green run PENDING FIRST PUSH (261105-slx)
 
 ### Out of Scope
 
