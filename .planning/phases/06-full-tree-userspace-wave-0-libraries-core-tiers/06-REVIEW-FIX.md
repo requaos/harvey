@@ -24,14 +24,14 @@ status: all_fixed
 
 ## Fixed Issues
 
-### WR-01: gethunk libc-provisioning block's error handling is dead under `set -e` (previously fixed)
+### WR-01: gethunk libc-provisioning block's error handling is dead under `set -e`
 
 **Files modified:** `build/aarch64/gethunk-repro-6l.sh`
 **Commit:** 984e62eb3
 **Applied fix:** Wrapped the `RUN_BUILD_IN_PRIVATE_NAMESPACE` invocation in the `set +e … RC=$? … set -e` idiom, mirroring the script's own sibling harness captures verbatim (the two `verify` legs at former lines 289-292 and 310-313), so a namespace-build failure now reaches the named error (`error: libc namespace provisioning failed (rc=$RC)`, exit 2) and the `rm -f "$NSLIBC"` temp-file cleanup instead of aborting silently under `set -e`. Added a 3-line comment citing the idiom. Fix text matches the reviewer's suggestion exactly, tab-indented to the block's 3-tab depth.
 **Re-verification (this run):** the wrapper is still in place at lines 280-285 (`set +e` / subshell / `RC=$?` / `set -e` / `rm -f "$NSLIBC"` / named error), intact and unregressed.
 
-### WR-02: coverage-sweep.sh unconditionally overwrites the host's /bin/cpp outside the namespace (previously fixed)
+### WR-02: coverage-sweep.sh unconditionally overwrites the host's /bin/cpp outside the namespace
 
 **Files modified:** `build/aarch64/coverage-sweep.sh`, `build/aarch64/nsrun.sh`
 **Commit:** 76ab66aa7
