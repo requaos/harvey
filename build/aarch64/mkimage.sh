@@ -269,7 +269,6 @@ rm -f "$IMAGE"
 magic=$(od -An -tx1 -N4 "$IMAGE" | tr -d ' \n')
 [ "$magic" = "529ab12b" ] || err "$IMAGE: bad header magic $magic (want 529ab12b)"
 sz=$(wc -c < "$IMAGE" | tr -d ' ')
-trailer=$(dd if="$IMAGE" bs=1 skip=$((sz - 28)) count=4 2>/dev/null | od -An -tx1 | tr -d ' \n')
 # 07-04: re-extract with od -j — Harvey's host dd (dash-pair arg
 # syntax) shadows POSIX dd on the devshell PATH (the D-02
 # hostbin-shadowing class, same as the grep fix), leaving trailer
