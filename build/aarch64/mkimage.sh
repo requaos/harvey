@@ -220,6 +220,8 @@ done
 [ -f "$STAGE/lib/netip-aan.rc" ] || err "manifest: lib/netip-aan.rc missing from staged tree"
 # 08-08 (NETIP-07): the gate's server-side scripted-drop payload must be baked
 [ -f "$STAGE/lib/netip-aan-drop.rc" ] || err "manifest: lib/netip-aan-drop.rc missing from staged tree"
+# 08-08 (NETIP-08): the tcpblast soak gate fixture must be baked
+[ -f "$STAGE/lib/netip-soak.rc" ] || err "manifest: lib/netip-soak.rc missing from staged tree"
 [ -f "$STAGE/aarch64/bin/netblast" ] || err "manifest: aarch64/bin/netblast missing from staged tree"
 
 # 5a. init identity: out/ was shared with the

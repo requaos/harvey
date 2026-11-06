@@ -1,0 +1,155 @@
+#!/bin/rc
+# netip-soak.rc — the NETIP-08 machinery gate fixture (08-08, D-15/D-16):
+# the tcpblast bidirectional TCP soak against the host echo endpoint on
+# the SLIRP leg.  The guest dials $slirp_gwv4:$blastport (the seam);
+# slirp forwards to the host's 127.0.0.1 listener (the sweep spawns it
+# pre-boot).  tcpblast exchanges TCG-scaled bidirectional rounds (each
+# round: a patterned 32 KiB block out, the echo back, a byte compare —
+# the payload's own integrity check); the sweep's finish arm reconciles
+# the pcap (both directions above a byte threshold, zero RSTs) against
+# the guest's /net/tcp/stats counters (cat'd below; the InSegs:/OutSegs:
+# lines land at line start in the capture).
+#
+# THE VENUE LABEL (D-10/D-15, Pitfall 9): this gate runs on qemu
+# -netdev user (slirp) — hermetic, unprivileged, CI-able, and explicitly
+# NOT L2 truth (slirp forgives marginal L2 bugs by design).  The final
+# marker prints the label INTO the gate log so the evidence can never be
+# re-read as tap-venue proof.  The tap-leg truth verdict is Phase 9's
+# joint Phase-8/9 acceptance gate (D-15) — THIS machinery is what Phase
+# 9 re-runs there.
+#
+# THE SUSTAINED SOAK IS DOCUMENTED-MANUAL (D-16): TCG on every automated
+# venue (x86_64 CI; darwin HVF rejects GICv2), so the sustained run is a
+# dev-host discipline, not a CI leg.  The exact dev-host invocation:
+#
+#	cd ../r9 && R9_HARVEY_DIR=<the harvey checkout> \
+#	    R9_NETIP_SOAK_ROUNDS=4096 R9_NETIP_SWEEP=soak \
+#	    cargo xtask boot-test --arch aarch64 --config virtip
+#
+# (4096 rounds = 256 MiB total, 128 MiB each way — the named sustained
+# count; the gate default 64 is the TCG-sane CI scale.)  The env override
+# rides the sweep's typed-line plumbing (R9_NETIP_SOAK_ROUNDS → the
+# fixture's $1); the tap-leg truth verdict is Phase 9's joint gate.
+#
+# Sourced by the gate harness (R9_NETIP_SWEEP=soak), never typed at a
+# prompt (the sourced-not-typed discipline — net-sweep.rc's precedent).
+# Addresses come from /lib/netaddr.rc (the D-11 seam) — the slirp_ leg.
+# NO hardcoded 10.0.2.x outside that seam (Pitfall 9's discipline).
+#
+# Every failed step prints `netip: FAIL <stage>' to stderr and exits
+# non-nil (rc's || idiom per command; `test -e' before every redirect
+# open — a redirect OPEN failure is an uncatchable rc Xerror that would
+# abort the script without the named FAIL line).  No sleeps, no pacing —
+# when the stack stalls the binary wedges and the harness's overall
+# budget catches it loudly (the 07-04 netblast precedent).  Success
+# prints `netip: soak ok', the venue label, and NETIP-DONE.
+
+# the count argv: $1 overrides the TCG-scaled default (64 rounds — the
+# payload's own default; argv arrives from the sweep's typed line).
+switch($#*){
+case 0 1
+case *
+	echo 'usage: netip-soak.rc [rounds]' >[1=2]
+	exit usage
+}
+rounds=()
+if (~ $#* 1)
+	rounds=$1
+# digit validation (net-sweep.rc's precedent — a non-numeric count must
+# fail loudly, never wedge a loop); 1-5 digits (the sustained 4096 is 4).
+~ $#rounds 0 || switch($rounds){
+case [0-9]
+case [0-9][0-9]
+case [0-9][0-9][0-9]
+case [0-9][0-9][0-9][0-9]
+case [0-9][0-9][0-9][0-9][0-9]
+case *
+	echo 'netip-soak.rc: rounds must be 1-5 digits' >[1=2]
+	exit usage
+}
+
+# the D-11 seam (test -e first: a failed source is uncatchable)
+test -e /lib/netaddr.rc || {
+	echo netip: FAIL seam >[1=2]
+	exit seam
+}
+. /lib/netaddr.rc
+
+# attach the #I device tree at /net
+bind -a '#I' /net || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+
+# the ether preamble (the 08-06 path): the REAL ipconfig does the whole
+# static flow ITSELF (binddevice's clone + `bind ether /net/ether0', the
+# add, the -g default route) — the gate's fidelity point is the real
+# binary's whole flow over /net (D-09/D-12); truerand() rides the D-17
+# /dev/random.  NEVER pre-bind: a pre-bind would fail ipconfig's own bind
+# with "interface already bound" (the era's per-medium singleton rule).
+ip/ipconfig -g $slirp_gwv4 ether /net/ether0 add $slirp_guestv4 $slirp_maskv4 || {
+	echo netip: FAIL ipconfig >[1=2]
+	exit ipconfig
+}
+
+# the blast leg: tcpblast dials the slirp gateway's blastport (slirp
+# forwards to the host echo endpoint).  The payload exits non-nil on any
+# short/failed/mismatched round — the || discipline makes the wedge/fail
+# loud; its own markers ride stdout (tcpblast: round <n> ok per round,
+# tcpblast: done <n> rounds at completion).
+if (~ $#rounds 0) {
+	tcpblast $slirp_gwv4 $blastport || {
+		echo netip: FAIL blast >[1=2]
+		exit blast
+	}
+}
+if (! ~ $#rounds 0) {
+	tcpblast $slirp_gwv4 $blastport $rounds || {
+		echo netip: FAIL blast >[1=2]
+		exit blast
+	}
+}
+
+# the guest-counters leg: cat /net/tcp/stats so the harness reconciles
+# (the InSegs:/OutSegs: lines ride the capture — the cat PRINTS to the
+# console, never a backquote capture: the harness reads the serial log),
+# and assert both directions non-zero here too (the 08-05 stats-honesty
+# discipline, P-M — a zeros-forever stats file is a contract violation).
+cat /net/tcp/stats || {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+insegs=`{cat /net/tcp/stats | sed -n 's/^InSegs: //p'} || {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+outsegs=`{cat /net/tcp/stats | sed -n 's/^OutSegs: //p'} || {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+~ $#insegs 1 || {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+~ $#outsegs 1 || {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+if (~ $insegs '' 0) {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+if (~ $outsegs '' 0) {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+echo netip: soak stats ok
+
+echo netip: soak ok
+
+# the venue label rides the gate log itself (D-10/D-15) — never re-read
+# slirp-green as L2 proof; the tap verdict is Phase 9's.
+echo netip: NOT-L2-TRUTH slirp venue
+
+echo netip: NETIP-DONE
+exit ''
