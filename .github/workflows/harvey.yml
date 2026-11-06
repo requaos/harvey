@@ -1,33 +1,104 @@
+# harvey.yml — the base clean-checkout build gate.  Rewritten
+# 2026-11-05 (backlog 999.1) as a FULL REPLACEMENT of the retired
+# legacy harness: the apt/PPA distribution-package provisioning step,
+# the `go get harvey-os.org/cmd/ufs` fetch of the 9P file server, the
+# old-branch (go1.16.6) Go source clone+build for the plan9/amd64
+# target, the tag-pinned actions/checkout@v2 reference, the job-level
+# defaults.run.working-directory: build key, and the final step that
+# background-launched the ufs 9P server and ran build/command.bash —
+# the interactive-automation-driven 9legacy ISO boot under
+# qemu-system-i386 running an in-guest build.  The build/ harness
+# scripts stay in-tree untouched (usable locally); CI no longer
+# invokes them.
+#
+# WHY replacement, not repair: the harness itself WAS the fragility —
+# EOL-Ubuntu package sources plus a PPA, a vanity-URL go-get, an
+# old-branch Go build, and a guest-boot automation chain; the red
+# streak on master since 2026-11-04T12:01Z is that harness failing,
+# not this repo's source.  The push/PR build signal it provided is
+# fully covered by the repo's own nix pipeline, the self-provisioned
+# shape phase6.yml's linux legs prove on every push.  For the deep
+# gates see phase6.yml (full phase-6 pipeline + the USPACE-10
+# pool-panic verdict); for the aarch64 r9 smoke see r9-shell.yml.
+#
+# Supply chain: EVERY action below is pinned to a full 40-char commit
+# SHA, never a floating tag (the legacy tag-pinned checkout reference
+# is NOT repeated):
+#   actions/checkout v4                          = 11d5960a326750d5838078e36cf38b85af677262
+#   DeterminateSystems/nix-installer-action v23  = 3138316df39ed29be04236d7ffc686fa525866aa
+# (the checkout pin is phase6.yml's, API-resolved 2026-11-05; the
+# nix-installer-action pin is the 05-13 pin, already riding
+# r9-shell.yml + phase6.yml — zero NEW external references.)
+# Permissions are the default checkout scope (contents: read) — the
+# pipeline builds locally and needs no extra tokens or secrets.  A
+# concurrency group cancels superseded runs so the 60-min build leg
+# never amplifies on push storms (the T-06-18 pattern).
+
 name: harvey
 
 on: [push, pull_request]
 
+permissions:
+  contents: read
+
+concurrency:
+  group: harvey-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build:
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: build
+    timeout-minutes: 60
     steps:
-    - uses: actions/checkout@v2
-    - name: install deps
-      run: |
-        sudo add-apt-repository ppa:ubuntu-toolchain-r/test -y # see https://wiki.ubuntu.com/ToolChain
-        sudo apt-get update
-        sudo apt-get install -y rc qemu go-dep qemu-utils expect qemu-system-x86
-        go get harvey-os.org/cmd/ufs
-    - name: install source we build into the image
-      run: |
-        git clone --depth 1 --branch go1.16.6 https://github.com/golang/go.git
-        cd go/src
-        GOOS=plan9 GOARCH=amd64 ./make.bash
-    - name: bootstrap and run
-      env:
-        ARCH: amd64
-        OS: linux
-      run: |
-        # ensure there is a go directory in the image
-        # not needed for long
-        mkdir -p ../go
-        ~/go/bin/ufs -root .. -user glenda &
-        bash command.bash # run a command
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: install nix
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: host bin + toolchain provisioning
+        # Clean-runner provisioning: nix/build.sh asserts pcc/cpp/ar in
+        # $HARVEY_LINUX_BIN before building.  toolchain.sh's trailing
+        # echo masks sub-build failures (the 02-12 exit-0 class), so
+        # the products are asserted explicitly.
+        run: |
+          nix run .#setup
+          nix run .#toolchain
+          _a=$(uname -m); [ "$_a" = "arm64" ] && _a=aarch64
+          hb=".build/hostbin-linux-$_a/bin"
+          missing=0
+          for t in pcc cpp ar 6c 6l 8c 8l; do
+            if [ ! -x "$hb/$t" ]; then echo "TOOLCHAIN-MISSING: $hb/$t" >&2; missing=1; fi
+          done
+          if [ "$missing" -ne 0 ]; then echo "hostbin contents:" >&2; ls "$hb" >&2; exit 1; fi
+          echo "TOOLCHAIN-PRODUCTS-OK ($hb)"
+      - name: build amd64 userspace + kernels
+        # 02-12 (deferred): .#build's break-glass tail reports exit 0
+        # even when the build failed — assert the ARTIFACTS, and on
+        # absence print the failure digest so the swallowed failure is
+        # diagnosable from the job log.
+        run: |
+          mkdir -p .build
+          nix run .#build 2>&1 | tee .build/harvey-build.log
+          missing=""
+          for f in amd64/9k10cpu.elf amd64/bin/rc amd64/bin/awk; do
+            if [ ! -f "$f" ]; then missing="$missing $f"; fi
+          done
+          if [ -n "$missing" ]; then
+            log=.build/harvey-build.log
+            echo "BUILD-SWALLOWED-FAIL: missing after nix run .#build:$missing (02-12 exit-0 class)" >&2
+            echo "== bind-error context (they are noise on green hosts, but confirm):"
+            grep -n -B2 -A2 'bind: No such' "$log" | head -24 || true
+            echo "== all missing-make targets:"
+            grep -nE "don't know how to make" "$log" | head -15 || echo "(none)"
+            echo "== what the repo's amd64/bin holds after the build:"
+            ls amd64/bin/ 2>&1 | head -10 || true
+            echo "== first mk recipe failures (the abort-on-first-failure origin):"
+            grep -n 'exit status=' "$log" | head -8 || echo "(none)"
+            _first=$(grep -n -m1 'exit status=' "$log" | cut -d: -f1 || true)
+            if [ -n "$_first" ]; then
+              echo "== context around the first failure (line $_first):"
+              sed -n "$((_first > 25 ? _first - 25 : 1)),$((_first + 3))p" "$log" || true
+            fi
+            echo "== last 30 lines:"
+            tail -30 "$log" || true
+            exit 1
+          fi
+          echo "BUILD-ARTIFACTS-OK (amd64/9k10cpu.elf amd64/bin/rc amd64/bin/awk)"
