@@ -1,0 +1,59 @@
+#!/bin/rc
+# netip-aan-drop.rc — the NETIP-07 gate's scripted drop (08-08, D-14),
+# EXECUTED BY THE SERVER-SIDE rc of the aan gate (netip-aan.rc transmits
+# `rc /lib/netip-aan-drop.rc $port' through the tunnel — one plain
+# command line, no transmitted braces/backquotes).  This script walks
+# /net/tcp, finds the underlying conversation — the Established conv
+# whose LOCAL is the listen port (the accepted conv; the announcer's
+# local prints `::!$port', excluded by the address prefix; the client's
+# conv carries its random local port) — and writes `hangup' to its ctl
+# (tcp hangup → RST via smoltcp abort — the contract's §5.1 verb).  Both
+# aan ends see the read fail and re-establish the session (the client
+# redials, the server relistens; the cumulative-ack retransmit covers
+# anything in flight).
+#
+# All diagnostics ride fd 2 (THE CONSOLE), never fd 1 (the tunnel): the
+# gate's client reads exactly two tunnel responses (the round-trip
+# markers).  A walk that finds ≠1 conv or a failed hangup write is a
+# named `netip: FAIL <stage>' — the harness's FAIL-line scan aborts the
+# gate at once.
+
+# the D-11 seam (test -e first: a failed source is uncatchable)
+test -e /lib/netaddr.rc || {
+	echo netip: FAIL seam >[1=2]
+	exit seam
+}
+. /lib/netaddr.rc
+
+# $1 = the aan listen port (the fixture's constant).
+switch($#*){
+case 1
+case *
+	echo netip: FAIL usage >[1=2]
+	exit usage
+}
+port=$1
+
+# the status walk (the netip fixtures' glob shape): exactly one match.
+drop=()
+for (d in /net/tcp/[0-9]*) {
+	st=`{cat $d/status >[2]/dev/null}
+	loc=`{cat $d/local >[2]/dev/null}
+	if (~ $st(1) Established && ~ $loc $lo_guestv4!$port) {
+		drop=$d
+	}
+}
+~ $#drop 1 || {
+	echo netip: FAIL dropfind >[1=2]
+	exit dropfind
+}
+test -e $drop/ctl || {
+	echo netip: FAIL dropfind >[1=2]
+	exit dropfind
+}
+echo hangup > $drop/ctl || {
+	echo netip: FAIL hangup >[1=2]
+	exit hangup
+}
+echo netip: aan drop ok >[1=2]
+exit ''

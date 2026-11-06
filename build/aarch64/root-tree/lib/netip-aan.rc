@@ -1,0 +1,304 @@
+#!/bin/rc
+# netip-aan.rc — the NETIP-07 aan drop-and-resume gate fixture (08-08,
+# D-14): an aan client+server pair over TCP LOOPBACK (NIC-free — the
+# retransmit/resume machinery proven without the ether leg).  The server
+# runs `aan -d' against an announced tcp conv (its netdir); the client
+# runs `aan -c -d tcp!$lo_guestv4!$port'; a remote rc on the server side
+# executes marker-producing commands tunnelled through the session.  The
+# gate: roundtrip 1 (session established), a scripted `hangup' of the
+# underlying /net/tcp/N conn (tcp hangup → RST via smoltcp abort — the
+# contract's §5.1 verb), then roundtrip 2 (the session RESUMED — aan's
+# redial/relisten + cumulative-ack retransmit; Synctime is 8 s, the
+# redial cadence 1 s).  The unmodified 08-03-baked aan binary (libthread,
+# alarm, atnotify, syslog-with-console-fallback — all in the measured
+# syscall set) rides the existing aarch64 userspace.
+#
+# Sourced by the gate harness (R9_NETIP_SWEEP=aan), never typed at a
+# prompt (the sourced-not-typed discipline — net-sweep.rc's precedent).
+# Addresses come from /lib/netaddr.rc (the D-11 seam) — the lo_ leg.  NO
+# hardcoded 127.0.0.1 outside that seam (Pitfall 9's discipline).  The
+# port is fixture-local (loopback-only, never leaves the guest — the
+# netip-tcp.rc !7 precedent).
+#
+# THREE era-specific disciplines shape this fixture:
+#
+# (1) The announced-conv lifetime (the contract's closeconv last-close
+#     reset): aan's listen(devdir, ldir)/accept cycle opens and closes
+#     the announced conv's files per connection — between cycles the
+#     conv has NO open files from aan, and a devip conv RESETS on its
+#     last close (the accept pool tears down; the re-listen would error
+#     "not announced" and the client's redial would see "connection
+#     refused" → the "server died" exit — RESEARCH §aan's caveat).  The
+#     server subshell below holds the announced conv's ctl open on fd 5
+#     across the announce write AND aan's whole life (rc's `<>[5]'
+#     read-write redirect — the man page's `newconn <>/net/tcp/clone'
+#     precedent, the netip-tcp.rc fd-4 shape generalized).  The block
+#     runs backgrounded with aan FOREGROUND inside it, so the block (and
+#     fd 5) live exactly as long as aan does.
+#
+# (2) The tunnel↔rc plumbing is one devpipe pair per side (import.c's
+#     canonical shape: pipe(2), the child dups one end onto fds 0+1).
+#     r9's devpipe: `bind '#|' <dir>' attaches a FRESH full-duplex pipe
+#     pair — <dir>/data (end 0: reads q[0], writes q[1]) and
+#     <dir>/data1 (end 1: reads q[1], writes q[0]).  Server side: rc and
+#     aan hold opposite ends of the /tmp pair, so the tunnel IS the
+#     remote shell session.  Client side: the main fixture line holds
+#     /mnt/data open for WRITE on fd 6 across the whole session —
+#     otherwise the per-command open/close would hangup q[1] between
+#     commands and aan's stdin would EOF early (fromclient would send
+#     the nb=0 terminator before roundtrip 2).  The main line reads the
+#     responses off /mnt/data with dd's -bs/-count one-read discipline
+#     (a bare cat would block for more of the stream).
+#
+# (3) The drop is IN-BAND: the fixture transmits ONE plain command line
+#     through the tunnel — `rc /lib/netip-aan-drop.rc <port>' — and the
+#     SERVER-side rc runs the baked drop script against its own /net/tcp
+#     (the same kernel's tree): it finds the Established conv whose local
+#     is the listen port (the accepted conv — the announcer's local
+#     prints `::!$port', excluded), and writes `hangup' to its ctl (tcp
+#     hangup → RST via smoltcp abort — the contract's §5.1 verb).  Both
+#     ends see the read fail; aan re-establishes (redial/relisten +
+#     cumulative-ack retransmit) and the post-drop marker completes the
+#     proof.  The script's `netip: aan drop ok' confirmation rides the
+#     CONSOLE (fd 2), never the tunnel, so the client reads exactly two
+#     responses.
+#
+# Every failed step prints `netip: FAIL <stage>' to stderr and exits
+# non-nil; the harness's mid-sweep FAIL-line scan aborts the run at
+# once.  Blocking pipe reads bound the fixture only by the harness's
+# overall budget (the netblast discipline: a wedge is a loud timeout,
+# never a silent pass).  Success prints `netip: aan roundtrip 1',
+# `netip: aan roundtrip 2' (the responses echoed to the console), then
+# `netip: aan ok' and NETIP-DONE.  The servers stay backgrounded (the
+# harness tears the guest down after NETIP-DONE).
+
+# the D-11 seam (test -e first: a failed source is uncatchable)
+test -e /lib/netaddr.rc || {
+	echo netip: FAIL seam >[1=2]
+	exit seam
+}
+. /lib/netaddr.rc
+
+# attach the #I device tree at /net
+bind -a '#I' /net || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+
+# ipifc: clone a conversation, bind the loopback medium, add the
+# loopback-leg address (the loopback preamble — the netip-tcp.rc shape,
+# factored inline per the plan).  The ctl file is re-opened per write
+# (loopbackmedium's unbindonclose is 0 — the binding persists).
+conv=`{cat /net/ipifc/clone} || {
+	echo netip: FAIL clone >[1=2]
+	exit clone
+}
+~ $#conv 1 || {
+	echo netip: FAIL clone >[1=2]
+	exit clone
+}
+
+test -e /net/ipifc/$conv/ctl || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+echo bind loopback > /net/ipifc/$conv/ctl || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+echo add $lo_guestv4 255.0.0.0 > /net/ipifc/$conv/ctl || {
+	echo netip: FAIL add >[1=2]
+	exit add
+}
+
+# /net/ipselftab must now carry the loopback address (word-wise exact
+# match — the rc ~ dialect lesson: a plain literal word compare).
+selftab=`{cat /net/ipselftab} || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+found=0
+for(w in $selftab){
+	if(~ $w $lo_guestv4)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+
+# the two devpipe pairs (discipline 2): /tmp for the server-side
+# tunnel↔rc, /mnt for the client-side command/response.  Each bind
+# attaches a fresh pair (devpipe's attach-per-pair shape); the mount
+# points are the image's existing dirs.
+bind '#|' /tmp || {
+	echo netip: FAIL pipebind >[1=2]
+	exit pipebind
+}
+bind '#|' /mnt || {
+	echo netip: FAIL pipebind >[1=2]
+	exit pipebind
+}
+test -e /tmp/data1 || {
+	echo netip: FAIL pipebind >[1=2]
+	exit pipebind
+}
+test -e /mnt/data1 || {
+	echo netip: FAIL pipebind >[1=2]
+	exit pipebind
+}
+
+port=7779
+
+# the aan SERVER: announce the port on a cloned conv, then run aan -d
+# against the announced dir with the ctl held open on fd 5 (discipline
+# 1).  The server-side rc cross-connects to aan through the /tmp pair:
+# rc reads the tunnel's commands off /tmp/data (end 0) and writes its
+# output back to the same end (fd 1 dup'd onto fd 0), aan reads/writes
+# /tmp/data1 (end 1).  The whole block backgrounds; aan runs foreground
+# inside it, so fd 5 (and the announce) outlive every listen/accept
+# cycle.
+n=`{cat /net/tcp/clone} || {
+	echo netip: FAIL tcpclone >[1=2]
+	exit tcpclone
+}
+~ $#n 1 || {
+	echo netip: FAIL tcpclone >[1=2]
+	exit tcpclone
+}
+test -e /net/tcp/$n/ctl || {
+	echo netip: FAIL tcpclone >[1=2]
+	exit tcpclone
+}
+{
+	echo announce $port >[1=5] || {
+		echo netip: FAIL announce >[1=2]
+		exit announce
+	}
+	rc <>[0]/tmp/data >[1=0] &
+	aan -d /net/tcp/$n <>[0]/tmp/data1 >[1=0]
+} <>[5]/net/tcp/$n/ctl &
+
+# listener-ready spin (the udp/tcp legs' discovery shape): the announced
+# conv's local reads `::!$port' once the announce ctl write completes
+# (IPnoaddr prints `::' — eipfmt; single-CPU syscall atomicity — the
+# read can only interleave between syscalls).  A FAIL in the
+# backgrounded block aborts the gate via the harness's FAIL-line scan,
+# so the spin never wedges silently.  Fork-free (rc globbing is
+# in-process) — the arena-exhaustion lesson of the tcp fixture.
+sport=''
+while (~ $sport '') {
+	for (d in /net/tcp/[0-9]*) {
+		loc=`{cat $d/local >[2]/dev/null}
+		if (~ $loc ::!$port) {
+			sport=$port
+		}
+	}
+}
+
+# the aan CLIENT + the two round-trips with the SCRIPTED DROP in-band
+# between them.  fd 6 holds the client pipe's command end (q[1]'s write
+# side) open across the whole session (discipline 2 — an EOF would send
+# aan's nb=0 terminator early).  The client runs -d (debug to console —
+# syslog falls back there anyway per RESEARCH).
+#
+# THE DROP IS IN-BAND (D-14's scripted drop, executed by the server-side
+# rc): the fixture transmits ONE plain command line through the tunnel —
+# `rc /lib/netip-aan-drop.rc $port' — and the baked drop script walks the
+# server side's OWN /net/tcp — the same kernel's tree — and writes
+# `hangup' to the underlying conv's ctl itself (the PLAIN per-command
+# redirect shape — the net-sweep/netip-tcp fixtures' proven form).  This
+# shape replaces an earlier design that did the walk+hangup on the
+# client side INSIDE the fd-6 block: a file-open redirect (`> $drop/ctl')
+# or an in-block `>[2]/dev/null' on a backquote dd both leaked their
+# payload into the held pipe's q[1] (measured red twice — the junk rode
+# the tunnel and the remote rc can't-exec'd it; an rc redirect-stack/
+# fd-reuse corner this fixture now sidesteps by construction — recorded
+# in the phase's deferred-items).  The drop script's `netip: aan drop
+# ok' rides the CONSOLE (fd 2), never the tunnel.
+{
+	aan -c -d tcp!$lo_guestv4!$port <>[0]/mnt/data1 >[1=0] &
+
+	# roundtrip 1: the session establishes; the remote rc prints the
+	# marker through the tunnel.
+	echo 'echo netip: aan roundtrip 1' >[1=6] || {
+		echo netip: FAIL write1 >[1=2]
+		exit write1
+	}
+	resp=`{dd -if /mnt/data -bs 512 -count 1} || {
+		echo netip: FAIL read1 >[1=2]
+		exit read1
+	}
+	# the marker arrives as one 23-byte line; the response is asserted
+	# WORD-WISE (the netip-tcp.rc $st(1) precedent) — a space-containing
+	# quoted pattern rides rc's $" / dangling-quote lexer corners
+	# (measured red this run).
+	~ $#resp 4 || {
+		echo netip: FAIL roundtrip1 >[1=2]
+		exit roundtrip1
+	}
+	~ $resp(1) netip: || {
+		echo netip: FAIL roundtrip1 >[1=2]
+		exit roundtrip1
+	}
+	~ $resp(3) roundtrip || {
+		echo netip: FAIL roundtrip1 >[1=2]
+		exit roundtrip1
+	}
+	~ $resp(4) 1 || {
+		echo netip: FAIL roundtrip1 >[1=2]
+		exit roundtrip1
+	}
+	echo $resp
+
+	# the scripted drop, transmitted to the server rc as ONE plain
+	# command line (the drop logic lives in the baked
+	# /lib/netip-aan-drop.rc — no transmitted braces/backquotes).  aan's
+	# flow control is Nbuf=10 unacked messages and ONLY data messages
+	# drain it (the 8 s sync beacons carry the acked count but aan's
+	# fromnet skips nb=0/msg=-1 before the ack processing — measured:
+	# a >10-line command burst wedges the client's fromclient on the
+	# empty pool forever), so the transmission is one line, never a
+	# burst.  The drop block's `netip: aan drop ok' confirmation rides
+	# the CONSOLE (fd 2), never the tunnel, so the client reads exactly
+	# two responses.
+	echo 'rc /lib/netip-aan-drop.rc '$port >[1=6] || {
+		echo netip: FAIL write2 >[1=2]
+		exit write2
+	}
+
+	# roundtrip 2: the session RESUMED — the resume-after-drop is the
+	# whole point (both markers are asserted by the finish arm).  If the
+	# resume fails, the read below blocks to the harness's loud budget
+	# expiry (the netblast wedge discipline).
+	echo 'echo netip: aan roundtrip 2' >[1=6] || {
+		echo netip: FAIL write2 >[1=2]
+		exit write2
+	}
+	resp2=`{dd -if /mnt/data -bs 512 -count 1} || {
+		echo netip: FAIL read2 >[1=2]
+		exit read2
+	}
+	~ $#resp2 4 || {
+		echo netip: FAIL roundtrip2 >[1=2]
+		exit roundtrip2
+	}
+	~ $resp2(1) netip: || {
+		echo netip: FAIL roundtrip2 >[1=2]
+		exit roundtrip2
+	}
+	~ $resp2(3) roundtrip || {
+		echo netip: FAIL roundtrip2 >[1=2]
+		exit roundtrip2
+	}
+	~ $resp2(4) 2 || {
+		echo netip: FAIL roundtrip2 >[1=2]
+		exit roundtrip2
+	}
+	echo $resp2
+} >[6]/mnt/data
+
+echo netip: aan ok
+
+echo netip: NETIP-DONE
+exit ''

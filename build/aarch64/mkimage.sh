@@ -216,6 +216,10 @@ done
 [ -f "$STAGE/lib/netip-dhcp.rc" ] || err "manifest: lib/netip-dhcp.rc missing from staged tree"
 # 08-07 (NETIP-06): the IPv6 gate fixture must be baked
 [ -f "$STAGE/lib/netip-v6.rc" ] || err "manifest: lib/netip-v6.rc missing from staged tree"
+# 08-08 (NETIP-07): the aan drop-and-resume gate fixture must be baked
+[ -f "$STAGE/lib/netip-aan.rc" ] || err "manifest: lib/netip-aan.rc missing from staged tree"
+# 08-08 (NETIP-07): the gate's server-side scripted-drop payload must be baked
+[ -f "$STAGE/lib/netip-aan-drop.rc" ] || err "manifest: lib/netip-aan-drop.rc missing from staged tree"
 [ -f "$STAGE/aarch64/bin/netblast" ] || err "manifest: aarch64/bin/netblast missing from staged tree"
 
 # 5a. init identity: out/ was shared with the
