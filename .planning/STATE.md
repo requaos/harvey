@@ -22,10 +22,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-05)
+See: .planning/PROJECT.md (updated 2026-11-06)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on aarch64 under qemu virt — reproducible from clean checkouts on macOS or Linux.
-**Current focus:** Phase 06 — Full-Tree Userspace — Wave 0 + Libraries/Core Tiers
+**Current focus:** Phase 9 — Host Networking + boot-r9 Net Modes
 
 ## Current Position
 
@@ -141,6 +141,11 @@ Progress: [███████░░░] 74% (v2.0)
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 08]: smoltcp 0.14 behind the devip ABI is r9's TCP/IP engine; `../r9/docs/devip-contract.md` is the executable spec (gates assert it; OQ-1 resolved PASS-path — no wire shim, smoltcp dhcpv4 never wired)
+- [Phase 08]: the devip↔smoltcp seam is event-driven with NO periodic polling (BusyCell ownership, NET_DEADLINE from poll_at); blocking paths re-probe after every drive (the gate-caught wakeup-loss fix)
+- [Phase 08]: RFMEM landed per user decision A (Harvey-fidelity-verified: ip/ping.c:572 is Harvey-native) — donor dupseg semantics incl. shared-segment growth (RFMEM families) + the SEMACQUIRE/SEMRELEASE pair
+- [Phase 08]: slirp evidence is labeled `NOT-L2-TRUTH` per D-10; the NETIP-08 tap-leg truth verdict is Phase 9's joint acceptance gate per D-15 — Phase 8 delivered the soak machinery + documented-manual sustained command
+- [Phase 08]: push-before-pin continued — r9 pushed (19f61ed == origin/main) before flake.lock advanced as its own isolated commit; hosted CI green ×2 (boot-smoke + net-smoke)
 - 2026-10-30: Adopt r9 (sibling `../r9`, Rust) as kernel future — Harvey 9k C aarch64 port is Out of Scope
 - 2026-10-30: `aarch64` (not `arm64`) is the project's architecture name — vestiges quarantined in Phase 1
 - Roadmap: Phases 3–4 execute in sibling repo `../r9`; Phase 5 spans both repos
@@ -357,8 +362,10 @@ None yet.
 - ~~Phase 5: harness qemu cleanup (phase-04 deferred #2)~~ RESOLVED — D-16 fresh-log + process-group teardown; WR-07 keyed survivor sweeps
 - ~~Phase 5: cold-pointer syscall aborts (phase-04 deferred #3)~~ RESOLVED — eager data+bss at exec (05-04) + usermem fused validate+reside + CR-02 stat/fstat
 - Phase 5 residue: 13 open Info findings (05-REVIEW-DISPOSITION.md) + the input-wedge note (never reproduced under the cons watchdog; tick-FIFO-drain fix d8496d3 likely closed the class) + hosted CI has exactly one green run — none goal-blocking
-- Phase 7 residue: 13 open review findings (07-REVIEW-DISPOSITION.md — WR-01..08 hardening gaps incl. the cap-walk loud-abort holes + WR-05 WaitSet-16-vs-MAX_PROCS-64 + WR-06 used-id slot-liveness; IN-01..05 hygiene) + proc-table reaping fix + vm-run.sh race (phase-07 deferred-items.md); none goal-blocking — WR-05/WR-06 are the ones to weigh before Phase 8 load
-- Pin advisory: harvey flake.lock r9 pin (9549cee) is behind r9 main (review fixes + unsafe elimination) — bump at milestone completion with a fresh hosted run (verifier advisory, 2026-11-04)
+- Phase 8 residue: 20 open review findings (08-REVIEW-DISPOSITION.md — CR-01 conv_close FIN-drop, CR-02 permanent-send-error wedge, CR-03 semacquire wakeup loss, CR-04 ipifc multicast panic, CR-05 unbind stale-handle aliasing, CR-06 tcp_gc aliasing, CR-07 the multi-waiter RX-wake class also in deferred-items; 6 WR incl. RFMEM OOM-path page leaks; 7 IN) + WINDOWS #44/#45 (fork+exec arena drain, namec union-create) + #47–50 — weigh CR-01/02/03/06 before Phase 9's tap leg puts real peers on the stack; none blocked the phase gates (gate shapes are single-connection; the review names why)
+- NETIP-08 tap-leg truth verdict is Phase 9's (D-15) — Phase 8 shipped the soak machinery + slirp proof with NOT-L2-TRUTH labels
+- Phase 7 residue: 13 open review findings (07-REVIEW-DISPOSITION.md — WR-01..08 hardening gaps incl. the cap-walk loud-abort holes + WR-05 WaitSet-16-vs-MAX_PROCS-64 + WR-06 used-id slot-liveness; IN-01..05 hygiene) + proc-table reaping fix + vm-run.sh race (phase-07 deferred-items.md); none goal-blocking
+- ~~Pin advisory: harvey flake.lock r9 pin behind r9 main~~ RESOLVED by Phase 8's push-before-pin — pin now at 19f61ed == origin/main with hosted CI green (the milestone-close bump will re-check)
 - 9k-amd64 post-banner `bad magic` pool panic — same signature as the pswt.c LP64 bug fixed in Phase 2; re-test with the fixed 6c (deferred-items.md #8) before relying on the harness for deeper smoke signals
 - Hygiene debt: Phase 1 review items (01-REVIEW-DISPOSITION.md) + Phase 2's 13 open Info findings (02-REVIEW-DISPOSITION.md) + Phase 3's 5 open warnings / 10 open Info (03-REVIEW-DISPOSITION.md) + upstream raspi3b-on-qemu-11.1.2 defect (phase-03 deferred-items.md #1, human-accepted A/B evidence); none goal-blocking
 
@@ -395,9 +402,9 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T01:13:24.954Z
-Stopped at: Phase 08 complete, ready to plan Phase 9
-Resume file: .planning/phases/10-userspace-services-gui-tiers-bootfs-payload/10-CONTEXT.md
+Last session: 2026-11-06T07:00:00Z
+Stopped at: Phase 08 complete (verified 36/36, review dispositioned), ready to plan Phase 9
+Resume file: None
 
 ## Operator Next Steps
 
