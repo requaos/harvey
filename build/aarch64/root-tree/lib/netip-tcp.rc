@@ -75,13 +75,15 @@ for(w in $selftab){
 
 # the tcp/7 echo leg (NETIP-03's third leg): tcpecho announces tcp!*!7
 # (a NUMERIC port — no no-cs service-name discovery needed; the udp leg's
-# discovery dance was for `echo' passing identtrans verbatim).  The client
-# still spins until a tcp conv's local reports !7 — a NONZERO matching
-# port proves the announce ctl write completed (the single-CPU syscall
-# atomicity argument of the udp leg's port discovery; the pre-clone spin
-# is fork-free).  The server runs backgrounded and stays (the harness
-# tears the guest down after NETIP-DONE).
-ip/tcpecho &
+# discovery dance was for `echo' passing identtrans verbatim).  tcpecho
+# bakes at /bin/tcpecho (the 08-03 compiled-payload shape — NOT the
+# bin/ip mkmany install ping/udpecho use).  The client still spins until
+# a tcp conv's local reports !7 — a NONZERO matching port proves the
+# announce ctl write completed (the single-CPU syscall atomicity argument
+# of the udp leg's port discovery; the pre-clone spin is fork-free).  The
+# server runs backgrounded and stays (the harness tears the guest down
+# after NETIP-DONE).
+tcpecho &
 
 sport=''
 while (~ $sport '') {
