@@ -58,7 +58,7 @@ covered_files:
   - sys/src/cmd/6l/obj.c
   - sys/src/cmd/cc/macbody
 
-covered_digest: "v2:sha256:efe2870b8f262b7ae18c700f73a5e10b7bcbb3ea3fb6ee0857a4c9dc3d176fa6"
+covered_digest: "v2:sha256:bb5724f440020c9ec5eb05dc2d5c4680054163272ebb0af8a3fbcfe12bb54aeb"
 behavior_unverified: 0
 overrides_applied: 0
 re_verification:
