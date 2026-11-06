@@ -119,3 +119,14 @@ amd64/.userland-ok
 # python bytecode caches from the build/aarch64 harness scripts
 __pycache__/
 
+
+# 2026-11-06 host-migration audit additions:
+# local full-tree build scratch copy (942MB rsync sibling; never commit)
+/.arvey-build/
+# graphify knowledge-graph output (derived; rebuildable via graphify)
+/.planning/graphs/
+# GSD planning scratch (red-evidence, context bundles, repro scripts)
+/.planning/tmp/
+# 08-x rate-measurement build logs (transient; same class as the other
+# build/aarch64 log ignores above)
+/build/aarch64/plain-rate-r*.log
