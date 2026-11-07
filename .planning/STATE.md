@@ -5,8 +5,8 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: r9 x86_64 Platform Bring-Up
 status: executing
-stopped_at: "Phase 13 wave 3 checkpoint: 13-03 KVM gate still blocked after host fix (kernel 7.3.1 + enable_apicv=0: LAPIC MMIO writes now land in KVM state, but wrmsr(0x832) is refused for any tsc-deadline CPU model; periodic-under-KVM green) — awaiting user decision"
-last_updated: "2026-11-07T11:55:00.000Z"
+stopped_at: "Phase 13 wave 3 checkpoint: 13-03 KVM gate red on the option-A retest as well (kernel 7.3.1, enable_apicv=Y verified live: wrmsr(0x832) #GP(0) for any tsc-deadline CPU model with apicv Y or N — option A exhausted; periodic-under-KVM and TCG legs green) — awaiting user decision (B: pin gate CPU bit-24-clear / C: accept documented deviation)"
+last_updated: "2026-11-07T13:45:00.000Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 13 execution started
 state_head: 4480b5ab82f4b24ed4b71b806750a463c2f62044
@@ -92,6 +92,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T11:55:00.000Z
-Stopped at: Phase 13 wave 3 checkpoint: 13-03 KVM gate still blocked after host fix (kernel 7.3.1 + enable_apicv=0: LAPIC MMIO writes now land in KVM canonical state — old defect gone — but wrmsr(0x832) is refused for any tsc-deadline CPU model; periodic-under-KVM green; aarch64/check/clippy green) — awaiting user decision
+Last session: 2026-11-07T13:45:00.000Z
+Stopped at: Phase 13 wave 3 checkpoint: 13-03 KVM gate red on the option-A retest too (kernel 7.3.1, enable_apicv=Y verified live, both consecutive runs #GP(0) on wrmsr(0x832) at pc 0x203ffd — same signature as apicv=N; option A exhausted; periodic-under-KVM, TCG, aarch64/check/clippy all green) — awaiting user decision: B pin the q35 gate CPU bit-24-clear (D-01 locked-cpu change) or C accept the documented deviation
 Resume file: .planning/phases/13-r9-x86-64-platform-bring-up/13-03-PLAN.md
