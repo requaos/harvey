@@ -17,5 +17,6 @@
 
 
 - qemu 11.1.2 crashes on `-global q35-pcihost.MCFG=<any value>` (the X64-03 perturbation's planned mechanism)
-  status: open
+  status: resolved
   **What:** Found live at 13-04 Task 3: the MCFG property stores into `PCIExpressHost.base_addr`, the same field `pcie_host_mmcfg_unmap()` uses as its is-mapped state, so ANY pre-realize set — including the default value 0xb0000000 — trips the `memory_region_del_subregion: Assertion 'subregion->container == mr'` failure on the first mch reset (verified against the v11.1.2 source fetched this session). The gate's accommodation is committed data: `-acpitable file=x86_64/lib/q35-mcfg-moved.bin` injects the moved table (base 0xe0000000) after the built-ins, and acpi.rs's walk takes the last MCFG (override idiom) with the gate asserting exact bases. Action for 13-06 Task 2: record the drift + the accommodation in build/x86_64/README.md (the OQ-5 companion-README deliverable), and re-test `-global` if the qemu pin ever advances.
+  **Update 2026-11-07 (13-06 Task 2):** recorded — `build/x86_64/README.md`'s drift-notes table carries the crash (mechanism + v11.1.2-source verification), the `-acpitable` accommodation, and the re-test condition (retry plain `-global` when the qemu pin advances past 11.1.2).
