@@ -5,11 +5,11 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: r9 x86_64 Platform Bring-Up
 status: executing
-stopped_at: Completed 13-02-PLAN.md
-last_updated: "2026-11-07T01:12:40.114Z"
+stopped_at: "Phase 13 wave 3 checkpoint: 13-03 KVM gate still blocked after host fix (kernel 7.3.1 + enable_apicv=0: LAPIC MMIO writes now land in KVM state, but wrmsr(0x832) is refused for any tsc-deadline CPU model; periodic-under-KVM green) — awaiting user decision"
+last_updated: "2026-11-07T11:55:00.000Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 13 execution started
-state_head: b45adf572a6a9ba3d252f9bf02e42f3f5a009590
+state_head: 4480b5ab82f4b24ed4b71b806750a463c2f62044
 progress:
   total_phases: 1
   completed_phases: 0
@@ -92,6 +92,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T01:12:40.085Z
-Stopped at: Completed 13-02-PLAN.md
-Resume file: None
+Last session: 2026-11-07T11:55:00.000Z
+Stopped at: Phase 13 wave 3 checkpoint: 13-03 KVM gate still blocked after host fix (kernel 7.3.1 + enable_apicv=0: LAPIC MMIO writes now land in KVM canonical state — old defect gone — but wrmsr(0x832) is refused for any tsc-deadline CPU model; periodic-under-KVM green; aarch64/check/clippy green) — awaiting user decision
+Resume file: .planning/phases/13-r9-x86-64-platform-bring-up/13-03-PLAN.md
