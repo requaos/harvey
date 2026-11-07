@@ -14,7 +14,7 @@
 - [x] **X64-02**: APIC interrupt plumbing (LAPIC + IOAPIC) + HPET/PIT timers proven under load — the GICv2/GICv3 equivalent; INTx level-triggered virtio ISR read-to-ack re-proven
 - [x] **X64-03**: PCI/ECAM discovery without DTB (ACPI MCFG or the fixed q35 window) with a moved-window perturbation proof — NETDRV-01's no-hardcoded-constants discipline carried to x86_64
 - [x] **X64-04**: virtio-net binds on x86_64 (arch-neutral `port/` carry-over) and devether presents `/net/ether0` with the guest ARP observable on the host — the NETDRV gates re-proven
-- [ ] **X64-05**: r9's flake ships an x86_64 kernel package; acceptance gates run KVM-native by default with the TCG fallback documented
+- [x] **X64-05**: r9's flake ships an x86_64 kernel package; acceptance gates run KVM-native by default with the TCG fallback documented
 
 ### Harvey amd64 Userspace on r9 (XEXEC)
 
@@ -124,7 +124,7 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | X64-02 | Phase 13 | Complete |
 | X64-03 | Phase 13 | Complete |
 | X64-04 | Phase 13 | Complete |
-| X64-05 | Phase 13 | Pending |
+| X64-05 | Phase 13 | Complete |
 | XEXEC-01 | Phase 14 | Pending |
 | XEXEC-02 | Phase 14 | Pending |
 | XEXEC-03 | Phase 14 | Pending |

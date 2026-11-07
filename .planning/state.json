@@ -101,8 +101,8 @@
   ],
   "next": {
     "command": "/gsd-progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 13 (8 of 19 roadmap phases complete) · executing"
+    "label": "Advance to the next step (verify)",
+    "reason": "Phase 13 (8 of 19 roadmap phases complete) · ready to verify"
   },
-  "updated_at": "2026-11-07T16:06:01.682Z"
+  "updated_at": "2026-11-07T17:13:12.199Z"
 }

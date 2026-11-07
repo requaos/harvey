@@ -65,7 +65,7 @@ Full detail: `.planning/milestones/v2.0-ROADMAP.md`
   3. PCI/ECAM discovery works without DTB (ACPI MCFG or the fixed q35 window) with zero hardcoded addresses — the moved-window perturbation boot-test still finds and binds the device (X64-03)
   4. virtio-net binds on x86_64 through the arch-neutral `port/` transport and devether presents `/net/ether0` with live RX/TX counters — the guest's ARP request is observable in a host-side capture (X64-04)
   5. r9's flake ships an x86_64 kernel package and the acceptance gates run KVM-native by default, with the TCG fallback documented (X64-05)
-**Plans**: 5/6 plans executed
+**Plans**: 6/6 plans executed
 Plans:
 **Wave 1**
 - [x] 13-01-PLAN.md — q35 boot channel: config_q35.toml, TOML-driven -cdrom xtask arm, grub-mkrescue ISO, mb2 header in l.S — boot-test x86_64 banner gate green twice (X64-01)
@@ -83,7 +83,7 @@ Plans:
 - [x] 13-05-PLAN.md — MADT-driven IOAPIC + four-seam virtio-net bind + devether /net/ether0 + kernel-side ARP netgate — ping-pong/TX-bulk reconcile + pcap gate (X64-04, X64-02)
 
 **Wave 6** *(blocked on Wave 5 completion)*
-- [ ] 13-06-PLAN.md — flake kernel-x64 package + reproducible boot-iso + KVM-native gate loop + TCG fallback docs + CI leg + 13-EVIDENCE.md consolidation (X64-05)
+- [x] 13-06-PLAN.md — flake kernel-x64 package + reproducible boot-iso + KVM-native gate loop + TCG fallback docs + CI leg + 13-EVIDENCE.md consolidation (X64-05)
 
 ### Phase 14: Harvey amd64 Userspace on r9
 **Goal**: The core value lands on x86_64 — Harvey amd64 binaries exec on r9 through the re-derived ABI contract, the boot chain reaches the interactive `% ` prompt via one command, and the tier + `/net` gate machinery runs keyed to `objtype=amd64` (no new toolchain work — 6c/6a/6l already green). **Work spans both repos plus the flake glue.**
@@ -176,7 +176,7 @@ Plans:
 | 10. Userspace Services + GUI Tiers + Bootfs | v2.0 | - | Subsumed → Phase 15 | - |
 | 11. In-Guest p9sk1 Auth Domain | v2.0 | - | Subsumed → Phase 18 | - |
 | 12. CPU Service + Drawterm + rio Desktop | v2.0 | - | Subsumed → Phase 19 | - |
-| 13. r9 x86_64 Platform Bring-Up | v2.1 | 5/6 | In Progress | - |
+| 13. r9 x86_64 Platform Bring-Up | v2.1 | 6/6 | In Progress | - |
 | 14. Harvey amd64 Userspace on r9 | v2.1 | - | Not started | - |
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | - | Not started | - |
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | - | Not started | - |

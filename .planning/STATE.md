@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: r9 x86_64 Platform Bring-Up
-status: executing
-stopped_at: Completed 13-05-PLAN.md (IOAPIC + virtio-net bind + netgate; X64-04 and X64-02 closed)
-last_updated: "2026-11-07T16:06:13.055Z"
+status: verifying
+stopped_at: Completed 13-06-PLAN.md — Phase 13 complete (kernel-x64 + reproducible boot-iso + KVM-default gates + CI leg + evidence; X64-05 closed)
+last_updated: "2026-11-07T17:13:53.755Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 13 execution started
-state_head: fd74807bea17d7bf1ae9021889993595cc785fb6
+state_head: 283db339079ad00a0e62ffd6975bec39b3dc16c9
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 6
-  completed_plans: 5
+  completed_plans: 6
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-06)
 
 Phase: 13 (r9 x86_64 Platform Bring-Up) — EXECUTING
 Plan: 6 of 6
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-06 — Phase 13 execution started
 
 Progress: [░░░░░░░░░░] 0% (v2.1: 0/7 phases)
@@ -57,6 +57,7 @@ Progress: [░░░░░░░░░░] 0% (v2.1: 0/7 phases)
 | Phase 13 P03 | 12h 41m | 3 tasks | 11 files |
 | Phase 13 P04 | 69 min | 3 tasks | 6 files |
 | Phase 13 P05 | 39 min | 3 tasks | 12 files |
+| Phase 13 P06 | 59 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -85,6 +86,10 @@ Recent decisions affecting current work:
 - [Phase 13]: 13-05: Post-sti boot-context code must mask around driver ops AND console prints (the console MCS lock vs the timer tick IRQ print — the wedge found live at the first tx-bulk run); the netgate runs masked posts + enabled waits
 - [Phase 13]: 13-05: Pitfall 6 recorded in the metal: 0 mfence across the whole 2M-line kernel disassembly — the trait-default core fences compile away on TSO, correct while EVENT_IDX stays un-negotiated
 - [Phase 13]: 13-05: OQ-1 resolved — driver_ops() widened pub(crate)->pub (the one-line port seam) and the kernel-side netgate consumes it after sti; Phase 14 swaps the exec dd path in at the same seam
+- [Phase 13]: 13-06: reproducible grub-mkrescue under nix needs a --xorriso wrapper — grub 2.14 has no SOURCE_DATE_EPOCH support and injects a current-time --modification-date into its xorriso argv (xorriso args appended after `--` on the grub-mkrescue line execute after the image write, silently ineffective); the wrapper pins the date and injects --set_all_file_dates + -volid where they actually apply
+- [Phase 13]: 13-06: the boot-iso stages a strip-ALL kernel + a length-preserving store-hash zero-zap — rustc emits per-invocation-random .llvm.<u64> anon symbols (symtab identity impossible) and build-std's toolchain panic strings match nix's hash-keyed FOD reference scanner even under a prefix remap; GRUB mb2 loads only PT_LOADs so the symtab is dead weight anyway
+- [Phase 13]: 13-06: the flake owns the distributable reproducible boot-iso fixed-output derivation (hash wired only after a two-independent-derivation byte-identity proof — a cache-hit --rebuild proves only the ISO layer); the xtask gate keeps its per-invocation dev copy for evidence freshness (OQ-3)
+- [Phase 13]: 13-06: the CI leg selects TCG explicitly (--accel tcg --cpu qemu64 — hosted runners are KVM-less per A7); the no-silent-downgrade rule holds everywhere: accel comes only from the flag > R9_ACCEL/R9_CPU env > TOML kvm default, and a KVM-less venue fails loudly unless TCG was selected
 
 ### Pending Todos
 
@@ -106,6 +111,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T16:06:13.028Z
-Stopped at: Completed 13-05-PLAN.md (IOAPIC + virtio-net bind + netgate; X64-04 and X64-02 closed)
+Last session: 2026-11-07T17:13:53.730Z
+Stopped at: Completed 13-06-PLAN.md — Phase 13 complete (kernel-x64 + reproducible boot-iso + KVM-default gates + CI leg + evidence; X64-05 closed)
 Resume file: None
