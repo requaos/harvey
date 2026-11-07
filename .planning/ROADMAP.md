@@ -65,13 +65,13 @@ Full detail: `.planning/milestones/v2.0-ROADMAP.md`
   3. PCI/ECAM discovery works without DTB (ACPI MCFG or the fixed q35 window) with zero hardcoded addresses — the moved-window perturbation boot-test still finds and binds the device (X64-03)
   4. virtio-net binds on x86_64 through the arch-neutral `port/` transport and devether presents `/net/ether0` with live RX/TX counters — the guest's ARP request is observable in a host-side capture (X64-04)
   5. r9's flake ships an x86_64 kernel package and the acceptance gates run KVM-native by default, with the TCG fallback documented (X64-05)
-**Plans**: 1/6 plans executed
+**Plans**: 2/6 plans executed
 Plans:
 **Wave 1**
 - [x] 13-01-PLAN.md — q35 boot channel: config_q35.toml, TOML-driven -cdrom xtask arm, grub-mkrescue ISO, mb2 header in l.S — boot-test x86_64 banner gate green twice (X64-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 13-02-PLAN.md — main9-x64 rewrite + platform/q35 tree + mb2 parser + old-gen retirement — memory map on serial, gated (X64-01)
+- [x] 13-02-PLAN.md — main9-x64 rewrite + platform/q35 tree + mb2 parser + old-gen retirement — memory map on serial, gated (X64-01)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 13-03-PLAN.md — LAPIC + CPUID-gated TSC-deadline/periodic timer + IDT dispatch + serial echo — the Phase-3-style gate green twice, KVM + TCG (X64-01, X64-02)
@@ -176,7 +176,7 @@ Plans:
 | 10. Userspace Services + GUI Tiers + Bootfs | v2.0 | - | Subsumed → Phase 15 | - |
 | 11. In-Guest p9sk1 Auth Domain | v2.0 | - | Subsumed → Phase 18 | - |
 | 12. CPU Service + Drawterm + rio Desktop | v2.0 | - | Subsumed → Phase 19 | - |
-| 13. r9 x86_64 Platform Bring-Up | v2.1 | 1/6 | In Progress | - |
+| 13. r9 x86_64 Platform Bring-Up | v2.1 | 2/6 | In Progress | - |
 | 14. Harvey amd64 Userspace on r9 | v2.1 | - | Not started | - |
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | - | Not started | - |
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | - | Not started | - |
