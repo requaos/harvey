@@ -4,7 +4,7 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 status: completed
-stopped_at: Phase 13 complete — all phases complete
+stopped_at: Phase 13 complete — ready to plan Phase 14
 last_updated: "2026-11-07T17:42:11.342Z"
 last_activity: 2026-11-07
 last_activity_desc: Phase 13 complete
@@ -20,19 +20,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-06)
+See: .planning/PROJECT.md (updated 2026-11-07)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
-**Current focus:** Phase 13 — r9 x86_64 Platform Bring-Up
+**Current focus:** Phase 14 — Harvey amd64 Userspace on r9
 
 ## Current Position
 
-Phase: 13
+Phase: 14 (Harvey amd64 Userspace on r9) — READY TO PLAN
 Plan: Not started
-Status: All phases complete
-Last activity: 2026-11-07 — Phase 13 complete
+Status: Phase 13 complete (6/6 plans, verification 37/37 passed); roadmap phases 14-19 remain
+Last activity: 2026-11-07 — Phase 13 executed + verified
 
-Progress: [░░░░░░░░░░] 0% (v2.1: 0/7 phases)
+Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 
 ## Performance Metrics
 
@@ -111,5 +111,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-07T17:13:53.730Z
-Stopped at: Phase 13 complete — all phases complete
+Stopped at: Phase 13 complete (verified 37/37) — ready to plan Phase 14
 Resume file: None
