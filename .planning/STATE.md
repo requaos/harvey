@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: r9 x86_64 Platform Bring-Up
 status: executing
-stopped_at: Phase 13 context gathered
-last_updated: "2026-11-06T20:52:06.190Z"
+stopped_at: Completed 13-01-PLAN.md
+last_updated: "2026-11-07T00:21:23.253Z"
 last_activity: 2026-11-06
-last_activity_desc: "v2.1 roadmap created at the x86_64 pivot re-scope (v2.0 subsumed: Phases 6-8 delivered, 9-12 inherited re-keyed to x86_64)"
-state_head: 1c80afe9f21437f945362be4c4b3544868b63dc5
+last_activity_desc: Phase 13 execution started
+state_head: ea93c029b3a6d38cd6da2b1d3210f40bd6b55977
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 6
-  completed_plans: 0
+  completed_plans: 1
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-11-06)
 
 ## Current Position
 
-Phase: 13 (r9 x86_64 Platform Bring-Up) — READY TO EXECUTE
-Plan: 0 of TBD in current phase
+Phase: 13 (r9 x86_64 Platform Bring-Up) — EXECUTING
+Plan: 2 of 6
 Status: Ready to execute
-Last activity: 2026-11-06 — v2.1 roadmap created at the x86_64 pivot re-scope (v2.0 subsumed: Phases 6-8 delivered, 9-12 inherited re-keyed to x86_64)
+Last activity: 2026-11-06 — Phase 13 execution started
 
 Progress: [░░░░░░░░░░] 0% (v2.1: 0/7 phases)
 
@@ -48,6 +48,11 @@ Progress: [░░░░░░░░░░] 0% (v2.1: 0/7 phases)
 | - | - | - | - |
 
 **Recent Trend:** n/a (milestone start)
+**Per-Plan Metrics:**
+
+| Plan | Duration | Tasks | Files |
+|------|----------|-------|-------|
+| Phase 13 P01 | 27 min | 2 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -58,6 +63,9 @@ Recent decisions affecting current work:
 
 - [v2.1 re-scope 2026-11-06]: Pivot target aarch64 → x86_64; v2.0 subsumed (6-8 delivered, 9-12 inherited re-keyed); aarch64 frozen at the v2.0 pin
 - [v2.1 re-scope 2026-11-06]: Three-track end state — Harvey-on-9k standalone ∥ Harvey-on-r9 (v2.1 proving ground) → r9 as complete Rust port of Harvey (future milestone)
+- [Phase 13]: GRUB 2.14 mb2 ELF64 loader honors the AT() p_paddr bias for higher-half entries (0xffffffff80200000 boots at phys 0x200000) — no low-entry trampoline needed; kernel.ld unchanged (13-01, RESEARCH A2 confirmed empirically)
+- [Phase 13]: grub.cfg puts GRUB console on serial + -no-reboot on the x86_64 boot-test arm: loader errors are visible on the gate wire and a wedged channel exits loudly instead of a SeaBIOS reboot loop (13-01)
+- [Phase 13]: [qemu] netdev table (mode/device/pcap) + extra args are xtask config data consumed by the generalized apply_netdev emitter (q35-gated); aarch64 apply_virt_netdev stays frozen-at-pin (13-01, OQ-2 resolved)
 
 ### Pending Todos
 
@@ -79,6 +87,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-06T18:42:49.133Z
-Stopped at: Phase 13 context gathered
-Resume file: .planning/phases/13-r9-x86-64-platform-bring-up/13-CONTEXT.md
+Last session: 2026-11-07T00:21:23.224Z
+Stopped at: Completed 13-01-PLAN.md
+Resume file: None
