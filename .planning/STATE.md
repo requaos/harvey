@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: r9 x86_64 Platform Bring-Up
 status: executing
-stopped_at: Completed 13-04-PLAN.md (ACPI/ECAM discovery + moved-window gate green; X64-03 closed)
-last_updated: "2026-11-07T15:21:15.370Z"
+stopped_at: Completed 13-05-PLAN.md (IOAPIC + virtio-net bind + netgate; X64-04 and X64-02 closed)
+last_updated: "2026-11-07T16:06:13.055Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 13 execution started
-state_head: f1c56cc0bf05fa32e12f24475badd482cb2b6405
+state_head: fd74807bea17d7bf1ae9021889993595cc785fb6
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 6
-  completed_plans: 4
+  completed_plans: 5
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-06)
 ## Current Position
 
 Phase: 13 (r9 x86_64 Platform Bring-Up) — EXECUTING
-Plan: 5 of 6
+Plan: 6 of 6
 Status: Ready to execute
 Last activity: 2026-11-06 — Phase 13 execution started
 
@@ -56,6 +56,7 @@ Progress: [░░░░░░░░░░] 0% (v2.1: 0/7 phases)
 | Phase 13 P02 | 45 min | 2 tasks | 16 files |
 | Phase 13 P03 | 12h 41m | 3 tasks | 11 files |
 | Phase 13 P04 | 69 min | 3 tasks | 6 files |
+| Phase 13 P05 | 39 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -80,6 +81,10 @@ Recent decisions affecting current work:
 - [Phase 13]: 13-04: -global q35-pcihost.MCFG crashes qemu 11.1.2 at machine init (any value — the property shares PCIExpressHost.base_addr with the mmcfg is-mapped state); the X64-03 perturbation rides -acpitable injection of a committed moved-MCFG binary instead, with the walk taking the last MCFG (override idiom) and the gate asserting exact bases
 - [Phase 13]: 13-04: the q35 discovery gate stage anchors POSITIONALLY past the last q35: memory line (last_marker_line_end) — the kernel prints facts+discovery in one serial burst, so a satisfaction-time capture-length anchor deadlocks the stage
 - [Phase 13]: 13-04: bridge secondary/subordinate live at config 0x19/0x1A (the plan's 0x18/0x1C named the primary/IO slots); live route: virtio-net 1af4:1041 at 00:02.0 INTA -> GSI 22 (PIRQ G = 16+6), the pciexbar audit line is the window-move evidence
+- [Phase 13]: 13-05: The IOAPIC uses the 82093AA/ACPI IOWIN 0x10 layout (verified live: id 0 version 0x11 rtes 23), MADT-driven with the IntSrcOverride fold; BAR assignments are firmware-kept with the [ecam-end, ioapic-base) derived window as fallback
+- [Phase 13]: 13-05: Post-sti boot-context code must mask around driver ops AND console prints (the console MCS lock vs the timer tick IRQ print — the wedge found live at the first tx-bulk run); the netgate runs masked posts + enabled waits
+- [Phase 13]: 13-05: Pitfall 6 recorded in the metal: 0 mfence across the whole 2M-line kernel disassembly — the trait-default core fences compile away on TSO, correct while EVENT_IDX stays un-negotiated
+- [Phase 13]: 13-05: OQ-1 resolved — driver_ops() widened pub(crate)->pub (the one-line port seam) and the kernel-side netgate consumes it after sti; Phase 14 swaps the exec dd path in at the same seam
 
 ### Pending Todos
 
@@ -101,6 +106,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T15:21:15.343Z
-Stopped at: Completed 13-04-PLAN.md (ACPI/ECAM discovery + moved-window gate green; X64-03 closed)
+Last session: 2026-11-07T16:06:13.028Z
+Stopped at: Completed 13-05-PLAN.md (IOAPIC + virtio-net bind + netgate; X64-04 and X64-02 closed)
 Resume file: None
