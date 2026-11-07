@@ -10,7 +10,7 @@
 
 ### r9 x86_64 Platform Bring-Up (X64)
 
-- [ ] **X64-01**: r9 boots on qemu x86_64 (q35-vs-pc machine decision recorded with rationale) via a recorded DTB-free boot protocol (decided against 9k's existing multiboot path or equivalent) — the Phase-3-style platform gate: banner, timer ticks, serial input echo
+- [x] **X64-01**: r9 boots on qemu x86_64 (q35-vs-pc machine decision recorded with rationale) via a recorded DTB-free boot protocol (decided against 9k's existing multiboot path or equivalent) — the Phase-3-style platform gate: banner, timer ticks, serial input echo
 - [ ] **X64-02**: APIC interrupt plumbing (LAPIC + IOAPIC) + HPET/PIT timers proven under load — the GICv2/GICv3 equivalent; INTx level-triggered virtio ISR read-to-ack re-proven
 - [ ] **X64-03**: PCI/ECAM discovery without DTB (ACPI MCFG or the fixed q35 window) with a moved-window perturbation proof — NETDRV-01's no-hardcoded-constants discipline carried to x86_64
 - [ ] **X64-04**: virtio-net binds on x86_64 (arch-neutral `port/` carry-over) and devether presents `/net/ether0` with the guest ARP observable on the host — the NETDRV gates re-proven
@@ -120,7 +120,7 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| X64-01 | Phase 13 | Pending |
+| X64-01 | Phase 13 | Complete |
 | X64-02 | Phase 13 | Pending |
 | X64-03 | Phase 13 | Pending |
 | X64-04 | Phase 13 | Pending |

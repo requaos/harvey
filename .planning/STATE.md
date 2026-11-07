@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: r9 x86_64 Platform Bring-Up
 status: executing
-stopped_at: "Phase 13 wave 3 checkpoint: 13-03 KVM gate red on the option-A retest as well (kernel 7.3.1, enable_apicv=Y verified live: wrmsr(0x832) #GP(0) for any tsc-deadline CPU model with apicv Y or N — option A exhausted; periodic-under-KVM and TCG legs green) — awaiting user decision (B: pin gate CPU bit-24-clear / C: accept documented deviation)"
-last_updated: "2026-11-07T13:45:00.000Z"
+stopped_at: Completed 13-03-PLAN.md (x2APIC fix landed; KVM gate green twice + TCG leg; X64-01 closed)
+last_updated: "2026-11-07T14:04:12.393Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 13 execution started
-state_head: 4480b5ab82f4b24ed4b71b806750a463c2f62044
+state_head: 987414f1ad5affab5ba85af0a3ec63804de3a6a4
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 6
-  completed_plans: 2
+  completed_plans: 3
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-06)
 ## Current Position
 
 Phase: 13 (r9 x86_64 Platform Bring-Up) — EXECUTING
-Plan: 3 of 6
+Plan: 4 of 6
 Status: Ready to execute
 Last activity: 2026-11-06 — Phase 13 execution started
 
@@ -54,6 +54,7 @@ Progress: [░░░░░░░░░░] 0% (v2.1: 0/7 phases)
 |------|----------|-------|-------|
 | Phase 13 P01 | 27 min | 2 tasks | 8 files |
 | Phase 13 P02 | 45 min | 2 tasks | 16 files |
+| Phase 13 P03 | 12h 41m | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -71,6 +72,8 @@ Recent decisions affecting current work:
 - [Phase 13]: mb2 tag sizes are legitimately non-8-multiples (live: 9/18/28) — the parser validates positions/total_size/fixed bodies and walks 8-aligned; strict size%8 would reject GRUBs own output (13-02)
 - [Phase 13]: mb2 ACPI tags embed the RSDP structure itself — parser signature-validates and extracts the RSDT/XSDT address (live: rsdt 0x3ffe2345 via tag 14 on BIOS boots); 13-04 consumes it directly
 - [Phase 13]: The q35 gate asserts banner then >= 1 q35: memory fact line, order-anchored past the banner byte offset via marker_position (presence, never timings)
+- [Phase 13]: 13-03: MSR 0x832 is the x2APIC-mode LVT-timer address (0x800+0x320>>4) and KVM gates MSR range 0x800-0xBFF on x2APIC mode — the KVM #GP was this range gate plus a wrong constant; IA32_TSC_DEADLINE is 0x6E0, valid in either APIC mode (user root cause, dispatch 3)
+- [Phase 13]: 13-03: r9 x86_64 LAPIC runs CPUID-gated dual-mode — x2APIC MSR map when leaf-1 ECX bit 21 is present (KVM cpu=host), xAPIC MMIO fallback otherwise (TCG qemu64), same publish-once registry; the platform gate is green twice on KVM (x2apic+TSC-deadline) and once on TCG (xapic+periodic)
 
 ### Pending Todos
 
@@ -92,6 +95,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T13:45:00.000Z
-Stopped at: Phase 13 wave 3 checkpoint: 13-03 KVM gate red on the option-A retest too (kernel 7.3.1, enable_apicv=Y verified live, both consecutive runs #GP(0) on wrmsr(0x832) at pc 0x203ffd — same signature as apicv=N; option A exhausted; periodic-under-KVM, TCG, aarch64/check/clippy all green) — awaiting user decision: B pin the q35 gate CPU bit-24-clear (D-01 locked-cpu change) or C accept the documented deviation
-Resume file: .planning/phases/13-r9-x86-64-platform-bring-up/13-03-PLAN.md
+Last session: 2026-11-07T14:04:12.367Z
+Stopped at: Completed 13-03-PLAN.md (x2APIC fix landed; KVM gate green twice + TCG leg; X64-01 closed)
+Resume file: None
