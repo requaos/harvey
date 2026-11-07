@@ -22,9 +22,9 @@ affects: [13-05, 13-06, "Phase 16 HNET (the netdev/device substrate 13-05 binds)
 actuals:
   tokens: 20833   # chars/4 over git diff 351287f..f607126 in ../r9 (83332 chars, 6 files; plan estimated 62000, confidence low — the overestimate direction)
   tasks: 3
-  commits: 1      # MEASURED harvey-repo commits per the plan ledger (the docs commit). Production code: 5 commits in the sibling r9 repo (0c568de, 7d5b850, 772db29, cca67bd, f607126) per the dual-repo execution context.
+  commits: 2      # MEASURED: git rev-list --count 171ab0d01..HEAD on the harvey repo (the SUMMARY commit + the metadata commit). Production code: 5 commits in the sibling r9 repo (0c568de, 7d5b850, 772db29, cca67bd, f607126) per the dual-repo execution context.
 plan_head_before: 171ab0d018fae0c35780402402b5e8ebb8406dea
-plan_head_after: 171ab0d018fae0c35780402402b5e8ebb8406dea   # harvey-side pre-docs HEAD; all production commits live in ../r9 (351287f..f607126)
+plan_head_after: 171ab0d018fae0c35780402402b5e8ebb8406dea   # harvey-side pre-docs HEAD (the 13-03 convention: no harvey production commits this plan); all production commits live in ../r9 (351287f..f607126)
 
 # Tech tracking
 tech-stack:

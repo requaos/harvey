@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: r9 x86_64 Platform Bring-Up
 status: executing
-stopped_at: Completed 13-03-PLAN.md (x2APIC fix landed; KVM gate green twice + TCG leg; X64-01 closed)
-last_updated: "2026-11-07T14:04:12.393Z"
+stopped_at: Completed 13-04-PLAN.md (ACPI/ECAM discovery + moved-window gate green; X64-03 closed)
+last_updated: "2026-11-07T15:21:15.370Z"
 last_activity: 2026-11-06
 last_activity_desc: Phase 13 execution started
-state_head: 987414f1ad5affab5ba85af0a3ec63804de3a6a4
+state_head: f1c56cc0bf05fa32e12f24475badd482cb2b6405
 progress:
   total_phases: 1
   completed_phases: 0
   total_plans: 6
-  completed_plans: 3
+  completed_plans: 4
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-06)
 ## Current Position
 
 Phase: 13 (r9 x86_64 Platform Bring-Up) — EXECUTING
-Plan: 4 of 6
+Plan: 5 of 6
 Status: Ready to execute
 Last activity: 2026-11-06 — Phase 13 execution started
 
@@ -55,6 +55,7 @@ Progress: [░░░░░░░░░░] 0% (v2.1: 0/7 phases)
 | Phase 13 P01 | 27 min | 2 tasks | 8 files |
 | Phase 13 P02 | 45 min | 2 tasks | 16 files |
 | Phase 13 P03 | 12h 41m | 3 tasks | 11 files |
+| Phase 13 P04 | 69 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -74,6 +75,11 @@ Recent decisions affecting current work:
 - [Phase 13]: The q35 gate asserts banner then >= 1 q35: memory fact line, order-anchored past the banner byte offset via marker_position (presence, never timings)
 - [Phase 13]: 13-03: MSR 0x832 is the x2APIC-mode LVT-timer address (0x800+0x320>>4) and KVM gates MSR range 0x800-0xBFF on x2APIC mode — the KVM #GP was this range gate plus a wrong constant; IA32_TSC_DEADLINE is 0x6E0, valid in either APIC mode (user root cause, dispatch 3)
 - [Phase 13]: 13-03: r9 x86_64 LAPIC runs CPUID-gated dual-mode — x2APIC MSR map when leaf-1 ECX bit 21 is present (KVM cpu=host), xAPIC MMIO fallback otherwise (TCG qemu64), same publish-once registry; the platform gate is green twice on KVM (x2apic+TSC-deadline) and once on TCG (xapic+periodic)
+- [Phase 13]: 13-04: MADT entries begin at table offset 44 — after lapic_addr (36) comes a flags dword (40) the first synthetic fixtures shared the misreading of; found by dumping SeaBIOS's real MADT through the qemu monitor
+- [Phase 13]: 13-04: ECAM is memory-mapped config space — byte-granular, NO 0xFC mask; the CF8 mask cargo-culted into ecam_addr silently redirected every sub-dword read (device ID at 0x02 re-read the vendor) and the NIC was skipped as unidentified
+- [Phase 13]: 13-04: -global q35-pcihost.MCFG crashes qemu 11.1.2 at machine init (any value — the property shares PCIExpressHost.base_addr with the mmcfg is-mapped state); the X64-03 perturbation rides -acpitable injection of a committed moved-MCFG binary instead, with the walk taking the last MCFG (override idiom) and the gate asserting exact bases
+- [Phase 13]: 13-04: the q35 discovery gate stage anchors POSITIONALLY past the last q35: memory line (last_marker_line_end) — the kernel prints facts+discovery in one serial burst, so a satisfaction-time capture-length anchor deadlocks the stage
+- [Phase 13]: 13-04: bridge secondary/subordinate live at config 0x19/0x1A (the plan's 0x18/0x1C named the primary/IO slots); live route: virtio-net 1af4:1041 at 00:02.0 INTA -> GSI 22 (PIRQ G = 16+6), the pciexbar audit line is the window-move evidence
 
 ### Pending Todos
 
@@ -95,6 +101,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T14:04:12.367Z
-Stopped at: Completed 13-03-PLAN.md (x2APIC fix landed; KVM gate green twice + TCG leg; X64-01 closed)
+Last session: 2026-11-07T15:21:15.343Z
+Stopped at: Completed 13-04-PLAN.md (ACPI/ECAM discovery + moved-window gate green; X64-03 closed)
 Resume file: None
