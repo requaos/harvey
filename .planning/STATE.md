@@ -3,14 +3,15 @@ gsd_state_version: "1.0"
 milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
+current_phase_name: Harvey amd64 Userspace on r9
 status: completed
-stopped_at: Phase 13 complete — ready to plan Phase 14
-last_updated: "2026-11-07T17:42:11.342Z"
+stopped_at: Phase 14 context gathered
+last_updated: "2026-11-08T15:56:23.556Z"
 last_activity: 2026-11-07
 last_activity_desc: Phase 13 complete
-state_head: c329bf6cf34f0c50febb35795f18ff734dd79f44
+state_head: 95967056c1edf9a95f244a187ee677decffec371
 progress:
-  total_phases: 1
+  total_phases: 2
   completed_phases: 1
   total_plans: 6
   completed_plans: 6
@@ -110,6 +111,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-07T17:13:53.730Z
-Stopped at: Phase 13 complete (verified 37/37) — ready to plan Phase 14
-Resume file: None
+Last session: 2026-11-08T15:56:23.518Z
+Stopped at: Phase 14 context gathered
+Resume file: .planning/phases/14-harvey-amd64-userspace-on-r9/14-CONTEXT.md
