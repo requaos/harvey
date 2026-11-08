@@ -1,0 +1,70 @@
+</$objtype/mkfile
+
+# sys/src/9k/boot/mkfile.amd64 — the additive, objtype-gated amd64
+# boot(8) build for the r9 boot chain (14-06, XEXEC-03).  Same
+# rationale as the aarch64 sibling: boot has no standalone mkfile —
+# the amd64 kernel path builds it from the kernel build dir via
+# ../mk/bootmkfile with an awk-generated bootconf (../mk/parse
+# -mkbootconf against the kernel config, e.g. k10cpu).  With no
+# kernel config for the r9 boot, the hand-written bootr9.c supplies
+# the bootconf instead (verified 14-06: it compiles under 6c
+# unchanged — the A4 assumption holds, the file is arch-neutral).
+#
+# Invoked from the namespace build:
+#	objtype=amd64 mk -f mkfile.amd64
+# (driven by build/x86_64/stage-build.sh's boot-chain section).  The
+# default target leaves the `boot` binary in the cwd; stage-build.sh
+# harvests it to build/x86_64/out/boot.  boot is pid 1, not a user
+# command — there is deliberately no install rule into /$objtype/bin.
+#
+# BOOTFILES is bootmkfile's archive list trimmed to the real 6l link
+# closure of the embed-only method table (identical to the aarch64
+# trims — same C sources, same bootconf method[]):
+#   - paq.$O is the lone trim: configpaq/connectpaq serve only the
+#     flash-ramdisk method our table never names (embed's
+#     configembed/connectembed live in embed.$O), and nothing else in
+#     the closure references them.
+#   - bootcache.$O stays: not for cache() (cfs is nil) but for statbuf,
+#     which settime.c and local.c extern from boot.h.
+#   - bootip.$O stays: local.c's connectlocalfossil calls configip, and
+#     usb.c's runv pulls local.c into the link.
+#   - printstub.$O is linked explicitly (never via the archive) so its
+#     _fmtlock/_fmtunlock/_efgfmt stubs beat libc's fmt members at link
+#     resolution — the same reason bootmkfile names it on the link line.
+# The link also resolves autolibs (the #pragma lib records the .6
+# files carry): libc.a, libbio.a, libauth.a, libip.a — stage-build.sh
+# installs them into /amd64/lib before this runs.
+
+BOOTLIB=libboot.a$O
+
+BOOTFILES=\
+	bootauth.$O\
+	aux.$O\
+	boot.$O\
+	bootcache.$O\
+	bootip.$O\
+	local.$O\
+	embed.$O\
+	settime.$O\
+	parts.$O\
+	usb.$O\
+
+all:V:	boot
+
+$BOOTLIB(%.$O):N:	%.$O
+
+$BOOTLIB:	${BOOTFILES:%=$BOOTLIB(%)}
+	names=`{membername $newprereq}
+	ar vu $BOOTLIB $names
+	rm $names
+
+$BOOTFILES:	boot.h
+
+%.$O:	%.c
+	$CC -I. $CFLAGS $stem.c
+
+boot:	bootr9.$O printstub.$O $BOOTLIB
+	$LD -o boot bootr9.$O $BOOTLIB printstub.$O
+
+clean:V:
+	rm -f *.[$OS] $BOOTLIB boot
