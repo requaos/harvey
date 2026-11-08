@@ -1,0 +1,29 @@
+# /lib/namespace for the r9 boot chain image — scoped
+# from lib/namespace, modeled on sys/src/9k/k10/root/k10root.namespace's
+# shape (re-keyed from the aarch64 sibling — arch-neutral: $cputype
+# resolves amd64 at runtime).  No network binds (#I/#l0) and no
+# factotum mount — auth is stub-by-absence and the embedded root has
+# no network this era.
+#
+# The RE-MOUNT pair comes FIRST (the binding finding,
+# proven empirically on the donor): newns's rfork(RFENVG|RFCNAMEG) WIPES
+# the mount table boot built, so the paqfs tree must be re-attached at
+# /root (via #s/boot — the devsrv entry boot's srvcreate posted) and
+# re-bound onto / before any /root-prefixed bind can resolve.  Without
+# this pair, the bin binds below fail soft and init's exec of /bin/rc
+# stalls.
+
+# re-mount the root server (the wiped table's reconstruction)
+mount -a #s/boot /root
+bind -a /root /
+
+# kernel devices
+bind #c /dev
+bind #d /fd
+bind -c #e /env
+bind #p /proc
+bind -c #s /srv
+
+# standard bin
+bind /root/$cputype/bin /bin
+bind -a /root/rc/bin /bin

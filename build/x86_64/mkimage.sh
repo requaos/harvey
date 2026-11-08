@@ -1,26 +1,40 @@
 #!/bin/sh
-# build/x86_64/mkimage.sh — bake build/x86_64/out/bootfs.paq, the paqfs
-# root image for the r9 x86_64 staged-exec boot (14-05, D-04: the byte
-# format carried VERBATIM from aarch64 — same header magic 529ab12b,
-# same trailer 6b46e688, same in-tree mkpaqfs, same r9 miniz-inflate
-# reader).  Stages a scratch tree from the committed
-# build/x86_64/root-tree/ skeleton plus the built marker binaries
-# (stage-build.sh's smoke-out/), then invokes the host mkpaqfs
-# (.build/bin/mkpaqfs, built by build/x86_64/mkpaqfs-host.sh when
-# missing).
+# build/x86_64/mkimage.sh — bake build/x86_64/out/bootfs.paq (the 14-05
+# MARKER image) AND, since 14-06, build/x86_64/out/bootfs-chain.paq (the
+# BOOT-CHAIN image), the paqfs root images for the r9 x86_64 boots (D-04:
+# the byte format carried VERBATIM from aarch64 — same header magic
+# 529ab12b, same trailer 6b46e688, same in-tree mkpaqfs, same r9
+# miniz-inflate reader).  Each stages a scratch tree from the committed
+# build/x86_64/root-tree/ skeleton plus the built binaries, then invokes
+# the host mkpaqfs (.build/bin/mkpaqfs, built by
+# build/x86_64/mkpaqfs-host.sh when missing).
 #
-# Image contract (D-08's staged leg 1 — this is the MARKER image, not
-# the boot-chain image):
+# Marker-image contract (D-08's staged leg 1 — the q35exec gate):
 #   /amd64/init                  the smokesleep marker (the q35exec
 #                                BOOT_ENTRY target) — NOT the real
-#                                init; the boot(8) chain is 14-06's leg
+#                                init
 #   empty dirs /root /env /proc /dev /srv /fd /bin /tmp /mnt /net
-#                                (bind/mount targets must pre-exist;
-#                                the image is read-only)
 #   NO /boot/factotum            auth stub = absence: its mere presence
 #                                flips authentication() into the real
 #                                factotum-exec path (Phase 18)
-#   NO /boot/*, NO /rc/*         the boot chain + rcmain join at 14-06+
+#   NO /boot/*, NO /rc/*         the chain's alone
+#
+# Chain-image contract (14-06, XEXEC-03 leg 2 — the q35shell gate; the
+# aarch64 boot-chain manifest re-keyed to /amd64 paths):
+#   /boot/boot, /boot/paqfs      boot(8) + its paqfs 9P server
+#   /amd64/init                  the REAL init (execinit's /%s/init)
+#   /amd64/bin/rc                init's fexec target
+#   /rc/lib/rcmain               copied VERBATIM from rc/lib/rcmain at
+#                                bake time (single source of truth; the
+#                                cmp guard pins it — the rc-main that
+#                                sets the '% ' prompt the gate asserts)
+#   /rc/bin/termrc               scoped — committed skeleton
+#   /lib/namespace               scoped — committed skeleton
+#   /adm/timezone/local          copied from the repo's adm/timezone
+#                                at bake time (init's cpenv consumer)
+#   /usr/glenda/lib/profile      committed skeleton
+#   empty dirs /root /env /proc /dev /srv /fd /bin /tmp /mnt /net
+#   NO /boot/factotum            auth stub = absence (same rule)
 #
 # Determinism (Pitfall 6, so 14-07's composed-ISO FOD can inherit): the
 # staged tree's mtimes are pinned to KERNDATE and mkpaqfs's header time
@@ -31,7 +45,7 @@
 # committed-skeleton tar + the ordered loops below).
 #
 # usage: sh build/x86_64/mkimage.sh   (repo root, inside the nix
-# devshell; run stage-build.sh first — the smoke-out/ inputs)
+# devshell; run stage-build.sh first — the smoke-out/ + out/ inputs)
 
 set -eu
 
@@ -72,6 +86,18 @@ fi
 for f in init smokesleep; do
 	[ -s "$STAGE_SRC/$f" ] || err "$STAGE_SRC/$f missing — run sh build/x86_64/stage-build.sh first"
 done
+# 14-06: the chain inputs (stage-build.sh's boot-chain section — out/ is
+# the boot chain's home, the aarch64 separation; the marker owns
+# smoke-out/init and the real init must never overwrite it)
+CHAIN_OUT="$HARVEY/build/x86_64/out"
+for f in boot init rc paqfs; do
+	[ -s "$CHAIN_OUT/$f" ] || err "$CHAIN_OUT/$f missing — run sh build/x86_64/stage-build.sh first (the boot-chain section)"
+done
+[ -f "$HARVEY/rc/lib/rcmain" ] || err "rc/lib/rcmain missing (ships verbatim)"
+[ -f "$HARVEY/adm/timezone/local" ] || err "adm/timezone/local missing (the repo's tz data)"
+[ -f "$ROOT_TREE/rc/bin/termrc" ] || err "$ROOT_TREE/rc/bin/termrc missing — the committed chain skeleton (14-06)"
+[ -f "$ROOT_TREE/lib/namespace" ] || err "$ROOT_TREE/lib/namespace missing — the committed chain skeleton (14-06)"
+[ -f "$ROOT_TREE/usr/glenda/lib/profile" ] || err "$ROOT_TREE/usr/glenda/lib/profile missing — the committed chain skeleton (14-06)"
 
 # KERNDATE from the caller; the boot-r9.sh provenance derivation when
 # absent (git %ct of the checkout; wall clock only without git metadata)
@@ -92,9 +118,12 @@ trap cleanup EXIT
 STAGE="$TMPD/root"
 mkdir -p "$STAGE"
 
-# 1. the committed skeleton (this era: the documented placeholder tree —
-#    14-06+ grows rcmain/termrc/namespace into it)
+# 1. the committed skeleton (14-06 grew rcmain/termrc/namespace into the
+#    root-tree — the CHAIN bake consumes them; the marker tree strips
+#    the chain-only /rc + /usr subtrees so the 14-05 leg-1 contract
+#    (NO /rc/*, chain files absent) keeps its letter)
 (cd "$ROOT_TREE" && tar -cf - .) | (cd "$STAGE" && tar -xf -)
+rm -rf "$STAGE/rc" "$STAGE/usr"
 
 # 2. empty mount-point dirs + staging parents (fixed order)
 mkdir -p "$STAGE/root" "$STAGE/env" "$STAGE/proc" "$STAGE/dev" "$STAGE/srv" \
@@ -154,3 +183,84 @@ trailer=$(od -An -tx1 -j $((sz - 28)) -N 4 "$IMAGE" | tr -d ' \n')
 [ "$trailer" = "6b46e688" ] || err "$IMAGE: bad trailer magic $trailer (want 6b46e688)"
 
 echo "== PASS: baked $IMAGE ($sz bytes; header $magic trailer $trailer; KERNDATE $KERNDATE)"
+
+# ------------------------------------------------------------------
+# 8. the CHAIN bake (14-06, XEXEC-03 leg 2 — the aarch64 boot-chain
+#    manifest re-keyed to /amd64 paths).  A fresh staging tree; the
+#    chain binaries come from out/ (stage-build.sh's boot-chain
+#    section), rcmain verbatim from rc/lib/rcmain, the rc/lib +
+#    timezone data from the repo.  Same KERNDATE determinism + the same
+#    byte-format contract as the marker bake above.
+CHAIN_IMAGE="$OUT/bootfs-chain.paq"
+
+# 8a. chain-binary identity (the marker guard, INVERTED — the chain
+#     image's /amd64/init IS the real init; grep matches rodata strings
+#     on the a.out bytes)
+"$GREP" -q "init: starting /bin/rc" "$CHAIN_OUT/init" \
+	|| err "out/init is not the real init (the marker landed in the chain home — re-run sh build/x86_64/stage-build.sh)"
+"$GREP" -q "smokesleep: interrupted" "$CHAIN_OUT/init" \
+	&& err "out/init is the smokesleep marker (leg-1 supply pollution — re-run sh build/x86_64/stage-build.sh)"
+
+STAGE2="$TMPD/root-chain"
+mkdir -p "$STAGE2"
+
+# 8b. the committed skeleton (termrc/namespace/profile — the chain
+#     consumes the whole tree; the README stays, harmless)
+(cd "$ROOT_TREE" && tar -cf - .) | (cd "$STAGE2" && tar -xf -)
+
+# 8c. empty mount-point dirs + staging parents (the marker bake's
+#     fixed-order shape)
+mkdir -p "$STAGE2/root" "$STAGE2/env" "$STAGE2/proc" "$STAGE2/dev" "$STAGE2/srv" \
+	"$STAGE2/fd" "$STAGE2/bin" "$STAGE2/tmp" "$STAGE2/mnt" \
+	"$STAGE2/net" "$STAGE2/boot" "$STAGE2/amd64/bin" \
+	"$STAGE2/rc/lib" "$STAGE2/rc/bin" "$STAGE2/adm/timezone"
+
+# 8d. the chain binaries (deterministic staging order)
+cp "$CHAIN_OUT/boot" "$STAGE2/boot/boot"
+cp "$CHAIN_OUT/paqfs" "$STAGE2/boot/paqfs"
+cp "$CHAIN_OUT/init" "$STAGE2/amd64/init"
+cp "$CHAIN_OUT/rc" "$STAGE2/amd64/bin/rc"
+
+# 8e. bake-time verbatim copies (rcmain: never edited, single source of
+#     truth — the rc-main that sets the '% ' prompt; timezone: the
+#     repo's data, consumed by init's cpenv)
+cp "$HARVEY/rc/lib/rcmain" "$STAGE2/rc/lib/rcmain"
+cp "$HARVEY/adm/timezone/local" "$STAGE2/adm/timezone/local"
+
+# 8f. pre-bake manifest: every mandated chain path exists — PRINTED as
+#     the staging manifest (the bake log is the gate's evidence)
+for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
+	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
+	usr/glenda/lib/profile; do
+	[ -f "$STAGE2/$p" ] || err "chain manifest: $p missing from staged tree"
+	echo "chain manifest: /$p staged"
+done
+for p in root env proc dev srv fd bin tmp mnt net; do
+	[ -d "$STAGE2/$p" ] || err "chain manifest: mount-point dir /$p missing"
+done
+
+# 8g. /boot/factotum ABSENCE (auth-stub-by-absence — the same D-02 rule
+#     as the marker bake; the chain's authentication() takes the
+#     glenda() stub path without it)
+[ ! -e "$STAGE2/boot/factotum" ] || err "chain manifest: /boot/factotum present — auth-stub-by-absence violated"
+
+# 8h. rcmain ships byte-verbatim (the aarch64 cmp guard, carried)
+cmp -s "$HARVEY/rc/lib/rcmain" "$STAGE2/rc/lib/rcmain" || err "staged rcmain diverges from rc/lib/rcmain"
+
+# 8i. determinism: pin every staged mtime to KERNDATE (the marker
+#     bake's rule)
+find "$STAGE2" -exec touch -h -d "@$KERNDATE" {} +
+
+# 8j. bake
+rm -f "$CHAIN_IMAGE"
+KERNDATE="$KERNDATE" "$MKPAQFS" -o "$CHAIN_IMAGE" "$STAGE2" || err "mkpaqfs failed (chain)"
+[ -s "$CHAIN_IMAGE" ] || err "$CHAIN_IMAGE missing/empty after mkpaqfs"
+
+# 8k. the byte-format contract (same header/trailer magic checks)
+magic2=$(od -An -tx1 -N4 "$CHAIN_IMAGE" | tr -d ' \n')
+[ "$magic2" = "529ab12b" ] || err "$CHAIN_IMAGE: bad header magic $magic2 (want 529ab12b)"
+sz2=$(wc -c < "$CHAIN_IMAGE" | tr -d ' ')
+trailer2=$(od -An -tx1 -j $((sz2 - 28)) -N 4 "$CHAIN_IMAGE" | tr -d ' \n')
+[ "$trailer2" = "6b46e688" ] || err "$CHAIN_IMAGE: bad trailer magic $trailer2 (want 6b46e688)"
+
+echo "== PASS: baked $CHAIN_IMAGE ($sz2 bytes; header $magic2 trailer $trailer2; KERNDATE $KERNDATE)"

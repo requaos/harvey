@@ -1,0 +1,12 @@
+#!/bin/rc
+# scoped /rc/bin/termrc for the r9 x86_64 boot chain image (14-06) —
+# re-keyed from the aarch64 sibling (same stage discipline): replaces
+# cfg/example/termrc's network/window machinery, the embedded root has
+# neither.  NO stacksmoke this era: it is the demand-paged-stack proof
+# and x86_64 maps eagerly with no trap-context pager yet (the 14-04
+# recorded era-limit — deep recursion past the seed pages would
+# fault-kill the proc); it rejoins when the pager lands.  NO rio/gui
+# lines (Phase 15+).
+# Ends in exec rc -i → rcmain → the interactive %  prompt (the gate
+# asserts the literal).
+exec rc -i
