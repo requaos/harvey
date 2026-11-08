@@ -533,19 +533,21 @@ All other claims in this document carry [VERIFIED: path] or [CITED: url] tags fr
 
 ## Open Questions
 
-1. **The parameterized boot-iso flake API shape (D-05)**
+Resolution state (planning pass, 2026-11-08): all four questions below are RESOLVED in executable plan content — per-question markers cite the resolving plan task.
+
+1. **The parameterized boot-iso flake API shape (D-05)** — RESOLVED (plan 14-07 Task 1: BOTH shapes from one source — an argv-driven `iso-builder` script derivation plus a flake-lib function deriving from the same code; the composed ISO is reproducible-by-construction with the kernel-only FOD hash preserved and proven by `nix build .#boot-iso --rebuild`)
    - What we know: current r9 boot-iso is a self-contained FOD with a hash wired after a byte-identity proof; Harvey must call a builder with kernel-x64 + a module it builds itself.
    - What's unclear: whether the export is a flake lib function (`r9.lib.bootIso {kernel, modules}` returning a derivation Harvey FOD-wraps) or a package parameterized via an input overlay; where the composed ISO's outputHash discipline lives.
    - Recommendation: planner decides with a small design note in the plan; either shape keeps the xorriso-wrapper/strip staging un-forked in r9. Costly to reverse (D-05's own rating) — decide once, early.
-2. **Per-process address-space shape on x86_64 (discretion item)**
+2. **Per-process address-space shape on x86_64 (discretion item)** — RESOLVED (plan 14-04 Task 1 implements the recommendation verbatim — per-process CR3/PML4 with the kernel higher half shared, TSS rsp0 = kernel stack top; the entry-state and stack-bound donor references are restated in 14-01 Task 2's ABI.md)
    - What we know: PROJECT.md locks the per-process live-user-memory model (the TTBR0-live analog — user pages visible in kernel context, no copy layer); 9k uses per-process CR3 with the higher-half kernel mapped; kernel text/data live at 0xffffffff80000000+ (KZERO); user text at 0x200028; r9's own aarch64 chose USTACKTOP 0x0000_8000_0000_0000.
    - What's unclear: the concrete x86_64 choice (per-process PML4 + shared kernel half is the obvious conforming shape) and the TSS-rsp0 vs kstack-field mechanics r9's port.rs will use.
    - Recommendation: mirror 9k's shape (per-process CR3, kernel half shared, TSS rsp0 = kernel stack top); record in the plan as the locked discretion resolution.
-3. **Where the x86_64 exec substrate lives (arch crate vs port)**
+3. **Where the x86_64 exec substrate lives (arch crate vs port)** — RESOLVED (plan 14-04 Task 1: straight port into the x86_64 arch crate, cfg-gated per Phase 13's port-sharing rule; no port/ refactor until a third arch needs it — the recommendation adopted as written)
    - What we know: aarch64 keeps exec.rs/proc.rs/syscall.rs/usermem.rs in the arch crate (~5,360 lines total); port/ holds the arch-neutral devices. The x86_64 crate already has its own dat/trap/seg.
    - What's unclear: how much factors into port/ during the port (e.g. a shared frame-trait) vs straight arch-crate duplication.
    - Recommendation: straight port first (cfg-gated per Phase 13's port-sharing rule); refactor toward port/ only if a third arch needs it. Avoid premature abstraction.
-4. **grub.cfg staging for the module (committed file vs template)**
+4. **grub.cfg staging for the module (committed file vs template)** — RESOLVED (plan 14-05 Task 1, carried by 14-07 Task 1: TEMPLATED — module2 lines emitted IN when a module is staged, OUT for kernel-only ISOs; GRUB fails a menuentry whose module file is absent, and kernel-only ISO bytes plus the wired boot-iso FOD hash must stay unchanged — this diverges from the unconditional-line recommendation below, which predated the FOD-preservation constraint)
    - What we know: grub.cfg is committed verbatim in r9 (`x86_64/lib/grub.cfg`), staged by xtask AND the flake; the module line references a path that only exists in the composed ISO.
    - What's unclear: whether the committed grub.cfg gains the module2 line unconditionally (kernel-only dev boots tolerate a missing module with a loud parse note) or the builder templates it.
    - Recommendation: unconditional line + loud "no module tag" behavior in dev boots is simplest and matches the loader-mediated lineage; planner's call.
