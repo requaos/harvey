@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: Phase 14 context gathered
-last_updated: "2026-11-08T18:12:08.209Z"
-last_activity: 2026-11-07
-last_activity_desc: Phase 13 complete
-state_head: 0db389d37aa7722de9f903a490c215388f7ef511
+stopped_at: Completed 14-01-PLAN.md
+last_updated: "2026-11-08T19:06:19.199Z"
+last_activity: 2026-11-08
+last_activity_desc: Phase 14 execution started
+state_head: 0aeab50320049c1250daf70af5169ffe2e6991ab
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 15
-  completed_plans: 6
+  completed_plans: 7
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 
 ## Current Position
 
-Phase: 14 (Harvey amd64 Userspace on r9) — READY TO EXECUTE
-Plan: Not started
+Phase: 14 (Harvey amd64 Userspace on r9) — EXECUTING
+Plan: 2 of 9
 Status: Ready to execute
-Last activity: 2026-11-07 — Phase 13 executed + verified
+Last activity: 2026-11-08 — Phase 14 execution started
 
 Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 
@@ -58,6 +58,7 @@ Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 | Phase 13 P04 | 69 min | 3 tasks | 6 files |
 | Phase 13 P05 | 39 min | 3 tasks | 12 files |
 | Phase 13 P06 | 59 min | 3 tasks | 9 files |
+| Phase 14 P01 | 21 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -90,6 +91,10 @@ Recent decisions affecting current work:
 - [Phase 13]: 13-06: the boot-iso stages a strip-ALL kernel + a length-preserving store-hash zero-zap — rustc emits per-invocation-random .llvm.<u64> anon symbols (symtab identity impossible) and build-std's toolchain panic strings match nix's hash-keyed FOD reference scanner even under a prefix remap; GRUB mb2 loads only PT_LOADs so the symtab is dead weight anyway
 - [Phase 13]: 13-06: the flake owns the distributable reproducible boot-iso fixed-output derivation (hash wired only after a two-independent-derivation byte-identity proof — a cache-hit --rebuild proves only the ISO layer); the xtask gate keeps its per-invocation dev copy for evidence freshness (OQ-3)
 - [Phase 13]: 13-06: the CI leg selects TCG explicitly (--accel tcg --cpu qemu64 — hosted runners are KVM-less per A7); the no-silent-downgrade rule holds everywhere: accel comes only from the flag > R9_ACCEL/R9_CPU env > TOML kvm default, and a KVM-less venue fails loudly unless TCG was selected
+- [Phase 14]: 14-01 D-01 landed: r9 x86_64 Ureg reworked to the 184-byte 9k-verbatim layout — u16 ds/es/fs/gs quartet packed in one qword at 120, type@128, cs@152; UREG_TRAPNO_OFFSET=16*8 / UREG_CS_OFFSET=19*8; always-on const asserts; no compat shim
+- [Phase 14]: 14-01 CR-01-class witness re-derivation: intrspecial/intrregular's SWAPPED_CS_OFFSET+24 sites are stub-entry-relative (independent of the carve) and stay correct; intrcommon's btr rides UREG_CS_OFFSET 176->152 (byte 159 = CS qword high byte), re-derivation documented in place
+- [Phase 14]: 14-01 D-02 landed: amd64/ABI.md freezes the FULL exec interface — BP number / args at user SP+8 (SP+0 = return-address slot) / SYSCALL / AX result / Sfmask=If; nsec no-spill, _seek, _exits quirks; sys.h 0-54 with the loud-unimplemented rule; USTKTOP 0x00007ffffffff000 + 16 MiB stack policy as the adopted discretion resolution
+- [Phase 14]: 14-01 D-02b landed: ureg-check is dual-arch (26-declaration amd64 table, bare-struct + u16int parser, quartet pinned never skipped) with an in-memory negative control mutating the REAL header (cs->cseg; a pass is the loud NEGATIVE CONTROL FAILED), and the x86_64 boot-test precondition is live — Phase-13 deferral retired
 
 ### Pending Todos
 
@@ -111,6 +116,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-08T15:56:23.518Z
-Stopped at: Phase 14 context gathered
-Resume file: .planning/phases/14-harvey-amd64-userspace-on-r9/14-CONTEXT.md
+Last session: 2026-11-08T19:06:19.156Z
+Stopped at: Completed 14-01-PLAN.md
+Resume file: None
