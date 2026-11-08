@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 46
+open_count: 47
 waived_count: 3
-fixed_count: 3
-total_count: 52
-last_updated: 2026-11-08T19:38:43.605Z
+fixed_count: 4
+total_count: 54
+last_updated: 2026-11-08T20:57:49.236Z
 ---
 
 # Broken Windows Ledger
@@ -65,8 +65,10 @@ last_updated: 2026-11-08T19:38:43.605Z
 | 48 | 08 | deviation | r9:port/src/devcons.rs |  | 08-09: a console input burst longer than the PL011-side 256-byte RX ring truncates mid-line with no reader-visible signal — the cooked line never completes and the guest wedges (measured 2/2: a 316-char typed line arrived as 255 chars; wedgedbg showed line=255 stuck). The drop-oldest overrun discipline is intentional; gate-author discipline (short typed lines / paced continuation lines) now encoded in smoke-r9-net.expect's header; a kernel-side 'line truncated' signal is the possible later refinement | open |  | 2026-11-06T06:30:00.000Z |  |
 | 49 | 08 | deviation | sys/src/cmd/rc/exec.c |  | 08-09: rc's argv-stack-underflow flake residual — 'pushword but no argv!' + abort fired inside baked fixtures (netip-loopback.rc's udp spin; netip-static.rc's captures) AND in the plain 05-12 smoke's typed echo stage, on gicv3+hvf only (2/~6 HVF runs today; 0 TCG runs across the phase's whole gate history; the 06-07 Xbackq fix covered the top-level case — the residual fires in other op sequences; the aborted child's exit status prints <bad utf8>). Pre-existing class, HVF-timing-exposed; the CI/truth venue is TCG. Recorded in the phase's deferred-items.md | open |  | 2026-11-06T06:30:00.000Z |  |
 | 50 | 08 | deviation | r9:port/src/devpipe.rs |  | 08-09: intermittent early-boot EL1 DataAbort (translation fault level 3) in devpipe::read (devpipe.rs:282, the user-buffer copy) at FAR 0x4e428 — fired once during the composed smoke's HVF leg in the boot chain right after 'version...' (the boot(8) fauth leg), 1/~6 HVF runs, never on TCG; the same tree re-ran green end-to-end. The cold-syscall-buffer residence machinery (05-06's ensure_user_resident) is the suspect area — an intermittent miss in the early-boot pipe read path. Recorded in the phase's deferred-items.md | open |  | 2026-11-06T06:30:00.000Z |  |
-| 51 | 14 | stub | r9:x86_64/src/trap.rs |  | 14-02: syscall dispatch body is a print+panic fillable stub (plan-declared; 14-04 replaces the body, not the shape) | open |  | 2026-11-08T19:38:43.486Z |  |
+| 51 | 14 | stub | r9:x86_64/src/trap.rs |  | 14-02: syscall dispatch body is a print+panic fillable stub (plan-declared; 14-04 replaces the body, not the shape) | fixed |  | 2026-11-08T19:38:43.486Z | 2026-11-08T20:57:49.236Z |
 | 52 | 14 | stub | r9:x86_64/src/trap.rs |  | 14-02: touser naked fn has no caller yet (14-05 exec_bootstrap is the handoff consumer) | open |  | 2026-11-08T19:38:43.605Z |  |
+| 53 | 14 | deviation | r9/x86_64/src/exec.rs |  | x86_64 exec maps text EAGERLY (no trap-context pager this era) — demand text + deeper stack/tos growth beyond the two seed pages arrive with the pager (14-04) | open |  | 2026-11-08T20:57:10.410Z |  |
+| 54 | 14 | deviation | r9/x86_64/src/syscall.rs |  | NSEC(53) returns the loud no-RTC errstr on x86_64 — no epoch clock this era; the nsec_now seam is ready for one (14-04) | open |  | 2026-11-08T20:57:10.551Z |  |
 
 ````json
 [
@@ -727,10 +729,10 @@ last_updated: 2026-11-08T19:38:43.605Z
     "file": "r9:x86_64/src/trap.rs",
     "line": null,
     "description": "14-02: syscall dispatch body is a print+panic fillable stub (plan-declared; 14-04 replaces the body, not the shape)",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-11-08T19:38:43.486Z",
-    "resolved_at": null,
+    "resolved_at": "2026-11-08T20:57:49.236Z",
     "milestone": "v2.1"
   },
   {
@@ -743,6 +745,32 @@ last_updated: 2026-11-08T19:38:43.605Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-08T19:38:43.605Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 53,
+    "kind": "deviation",
+    "phase": "14",
+    "file": "r9/x86_64/src/exec.rs",
+    "line": null,
+    "description": "x86_64 exec maps text EAGERLY (no trap-context pager this era) — demand text + deeper stack/tos growth beyond the two seed pages arrive with the pager (14-04)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-08T20:57:10.410Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 54,
+    "kind": "deviation",
+    "phase": "14",
+    "file": "r9/x86_64/src/syscall.rs",
+    "line": null,
+    "description": "NSEC(53) returns the loud no-RTC errstr on x86_64 — no epoch clock this era; the nsec_now seam is ready for one (14-04)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-08T20:57:10.551Z",
     "resolved_at": null,
     "milestone": "v2.1"
   }

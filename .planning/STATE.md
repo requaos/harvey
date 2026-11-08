@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: Completed 14-03-PLAN.md
-last_updated: "2026-11-08T20:03:18.492Z"
+stopped_at: Completed 14-04-PLAN.md
+last_updated: "2026-11-08T20:58:03.577Z"
 last_activity: 2026-11-08
 last_activity_desc: Phase 14 execution started
-state_head: 98775ca1eee4a3f18f0d91b9e3b0f712a64138ff
+state_head: e1198f2098b9cb1674949a8be812f87f114a0777
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 15
-  completed_plans: 9
+  completed_plans: 10
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 14 (Harvey amd64 Userspace on r9) — EXECUTING
-Plan: 4 of 9
+Plan: 5 of 9
 Status: Ready to execute
 Last activity: 2026-11-08 — Phase 14 execution started
 
@@ -61,6 +61,7 @@ Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 | Phase 14 P01 | 21 min | 3 tasks | 5 files |
 | Phase 14 P02 | 11 min | 2 tasks | 5 files |
 | Phase 14 P03 | 12 min | 2 tasks | 5 files |
+| Phase 14 P04 | 48 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -102,6 +103,9 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-03: usermem ported with the UserAddressSpace trait predicate — aarch64's Proc::validate_user_range(va,len,writable) shape compiled ahead of 14-04's proc so the port plugs in with zero interface churn; SAFETY re-keyed to CR3/per-process-PML4-live (the locked no-copy-layer model)
 - [Phase 14]: 14-03: the amd64 loader constants are the 6l HEADTYPE-2 set (INITTEXT 0x200028, TEXT_MAP_BASE 0x200000, INITRND 2 MiB data alignment, USTKTOP 0x00007ffffffff000/16 MiB) — synthetic-header host tests pin them; A1's real-binary proof rides 14-05's magic assert
 - [Phase 14]: 14-03: USTOP is unreachable by u32 a.out fields on the 128 TiB user map — the donor check carried as factored defense-in-depth (check_data_bss_below_ustop) with its boundary pinned at the function parse_aout calls; Ureg seed = 9k sysexecregs (bp=Tos via RARG, type=64) + touser's If/selector state on dat.rs
+- [Phase 14]: 14-04: per-process PML4/CR3 on x86_64 — kernel half shared by copying boot-PML4 entries 510/511 into every proc table; kstacks at a fixed kernel-half window (PML4[400], US-clear) behind TSS rsp0; content writes via the KZERO+PA alias; no dynamic kernel-table aliasing, no PA contiguity
+- [Phase 14]: 14-04: exec maps TEXT eagerly on x86_64 (no trap-context pager this era — deeper stack/tos growth and demand text arrive with the pager); NSEC returns the loud no-RTC errstr until an epoch clock exists (the nsec_now seam is ready)
+- [Phase 14]: 14-04: usize::next_multiple_of banned in the SSE-free kernel — it lowers to u128/__multi3 soft-float; power-of-two masks everywhere (the link error surfaced the moment the syscall chain made the mapping bodies live)
 
 ### Pending Todos
 
@@ -123,6 +127,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-08T20:03:18.449Z
-Stopped at: Completed 14-03-PLAN.md
+Last session: 2026-11-08T20:58:03.533Z
+Stopped at: Completed 14-04-PLAN.md
 Resume file: None
