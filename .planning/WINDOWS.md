@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 47
+open_count: 50
 waived_count: 3
 fixed_count: 4
-total_count: 54
-last_updated: 2026-11-08T20:57:49.236Z
+total_count: 57
+last_updated: 2026-11-08T22:55:27.978Z
 ---
 
 # Broken Windows Ledger
@@ -69,6 +69,9 @@ last_updated: 2026-11-08T20:57:49.236Z
 | 52 | 14 | stub | r9:x86_64/src/trap.rs |  | 14-02: touser naked fn has no caller yet (14-05 exec_bootstrap is the handoff consumer) | open |  | 2026-11-08T19:38:43.605Z |  |
 | 53 | 14 | deviation | r9/x86_64/src/exec.rs |  | x86_64 exec maps text EAGERLY (no trap-context pager this era) — demand text + deeper stack/tos growth beyond the two seed pages arrive with the pager (14-04) | open |  | 2026-11-08T20:57:10.410Z |  |
 | 54 | 14 | deviation | r9/x86_64/src/syscall.rs |  | NSEC(53) returns the loud no-RTC errstr on x86_64 — no epoch clock this era; the nsec_now seam is ready for one (14-04) | open |  | 2026-11-08T20:57:10.551Z |  |
+| 55 | 14 | deviation | r9/x86_64/src/l.S |  | the boot PML4's slot-0 identity window is dead weight post-14-05 (the linked-VA entry fix left it never-entered; retire it in a one-line l.S cleanup) | open |  | 2026-11-08T22:55:27.720Z |  |
+| 56 | 14 | deviation | r9/flake.nix |  | boot-iso FOD outputHash stale since 14-01 (kernel-byte drift; proven pre-existing at abee15c) — 14-07 re-wires with a fresh byte-identity proof | open |  | 2026-11-08T22:55:27.857Z |  |
+| 57 | 14 | deviation | build/x86_64/stage-build.sh |  | the sudoless userns venue is CI/agent-only machinery; a present user's documented venue stays sudo-unshare (nsrun) — fold the adapter into nsrun.sh if a third consumer appears | open |  | 2026-11-08T22:55:27.978Z |  |
 
 ````json
 [
@@ -771,6 +774,45 @@ last_updated: 2026-11-08T20:57:49.236Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-08T20:57:10.551Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 55,
+    "kind": "deviation",
+    "phase": "14",
+    "file": "r9/x86_64/src/l.S",
+    "line": null,
+    "description": "the boot PML4's slot-0 identity window is dead weight post-14-05 (the linked-VA entry fix left it never-entered; retire it in a one-line l.S cleanup)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-08T22:55:27.720Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 56,
+    "kind": "deviation",
+    "phase": "14",
+    "file": "r9/flake.nix",
+    "line": null,
+    "description": "boot-iso FOD outputHash stale since 14-01 (kernel-byte drift; proven pre-existing at abee15c) — 14-07 re-wires with a fresh byte-identity proof",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-08T22:55:27.857Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 57,
+    "kind": "deviation",
+    "phase": "14",
+    "file": "build/x86_64/stage-build.sh",
+    "line": null,
+    "description": "the sudoless userns venue is CI/agent-only machinery; a present user's documented venue stays sudo-unshare (nsrun) — fold the adapter into nsrun.sh if a third consumer appears",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-08T22:55:27.978Z",
     "resolved_at": null,
     "milestone": "v2.1"
   }
