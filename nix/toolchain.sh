@@ -43,8 +43,11 @@ if [ -n "$_HOSTNM" ]; then
   ln -sf "$_HOSTNM" "$SHIMDIR/nm"
 fi
 export PATH="$SHIMDIR:$PATH"
-# /bin/rm explicitly: $HARVEY_LINUX_BIN may hold guest-built Linux binaries
-trap '/bin/rm -rf "$SHIMDIR"' EXIT
+# system rm via the wrapper PATH (no hostbin — a bare `rm` would resolve
+# to hostbin's guest-built one, and a hardcoded /bin/rm fails on
+# NixOS-class hosts where /bin holds only sh)
+_SYSRM=$(PATH="$_WRAP_PATH" command -v rm 2>/dev/null || echo rm)
+trap '"$_SYSRM" -rf "$SHIMDIR"' EXIT
 
 (cd "$HARVEY/sys/src" && sh BUILDTOOLCHAIN)
 (cd "$HARVEY/sys/src/cmd" && bash BUILD)

@@ -325,12 +325,20 @@ writeHeader(char *label)
 {
 	PaqHeader hdr;
 	uchar buf[HeaderSize];
+	char *kd;
 
 	memset(&hdr, 0, sizeof(hdr));
 	hdr.magic = HeaderMagic;
 	hdr.version = Version;
 	hdr.blocksize = blocksize;
-	hdr.time = time(nil);
+	/* KERNDATE pins the header time for reproducible bakes (the
+	 * 14-05 x86_64 discipline; unset -> wall clock exactly as
+	 * before, so existing bakers see no change) */
+	kd = getenv("KERNDATE");
+	if(kd != nil)
+		hdr.time = strtol(kd, nil, 0);
+	else
+		hdr.time = time(nil);
 	strncpy(hdr.label, label, sizeof(hdr.label));
 	hdr.label[sizeof(hdr.label)-1] = 0;
 	putHeader(buf, &hdr);

@@ -56,7 +56,10 @@ fi
 CC=${CC:-cc}
 
 SHIMDIR=$(mktemp -d "${TMPDIR:-/tmp}/nm-shim.XXXXXX")
-trap '/bin/rm -rf "$SHIMDIR"' EXIT
+# system rm (not a hardcoded /bin/rm — NixOS-class hosts keep only sh in
+# /bin, and the trap's failure poisons the exit status mid-toolchain)
+_SYSRM=$(command -v rm 2>/dev/null || echo rm)
+trap '"$_SYSRM" -rf "$SHIMDIR"' EXIT
 echo '#include <lib9.h>' > "$SHIMDIR/u.h"
 echo '/* lib9.h already included via u.h */' > "$SHIMDIR/libc.h"
 IFLAGS="-I$SHIMDIR -I$ROOT/include -I$ROOT/lib9/$OSTYPE -I$ROOT -I$ROOT/cmd"
