@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: Completed 14-02-PLAN.md
-last_updated: "2026-11-08T19:39:04.623Z"
+stopped_at: Completed 14-03-PLAN.md
+last_updated: "2026-11-08T20:03:18.492Z"
 last_activity: 2026-11-08
 last_activity_desc: Phase 14 execution started
-state_head: e5f9037b00cee9af6cf1fb4dc5d71f5a7761b5f2
+state_head: 98775ca1eee4a3f18f0d91b9e3b0f712a64138ff
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 15
-  completed_plans: 8
+  completed_plans: 9
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 14 (Harvey amd64 Userspace on r9) — EXECUTING
-Plan: 3 of 9
+Plan: 4 of 9
 Status: Ready to execute
 Last activity: 2026-11-08 — Phase 14 execution started
 
@@ -60,6 +60,7 @@ Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 | Phase 13 P06 | 59 min | 3 tasks | 9 files |
 | Phase 14 P01 | 21 min | 3 tasks | 5 files |
 | Phase 14 P02 | 11 min | 2 tasks | 5 files |
+| Phase 14 P03 | 12 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -98,6 +99,9 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-01 D-02b landed: ureg-check is dual-arch (26-declaration amd64 table, bare-struct + u16int parser, quartet pinned never skipped) with an in-memory negative control mutating the REAL header (cs->cseg; a pass is the loud NEGATIVE CONTROL FAILED), and the x86_64 boot-test precondition is live — Phase-13 deferral retired
 - [Phase 14]: 14-02: SYSCALL/SYSRET entry landed donor-verbatim — Star/Lstar/Sfmask armed at init (vsvm.c order, If-only FMASK), syscallentry software-builds the hardware frame on the frozen 184-byte Ureg; the kernel-stack switch is gs-relative TSS rsp0 (one mechanism for both ring-3 entry paths) and the Mach scratch word replaces the donor's RMACH/RUSER register sacrifice, so all 15 GP frame slots hold true user values
 - [Phase 14]: 14-02: l.S already set Efer.Sce with Lstar=0 since Phase 13 (SYSCALL enabled-but-unrouted); the arming adds the routing and Lstar now points at the real entry — strictly safer, still unreachable (no ring-3 code exists); Lstar was sequenced never-at-a-hole across the two task commits
+- [Phase 14]: 14-03: usermem ported with the UserAddressSpace trait predicate — aarch64's Proc::validate_user_range(va,len,writable) shape compiled ahead of 14-04's proc so the port plugs in with zero interface churn; SAFETY re-keyed to CR3/per-process-PML4-live (the locked no-copy-layer model)
+- [Phase 14]: 14-03: the amd64 loader constants are the 6l HEADTYPE-2 set (INITTEXT 0x200028, TEXT_MAP_BASE 0x200000, INITRND 2 MiB data alignment, USTKTOP 0x00007ffffffff000/16 MiB) — synthetic-header host tests pin them; A1's real-binary proof rides 14-05's magic assert
+- [Phase 14]: 14-03: USTOP is unreachable by u32 a.out fields on the 128 TiB user map — the donor check carried as factored defense-in-depth (check_data_bss_below_ustop) with its boundary pinned at the function parse_aout calls; Ureg seed = 9k sysexecregs (bp=Tos via RARG, type=64) + touser's If/selector state on dat.rs
 
 ### Pending Todos
 
@@ -119,6 +123,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-08T19:39:04.582Z
-Stopped at: Completed 14-02-PLAN.md
+Last session: 2026-11-08T20:03:18.449Z
+Stopped at: Completed 14-03-PLAN.md
 Resume file: None
