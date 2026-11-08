@@ -95,7 +95,34 @@ Plans:
   3. The full boot chain boot(8)→init→rc reaches the interactive `% ` prompt on x86_64 — the expect smoke gate (boot-r9-smoke equivalent) is green twice consecutively (XEXEC-03)
   4. The tier machinery runs keyed to `objtype=amd64`: tier-0 libraries + tier-1 core commands prove executing on r9-x86_64 with committed artifact+execution markers, donor venue = Harvey's own 9k kernel (k10t1) (XEXEC-04)
   5. `/net` is re-gated on x86_64: loopback ping/udp/tcp echo, static + DHCP ipconfig, and the composed net smoke are all green as committed gates on the new arch (XEXEC-05)
-**Plans**: TBD
+**Plans**: 9 plans
+Plans:
+**Wave 1**
+- [ ] 14-01-PLAN.md — ABI contract freeze: the 184-byte 9k-verbatim Ureg rework + witness re-derivation, amd64/ABI.md publication, ureg-check amd64 arm + NEGATIVE CONTROL + the x86_64 boot-test gate — every Phase-13 gate re-green (XEXEC-01, D-01/D-02/D-02b)
+
+**Wave 2** *(blocked on Wave 1 — the entry asm implements the frozen frame)*
+- [ ] 14-02-PLAN.md — SYSCALL/SYSRET entry contract: star/utextsel/fmask revival per the 9k donor, the syscallentry/syscallreturn/touser software-built-frame asm, init-time MSR arming — gates green with arming live (XEXEC-02 entry half, D-02a)
+
+**Wave 3** *(blocked on Wave 2)*
+- [ ] 14-03-PLAN.md — exec loader + usermem port: validated user access on the CR3/live-memory model, the amd64 a.out loader (S_MAGIC 0x8A97, 2 MiB alignment) with the empty/adjacent edge tests — host-verified (XEXEC-02)
+
+**Wave 4** *(blocked on Wave 3)*
+- [ ] 14-04-PLAN.md — proc + syscall dispatch port: per-process PML4/TSS-rsp0 Proc machinery, the measured-set dispatch (BP/SP+8/AX, nsec/seek/exits quirks, loud-unimplemented), the tick-print cfg gate (XEXEC-02)
+
+**Wave 5** *(blocked on Wave 4 — the gate consumes the compile-verified substrate)*
+- [ ] 14-05-PLAN.md — marker exec end-to-end: mb2 TAG_MODULE delivery + templated module2 staging, Harvey's build/x86_64 marker+bake pipeline (paq format verbatim), IRQ-masked exec_bootstrap — the q35exec gate green twice (XEXEC-02 proof, D-03/D-04/D-08/D-09)
+
+**Wave 6** *(blocked on Wave 5)*
+- [ ] 14-06-PLAN.md — boot chain boot(8)→init→rc to the `% ` prompt: mkfile.amd64 boot(8) build, the chain bake (rcmain/termrc/identity guards), config_q35shell + BOOT_ENTRY — the q35shell gate green twice (XEXEC-03 r9-side leg)
+
+**Wave 7** *(blocked on Wave 6)*
+- [ ] 14-07-PLAN.md — compose: r9's parameterized ISO builder (kernel-only FOD preserved), Harvey's boot-r9-x64 app chain, the smoke-r9.expect re-key — the composed smoke green twice consecutively + push-before-pin (XEXEC-03, D-05/D-06)
+
+**Wave 8** *(blocked on Wave 7)*
+- [ ] 14-08-PLAN.md — tiers re-keyed to objtype=amd64: allowlists + mk filter arms, subset-build with artifact markers, the k10t1 donor venue r9 leg — identical 6.outs on BOTH kernels, the r9 tier gate + ledger (XEXEC-04)
+
+**Wave 9** *(blocked on Wave 8)*
+- [ ] 14-09-PLAN.md — /net re-gates in-guest: netaddr seam + netip fixtures + net-binary bake, the composed net smoke under the NOT-L2-TRUTH slirp label green + re-green, 14-EVIDENCE.md consolidation (XEXEC-05, D-07)
 
 ### Phase 15: Userspace Tiers + Bootfs Payload (amd64)
 **Goal**: The services/GUI/long-tail tiers ride the re-keyed machinery — session daemons, the IP suite, and the auth suite compile and donor-execute on k10t1 then r9-x86_64; the GUI stack compiles with measure-first donor syscall traces captured; the desktop bootfs payload is staged so Phases 18-19 never block on payload. **Work in the harvey repo.**
