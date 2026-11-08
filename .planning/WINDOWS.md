@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 44
+open_count: 46
 waived_count: 3
 fixed_count: 3
-total_count: 50
-last_updated: 2026-11-06T06:30:00.000Z
+total_count: 52
+last_updated: 2026-11-08T19:38:43.605Z
 ---
 
 # Broken Windows Ledger
@@ -58,13 +58,15 @@ last_updated: 2026-11-06T06:30:00.000Z
 | 41 | 06 | deviation | build/aarch64/generator-audit.txt |  | 06-04: plan/RESEARCH cells corrected against live mkfiles (plan-mandated re-confirmation): G5 artifact is o.pcode (cpuobjtype=o via /unix/mkfile O=o); G6 genarch is pcc-built native-only (build guard gs/mkfile:164), never built nor run in the aarch64 sweep | open |  | 2026-11-05T02:10:47.035Z |  |
 | 42 | 06 | deviation | .planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/06-05-PLAN.md |  | 06-05 Task-2's literal no-PENDING-CLASSIFY grep contradicts Task-1's mandated append-only seed lines; ran the intent gate (latest-line-per-dir clean) — gate-text repair filed for the next planning pass | open |  | 2026-11-05T02:51:20.644Z |  |
 | 43 | 08 | unmet-truth | r9:aarch64/src/proc.rs |  | 08-04: the NETIP-03 ping-127.0.0.1 truth is MET — RFMEM landed per the blocking-human decision (option A, donor dupseg semantics): Data/Bss pages share under RFMEM with PA-keyed refcount-gated frees, RFMEM families carry the shared break (sys_brk_ family arm births grown pages shared — the checkpoint's 'ping does not brk_-grow post-fork' premise was falsified at the gate and the donor's shared-segment growth is the implemented semantics), the rfork bss sweep closes the untouched-page hole, and SEMACQUIRE(37)/SEMRELEASE(38) implemented for the contended libc lock() path; virtip gate green (netip: ping ok + NETIP-DONE), 8/8 regression profiles green, r9 4298fc0 | fixed |  | 2026-11-05T19:54:26.000Z | 2026-11-05T22:30:00.000Z |
+| 44 | 08 | deviation | r9:aarch64/src/proc.rs |  | 08-05: kernel arena (4 MiB QuickFit) drains under a spin loop of short-lived fork+exec — ~1400 iterations of /bin/cat from a fixture's port-discovery spin exhausted it (oom size=4160 panic); exec staging teardown (ByteBacking::Mnt) is the suspect; fixture-side workaround applied (invoke the baked name so the spin terminates) | open |  | 2026-11-05T23:35:00.000Z |  |
+| 45 | 08 | deviation | r9:port/src/namec.rs |  | 08-05: Creat on a top-level file of a union-mounted dir misses non-head members — walk_one never consults the union chain (documented shape); rc's `>` is Creat-first so `> /net/log` failed with 'namec: device has no create'; fixture uses `>>` (open-first); the two-level-deep ctl writes unaffected | open |  | 2026-11-05T23:55:00.000Z |  |
 | 46 | 08 | deviation | .planning/phases/08-r9-tcp-ip-path-devip-compatible-net/deferred-items.md |  | 08-08: rc redirect-stack/fd-reuse corner — a file-open redirect (`> file`) or an in-block `>[2]/dev/null` on a backquote dd INSIDE a subshell block carrying a held-open fd redirect (`} >[6]/mnt/data`) leaks the payload into the held fd's pipe (measured twice in-guest; root cause unpinned — suspect class: doredir re-applies a stale ROPEN record whose from-fd was closed/reused, Dup() return unchecked at rc plan9.c:583); 08-08's aan fixture sidesteps by construction (the drop moved in-band via baked /lib/netip-aan-drop.rc; dd summary rides the console); recorded in the phase's deferred-items.md | open |  | 2026-11-06T03:05:00.000Z |  |
 | 47 | 08 | deviation | r9:port/src/devip/stack.rs |  | 08-09: the RX-IRQ wake with MULTIPLE registered devip waiters wedges/panics — the first NIC-RX wake with >1 blocked net proc never reaches the ping reader (measured: the composed net smoke's static leg wedged the guest fully idle on BOTH gicv2+tcg and gicv3+hvf with udpecho+tcpecho blocked in loopback reads; an earlier form panicked at the same stage; the static-alone boot with the identical spawn shape PASSES, and every xtask virtip mode runs =1 waiter). Root cause unpinned. BLOCKER-CLASS for Phase 9's tap venue + Phase 12's cpu service (aan over real net = many blocked net procs); the composed smoke sidesteps by stage order (ether legs first, single-waiter per exchange). Recorded in the phase's deferred-items.md | open |  | 2026-11-06T06:30:00.000Z |  |
 | 48 | 08 | deviation | r9:port/src/devcons.rs |  | 08-09: a console input burst longer than the PL011-side 256-byte RX ring truncates mid-line with no reader-visible signal — the cooked line never completes and the guest wedges (measured 2/2: a 316-char typed line arrived as 255 chars; wedgedbg showed line=255 stuck). The drop-oldest overrun discipline is intentional; gate-author discipline (short typed lines / paced continuation lines) now encoded in smoke-r9-net.expect's header; a kernel-side 'line truncated' signal is the possible later refinement | open |  | 2026-11-06T06:30:00.000Z |  |
 | 49 | 08 | deviation | sys/src/cmd/rc/exec.c |  | 08-09: rc's argv-stack-underflow flake residual — 'pushword but no argv!' + abort fired inside baked fixtures (netip-loopback.rc's udp spin; netip-static.rc's captures) AND in the plain 05-12 smoke's typed echo stage, on gicv3+hvf only (2/~6 HVF runs today; 0 TCG runs across the phase's whole gate history; the 06-07 Xbackq fix covered the top-level case — the residual fires in other op sequences; the aborted child's exit status prints <bad utf8>). Pre-existing class, HVF-timing-exposed; the CI/truth venue is TCG. Recorded in the phase's deferred-items.md | open |  | 2026-11-06T06:30:00.000Z |  |
 | 50 | 08 | deviation | r9:port/src/devpipe.rs |  | 08-09: intermittent early-boot EL1 DataAbort (translation fault level 3) in devpipe::read (devpipe.rs:282, the user-buffer copy) at FAR 0x4e428 — fired once during the composed smoke's HVF leg in the boot chain right after 'version...' (the boot(8) fauth leg), 1/~6 HVF runs, never on TCG; the same tree re-ran green end-to-end. The cold-syscall-buffer residence machinery (05-06's ensure_user_resident) is the suspect area — an intermittent miss in the early-boot pipe read path. Recorded in the phase's deferred-items.md | open |  | 2026-11-06T06:30:00.000Z |  |
-| 44 | 08 | deviation | r9:aarch64/src/proc.rs |  | 08-05: kernel arena (4 MiB QuickFit) drains under a spin loop of short-lived fork+exec — ~1400 iterations of /bin/cat from a fixture's port-discovery spin exhausted it (oom size=4160 panic); exec staging teardown (ByteBacking::Mnt) is the suspect; fixture-side workaround applied (invoke the baked name so the spin terminates) | open |  | 2026-11-05T23:35:00.000Z |  |
-| 45 | 08 | deviation | r9:port/src/namec.rs |  | 08-05: Creat on a top-level file of a union-mounted dir misses non-head members — walk_one never consults the union chain (documented shape); rc's `>` is Creat-first so `> /net/log` failed with 'namec: device has no create'; fixture uses `>>` (open-first); the two-level-deep ctl writes unaffected | open |  | 2026-11-05T23:55:00.000Z |  |
+| 51 | 14 | stub | r9:x86_64/src/trap.rs |  | 14-02: syscall dispatch body is a print+panic fillable stub (plan-declared; 14-04 replaces the body, not the shape) | open |  | 2026-11-08T19:38:43.486Z |  |
+| 52 | 14 | stub | r9:x86_64/src/trap.rs |  | 14-02: touser naked fn has no caller yet (14-05 exec_bootstrap is the handoff consumer) | open |  | 2026-11-08T19:38:43.605Z |  |
 
 ````json
 [
@@ -628,6 +630,32 @@ last_updated: 2026-11-06T06:30:00.000Z
     "milestone": "v2.0"
   },
   {
+    "id": 44,
+    "kind": "deviation",
+    "phase": "08",
+    "file": "r9:aarch64/src/proc.rs",
+    "line": null,
+    "description": "08-05: kernel arena (4 MiB QuickFit) drains under a spin loop of short-lived fork+exec — ~1400 iterations of /bin/cat from a fixture's port-discovery spin exhausted it (oom size=4160 panic); exec staging teardown (ByteBacking::Mnt) is the suspect; fixture-side workaround applied (invoke the baked name so the spin terminates)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T23:35:00.000Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
+    "id": 45,
+    "kind": "deviation",
+    "phase": "08",
+    "file": "r9:port/src/namec.rs",
+    "line": null,
+    "description": "08-05: Creat on a top-level file of a union-mounted dir misses non-head members — walk_one never consults the union chain (documented shape); rc's `>` is Creat-first so `> /net/log` failed with 'namec: device has no create'; fixture uses `>>` (open-first); the two-level-deep ctl writes unaffected",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-05T23:55:00.000Z",
+    "resolved_at": null,
+    "milestone": "v2.0"
+  },
+  {
     "id": 46,
     "kind": "deviation",
     "phase": "08",
@@ -646,7 +674,7 @@ last_updated: 2026-11-06T06:30:00.000Z
     "phase": "08",
     "file": "r9:port/src/devip/stack.rs",
     "line": null,
-    "description": "08-09: the RX-IRQ wake with MULTIPLE registered devip waiters wedges/panics \u2014 the first NIC-RX wake with >1 blocked net proc never reaches the ping reader (measured: the composed net smoke's static leg wedged the guest fully idle on BOTH gicv2+tcg and gicv3+hvf with udpecho+tcpecho blocked in loopback reads; an earlier form panicked at the same stage; the static-alone boot with the identical spawn shape PASSES, and every xtask virtip mode runs =1 waiter). Root cause unpinned. BLOCKER-CLASS for Phase 9's tap venue + Phase 12's cpu service (aan over real net = many blocked net procs); the composed smoke sidesteps by stage order (ether legs first, single-waiter per exchange). Recorded in the phase's deferred-items.md",
+    "description": "08-09: the RX-IRQ wake with MULTIPLE registered devip waiters wedges/panics — the first NIC-RX wake with >1 blocked net proc never reaches the ping reader (measured: the composed net smoke's static leg wedged the guest fully idle on BOTH gicv2+tcg and gicv3+hvf with udpecho+tcpecho blocked in loopback reads; an earlier form panicked at the same stage; the static-alone boot with the identical spawn shape PASSES, and every xtask virtip mode runs =1 waiter). Root cause unpinned. BLOCKER-CLASS for Phase 9's tap venue + Phase 12's cpu service (aan over real net = many blocked net procs); the composed smoke sidesteps by stage order (ether legs first, single-waiter per exchange). Recorded in the phase's deferred-items.md",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-06T06:30:00.000Z",
@@ -659,7 +687,7 @@ last_updated: 2026-11-06T06:30:00.000Z
     "phase": "08",
     "file": "r9:port/src/devcons.rs",
     "line": null,
-    "description": "08-09: a console input burst longer than the PL011-side 256-byte RX ring truncates mid-line with no reader-visible signal \u2014 the cooked line never completes and the guest wedges (measured 2/2: a 316-char typed line arrived as 255 chars; wedgedbg showed line=255 stuck). The drop-oldest overrun discipline is intentional; gate-author discipline (short typed lines / paced continuation lines) now encoded in smoke-r9-net.expect's header; a kernel-side 'line truncated' signal is the possible later refinement",
+    "description": "08-09: a console input burst longer than the PL011-side 256-byte RX ring truncates mid-line with no reader-visible signal — the cooked line never completes and the guest wedges (measured 2/2: a 316-char typed line arrived as 255 chars; wedgedbg showed line=255 stuck). The drop-oldest overrun discipline is intentional; gate-author discipline (short typed lines / paced continuation lines) now encoded in smoke-r9-net.expect's header; a kernel-side 'line truncated' signal is the possible later refinement",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-06T06:30:00.000Z",
@@ -672,7 +700,7 @@ last_updated: 2026-11-06T06:30:00.000Z
     "phase": "08",
     "file": "sys/src/cmd/rc/exec.c",
     "line": null,
-    "description": "08-09: rc's argv-stack-underflow flake residual \u2014 'pushword but no argv!' + abort fired inside baked fixtures (netip-loopback.rc's udp spin; netip-static.rc's captures) AND in the plain 05-12 smoke's typed echo stage, on gicv3+hvf only (2/~6 HVF runs today; 0 TCG runs across the phase's whole gate history; the 06-07 Xbackq fix covered the top-level case \u2014 the residual fires in other op sequences; the aborted child's exit status prints <bad utf8>). Pre-existing class, HVF-timing-exposed; the CI/truth venue is TCG. Recorded in the phase's deferred-items.md",
+    "description": "08-09: rc's argv-stack-underflow flake residual — 'pushword but no argv!' + abort fired inside baked fixtures (netip-loopback.rc's udp spin; netip-static.rc's captures) AND in the plain 05-12 smoke's typed echo stage, on gicv3+hvf only (2/~6 HVF runs today; 0 TCG runs across the phase's whole gate history; the 06-07 Xbackq fix covered the top-level case — the residual fires in other op sequences; the aborted child's exit status prints <bad utf8>). Pre-existing class, HVF-timing-exposed; the CI/truth venue is TCG. Recorded in the phase's deferred-items.md",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-06T06:30:00.000Z",
@@ -685,12 +713,38 @@ last_updated: 2026-11-06T06:30:00.000Z
     "phase": "08",
     "file": "r9:port/src/devpipe.rs",
     "line": null,
-    "description": "08-09: intermittent early-boot EL1 DataAbort (translation fault level 3) in devpipe::read (devpipe.rs:282, the user-buffer copy) at FAR 0x4e428 \u2014 fired once during the composed smoke's HVF leg in the boot chain right after 'version...' (the boot(8) fauth leg), 1/~6 HVF runs, never on TCG; the same tree re-ran green end-to-end. The cold-syscall-buffer residence machinery (05-06's ensure_user_resident) is the suspect area \u2014 an intermittent miss in the early-boot pipe read path. Recorded in the phase's deferred-items.md",
+    "description": "08-09: intermittent early-boot EL1 DataAbort (translation fault level 3) in devpipe::read (devpipe.rs:282, the user-buffer copy) at FAR 0x4e428 — fired once during the composed smoke's HVF leg in the boot chain right after 'version...' (the boot(8) fauth leg), 1/~6 HVF runs, never on TCG; the same tree re-ran green end-to-end. The cold-syscall-buffer residence machinery (05-06's ensure_user_resident) is the suspect area — an intermittent miss in the early-boot pipe read path. Recorded in the phase's deferred-items.md",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-06T06:30:00.000Z",
     "resolved_at": null,
     "milestone": "v2.0"
+  },
+  {
+    "id": 51,
+    "kind": "stub",
+    "phase": "14",
+    "file": "r9:x86_64/src/trap.rs",
+    "line": null,
+    "description": "14-02: syscall dispatch body is a print+panic fillable stub (plan-declared; 14-04 replaces the body, not the shape)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-08T19:38:43.486Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 52,
+    "kind": "stub",
+    "phase": "14",
+    "file": "r9:x86_64/src/trap.rs",
+    "line": null,
+    "description": "14-02: touser naked fn has no caller yet (14-05 exec_bootstrap is the handoff consumer)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-08T19:38:43.605Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
   }
 ]
 ````

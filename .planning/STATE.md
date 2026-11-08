@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: Completed 14-01-PLAN.md
-last_updated: "2026-11-08T19:06:19.199Z"
+stopped_at: Completed 14-02-PLAN.md
+last_updated: "2026-11-08T19:39:04.623Z"
 last_activity: 2026-11-08
 last_activity_desc: Phase 14 execution started
-state_head: 0aeab50320049c1250daf70af5169ffe2e6991ab
+state_head: e5f9037b00cee9af6cf1fb4dc5d71f5a7761b5f2
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 15
-  completed_plans: 7
+  completed_plans: 8
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 14 (Harvey amd64 Userspace on r9) — EXECUTING
-Plan: 2 of 9
+Plan: 3 of 9
 Status: Ready to execute
 Last activity: 2026-11-08 — Phase 14 execution started
 
@@ -59,6 +59,7 @@ Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 | Phase 13 P05 | 39 min | 3 tasks | 12 files |
 | Phase 13 P06 | 59 min | 3 tasks | 9 files |
 | Phase 14 P01 | 21 min | 3 tasks | 5 files |
+| Phase 14 P02 | 11 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -95,6 +96,8 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-01 CR-01-class witness re-derivation: intrspecial/intrregular's SWAPPED_CS_OFFSET+24 sites are stub-entry-relative (independent of the carve) and stay correct; intrcommon's btr rides UREG_CS_OFFSET 176->152 (byte 159 = CS qword high byte), re-derivation documented in place
 - [Phase 14]: 14-01 D-02 landed: amd64/ABI.md freezes the FULL exec interface — BP number / args at user SP+8 (SP+0 = return-address slot) / SYSCALL / AX result / Sfmask=If; nsec no-spill, _seek, _exits quirks; sys.h 0-54 with the loud-unimplemented rule; USTKTOP 0x00007ffffffff000 + 16 MiB stack policy as the adopted discretion resolution
 - [Phase 14]: 14-01 D-02b landed: ureg-check is dual-arch (26-declaration amd64 table, bare-struct + u16int parser, quartet pinned never skipped) with an in-memory negative control mutating the REAL header (cs->cseg; a pass is the loud NEGATIVE CONTROL FAILED), and the x86_64 boot-test precondition is live — Phase-13 deferral retired
+- [Phase 14]: 14-02: SYSCALL/SYSRET entry landed donor-verbatim — Star/Lstar/Sfmask armed at init (vsvm.c order, If-only FMASK), syscallentry software-builds the hardware frame on the frozen 184-byte Ureg; the kernel-stack switch is gs-relative TSS rsp0 (one mechanism for both ring-3 entry paths) and the Mach scratch word replaces the donor's RMACH/RUSER register sacrifice, so all 15 GP frame slots hold true user values
+- [Phase 14]: 14-02: l.S already set Efer.Sce with Lstar=0 since Phase 13 (SYSCALL enabled-but-unrouted); the arming adds the routing and Lstar now points at the real entry — strictly safer, still unreachable (no ring-3 code exists); Lstar was sequenced never-at-a-hole across the two task commits
 
 ### Pending Todos
 
@@ -116,6 +119,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-08T19:06:19.156Z
-Stopped at: Completed 14-01-PLAN.md
+Last session: 2026-11-08T19:39:04.582Z
+Stopped at: Completed 14-02-PLAN.md
 Resume file: None
