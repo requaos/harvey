@@ -133,38 +133,48 @@ if not echo SVC-FAIL mntgen
 # honest landing — never a weaker pass).
 svclo=''
 if(bind -a '#I' /net){
-	{
-		lconv=`{$B/hcat <[0=7]}
-		if(~ $#lconv 1){
-			if($B/htest -e /net/ipifc/$lconv/ctl){
-				if($B/hecho bind loopback > /net/ipifc/$lconv/ctl){
-					if($B/hecho add 127.0.0.1 255.0.0.0 > /net/ipifc/$lconv/ctl)
-						svclo=up
+	echo SVC-NETBOUND
+	if($B/htest -e /net/ipifc/clone){
+		{
+			lconv=`{$B/hcat <[0=7]}
+			echo SVC-LCONV $lconv
+			if(~ $#lconv 1){
+				if($B/htest -e /net/ipifc/$lconv/ctl){
+					if($B/hecho bind loopback > /net/ipifc/$lconv/ctl){
+						echo SVC-LBBOUND
+						if($B/hecho add 127.0.0.1 255.0.0.0 > /net/ipifc/$lconv/ctl){
+							svclo=up
+							echo SVC-LOOPBACK-UP
+						}
+					}
 				}
 			}
-		}
-		if(~ $svclo up) echo SVC-LOOPBACK-UP
-		if not echo SVC-LOOPBACK-BOUND-NOT-UP
+			if(~ $svclo '') echo SVC-LOOPBACK-BOUND-NOT-UP
 
-		# --- cs: the connection server answers a scripted lookup ------
-		# The test ndb rides /env (ip=… dom=probehost tcp=… — a baked
-		# probe host, throwaway values only).  hcs -f serves it mounted
-		# at /net/cs (its netlist scan sees /net/tcp/clone — the #I bind
-		# above); hcsquery is the canned client (csquery.c).  The marker
-		# rides the ANSWER carrying the baked address — never the
-		# daemon's start.  The daemon's stderr stays on the capture (a
-		# startup sysfatal is the classified FAIL's diagnosis) and the
-		# SVC-CSOBS observation line records the raw answer.
-		svcndb='ip=127.0.0.1 dom=probehost tcp=9930'
-		$B/hcs -f /env/svcndb &
-		if(svc_waitpath 10 /net/cs){
-			qout=`{$B/hcsquery /net/cs 'tcp!probehost'}
-			echo SVC-CSOBS $"qout
-			if(~ $"qout *127.0.0.1*) echo SVC-OK cs
+			# --- cs: the connection server answers a scripted lookup ------
+			# The test ndb rides /env (ip=… dom=probehost tcp=… — a baked
+			# probe host, throwaway values only).  hcs -f serves it mounted
+			# at /net/cs (its netlist scan sees /net/tcp/clone — the #I bind
+			# above); hcsquery is the canned client (csquery.c).  The marker
+			# rides the ANSWER carrying the baked address — never the
+			# daemon's start.  The daemon's stderr stays on the capture (a
+			# startup sysfatal is the classified FAIL's diagnosis) and the
+			# SVC-CSOBS observation line records the raw answer.
+			svcndb='ip=127.0.0.1 dom=probehost tcp=9930'
+			$B/hcs -f /env/svcndb &
+			if(svc_waitpath 10 /net/cs){
+				qout=`{$B/hcsquery /net/cs 'tcp!probehost'}
+				echo SVC-CSOBS $"qout
+				if(~ $"qout *127.0.0.1*) echo SVC-OK cs
+				if not echo SVC-FAIL cs
+			}
 			if not echo SVC-FAIL cs
-		}
-		if not echo SVC-FAIL cs
-	} <>[7]/net/ipifc/clone
+		} <>[7]/net/ipifc/clone
+	}
+	if not {
+		echo SVC-SKIP-WHY no-ipifc-under-the-#I-bind
+		echo SVC-SKIP cs
+	}
 }
 if not {
 	echo SVC-SKIP-WHY no-netdev-the-#I-bind-failed
