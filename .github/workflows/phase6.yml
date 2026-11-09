@@ -28,6 +28,15 @@
 #   tier-r9     (slow, 90m): nix run .#boot-r9-tier1 — the tier-1 sweep
 #               on the flake.lock-pinned r9 kernel (06-07's app;
 #               USPACE-04's second CI venue, D-12).  TCG on the runner.
+#   tier-2      (45m): the services-tier COMPILE gate (15-01,
+#               USPACE-07's compile half) — host-only: setup + toolchain
+#               + build/x86_64/subset-build.sh (tiers 0-2 in the Plan 9
+#               namespace), asserting TIER-BUILD-OK and T2-ART marker
+#               parity against tiers/tier2-services.txt (mk exit status
+#               never trusted — markers are the gate).  No execution
+#               legs here: per the Phase-14 venue precedent the donor/r9
+#               services gates are self-provisioned/nix-driven local
+#               gates (15-02/15-03).
 #   x86_64-poolpanic (45m): USPACE-10's re-test (D-04) — `nix run
 #               .#build` builds 9k10cpu from the clean checkout (the
 #               pswt-fixed 6c is guaranteed by the clean toolchain
@@ -202,7 +211,11 @@ jobs:
             echo "VENUE-PIN-FAIL: the retired tier-donor leg was reintroduced — the x86_64 tier venue is tier-9k (Harvey's own kernel); the aarch64 donor gates stay LOCAL-only" >&2
             exit 1
           fi
-          if grep -qE 'subset-(build|exec)\.sh' "$wf"; then
+          # 15-01: the prohibition scopes to the AARCH64 donor gate
+          # scripts (build/aarch64/subset-*.sh) — the x64 tier driver
+          # build/x86_64/subset-build.sh is the tier-2 compile leg's
+          # own tool and is legal here
+          if grep -qE 'build/aarch64/subset-(build|exec)\.sh' "$wf"; then
             echo "VENUE-PIN-FAIL: a 9front donor-gate script reference survives in phase6.yml — CI never provisions .build/9front-donor (maintainer direction 2026-11-05)" >&2
             exit 1
           fi
@@ -210,7 +223,7 @@ jobs:
             echo "VENUE-PIN-FAIL: the tier-9k job is missing — the x86_64 tier venue must be Harvey's own kernel (the 06-09 k10t1 pair)" >&2
             exit 1
           fi
-          echo "VENUE-PIN-OK jobs: wave0-host tier-9k tier-r9 x86_64-poolpanic"
+          echo "VENUE-PIN-OK jobs: wave0-host tier-9k tier-r9 tier-2 x86_64-poolpanic"
       - name: FPdbleword region assert (D-01)
         # Sed the union region out of aarch64/include/u.h and require
         # exactly the two uint members (the amd64 reference shape);
@@ -243,6 +256,54 @@ jobs:
         with:
           name: tier-r9-log
           path: build/aarch64/tier1-r9.log
+          if-no-files-found: warn
+
+  tier-2:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45 # host-only compile: setup + toolchain + the namespace tier build
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+      - name: install nix
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: host bin + toolchain provisioning
+        # same missing-prerequisite class as tier-9k's provisioning:
+        # subset-build.sh bootstraps itself when hostbin is absent, but
+        # provisioning explicitly keeps the leg's failure surface at the
+        # driver, not the bootstrap
+        run: |
+          nix run .#setup
+          nix run .#toolchain
+      - name: tier-0/1/2 compile + marker parity (15-01, USPACE-07)
+        # The driver builds all three tiers in the Plan 9 namespace and
+        # self-asserts (TIER-BUILD-OK + per-artifact magic checks);
+        # this step additionally asserts the computed parity — T2-ART
+        # marker count >= the tier-2 data's entry count (mk exit
+        # status is never the gate; markers are).  On failure the log
+        # tail lands in the step summary (D-16's convention).
+        run: |
+          mkdir -p .build
+          nix develop -c sh build/x86_64/subset-build.sh 2>&1 | tee .build/tier2-run.log || {
+            rc=$?
+            { echo "## ❌ tier-2 compile failed (rc=$rc)"; echo '```'; tail -60 .build/subset-build-x64.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit $rc
+          }
+          grep -q TIER-BUILD-OK .build/subset-build-x64.log
+          n=$(awk 'NF && $1 !~ /^#/ {c++} END{print c+0}' build/x86_64/tiers/tier2-services.txt)
+          m=$(grep -c '^T2-ART' .build/subset-build-x64.log || true)
+          echo "tier-2 parity: entries=$n markers=$m"
+          if [ "$m" -lt "$n" ]; then
+            echo "TIER2-PARITY-FAIL: markers $m < entries $n" >&2
+            exit 1
+          fi
+          echo "TIER2-COMPILE-OK (entries=$n markers=$m)"
+      - name: upload the tier-2 build log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: tier2-build-log
+          path: |
+            .build/subset-build-x64.log
+            .build/tier2-run.log
           if-no-files-found: warn
 
   tier-9k:
