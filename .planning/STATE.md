@@ -123,7 +123,6 @@ None yet.
 
 - aarch64 is FROZEN at the v2.0 pin — all v2.1 work keys to x86_64; do not "fix" aarch64 paths in passing
 - raspi3b-on-qemu-11.1.2 boot defect — accepted (pre-existing, A/B-proven not-a-regression); tracked in PROJECT.md Active
-- 14-06 incomplete: two-proc scheduler corruption in r9 x86_64 — CURRENT_PROC := &SCHED_CONTEXT by a wild .bss write at init's fexec fork (the first two-proc tick-preempt switch); q35shell gate red just past 'init: starting /bin/rc'; four other latent defects already fixed (conforming ktext, AX/Tos seed, eager stack+Tos placement, eager brk) with the full regression battery green; evidence in 14-06-SUMMARY Known Issues — the fix is required before 14-07
 - 14-06 STILL INCOMPLETE after the authorized fix cycle: the chain reached init's rc handoff with SIX total kernel/userland fixes landed (conforming-ktext delivery, AX/Tos seed, eager stack+Tos placement, eager brk, embed.c waitpid, preempt-park; + the device-MMIO alias window r9@c166164) — but one deterministic corruption remains: CURRENT_PROC reads as &SCHED_CONTEXT in init's fork window, with hard evidence pointing at a per-proc CR3 mapping divergence (divergent back-to-back loads; no store path, no swtch site, no watchpoint hit) — three ranked hypotheses + working instrumentation recorded in 14-06-SUMMARY Known Issues; full regression battery green at r9@c166164
 
 ## Deferred Items
