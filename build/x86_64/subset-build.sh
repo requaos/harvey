@@ -355,24 +355,22 @@ while read -r line; do
 	cmd/*)
 		if [ -d "/sys/src/$entry" ]; then
 			# dir entry: whole-dir clean (fresh objects), install,
-			# one marker per installed binary, then clean again
-			# (droppings — the checkout IS the build tree; never a
-			# blanket clean elsewhere).
-			rel="${entry#cmd/}"
+			# one marker per installed binary — located by mtime
+			# against a pre-install stamp, because member mkfiles
+			# disagree about BIN (ndb/dial -> bin/<dir>; ppp/dhcpd/
+			# imap4d -> bin/ip; ftpfs/snoopy/exportfs -> bin root;
+			# httpd -> bin/ip/httpd) — then clean again (droppings —
+			# the checkout IS the build tree; never blanket).
 			(cd "/sys/src/$entry" && objtype=amd64 mk clean) || fail "tier2 clean $entry"
-			(cd "/sys/src/$entry" && objtype=amd64 mk install) || fail "tier2 $entry"
-			if [ -f "/amd64/bin/$rel" ]; then
-				t2art "/amd64/bin/$rel"
-			elif [ -d "/amd64/bin/$rel" ]; then
-				found=0
-				for f in $(find "/amd64/bin/$rel" -type f | sort); do
-					t2art "$f"
-					found=$((found+1))
-				done
-				[ "$found" -ge 1 ] || fail "tier2 $entry: no artifacts under /amd64/bin/$rel"
-			else
-				fail "tier2 $entry: no artifact /amd64/bin/$rel"
-			fi
+			stamp=$(mktemp)
+			(cd "/sys/src/$entry" && objtype=amd64 mk install) || { rm -f "$stamp"; fail "tier2 $entry"; }
+			found=0
+			for f in $(find /amd64/bin -type f -newer "$stamp" | sort); do
+				t2art "$f"
+				found=$((found+1))
+			done
+			rm -f "$stamp"
+			[ "$found" -ge 1 ] || fail "tier2 $entry: no artifacts installed under /amd64/bin"
 			(cd "/sys/src/$entry" && objtype=amd64 mk clean) || fail "tier2 droppings clean $entry"
 		else
 			# single-file command, cmd/<single> or nested
@@ -415,6 +413,12 @@ done < "$TIER2"
 (cd /sys/src/cmd/paqfs && objtype=amd64 mk clean) || fail "paqfs clean"
 (cd /sys/src/cmd/ip/ipconfig && objtype=amd64 mk clean) || fail "ipconfig clean"
 (cd /sys/src/cmd/auth/factotum && objtype=amd64 mk clean) || fail "factotum clean"
+# 15-01 tier-2: auth's internal archive — built as the lib.$O.a prereq
+# of every auth single, removed at run end so EVERY run rebuilds it
+# fresh (the 06-03 rule at run granularity for the one shared in-tree
+# archive; within a run mk's own graph governs it)
+rm -f /sys/src/cmd/auth/lib.6.a
+(cd /sys/src/cmd/auth/lib && objtype=amd64 mk clean) || fail "auth/lib clean"
 rm -f /sys/src/cmd/units.c /sys/src/cmd/units.tab.h /sys/src/cmd/6.init
 
 echo "== tier tree (/amd64/bin):"

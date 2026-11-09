@@ -50,3 +50,98 @@
 # exportfs, dial, mntgen + the probe clients) below with per-entry
 # provenance.
 cmd/aux:listen		# USPACE-07/D-02: the services listener; its loopback-announce probe lands 15-02 (k10t1) / 15-03 (r9)
+
+# --- the services daemons + their probe clients (USPACE-07; D-02's
+#     functional-probe semantics — the probes land 15-02/15-03, this
+#     file is the compile half) ---
+cmd/ndb			# whole dir: cs+dns (the resolver pair, D-02's query subjects) + csquery/dnsquery (the probe clients, RESEARCH Pattern 8) + the mkdb/mkhash/mkhosts/query/dnstcp/dnsdebug/ipquery/inform tools — all 12 members are tier-2
+cmd/exportfs		# the 9P export server; the srv -e probe mounts through it (mkone, installs to /amd64/bin/exportfs)
+cmd/dial		# whole dir: the dial helper family — pass/expect are the probe topology's clients (at/drain ride along; installs to /amd64/bin/dial/*)
+cmd/mntgen		# the synthetic-mount scratch server (the 15-02/15-06 writable-/tmp provider); single .c
+cmd/srv			# the /srv registrar: `srv -e` launches+posts+mounts the exportfs probe (the write-flow/srv class the ancestor names)
+cmd/import		# the import client (pairs with exportfs/listen over a connection)
+
+# --- the ip/ suite (cmd/ip; the container's own mkfile filter scopes
+#     which members the default build carries — entries below are that
+#     membership) ---
+cmd/ip/6in4
+cmd/ip/dhcpclient
+cmd/ip/ftpd
+cmd/ip/hogports
+cmd/ip/httpfile
+cmd/ip/iscsisrv
+cmd/ip/linklocal
+cmd/ip/pppoe
+cmd/ip/pptp
+cmd/ip/pptpd
+cmd/ip/rarpd
+cmd/ip/rexexec
+cmd/ip/rip
+cmd/ip/rlogind
+cmd/ip/telnet
+cmd/ip/telnetd
+cmd/ip/tftpd
+cmd/ip/traceroute
+cmd/ip/wol
+cmd/ip/dhcpd		# dir; dhcpd+dhcpleases to /amd64/bin/ip
+cmd/ip/ftpfs		# dir; mkone with BIN at the root (installs /amd64/bin/ftpfs)
+cmd/ip/httpd		# dir; the httpd family to /amd64/bin/ip/httpd (closure: libhttpd — see tier0 appends)
+cmd/ip/ppp		# dir; mkone to /amd64/bin/ip/ppp
+cmd/ip/imap4d		# dir; to /amd64/bin/ip/imap4d
+cmd/ip/snoopy		# dir; BIN at the root (installs /amd64/bin/snoopy)
+# ip exclusions, named (D-10 — nothing carried unexamined):
+#   cmd/ip/gping       GUI class (links libdraw — measured live at the
+#                     first tier-2 run's 6l): a graphical tool, not a
+#                     service; joins with tier 3 (the GUI tier's
+#                     libdraw-family closure), the factotum:fgui
+#                     precedent
+#   cmd/ip/ipconfig   already a tier-1 line (cmd/ip/ipconfig in
+#                     tier1-cmds.txt — never duplicated here; the
+#                     filter reads the union)
+#   cmd/ip/ping       carried by the 14-09 net-gate payload section of
+#   cmd/ip/udpecho    subset-build.sh (link-only harvests, not sweep
+#                     subjects); the container filter keeps them out of
+#                     the aggregate sets either way — they append as
+#                     data members when a probe needs them
+
+# --- the auth suite (cmd/auth; factotum stays a tier-1 line — never
+#     moved; the D-08 probe subjects are authsrv/keyfs [+factotum]) ---
+cmd/auth/as
+cmd/auth/asn12dsa
+cmd/auth/asn12rsa
+cmd/auth/authsrv	# D-08: starts+listens (probe lands 15-02); the real p9sk1 handshake stays Phase 18's
+cmd/auth/changeuser
+cmd/auth/convkeys
+cmd/auth/convkeys2
+cmd/auth/cron
+cmd/auth/debug
+cmd/auth/dsa2pub
+cmd/auth/dsa2ssh
+cmd/auth/dsagen
+cmd/auth/guard.srv
+cmd/auth/keyfs		# D-08: serves over an absent test file (readnvram's amd64 zero-key path — RESEARCH Pattern 8)
+cmd/auth/login
+cmd/auth/netkey
+cmd/auth/newns
+cmd/auth/none
+cmd/auth/passwd
+cmd/auth/pemdecode
+cmd/auth/pemencode
+cmd/auth/printnetkey
+cmd/auth/readnvram
+cmd/auth/rsa2csr
+cmd/auth/rsa2pub
+cmd/auth/rsa2ssh
+cmd/auth/rsa2x509
+cmd/auth/rsafill
+cmd/auth/rsagen
+cmd/auth/uniq
+cmd/auth/warning
+cmd/auth/wrkey
+cmd/auth/secstore	# dir; secstore/secstored/secuser/aescbc to /amd64/bin/auth
+# auth exclusions, named:
+#   cmd/auth/factotum  tier-1's line (cmd/auth/factotum:factotum) —
+#                      never moved into tier 2 (the leaf filter's
+#                      seeded target)
+#   cmd/auth/lib       internal archive (lib.$O.a), built as a prereq
+#                      of the singles — never a data member
