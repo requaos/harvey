@@ -133,7 +133,26 @@ Plans:
   2. The GUI stack compiles for amd64 (libdraw family + rio + acme + sam + plumb) and donor-kernel syscall traces for rio/acme/sam are captured and committed — the measure-first input for any r9 kernel growth the desktop needs (USPACE-08)
   3. The long tail compiles for amd64: upas + lp + the remaining cmd dirs; fossil + venti are compile-gated and documented as runtime-unverifiable this milestone (no block device in r9); gs is included (USPACE-09)
   4. The bootfs payload is staged with manifest assertions: `/lib/font/bit/*`, a glenda-style lib/profile, and a `/lib/ndb/local` template are present in the baked image (DESK-03)
-**Plans**: TBD
+**Plans**: 8 plans
+Plans:
+**Wave 1**
+- [ ] 15-01-PLAN.md — tier-2 services data + filters + driver (the anti-staleness decision lands) + aux leaf filter — T2-ART compile green (USPACE-07)
+
+**Wave 2** *(blocked on Wave 1)*
+- [ ] 15-02-PLAN.md — services functional probes on the k10t1 donor: services-sweep.rc (D-02/D-08), the grown embed, computed SVC expectations (USPACE-07)
+- [ ] 15-04-PLAN.md — GUI tier compile (tier3 data + libdraw-family tier0 closure) + the libmemdraw LP64 pixel-path audit (USPACE-08)
+
+**Wave 3** *(blocked on Wave 2)*
+- [ ] 15-03-PLAN.md — the services image (mkimage fifth contract) + the r9-x64 gate green twice + D-01 fix-everything + the SKIP flips + tier2.ledger (USPACE-07)
+- [ ] 15-05-PLAN.md — the draw donor venue: k10draw config + vgadispi (DISPI) + the -initrd font channel + the eve-gated kbin file (USPACE-08, D-04)
+
+**Wave 4** *(blocked on Wave 3)*
+- [ ] 15-06-PLAN.md — the trace rig: tracesup + committed replays for rio/acme/sam, raw logs + distilled syscall tables, the drawtest/arctest re-join (USPACE-08, D-05/D-06/D-07)
+- [ ] 15-07-PLAN.md — long tail: the full DIRS-coverage proof re-keyed + fix classes + fossil/venti compile-gated + gs compile + the render smoke (USPACE-09, D-09/D-10/D-11)
+
+**Wave 5** *(blocked on Wave 4)*
+- [ ] 15-08-PLAN.md — DESK-03 payload in the root-tree skeleton (manifest asserts, ndb template, D-17 profile, EARLY headroom check) + 15-EVIDENCE.md (DESK-03 + consolidation)
+
 **UI hint**: yes
 
 ### Phase 16: Host Net Modes + Networking Exit Gate
