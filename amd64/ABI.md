@@ -319,9 +319,11 @@ it (D-01).
    drift fails `cargo build`, with no Harvey checkout needed.
 2. **Cross-repo header check**: `cargo xtask ureg-check` (r9 repo)
    parses this repo's `amd64/include/ureg.h` — located via the
-   `R9_HARVEY_DIR` environment variable, default `../harvey` —
-   against a pinned 22-slot table and fails with a named-field diff
-   when the field names, order, or count drift. The amd64 arm of the
+   `R9_HARVEY_DIR` environment variable, REQUIRED (no default — an
+   unset variable is a named error) — against a pinned 26-entry
+   table (22 u64int fields plus the four u16int segment fields) and
+   fails with a named-field diff when the field names, order, or
+   count drift. The amd64 arm of the
    checker handles this header's two parser-relevant shapes: the bare
    `struct Ureg {` form (no typedef wrapper) and the `u16int`
    declarations — with the four-fields-one-qword packing rule pinned
@@ -334,8 +336,8 @@ it (D-01).
 ### The negative control (D-02b)
 
 `cargo xtask ureg-check` also runs a negative-control leg: the check
-is re-run against a deliberately-mutated temp copy of the amd64
-header and MUST fail, with the failure output containing the
+is re-run against a deliberately-mutated in-memory copy of the amd64
+header text and MUST fail, with the failure output containing the
 named-field diff and a `NEGATIVE CONTROL FAILED` line. If the mutated
 copy ever passes the check, that is the loud failure — the gate
 proves it can catch drift, not just that it can parse the pristine
