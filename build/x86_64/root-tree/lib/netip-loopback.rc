@@ -1,0 +1,209 @@
+#!/bin/rc
+# netip-loopback.rc — the x86_64 loopback net-gate fixture (14-09,
+# XEXEC-05 — the aarch64 08-04 fixture re-keyed): ping 127.0.0.1 and
+# the udp echo round-trip over the devip #I tree through the loopback
+# medium (attach #I → ipifc bind loopback → add → the proto legs).
+# Sourced by the gate harness (`rc /lib/netip-loopback.rc' typed at the
+# % prompt — the sourced-not-typed discipline, net-sweep.rc's
+# precedent).
+#
+# Addresses come from /lib/netaddr.rc (the D-11 seam) — the lo_ leg.
+# NO hardcoded 127.0.0.1 outside that seam (Pitfall 9's discipline
+# holds on the loopback leg too).
+#
+# Every failed step prints `netip: FAIL <stage>' to stderr and exits
+# non-nil (rc's || idiom per command; `test -e' before every redirect
+# open — a redirect OPEN failure is an uncatchable rc Xerror that would
+# abort the script without the named FAIL line).  Success legs print
+# their ok markers (`netip: random ok', `netip: ping ok', `netip: udp
+# echo ok') and the run ends with the NETIP-DONE marker.  No timing
+# assumptions, no sleeps — the ping leg's bound comes from ping's own
+# -n count and its internal alarm discipline; the udp leg's read is
+# alarm-bounded.
+#
+# The random leg (the aarch64 D-17 leg, re-keyed): /dev/random must
+# exist and serve bytes — ipconfig's unconditional truerand() sysfatals
+# without it.  On r9-x86_64 the port devcons serves the file (never
+# errors) but the arch registered NO entropy hooks this era — the DRBG
+# seeds from the block constants alone (deterministic across boots),
+# while the per-read counter advance still yields different bytes per
+# read (the two-sample freshness compare below holds).  The aarch64
+# gate's `devcons: random seeded' marker assert is NOT carried: that
+# print rides the registered-hooks arm only.  sha1sum is the plain
+# tier-1 binary (the aarch64 gate used the h-prefixed payload binary —
+# the x64 net image stages sha1sum unprefixed).
+
+# the D-11 seam (test -e first: a failed source is uncatchable)
+test -e /lib/netaddr.rc || {
+	echo netip: FAIL seam >[1=2]
+	exit seam
+}
+. /lib/netaddr.rc
+
+# the random leg: two 16-byte reads — each must serve 16 bytes, and
+# the two samples must differ (the DRBG counter advances per block, so
+# no two reads ever serve the same bytes even in the no-hooks era).
+r1=`{dd -if /dev/random -bs 16 -count 1 >[2]/dev/null | wc -c} || {
+	echo netip: FAIL random >[1=2]
+	exit random
+}
+~ $r1 16 || {
+	echo netip: FAIL random >[1=2]
+	exit random
+}
+h1=`{dd -if /dev/random -bs 16 -count 1 >[2]/dev/null | sha1sum} || {
+	echo netip: FAIL random >[1=2]
+	exit random
+}
+h2=`{dd -if /dev/random -bs 16 -count 1 >[2]/dev/null | sha1sum} || {
+	echo netip: FAIL random >[1=2]
+	exit random
+}
+~ $"h1 $"h2 && {
+	echo netip: FAIL randomfresh >[1=2]
+	exit randomfresh
+}
+echo netip: random ok
+
+# attach the #I device tree at /net
+bind -a '#I' /net || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+
+# ipifc: clone a conversation, bind the loopback medium, add the
+# loopback-leg address.  The ctl file is re-opened per write (the
+# binding persists across close — loopbackmedium's unbindonclose is 0).
+conv=`{cat /net/ipifc/clone} || {
+	echo netip: FAIL clone >[1=2]
+	exit clone
+}
+~ $#conv 1 || {
+	echo netip: FAIL clone >[1=2]
+	exit clone
+}
+
+test -e /net/ipifc/$conv/ctl || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+echo bind loopback > /net/ipifc/$conv/ctl || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+echo add $lo_guestv4 255.0.0.0 > /net/ipifc/$conv/ctl || {
+	echo netip: FAIL add >[1=2]
+	exit add
+}
+
+# /net/ipselftab must now carry the loopback address line — word-wise
+# exact match (the rc ~ dialect lesson: quoting disables wildcarding,
+# multi-star spans are unreliable; a plain literal compare is neither)
+selftab=`{cat /net/ipselftab} || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+found=0
+for(w in $selftab){
+	if(~ $w $lo_guestv4)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+
+# the ping leg: ping's own -n count; replies arrive over the loopback
+# medium through the real file tree (icmp clone/connect/data).  ping
+# exits non-nil on any lost message.
+ip/ping -n 3 $lo_guestv4 || {
+	echo netip: FAIL ping >[1=2]
+	exit ping
+}
+echo netip: ping ok# the udp leg: udpecho (announce udp!*!echo + headers mode) echoes an
+# rc client's datagram over the loopback, exercising the 52-byte
+# Udphdr synthesis both directions.  The server runs backgrounded and
+# stays (the harness tears the guest down after NETIP-DONE).
+#
+# TWO era-specific disciplines shape this leg:
+#
+# (1) The conv-lifetime discipline: a devip conv RESETS on its last
+# close (closeconv) — so an rc script that opens ctl/data per command
+# (the `echo verb > ctl' shape) loses the conv between commands.  The
+# client below holds the clone-opened ctl open on fd 4 for the whole
+# exchange (rc's `<>[4]' read-write redirect — the man page's own
+# `newconn <>/net/tcp/clone' precedent), so the conv survives the
+# per-command data opens.
+#
+# (2) The no-cs era's service discovery: udpecho's `echo' service name
+# has no connection server to resolve it, so libc's identtrans passes
+# it through and the announce lands as a WILDCARD — the kernel picks
+# the port (the donor's atoi(name)=0 → setlport shape).  The gate
+# reads the server's real port back from the file tree: a NONZERO port
+# on the server's conv proves the announce ctl write completed
+# (single-CPU syscall atomicity — the local read can only interleave
+# between syscalls), i.e. the socket is bound.  The pre-clone spin is
+# fork-free (rc globbing is in-process), so it cannot pressure the
+# arena while it waits for the backgrounded server.
+ip/udpecho &
+
+# Discover the server's port (above).  ~ dialect lessons: glob patterns
+# stay UNQUOTED (quoting disables wildcarding); `~ $p '' 0' rejects the
+# not-yet-announced conv (empty read or port 0).  Ours is the only udp
+# conv in the tree until the client's clone below.
+sport=''
+while (~ $sport '') {
+	for (d in /net/udp/[0-9]*) {
+		loc=`{cat $d/local >[2]/dev/null}
+		if (~ $loc *!*) {
+			p=`{echo $loc | sed 's/.*!//'}
+			if (! ~ $p '' 0) {
+				sport=$p
+			}
+		}
+	}
+}
+
+# The client exchange, with the clone-opened ctl held on fd 4 (above):
+# read the conv number off the ctl, connect to the server, write the
+# tagged payload (echo's trailing newline rides the datagram), read
+# exactly one datagram back (dd's -bs/-count one-read discipline — a
+# bare cat would block for a second datagram), compare.
+{
+	uconv=`{cat <[0=4]} || {
+		echo netip: FAIL udpclone >[1=2]
+		exit udpclone
+	}
+	~ $#uconv 1 || {
+		echo netip: FAIL udpclone >[1=2]
+		exit udpclone
+	}
+	echo connect $lo_guestv4!$sport >[1=4] || {
+		echo netip: FAIL udpconnect >[1=2]
+		exit udpconnect
+	}
+	udptag=netip-udp-probe-14-09
+	test -e /net/udp/$uconv/data || {
+		echo netip: FAIL udpdata >[1=2]
+		exit udpdata
+	}
+	echo $udptag > /net/udp/$uconv/data || {
+		echo netip: FAIL udpwrite >[1=2]
+		exit udpwrite
+	}
+	reply=`{dd -if /net/udp/$uconv/data -bs 512 -count 1 >[2]/dev/null} || {
+		echo netip: FAIL udpread >[1=2]
+		exit udpread
+	}
+	~ "$reply" "$udptag" || {
+		echo netip: FAIL udpcompare >[1=2]
+		exit udpcompare
+	}
+} <>[4]/net/udp/clone || {
+	echo netip: FAIL udpclone >[1=2]
+	exit udpclone
+}
+echo netip: udp echo ok
+
+echo netip: NETIP-DONE
+exit ''

@@ -1,8 +1,11 @@
 #!/bin/sh
 # build/x86_64/mkimage.sh — bake build/x86_64/out/bootfs.paq (the 14-05
 # MARKER image), build/x86_64/out/bootfs-chain.paq (the 14-06 BOOT-CHAIN
-# image), and, since 14-08, build/x86_64/out/bootfs-tier.paq (the TIER
-# image — the chain tree + the tier-1 sweep payload), the paqfs root
+# image), build/x86_64/out/bootfs-tier.paq (the 14-08 TIER image — the
+# chain tree + the tier-1 sweep payload), and, since 14-09,
+# build/x86_64/out/bootfs-net.paq (the NET image — the chain tree + the
+# net-gate payload: the ip-container binaries + the 6c C helpers + the
+# /lib fixtures), the paqfs root
 # images for the r9 x86_64 boots (D-04:
 # the byte format carried VERBATIM from aarch64 — same header magic
 # 529ab12b, same trailer 6b46e688, same in-tree mkpaqfs, same r9
@@ -36,6 +39,24 @@
 #                                at bake time (init's cpenv consumer)
 #   /usr/glenda/lib/profile      committed skeleton
 #   empty dirs /root /env /proc /dev /srv /fd /bin /tmp /mnt /net
+#   NO /boot/factotum            auth stub = absence (same rule)
+#
+# Net-image contract (14-09, XEXEC-05 leg — the composed net gate's
+# image; the aarch64 Phase-8 net manifest re-keyed to /amd64 paths):
+#   the chain manifest (8's set) PLUS
+#   /amd64/bin/ip/{ipconfig,ping,udpecho}
+#                                the REAL net binaries (the tier build's
+#                                ipconfig + its 14-09 net section)
+#   /amd64/bin/{tcpecho,tcpblast,netblast}
+#                                the 6c C-helper re-keys (out/ supply)
+#   /amd64/bin/{grep,sed,dd,wc,sha1sum,test,bind}
+#                                the fixtures' utility set (test/bind
+#                                are NOT rc builtins)
+#   /lib/netaddr.rc              the D-11 addressing seam (the ONLY
+#                                place a venue address may live —
+#                                asserted at bake time)
+#   /lib/netip-{loopback,static,dhcp,tcp}.rc
+#                                the in-guest net fixtures
 #   NO /boot/factotum            auth stub = absence (same rule)
 #
 # Determinism (Pitfall 6, so 14-07's composed-ISO FOD can inherit): the
@@ -424,3 +445,130 @@ trailer3=$(od -An -tx1 -j $((sz3 - 28)) -N 4 "$TIER_IMAGE" | tr -d ' \n')
 [ "$trailer3" = "6b46e688" ] || err "$TIER_IMAGE: bad trailer magic $trailer3 (want 6b46e688)"
 
 echo "== PASS: baked $TIER_IMAGE ($sz3 bytes; ${_nh} h* binaries; header $magic3 trailer $trailer3; KERNDATE $KERNDATE)"
+
+# ------------------------------------------------------------------
+# 10. the NET bake (14-09, XEXEC-05, D-07): the chain tree + the
+#     net-gate payload — out/bootfs-net.paq.  The composed net gate
+#     boots THIS image to the % prompt and drives the baked fixtures
+#     through it (the aarch64 08-09 net-smoke's image shape re-keyed
+#     to /amd64 paths): the chain manifest (8's set — boot(8), paqfs,
+#     the real init, rc, the sweep set) PLUS the net binaries —
+#     ipconfig + ping + udpecho from the ip container's amd64 path
+#     (/amd64/bin/ip/, the tier build + its 14-09 net section), the
+#     three 6c C helpers from out/ (tcpecho/tcpblast/netblast), and
+#     the gate-utility set the fixtures' bodies exec (grep sed dd wc
+#     sha1sum test bind — /bin/test and /bin/bind are NOT rc builtins)
+#     — PLUS the /lib fixtures (netaddr.rc the D-11 seam + the four
+#     netip-*.rc sweeps, riding the committed skeleton).
+NET_IMAGE="$OUT/bootfs-net.paq"
+
+# 10a. inputs (the tier build + its net section are the producers —
+#      named loudly when absent, with the remediation)
+for p in ip/ipconfig ip/ping ip/udpecho; do
+	[ -s "$BIN/$p" ] || err "$BIN/$p missing — run sh build/x86_64/subset-build.sh first (the 14-09 net section)"
+done
+for f in grep sed dd wc sha1sum test bind paqfs rc ls cat echo ps; do
+	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first (the net gate's utility set)"
+done
+[ -s "$HARVEY/amd64/init" ] || err "amd64/init missing — run sh build/x86_64/subset-build.sh first (stage/init)"
+[ -s "$CHAIN_OUT/boot" ] || err "$CHAIN_OUT/boot missing — run sh build/x86_64/subset-build.sh first (9k/boot)"
+for f in netblast tcpblast tcpecho; do
+	[ -s "$CHAIN_OUT/$f" ] || err "$CHAIN_OUT/$f missing — run sh build/x86_64/subset-build.sh first (the 14-09 net helpers)"
+done
+for f in netaddr.rc netip-loopback.rc netip-static.rc netip-dhcp.rc netip-tcp.rc; do
+	[ -f "$ROOT_TREE/lib/$f" ] || err "$ROOT_TREE/lib/$f missing — the committed net fixture (14-09)"
+done
+
+# 10b. the D-11 single-seam discipline, asserted at bake time (T-14-17
+#      carried mechanically): NO venue address literal may live in any
+#      root-tree fixture EXCEPT netaddr.rc — the grep scopes to the
+#      fixtures directory and excludes the seam by name.  A stray
+#      10.0.2.x elsewhere re-couples the gates to one venue and reds
+#      the bake here, never the eye later.
+_stray=$("$GREP" -rn '10\.0\.2\.' "$ROOT_TREE/lib/" 2>/dev/null | "$GREP" -v 'netaddr\.rc' || true)
+[ -z "$_stray" ] || err "venue address literal outside netaddr.rc (the D-11 seam violated): $_stray"
+
+STAGE4="$TMPD/root-net"
+mkdir -p "$STAGE4"
+
+# 10c. the committed skeleton (termrc/namespace/profile — the standard
+#     INTERACTIVE termrc this time: the net gate drives typed legs at
+#     the % prompt, never a termrc override like the tier image's; the
+#     lib/ fixtures ride the skeleton tar)
+(cd "$ROOT_TREE" && tar -cf - .) | (cd "$STAGE4" && tar -xf -)
+
+# 10d. empty mount-point dirs + staging parents (the chain set + the
+#     ip container's home)
+mkdir -p "$STAGE4/root" "$STAGE4/env" "$STAGE4/proc" "$STAGE4/dev" "$STAGE4/srv" \
+	"$STAGE4/fd" "$STAGE4/bin" "$STAGE4/tmp" "$STAGE4/mnt" \
+	"$STAGE4/net" "$STAGE4/boot" "$STAGE4/amd64/bin/ip" \
+	"$STAGE4/rc/lib" "$STAGE4/rc/bin" "$STAGE4/adm/timezone"
+
+# 10e. the chain binaries from THIS build's products (the tier bake's
+#     9e discipline: BIN + /amd64/init + out/boot, never a stale out/
+#     harvest for members that have a /amd64/bin home)
+cp "$CHAIN_OUT/boot" "$STAGE4/boot/boot"
+cp "$BIN/paqfs" "$STAGE4/boot/paqfs"
+cp "$HARVEY/amd64/init" "$STAGE4/amd64/init"
+for f in rc ls cat echo ps; do
+	cp "$BIN/$f" "$STAGE4/amd64/bin/$f"
+done
+
+# 10f. the net payload: the ip container's binaries at /amd64/bin/ip
+#     (ipconfig/ping/udpecho — where /bin's ip/ resolves through the
+#     namespace bind), the C helpers + the utility set at /amd64/bin.
+#     Deterministic staging order (the fixed lists).
+for f in ipconfig ping udpecho; do
+	cp "$BIN/ip/$f" "$STAGE4/amd64/bin/ip/$f"
+done
+for f in tcpecho tcpblast netblast; do
+	cp "$CHAIN_OUT/$f" "$STAGE4/amd64/bin/$f"
+done
+for f in grep sed dd wc sha1sum test bind; do
+	cp "$BIN/$f" "$STAGE4/amd64/bin/$f"
+done
+
+# 10g. bake-time verbatim copies (the chain bake's rule)
+cp "$HARVEY/rc/lib/rcmain" "$STAGE4/rc/lib/rcmain"
+cp "$HARVEY/adm/timezone/local" "$STAGE4/adm/timezone/local"
+
+# 10h. pre-bake manifest: the chain paths + the net payload + the
+#     fixtures, PRINTED as the staging manifest (the bake log is the
+#     gate's evidence — the plan's verify greps these lines)
+for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
+	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
+	amd64/bin/ip/ipconfig amd64/bin/ip/ping amd64/bin/ip/udpecho \
+	amd64/bin/tcpecho amd64/bin/tcpblast amd64/bin/netblast \
+	amd64/bin/grep amd64/bin/sed amd64/bin/dd amd64/bin/wc \
+	amd64/bin/sha1sum amd64/bin/test amd64/bin/bind \
+	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
+	usr/glenda/lib/profile lib/netaddr.rc lib/netip-loopback.rc \
+	lib/netip-static.rc lib/netip-dhcp.rc lib/netip-tcp.rc; do
+	[ -f "$STAGE4/$p" ] || err "net manifest: $p missing from staged tree"
+	echo "net manifest: /$p staged"
+done
+for p in root env proc dev srv fd bin tmp mnt net; do
+	[ -d "$STAGE4/$p" ] || err "net manifest: mount-point dir /$p missing"
+done
+
+# 10i. /boot/factotum ABSENCE (auth-stub-by-absence — the same D-02
+#     rule as every bake above)
+[ ! -e "$STAGE4/boot/factotum" ] || err "net manifest: /boot/factotum present — auth-stub-by-absence violated"
+
+# 10j. rcmain ships byte-verbatim (the chain bake's cmp guard)
+cmp -s "$HARVEY/rc/lib/rcmain" "$STAGE4/rc/lib/rcmain" || err "staged rcmain diverges from rc/lib/rcmain"
+
+# 10k. determinism + bake (the chain bake's rule)
+find "$STAGE4" -exec touch -h -d "@$KERNDATE" {} +
+rm -f "$NET_IMAGE"
+KERNDATE="$KERNDATE" "$MKPAQFS" -o "$NET_IMAGE" "$STAGE4" || err "mkpaqfs failed (net)"
+[ -s "$NET_IMAGE" ] || err "$NET_IMAGE missing/empty after mkpaqfs"
+
+# 10l. the byte-format contract (same header/trailer magic checks)
+magic4=$(od -An -tx1 -N4 "$NET_IMAGE" | tr -d ' \n')
+[ "$magic4" = "529ab12b" ] || err "$NET_IMAGE: bad header magic $magic4 (want 529ab12b)"
+sz4=$(wc -c < "$NET_IMAGE" | tr -d ' ')
+trailer4=$(od -An -tx1 -j $((sz4 - 28)) -N 4 "$NET_IMAGE" | tr -d ' \n')
+[ "$trailer4" = "6b46e688" ] || err "$NET_IMAGE: bad trailer magic $trailer4 (want 6b46e688)"
+
+echo "== PASS: baked $NET_IMAGE ($sz4 bytes; header $magic4 trailer $trailer4; KERNDATE $KERNDATE)"

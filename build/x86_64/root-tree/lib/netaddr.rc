@@ -1,0 +1,44 @@
+# netaddr.rc — the D-11 single addressing seam for the x86_64 net gates
+# (14-09, XEXEC-05 — the aarch64 Phase-8 seam re-keyed; re-key, don't
+# reinvent).
+#
+# One committed fixture defines guest/host addresses per leg; every
+# gate's assertions and the baked netip-*.rc sweeps derive from it —
+# sourced by root-tree/lib/netip-*.rc and by the composed net gate's
+# typed legs (`. /lib/netaddr.rc' before any $slirp_/$lo_ use).  NO
+# gate or fixture hardcodes a 10.0.2.x or other per-leg address
+# anywhere else (Pitfall 9/D-11's named failure mode, mechanically
+# asserted: the x64 bake gate greps root-tree/lib for venue literals
+# outside this file and a stray fails the gate).
+#
+# Shape: rc-syntax key=value assignments, one commented section per
+# leg, keys prefixed by leg so sourcing the whole file binds every leg
+# unambiguously (a bare guestv4 per leg would be last-wins on source).
+# Consumers take the leg prefix they serve.
+#
+# The x64 re-key carries the v4 keys the Phase-14 gates consume.  The
+# aarch64 seam's v6 keys (slirp_guestv6/gwv6, fec0::) are NOT carried:
+# no x64 gate this phase speaks v6 — they join with Phase 16's NETIP
+# legs (the tap venue), re-keyed from the aarch64 probe findings.
+
+# --- loopback leg (the netip-loopback/tcp fixtures: ping 127.0.0.1,
+#     udp echo, tcp/7 echo — all NIC-free, synchronous in the sender's
+#     own drive) ---
+lo_guestv4=127.0.0.1
+
+# --- slirp leg (the netip-static/dhcp fixtures: static ipconfig, DHCP
+#     via ipconfig's dhcpclient) ---
+# qemu -netdev user defaults: vnetwork 10.0.2.0/24, host 10.0.2.2, guest
+# 10.0.2.15 (DHCP start).  Hermetic/unprivileged/CI-able; every
+# slirp-green gate is labeled not-L2-truth (the NOT-L2-TRUTH venue
+# label is an ASSERTED STAGE in the gate capture — Pitfall 10: slirp
+# forgives L2 bugs by design; the tap-leg truth gate is Phase 16's
+# NETIP-08, out of scope here).
+slirp_guestv4=10.0.2.15
+slirp_maskv4=255.255.255.0
+slirp_gwv4=10.0.2.2
+
+# tcpblast host-echo port (the aarch64 soak dialled slirp_gwv4:blastport
+# with the sweep owning the host-side echo listener; the x64 gate bakes
+# the binary this phase, the soak itself joins with the Phase-16 legs).
+blastport=7777

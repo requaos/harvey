@@ -253,6 +253,41 @@ cp /sys/src/cmd/6.bind /amd64/bin/bind || fail "harvest bind"
 rm -f /sys/src/cmd/6.bind /sys/src/cmd/bind.6
 [ -s /amd64/bin/bind ] || fail "bind: no artifact /amd64/bin/bind"
 
+# 14-09 (XEXEC-05, D-07): the NET-gate payload — NOT tier-1 members
+# (never swept, no markers; the bind precedent): the ip container's
+# link-only pair ping/udpecho (mkmany's $BIN/% recipe stages its cp as
+# ._<name> inside the userns chroot — the 14-07 measured lesson, so
+# singles link via `mk 6.<cmd>' and THIS script's cp harvests; the
+# mkmany generic rules survive the tier filter — TARG only drives the
+# install aggregation), the write-flow-excluded dd (the net fixtures'
+# one-read discipline needs it; link-only for the same reason), and
+# the three 6c C helpers from build/x86_64 (netblast/tcpblast/tcpecho
+# — the 08-03 compiled-payload shape re-keyed), harvested to out/ (the
+# NET bake's supply home, alongside boot/init/paqfs).
+echo "== net cmd: ping (link-only + harvest, the ip container)"
+(cd /sys/src/cmd/ip && objtype=amd64 mk 6.ping) || fail "cmd ip ping (link-only)"
+cp /sys/src/cmd/ip/6.ping /amd64/bin/ip/ping || fail "harvest ping"
+rm -f /sys/src/cmd/ip/6.ping /sys/src/cmd/ip/ping.6
+[ -s /amd64/bin/ip/ping ] || fail "ping: no artifact /amd64/bin/ip/ping"
+
+echo "== net cmd: udpecho (link-only + harvest, the ip container)"
+(cd /sys/src/cmd/ip && objtype=amd64 mk 6.udpecho) || fail "cmd ip udpecho (link-only)"
+cp /sys/src/cmd/ip/6.udpecho /amd64/bin/ip/udpecho || fail "harvest udpecho"
+rm -f /sys/src/cmd/ip/6.udpecho /sys/src/cmd/ip/udpecho.6
+[ -s /amd64/bin/ip/udpecho ] || fail "udpecho: no artifact /amd64/bin/ip/udpecho"
+
+echo "== net cmd: dd (link-only + harvest, the one-read discipline)"
+(cd /sys/src/cmd && objtype=amd64 mk 6.dd) || fail "cmd dd (link-only)"
+cp /sys/src/cmd/6.dd /amd64/bin/dd || fail "harvest dd"
+rm -f /sys/src/cmd/6.dd /sys/src/cmd/dd.6
+[ -s /amd64/bin/dd ] || fail "dd: no artifact /amd64/bin/dd"
+
+for h in netblast tcpblast tcpecho; do
+	echo "== net helper: build/x86_64/$h.c -> out/$h (6c/6l)"
+	(cd "$HARVEY/build/x86_64" && objtype=amd64 6c -FTVw "$h.c" && objtype=amd64 6l -o "$HARVEY/build/x86_64/out/$h" "$h.6" && rm -f "$h.6") || fail "net helper $h"
+	[ -s "$HARVEY/build/x86_64/out/$h" ] || fail "net helper $h: no artifact out/$h"
+done
+
 # dir-build droppings (the checkout IS the build tree): mkone clean
 # removes the *.$O/y.tab.* class; rc's x.tab.h is its one documented
 # gap; awk's generated grammar/table files (awkgram.c proctab.c) are
@@ -380,6 +415,17 @@ for f in rc awk ls cat echo ps grep sed nm; do
 done
 [ -x "$HARVEY/amd64/bin/ip/ipconfig" ] || err "amd64/bin/ip/ipconfig missing after the tier build"
 [ -x "$HARVEY/amd64/bin/auth/factotum" ] || err "amd64/bin/auth/factotum missing after the tier build"
+# 14-09: the net-gate payload spot-checks (the magic class)
+for f in ip/ping ip/udpecho dd bind; do
+	[ -x "$HARVEY/amd64/bin/$f" ] || err "amd64/bin/$f missing after the tier build (the 14-09 net section)"
+	magic=$(od -An -tx1 -N4 "$HARVEY/amd64/bin/$f" | tr -d ' \n')
+	[ "$magic" = "00008a97" ] || err "amd64/bin/$f: bad magic $magic (want 00008a97)"
+done
+for f in netblast tcpblast tcpecho; do
+	[ -s "$HARVEY/build/x86_64/out/$f" ] || err "build/x86_64/out/$f missing after the tier build (the 14-09 net helpers)"
+	magic=$(od -An -tx1 -N4 "$HARVEY/build/x86_64/out/$f" | tr -d ' \n')
+	[ "$magic" = "00008a97" ] || err "build/x86_64/out/$f: bad magic $magic (want 00008a97)"
+done
 for f in boot init paqfs; do
 	[ -s "$HARVEY/build/x86_64/out/$f" ] || err "build/x86_64/out/$f missing after the tier build"
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/x86_64/out/$f" | tr -d ' \n')
