@@ -195,7 +195,11 @@ if(! ~ $svclo ''){
 		echo SVC-CS-READY
 		qout=`{$B/hcsquery /net/cs '!ipinfo dom=probehost ip'}
 		echo SVC-CSOBS $"qout
-		if(~ $"qout *ip=127.0.0.1*) echo SVC-OK cs
+		# the assert pattern avoids `=' (rc's lexer rejects it inside a
+		# bare word — measured: "token '=*ip': syntax error" killed the
+		# whole sourced file); the probe host's address alone is unique
+		# to the baked ndb
+		if(~ $"qout *127.0.0.1*) echo SVC-OK cs
 		if not echo SVC-FAIL cs
 	}
 	if not echo SVC-FAIL cs
