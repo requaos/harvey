@@ -141,8 +141,11 @@ if not echo SVC-FAIL mntgen
 # honest landing — never a weaker pass).  The ladder is FLAT
 # (svclo carries the state; the rc-syntax discipline above).
 svclo=''
-if(bind -a '#I' /net)
+echo SVC-PREBIND
+if(bind -a '#I' /net){
 	svclo=bound
+}
+echo SVC-POSTBOUND-$svclo
 if(~ $svclo ''){
 	echo SVC-SKIP-WHY no-netdev-the-ip-device-bind-failed
 	echo SVC-SKIP cs
@@ -150,15 +153,18 @@ if(~ $svclo ''){
 if(~ $svclo bound){
 	{
 		lconv=`{$B/hcat <[0=7]}
-		if(~ $#lconv 1)
+		if(~ $#lconv 1){
 			svclo=cloned
+		}
 		if(~ $svclo cloned){
-			if($B/hecho bind loopback > /net/ipifc/$lconv/ctl)
+			if($B/hecho bind loopback > /net/ipifc/$lconv/ctl){
 				svclo=mediumbound
+			}
 		}
 		if(~ $svclo mediumbound){
-			if($B/hecho add 127.0.0.1 255.0.0.0 > /net/ipifc/$lconv/ctl)
+			if($B/hecho add 127.0.0.1 255.0.0.0 > /net/ipifc/$lconv/ctl){
 				svclo=up
+			}
 		}
 		if(~ $svclo up) echo SVC-LOOPBACK-UP
 		if(! ~ $svclo up) echo SVC-LOOPBACK-NOT-UP
