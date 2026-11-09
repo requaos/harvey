@@ -5,19 +5,19 @@ titles: json
 findings:
   - id: CR-01
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "check_seed_fit does not mirror seed_user_pages — exec with argv in the gap kills the process post-free instead of returning -1"
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The ax@0 frozen-ABI const assert is swallowed by a line comment — the witness does not compile, and ABI.md's enforcement claim is false for ax"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "l.S module-tag walk performs no minimum tag-size validation — a corrupt size-0 tag loops forever at 32-bit boot, and module-header reads can run 4 bytes past the stash"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "ABI.md's enforcement appendix contradicts the checker it freezes — stale `../harvey` default, wrong pinned-table size, wrong mutation medium"
   - id: IN-01
     severity: info
@@ -31,19 +31,19 @@ findings:
     severity: info
     disposition: open
     title: "Impossible-state guard — check_data_bss_below_ustop cannot fire for any parseable header"
-open: 7
+open: 3
 total: 7
-recorded: 2026-11-09T16:11:20.314Z
+recorded: 2026-11-09T17:10:58.448Z
 ---
 
 # Phase 14: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | open | - |
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
+| CR-01 | critical | fixed | 14-REVIEW-FIX.md |
+| WR-01 | warning | fixed | 14-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 14-REVIEW-FIX.md |
+| WR-03 | warning | fixed | 14-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
