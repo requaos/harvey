@@ -152,7 +152,13 @@ if(~ $svclo ''){
 }
 if(~ $svclo bound){
 	{
-		lconv=`{$B/hcat <[0=7]}
+		# the conv number read rides the /fd dup device (bound at #d by
+		# the boot script) — NEVER the `<[0=7]' fd-dup redirect, which
+		# Harvey rc misapplies inside a backquote in a nested sourced
+		# block (measured: the dup lands reversed on fd 1, so hcat read
+		# the CONSOLE and wrote the reply into the ctl channel — a
+		# silent block that only serial input could unmask)
+		lconv=`{$B/hcat /fd/7}
 		if(~ $#lconv 1){
 			svclo=cloned
 		}
