@@ -12,3 +12,14 @@ test); the FOD's sed staging keeps the loader-config component stable so
 14-07's re-proof isolates kernel-byte drift. 14-07 owns the re-wire (its
 plan: the parameterized builder + a fresh two-derivation byte-identity
 proof + the new hash), per OQ-1's resolution.
+
+## RESOLVED 14-07: boot-iso FOD outputHash re-wired (the stale-since-14-01 item above)
+
+14-07 re-expressed packages.boot-iso through the parameterized
+iso-builder and re-wired the hash after the refactor's own
+byte-preservation proof plus fresh independent-derivation proofs: the
+old 13-06 FOD body and the new builder, over FOUR independent fresh
+kernel builds, produced the identical ISO (file sha256 cdcfa008…,
+NAR 944aad86… = sha256-lEqthp7h…); `nix build .#boot-iso --rebuild`
+re-verifies on every rebuild (r9@fe39d83, the kernel re-keyed to
+q35shell for the compose).
