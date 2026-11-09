@@ -38,6 +38,13 @@
 # one-shot services, query tools on stdin EOF, srv's internal 10s
 # alarm), and the host harness's sweep budget is the backstop.
 #
+# Vocabulary discipline (the donor embed's h* names): EVERY command the
+# sweep runs carries the $B/h* prefix EXCEPT the boot chain's three
+# unprefixed embeds (rc, echo, bind — the second-name staged copies) —
+# a bare `test' or `sleep' resolves to nothing on the donor (only
+# /boot's htest/hsleep exist; measured on the first tracer boot: rc's
+# "file does not exist" Xerror per call).
+
 # Venue facts this file rides (the donor, k10t1): the devroot embed is
 # READ-ONLY — writable scratch is /env (devenv) for probe FILES and
 # mntgen's walk-create mount for probe DIRECTORIES (mntgen /mnt, the
@@ -65,11 +72,11 @@ cputype=amd64
 # cascade a failed arithmetic backquote would cause.
 fn svc_waitpath {
 	n=()
-	while(! test -e $2 && test $#n -lt $1){
+	while(! $B/htest -e $2 && $B/htest $#n -lt $1){
 		n=($n x)
-		sleep 1
+		$B/hsleep 1
 	}
-	test -e $2
+	$B/htest -e $2
 }
 
 # svc_waitport <iters> <port> — bounded spin for an announced tcp
@@ -80,7 +87,7 @@ svcportfound=''
 fn svc_waitport {
 	n=()
 	svcportfound=''
-	while(test $#n -lt $1 && ~ $svcportfound ''){
+	while($B/htest $#n -lt $1 && ~ $svcportfound ''){
 		for(d in /net/tcp/[0-9]*){
 			loc=`{$B/hcat $d/local >[2]/dev/null}
 			if(~ $"loc *!^$2)
@@ -88,7 +95,7 @@ fn svc_waitport {
 		}
 		if(~ $svcportfound ''){
 			n=($n x)
-			sleep 1
+			$B/hsleep 1
 		}
 	}
 }
@@ -102,7 +109,7 @@ fn svc_waitport {
 # posted /srv/mnttest.  The sweep's file scratch stays /env (mntgen's
 # tree is read-only above the walk-create).
 if($B/hmntgen -s mnttest /mnt){
-	if(test -e /srv/mnttest){
+	if($B/htest -e /srv/mnttest){
 		dirout=`{$B/hls -ld /mnt/svcscratch}
 		if(~ $"dirout d*) echo SVC-OK mntgen
 		if not echo SVC-FAIL mntgen
