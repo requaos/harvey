@@ -143,18 +143,15 @@ if not echo SVC-FAIL mntgen
 # bring-up degrades the net-dependent probes to their named SKIPs (the
 # flagged assumption's honest landing — never a weaker pass).
 svclo=''
-echo SVC-PREBIND
 if(bind -a '#I' /net){
 	svclo=bound
 }
-echo SVC-POSTBOUND-$svclo
 if(~ $svclo ''){
 	echo SVC-SKIP-WHY no-netdev-the-ip-device-bind-failed
 	echo SVC-SKIP cs
 }
 if(~ $svclo bound){
 	lconv=`{$B/hcat /net/ipifc/clone}
-	echo SVC-LCONV-$lconv
 	if(~ $#lconv 1){
 		if($B/htest -e /net/ipifc/$lconv/ctl){
 			if($B/hecho bind loopback > /net/ipifc/$lconv/ctl){
@@ -188,11 +185,8 @@ if(~ $svclo bound){
 if(! ~ $svclo ''){
 	svcndb='ip=127.0.0.1 dom=probehost
 '
-	echo SVC-HCS-SPAWNING
 	$B/hcs -f /env/svcndb &
-	echo SVC-HCS-SPAWNED
 	if(svc_waitpath 10 /net/cs){
-		echo SVC-CS-READY
 		qout=`{$B/hcsquery /net/cs '!ipinfo dom=probehost ip'}
 		echo SVC-CSOBS $"qout
 		# the assert pattern avoids `=' (rc's lexer rejects it inside a
