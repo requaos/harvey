@@ -20,7 +20,7 @@
 
 - [x] **XEXEC-01**: amd64 Ureg/TrapFrame ABI contract published and build-enforced — the `aarch64/ABI.md` equivalent: offsets frozen, const asserts + xtask ureg-check with a negative control
 - [x] **XEXEC-02**: Harvey amd64 binaries exec on r9 x86_64 through the real EL/syscall path (measured-set dispatch carries; staged-init + hello-equivalent proof)
-- [ ] **XEXEC-03**: full boot chain boot(8)→init→rc reaches the interactive `% ` prompt on x86_64 with the expect smoke gate green twice consecutively (boot-r9-smoke equivalent)
+- [x] **XEXEC-03**: full boot chain boot(8)→init→rc reaches the interactive `% ` prompt on x86_64 with the expect smoke gate green twice consecutively (boot-r9-smoke equivalent)
 - [ ] **XEXEC-04**: tier machinery re-keyed to `objtype=amd64`: tier-0 libraries + tier-1 core commands proven executing on r9-x86_64 (donor venue per Phase-6 D: Harvey's own 9k kernel, k10t1)
 - [ ] **XEXEC-05**: `/net` stack re-gated on x86_64: loopback ping/udp/tcp echo, static + DHCP ipconfig, and the composed net smoke all green on the new arch
 
@@ -127,7 +127,7 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | X64-05 | Phase 13 | Complete |
 | XEXEC-01 | Phase 14 | Complete |
 | XEXEC-02 | Phase 14 | Complete |
-| XEXEC-03 | Phase 14 | Pending |
+| XEXEC-03 | Phase 14 | Complete |
 | XEXEC-04 | Phase 14 | Pending |
 | XEXEC-05 | Phase 14 | Pending |
 | USPACE-07 | Phase 15 | Pending |

@@ -5,11 +5,11 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: "14-06 INCOMPLETE after cycle 3 (H1/H3 eliminated; the paqfs torn-tail/dead-server thread is the new primary; dump fixed) — next: pid-keyed pipe probes, then q35shell green twice"
-last_updated: "2026-11-09T04:14:02.948Z"
+stopped_at: Completed 14-06 (q35shell green twice; the stale-SCHED_CONTEXT root cause fixed r9@8aa9ba2)
+last_updated: "2026-11-09T05:14:03.658Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 14 execution started
-state_head: a91137fcdfdeb8c603de10a2800438f038b81d13
+state_head: 43373046042be461f83bcb3328ec739f97d890dc
 progress:
   total_phases: 2
   completed_phases: 1
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 14 (Harvey amd64 Userspace on r9) — EXECUTING
-Plan: 6 of 9
-Status: 14-06 INCOMPLETE (blocked on the two-proc scheduler corruption — see Blockers); re-run 14-06 after the fix before 14-07
-Last activity: 2026-11-09 — 14-06 executed to the blocker
+Plan: 7 of 9
+Status: 14-06 COMPLETE (q35shell green twice — the chain reaches the interactive `% ` prompt; XEXEC-03's r9-side leg closed)
+Last activity: 2026-11-09 — 14-06 cycle 4: the stale-SCHED_CONTEXT root cause proven + fixed (r9@8aa9ba2)
 
 Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 
@@ -65,6 +65,7 @@ Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 | Phase 14 P05 | 108 min | 3 tasks | 26 files |
 | Phase 14 P06 | 146 min | 2 tasks | 16 files |
 | Phase 14 P06 | 146+196 min | 2 tasks | 16 files |
+| Phase 14 P06 | 417 min (3 cycles) | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -114,6 +115,7 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-06: TWO IMAGES, not one — the chain bakes out/bootfs-chain.paq while q35exec keeps out/bootfs.paq (the marker IS the leg-1 image's /amd64/init); chain binaries harvest to out/ (the boot chain's home), never smoke-out/
 - [Phase 14]: 14-06: the amd64 exec-entry contract is AX = Tos (the donor's exec-return: sysexecregs returns the pointer, syscallreturn lands ar0.p in AX, main9.s stores AX into _tos — and 6l fuses that prologue into main9-less mains like boot(8)'s); 14-03's bp planting mis-read RARG; ABI.md corrected
 - [Phase 14]: 14-06: ktext must be NON-conforming (0x9A) — a conforming gate target makes ring-3 interrupt delivery stay at CPL 3 (dpl:=cpl), invisible at CPL 0 (every prior gate) and fatal at the first ring-3-origin interrupt
+- [Phase 14]: 14-06 cycle 4: the chain panic root-caused and closed (r9@8aa9ba2) — sched_loop's Resume::Return/trap_return arm diverged without re-saving the scheduler context, so the next blocked proc's swtch re-entered a STALE SCHED_CONTEXT save whose stack slot the intervening iterations had reused — wild execution explains the whole 'lying panic' syndrome (merged cold-block entries under garbage registers, truncated prints, the H2-class garbage parent); fix: every resume (fresh forks via a first_entry trampoline, frame ptr in rbx) rides the ONE swtch arm; the devpipe/qreopen suspicion was run live and ELIMINATED (pid-keyed rings: no EOF/err/reopen, paqfs never died — readied and never resumed); q35shell green twice
 
 ### Pending Todos
 
@@ -123,8 +125,7 @@ None yet.
 
 - aarch64 is FROZEN at the v2.0 pin — all v2.1 work keys to x86_64; do not "fix" aarch64 paths in passing
 - raspi3b-on-qemu-11.1.2 boot defect — accepted (pre-existing, A/B-proven not-a-regression); tracked in PROJECT.md Active
-- 14-06 STILL INCOMPLETE after the authorized fix cycle: the chain reached init's rc handoff with SIX total kernel/userland fixes landed (conforming-ktext delivery, AX/Tos seed, eager stack+Tos placement, eager brk, embed.c waitpid, preempt-park; + the device-MMIO alias window r9@c166164) — but one deterministic corruption remains: CURRENT_PROC reads as &SCHED_CONTEXT in init's fork window, with hard evidence pointing at a per-proc CR3 mapping divergence (divergent back-to-back loads; no store path, no swtch site, no watchpoint hit) — three ranked hypotheses + working instrumentation recorded in 14-06-SUMMARY Known Issues; full regression battery green at r9@c166164
-- 14-06 INCOMPLETE after authorized cycle 3 (stop rule): H1 (PML4 walk/kernel-half copy) ELIMINATED by audit + a never-firing memory-side probe in Deref; H3 (window-VA TLB) ELIMINATED architecturally (no PCID/PTE_G — CR3 write flushes); H2 (trap frame via garbage RSP) UNPROVEN — the panic location/format machinery provably prints stale registers (cold-block merging), blocking per-site confirmation; NEW probe-evidenced primary thread: the userland paqfs 9P server dies mid-chain on a TORN MESSAGE TAIL (read9pmsg short-body; a 3-byte orphan in its stdin queue with no misframed writer — suspect queue-lifetime/qreopen dropping in-flight bytes), rc's exec then parks on the dead mount (idle wedge) and the wedge dump crashed on a garbage parent (FIXED r9@a82d5a0); next probe: pid-keyed memory-side records in devpipe write/drain; regression battery green at r9@a82d5a0
+- 14-06 RESOLVED (cycle 4, r9@8aa9ba2): the "scheduler corruption" was sched_loop's diverging trap_return resume arm leaving SCHED_CONTEXT stale against a stack slot the intervening scheduler iterations reused — wild execution explains every prior symptom (the "lying panic" with merged cold-block locations, the H2-class garbage parent, the apparent paqfs death: it never died, it was readied and never resumed); the devpipe/qreopen suspicion was run live and ELIMINATED (pid-keyed rings: no EOF/err/reopen in the whole run); q35shell green twice consecutively, full regression battery green at r9@8aa9ba2
 
 ## Deferred Items
 
@@ -137,6 +138,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-09T04:14:02.874Z
-Stopped at: 14-06 INCOMPLETE after cycle 3 (H1/H3 eliminated; the paqfs torn-tail/dead-server thread is the new primary; dump fixed) — next: pid-keyed pipe probes, then q35shell green twice
+Last session: 2026-11-09T05:14:03.615Z
+Stopped at: Completed 14-06 (q35shell green twice; the stale-SCHED_CONTEXT root cause fixed r9@8aa9ba2)
 Resume file: None

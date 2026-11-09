@@ -3,26 +3,29 @@ phase: 14-harvey-amd64-userspace-on-r9
 plan: 06
 subsystem: boot-chain-gate
 tags: [boot(8), bootfs, chain, mkfile.amd64, q35shell, x86_64, r9, xexec-03]
-duration: 146 min
+duration: 146+196+75 min
 completed: 2026-11-09
 requires:
   - "14-05-complete r9 HEAD ae4fb7c (the bake pipeline, the module delivery, exec_bootstrap with BOOT_ENTRY's bootchain arm pre-wired)"
 provides:
   - "sys/src/9k/boot/mkfile.amd64 — boot(8) builds under 6c via the aarch64 template (A4 RESOLVED: bootr9.c compiles unchanged; the BOOTFILES closure is identical — embed in, paq out — linker-evidenced by the green 6l link)"
   - "build/x86_64/stage-build.sh's boot-chain section — chain libs (bio auth ip mp sec flate authsrv) + boot(8)/real-init/rc/paqfs harvested to out/ with 00008a97 asserted on each; build/x86_64/mkimage.sh's chain bake — bootfs-chain.paq with /boot/boot + /boot/paqfs + the REAL /amd64/init + /amd64/bin/rc, rcmain verbatim (cmp guard), termrc/namespace/profile, the INVERTED init-identity guard, factotum absence, KERNDATE determinism (two bakes byte-identical 8d2e2d08)"
-  - "r9 config_q35shell.toml (exec+bootchain+ether+ip) + the xtask X64Shell gate (bind → module/paqfs → exec entry → boot(8)'s paqfs/version prints → init's rc handoff → the `% ` prompt; the syscall-10 real-chain exemption)"
+  - "r9 config_q35shell.toml (exec+bootchain+ether+ip) + the xtask X64Shell gate (bind → module/paqfs → exec entry → boot(8)'s paqfs/version prints → init's rc handoff → the `% ` prompt; the syscall-10 real-chain exemption) — GREEN TWICE (four consecutive passes total)"
   - "FOUR latent kernel defects found and fixed by the chain gate, each invisible before the first multi-binary boot: (1) ktext was a CONFORMING code segment (0x9E) — ring-3 interrupt delivery stayed at CPL 3 and fault-looped to triple-fault; (2) the exec seed planted the Tos in bp (a 14-03 mis-reading) instead of AX (the donor's exec-return contract main9.s consumes) — boot(8)'s fused main9 prologue stored a zero _tos and malloc's plock fault-killed at addr 0x40; (3) the stack seed was two pages — boot(8) ran ~8.6 KiB deep (now 32 pages eager + the donor's Tos placement at USTKTOP-88, above the args); (4) brk growth relied on the absent pager (now mapped eagerly)"
   - "Harvey in-tree: embed.c drops the waitpid that deadlocked the paqfs handoff (a sleeping 4e bug — embed was never exercised on 4e/9k); ABI.md records the AX/Tos first-instruction contract"
-  - "AUTHORIZED CYCLE 3 (r9@a82d5a0): the wedge-autopsy dump survives corrupt proc fields — the autopsy the wedge diagnosis needs; H1/H3 eliminated with evidence, the panic-machinery unreliability documented as the instrumentation blocker. AUTHORIZED CYCLE (r9@c166164): fix #5 — reschedule parks via the scheduler context (the in-place CR3 switch aliased the fixed kstack window VA, destroying the lock node/locals/return chain mid-flight; the park is proven live by a healthy preempt+continue); fix #6 — the shared 4-GiB device-MMIO alias window (PML4[510], 0xFFFFFF00_80000000) + every pci/lapic/ioapic volatile deref re-keyed through it (the device bases were boot-table-only — a post-fork tick EOI faulted at 0xFEE00380 under a proc CR3; TCG now boots the full chain); documented: KZERO+pa overflows u64 for pa >= 2 GiB — the KZERO alias can never host the device window"
+  - "AUTHORIZED CYCLE (r9@c166164): fix #5 — reschedule parks via the scheduler context; fix #6 — the shared 4-GiB device-MMIO alias window (PML4[510], 0xFFFFFF00_80000000) + every pci/lapic/ioapic volatile deref re-keyed through it; documented: KZERO+pa overflows u64 for pa >= 2 GiB. AUTHORIZED CYCLE 3 (r9@a82d5a0): the wedge-autopsy dump survives corrupt proc fields"
+  - "CYCLE 4 ROOT CAUSE + FIX (r9@8aa9ba2): sched_loop's Resume::Return arm (trap_return) diverged without saving a resumable scheduler state — the next blocked proc's swtch re-entered SCHED_CONTEXT at the LAST Switch-arm save, whose saved sp/return slot the scheduler's own continuation had already reused — wild execution, the deterministic post-init 'lying panic'. Fix: every resume (fresh forks included, via a first_entry trampoline seeded into the fork child's context with the frame pointer in rbx) rides the ONE swtch arm, re-saving SCHED_CONTEXT each resume — the donor Plan 9 scheduler discipline. The pipe queue-lifetime/qreopen suspicion ELIMINATED by the pid-keyed probe rings (no EOF/err/reopen in the whole run; paqfs never died — it was readied and never resumed)"
 affects:
   - "../r9/x86_64/src/{seg,dat,exec,syscall,trap,main,proc}.rs, ../r9/x86_64/src/l.S, ../r9/x86_64/src/platform/q35/{pci,lapic,ioapic}.rs, ../r9/xtask/src/main.rs, ../r9/x86_64/lib/config_q35shell.toml"
   - "sys/src/9k/boot/{mkfile.amd64,embed.c}, build/x86_64/{stage-build.sh,mkimage.sh,root-tree/}, amd64/ABI.md"
-  - "14-07 (the composed one-command artifact consumes the chain bake + the gate), the follow-up that closes the two-proc scheduler corruption (see Known Issues)"
+  - "14-07 (the composed one-command artifact consumes the chain bake + the gate — unblocked)"
 tech-stack:
   added: []
   patterns:
     - "the chain-gate debugging doctrine: qemu -d int,cpu_reset under TCG names the vector/state class (the ring-3 delivery storm at the IDT stubs with CS=gate-sel|3), the monitor-over-unix-socket dumps live statics, and binary disassembly of the 6.out (a.out parse + objdump) places the faulting instruction — all three were load-bearing this plan"
     - "6l fuses a main9-equivalent prologue (`mov %rax, _tos` + argc/argv reloaded from the stack) into the entry `main` even when _main is absent — kernels seeding a first process must plant the Tos pointer in AX (the exec-return register), never in an argument register"
+    - "memory-side probe rings (pid-keyed plain volatile stores read back through the qemu monitor) are the ONLY trustworthy instrumentation when print/format machinery goes wild under corrupted control state — cycle 4's rings proved both the elimination (no pipe-queue misbehavior anywhere) and the kill (the scheduler ring's last events pinned the failure window exactly)"
+    - "a scheduler loop that resumes procs must NEVER diverge from its own loop (trap_return/iretq) without re-saving its context: a diverging arm leaves the saved context stale against a stack the intervening iterations reuse — every resume (first entry included) must ride the one swtch arm (the donor Plan 9 discipline)"
 key-files:
   created:
     - sys/src/9k/boot/mkfile.amd64
@@ -41,22 +44,23 @@ key-files:
     - ../r9/x86_64/src/syscall.rs
     - ../r9/x86_64/src/trap.rs
     - ../r9/x86_64/src/main.rs
+    - ../r9/x86_64/src/proc.rs
     - ../r9/xtask/src/main.rs
 key-decisions:
   - "TWO IMAGES, not one: the chain bakes to out/bootfs-chain.paq while q35exec keeps out/bootfs.paq — the marker IS the leg-1 image's /amd64/init and the real init IS the chain image's; one image would break q35exec's regression. Chain binaries harvest to out/ (the boot chain's home, the aarch64 separation) — never smoke-out/, where the marker owns the init name"
   - "rcmain ships from rc/lib/rcmain (the aarch64 bake's cmp source — the rc-main that sets the '% ' prompt the gate asserts), NOT sys/src/9k/root/rcmain (the plan's read_first pointer is the kernel-tree reference; the operative source matches the shipped rc)"
   - "the x64 termrc drops stacksmoke (the aarch64 sibling's first line): it is the demand-paged-stack proof and x86_64 has no pager this era — it rejoins when the pager lands"
   - "the AX/Tos seed correction is an ABI fix, not a change: the donor's sysexecregs RETURNS the Tos (syscallreturn lands ar0.p in AX) and main9.s stores AX — 14-03's bp planting mis-read RARG (bp is 6c's FIRST-ARG register); ABI.md now records the contract"
-  - "STOPPED at the fix-attempt limit on the remaining two-proc scheduler corruption: CURRENT_PROC receives a wild write of &SCHED_CONTEXT (the static cluster at 0xffffffff806f5000), then any current() deref faults; evidence and the leading theory are recorded under Known Issues for the follow-up"
-requirements-completed: []   # XEXEC-03 is NOT complete — the q35shell gate is red at the last stage (see Known Issues)
-commits: 5
+  - "CYCLE 4: the named devpipe/qreopen suspicion was run live and ELIMINATED (the mandate's protocol) — the pid-keyed rings redirected to the scheduler resume path, where the stale-SCHED_CONTEXT root cause was proven and fixed (r9@8aa9ba2); the cycle-2/3 'lying panic' syndrome is fully explained by wild execution resuming a stale scheduler save"
+requirements-completed: [XEXEC-03]
+commits: 6
 plan_head_before: 5ba1424c4f0dc3ec10f8c9f9a1a277b7fb995c6a   # harvey repo; r9 ledger ae4fb7c
-plan_head_after: (this docs cycle)   # harvey repo; r9 c166164 + a82d5a0 (the authorized cycles' fix commits)
+plan_head_after: (this docs cycle)   # harvey repo; r9 ac7aa92 + c166164 + a82d5a0 + 8aa9ba2
 actuals:
-  tokens: 52000  # chars/4 over the realized diff across both cycles (harvey 3 commits + r9 ac7aa92 315+43 lines + r9 c166164 118+51 lines + docs)
-  tasks: 2       # of 3 (Task 3 partially landed — the profile + gate wired + committed, the gate itself red after the authorized fix cycle)
-  commits: 4     # harvey (66cd0fc1b, a8cdb4c45, 86422fdea) + r9 (ac7aa92, c166164) + this docs commit
-status: incomplete   # the plan's must-have truth — q35shell green twice — is NOT met; see Known Issues
+  tokens: 64000  # chars/4 over the realized diff across all cycles (harvey 3 code commits + r9 ac7aa92/c166164/8aa9ba2 + docs)
+  tasks: 3       # all three (Task 3's gate green twice after the cycle-4 root-cause fix)
+  commits: 5     # harvey (66cd0fc1b, a8cdb4c45, 86422fdea) + r9 (ac7aa92, c166164, a82d5a0, 8aa9ba2) + this docs commit
+status: complete   # q35shell green twice consecutively (four consecutive passes) — XEXEC-03's r9-side leg closed
 coverage:
   - deliverable: "Task 1 — mkfile.amd64 + the stage-build chain section (tracer)"
     verification:
@@ -79,18 +83,21 @@ coverage:
   - deliverable: "Task 3 — config_q35shell + BOOT_ENTRY + the chain gate green twice"
     verification:
       - kind: command
-        ref: "WIRED AND COMMITTED (r9@ac7aa92): config_q35shell.toml (bootchain dev list), the X64Shell stage chain + Display + finish arm + the syscall-10 exemption, BOOT_ENTRY's bootchain arm verified pre-carried (main.rs /boot/boot grep >=1, comment refreshed). THE GATE ITSELF IS RED: the chain reaches 'init: starting /bin/rc' then dies at a two-proc scheduler corruption (CURRENT_PROC := &SCHED_CONTEXT by a wild .bss write) — four earlier latent defects found+fixed on the way (conforming ktext, AX/Tos seed, eager stack, eager brk), full regression battery green after the fixes (q35exec/q35/q35net/aarch64 virt/ureg-check+negative control/check/clippy/60 host/101 port)"
-        status: fail
+        ref: "cargo xtask boot-test --arch x86-64 --config q35shell ×2 consecutive: PASS both (banner → facts → discovery → bind → module/paqfs → exec entry → paqfs/version → root-chain time → init's rc handoff → the interactive `% ` prompt, in order); two more passes on the committed tree = four consecutive greens total"
+        status: pass
+      - kind: command
+        ref: "full regression at r9@8aa9ba2: q35exec PASS, q35 PASS, q35net PASS, aarch64 virt PASS, ureg-check + negative control PASS, cargo xtask check/clippy green, cargo xtask test 101 port tests pass (the host-bin leg is skipped in this rustup-less nix devshell — xtask's documented venue behavior)"
+        status: pass
     human_judgment: false
 ---
 
 # Phase 14 Plan 6: The Boot Chain — boot(8)→init→rc to the Interactive Prompt Summary
 
-Built the whole chain leg and drove it through the gate: boot(8) now compiles for amd64 (A4 resolved — arch-neutral, unchanged), the chain bake carries /boot/boot + paqfs + the real init + rc + rcmain verbatim with every guard green and byte-deterministic, and the q35shell profile + gate are wired. The gate did exactly its job on the kernel: it surfaced FOUR latent x86_64 defects no prior gate could see (a conforming ktext segment that broke ring-3 interrupt delivery, the Tos seeded in the wrong register, a two-page stack seed, lazy brk with no pager) — all fixed with the full Phase-13/14 regression battery green — plus one sleeping 4e bug in Harvey's embed.c (a waitpid that deadlocks the paqfs handoff). The chain now runs to init's rc handoff; the remaining blocker is a two-proc scheduler corruption (a wild write of &SCHED_CONTEXT into CURRENT_PROC), characterized with live-monitor evidence and left for the follow-up at the fix-attempt limit.
+Built the whole chain leg and drove it through the gate to GREEN: boot(8) compiles for amd64 (A4 resolved — arch-neutral, unchanged), the chain bake carries /boot/boot + paqfs + the real init + rc + rcmain verbatim with every guard green and byte-deterministic, and the q35shell gate reaches the interactive `% ` prompt — green twice consecutively (four consecutive passes on the final kernel). Getting there surfaced FOUR latent x86_64 defects no prior gate could see (a conforming ktext segment that broke ring-3 interrupt delivery, the Tos seeded in the wrong register, a two-page stack seed, lazy brk with no pager), one sleeping 4e bug in Harvey's embed.c (a waitpid that deadlocked the paqfs handoff), two more kernel defects (the preempt-park CR3 aliasing, the device-MMIO window), and — the last one, root-caused in cycle 4 with pid-keyed memory-side probe rings — a scheduler-resume design flaw: sched_loop's trap_return arm diverged without re-saving the scheduler context, so the next blocked proc's swtch re-entered a STALE save whose stack slot the intervening iterations had reused — wild execution, the deterministic post-init "lying panic". The fix (every resume rides the one swtch arm; fresh forks enter via a first_entry trampoline) closed it; the full regression battery is green.
 
-**Duration:** 146 min (2026-11-08T22:59:30Z → 2026-11-09T01:25:18Z)
-**Tasks:** 2/3 complete (Task 3 wired+committed, the gate itself red — see Known Issues)
-**Files:** 8 harvey-side (4 created, 4 modified) + 8 r9-side (1 created, 7 modified)
+**Duration:** 146+196+75 min (2026-11-08T22:59:30Z → 2026-11-09T05:10Z, three authorized cycles)
+**Tasks:** 3/3 complete
+**Files:** 8 harvey-side (4 created, 4 modified) + 9 r9-side (1 created, 8 modified)
 
 ## Commits
 
@@ -102,6 +109,7 @@ Built the whole chain leg and drove it through the gate: boot(8) now compiles fo
 | harvey | 86422fdea | fix(14-06): embed.c drops the waitpid that deadlocks the paqfs handoff + ABI.md records the AX/Tos exec-return |
 | r9 | c166164 | fix(14-06): preempt parks via the scheduler context + the shared device-MMIO alias window (authorized fix cycle) |
 | r9 | a82d5a0 | fix(14-06): the wedge-autopsy dump survives corrupt proc fields (authorized cycle 3) |
+| r9 | 8aa9ba2 | fix(14-06): every proc resume rides the swtch arm — the stale-SCHED_CONTEXT chain panic (cycle 4 root cause) |
 | harvey | (docs) | docs(14-06): this file + state |
 
 ## Accomplishments
@@ -118,11 +126,11 @@ Built the whole chain leg and drove it through the gate: boot(8) now compiles fo
 - **The chain manifest** (aarch64 re-keyed to /amd64): /boot/boot + /boot/paqfs, the REAL /amd64/init, /amd64/bin/rc, rcmain verbatim from rc/lib/rcmain (the cmp guard; the '% '-prompt rc-main matching the shipped rc), termrc/namespace/profile from the extended root-tree, /adm/timezone/local, the mount-point dirs; the INVERTED init-identity guard (real-init string PRESENT, smokesleep string ABSENT — the marker guard's mirror), factotum absence, KERNDATE determinism (two bakes byte-identical, sha256 8d2e2d08…), the od -j header/trailer checks. The x64 termrc drops stacksmoke (no pager this era — documented in the file).
 - The bake log prints the staging manifest (the plan's log-grep verify: /boot/boot and rcmain both non-zero).
 
-### Task 3: the q35shell profile + gate (wired; the gate red at the last stage)
+### Task 3: the q35shell profile + gate — GREEN TWICE (four consecutive passes)
 
 - **config_q35shell.toml**: q35exec's shape with dev = ["exec", "bootchain", "ether", "ip"] (virtshell's membership; ether/ip per the Phase-13 placement — the gate asserts the bind half), module = the CHAIN bake (harvey:build/x86_64/out/bootfs-chain.paq).
 - **xtask**: the X64Shell profile — Q35PciDiscovery → X64Bind (ether is on) → Q35ModulePaqfs → Q35ExecEntry → Q35ChainBoot (boot(8)'s own "paqfs..." + "version..." prints) → Q35ChainInit ("init: starting /bin/rc") → Q35ChainPrompt ("% "); order-anchored stages, the real-chain syscall-10 exemption (the Net-gate precedent), the finish-time whole-capture scan. main.rs's BOOT_ENTRY bootchain arm was already pre-wired by 14-05 (verified; comment refreshed to present tense).
-- **The gate ran and did its job** — the chain's progress across the fix iterations: first ring-3 instruction (fault storm at the IDT stubs) → after the ktext fix: real user code, a fault at _tos → after the AX seed: paqfs.../version... → after embed.c: time... + **init: starting /bin/rc** → the current blocker (below).
+- **The gate ran and did its job** — the chain's progress across the fix iterations: first ring-3 instruction (fault storm at the IDT stubs) → after the ktext fix: real user code, a fault at _tos → after the AX seed: paqfs.../version... → after embed.c: time... + **init: starting /bin/rc** → after the cycle-4 stale-SCHED_CONTEXT fix: **the interactive `% ` prompt**, green twice consecutively (plus two more passes re-run on the committed tree).
 
 ## The four kernel fixes (each gate-surfaced, each invisible before multi-binary boots)
 
@@ -132,6 +140,17 @@ Built the whole chain leg and drove it through the gate: boot(8) now compiles fo
 4. **brk growth relied on the pager (syscall.rs)**: malloc's first sbrk faulted on the untouched growth page (the 14-04 no-pager era-limit, now hit by real binaries). sys_brk_'s private arm maps the grown range eagerly (same policy as map_text_eager; the pager remains the follow-up).
 
 Plus the Harvey in-tree fix: **embed.c's `waitpid()`** — paqfs -i is a persistent server that never exits, so the 4e-original wait deadlocked boot(8) at the first fversion. The embed method was never exercised on 4e/9k (their boots use tcp/local) and k10t1's /boot/boot was an rc script (initcode's shell-script contract) — the bug slept until this chain. 9front's embedpaq.c has no wait; dropped with the provenance comment.
+
+## The cycle-4 root cause and fix (r9@8aa9ba2) — the scheduler's diverging resume arm
+
+The mandate's named probe (pid-keyed memory-side records in devpipe's write/drain arms) ran live, plus a second ring across the scheduler path (pick_next/park/wake/set_current_proc/curframe), both read back through the qemu monitor at the panic park. The evidence:
+
+- **The pipe queue-lifetime suspicion (qreopen/qref dropping in-flight bytes under a stale chan) is ELIMINATED.** The full pid-keyed ring shows the complete healthy choreography — pipe(2) opens, embed's fork dup/close accounting exact, paqfs's rfork arms, 70+ whole 9P RPC exchanges (every write atomic and length-consistent, every drain matching), qref never reaching [0,0], and NOT ONE EOF, read-error, or reopen event in the entire run. paqfs never died: its server (pid 3) blocked waiting for the next request and was READIED by init's first-RPC wake — and never resumed. The earlier cycles' "read9pmsg short-BODY / dead server" reading was an artifact of the lying print machinery.
+- **The scheduler ring pins the failure window exactly**: pid 4 (init, forked by boot) is picked for its FIRST entry via `Resume::Return` → `trap_return` (which diverges — it never returns); init runs its first RPC write (waking pid 3), blocks on the reply read; its `sched()` swtch'es into SCHED_CONTEXT — and the very next scheduler iteration dies. No probe between pid 4's block and the panic.
+- **The mechanism**: `sched_loop`'s Return arm never re-saved the scheduler context (the swtch that saves it lives in the Switch arm only). After a Return-arm divergence, SCHED_CONTEXT still holds the LAST Switch-arm save — but the scheduler's own continuation (the iteration that picked the fresh fork) already popped and reused that save's sp/return-address slot (the next `pick_next` call lands its return address on exactly that slot). The next blocked proc's `swtch(..., SCHED_CONTEXT)` re-enters the loop at the stale save: the `ret` pops a reused slot, the match reads its discriminant from whatever RAX carried, and execution goes WILD with corrupted stack locals. Every prior mystery is explained by this one flaw: the different panic message per build layout ("misaligned 0x...5010" where 0x5010 IS 8-aligned; "add with overflow" at a provably inert expression), the self-contradictory register prints (cold-block-merged panic entries under a garbage register state), the truncated panic prints (the wild path landing inside the console lock's usage), cycle-2's "register-file values written onto the statics" and "divergent back-to-back loads", and the H2-class garbage parent pointer. The page-table walk at the park (PML4[511]→PDPT[510] 1-GiB page, identical across every proc table) re-confirmed H1/H3 stay eliminated.
+- **The fix (the donor Plan 9 scheduler discipline)**: EVERY resume — a fresh fork's first entry included — rides the ONE swtch arm. The fork child's context is seeded to a `first_entry` trampoline (pc = the shim, sp = a kstack scratch never dereferenced, rbx = the planted Ureg pointer — the shim moves rbx to rdi and jumps to trap_return on the child's OWN kstack); `pick_next` returns the saved context for every pick; `Resume` (and its Return arm) is gone. Each resume re-saves SCHED_CONTEXT, so every `sched()` re-entry lands on a current save.
+
+Instrumentation that decided it (all temporary, removed before the commit): the two memory-side probe rings, the pre-print panic stash (location + formatted message into static memory — which also PROVED the misattribution live: the stash's location agreed with the print while both named a merged cold-block entry), the parked-machine register/stack dumps symbolized against the ELF, and the page-table walk across proc CR3s.
 
 ## Deviations from Plan
 
@@ -204,7 +223,13 @@ Plus the Harvey in-tree fix: **embed.c's `waitpid()`** — paqfs -i is a persist
 - **Fix:** the verify leg ran inside the same userns chroot scaffold via a one-off harness (never committed): `mk -f mkfile.amd64` + `test -s boot` + the od magic — DIRECT-MK-VERIFY-OK.
 - **Files modified:** none (execution-only)
 
-**Total deviations:** 11 auto-fixed across the two cycles (6 latent-defect/bug class, 1 missing-critical, 2 blocking, 2 venue/diagnostic). **Impact:** six kernel/userland fixes are permanent improvements proven by the full regression battery; the remaining corruption is documented below with the authorized cycle's new evidence, not silently absorbed.
+**9. [Rule 1 - Latent kernel defect] sched_loop's Return arm left SCHED_CONTEXT stale (Task 3, cycle 4)**
+- **Found during:** the mandate's pid-keyed probe cycle — the scheduler ring's last events (pid 4's first pick via Return, its first block) pinned the failure between the block's swtch and the next pick; the parked-machine stack symbolization named sched_loop's loop head as the panicking site
+- **Issue/Fix/Evidence:** see "The cycle-4 root cause and fix". The named devpipe/qreopen suspicion was eliminated live first (the probe ring is the evidence); the actual flaw — the diverging trap_return arm — closed by making every resume ride the one swtch arm (fresh forks via the first_entry trampoline).
+- **Files modified:** ../r9/x86_64/src/proc.rs
+- **Commit:** r9@8aa9ba2
+
+**Total deviations:** 12 auto-fixed across the four cycles (7 latent-defect/bug class, 1 missing-critical, 2 blocking, 2 venue/diagnostic). **Impact:** seven kernel/userland fixes are permanent improvements proven by the full regression battery; the plan's terminal truth (q35shell green twice) is met.
 
 ## Authentication Gates
 
@@ -212,30 +237,14 @@ None.
 
 ## Known Issues
 
-**OPEN — the scheduler-context register-file write onto the statics cluster (the q35shell gate's remaining red; the authorized cycle's refined characterization).** The chain now runs (with the six fixes) to "init: starting /bin/rc" — through boot(8)'s paqfs handshake, settime, paqfs exit, a healthy tick preempt-park ("sched: park 1" with continued execution!) — and then dies with one DETERMINISTIC signature (identical across 6+ consecutive KVM runs and TCG): `CURRENT_PROC` reads as `&SCHED_CONTEXT` (0xffffffff806f5010) at the ProcGuard deref. The authorized cycle established, with hard evidence:
+**RESOLVED (cycle 4, r9@8aa9ba2)** — the scheduler-context corruption that killed the chain after "init: starting /bin/rc". The full story is in "The cycle-4 root cause and fix" above; the resolution summary:
 
-- **The value set is the KERNEL REGISTER FILE at trap time.** Runs captured CURRENT_PROC = &SCHED_CONTEXT, or = 0x80600378 (&slot0.context — exactly an r12 observed at the park), or = 0xffffff000011fe80 (a Mach-stack sp-class value) — the seven-word shape a trap frame or a swtch save writes (pc/sp/fp/rbx/r12-r15). The corruption lands on the .bss statics cluster (CURRENT_PROC/SCHED_SEEDED/SCHED_CONTEXT/CURFRAME at 0xffffffff806f5000-0x806f5058).
-- **No swtch call site produces it**: a validating shim around all four swtch call sites (from/to must be table-resident or &SCHED_CONTEXT) never fired while the corruption still occurred.
-- **No store path produces it**: the set_current_proc outgoing-value detector never observed the bad value arrive between legit stores; CURRENT_PROC's own stored values were always table pointers.
-- **Two back-to-back loads of CURRENT_PROC disagree** (the load saw 0xffffff000011fe80; a volatile re-read microseconds later saw the valid 0x80600f30; equal=false, cr3=0x16a8000) — the memory and at least one read disagree, pointing at a per-proc CR3 whose translation of the statics' VA hits the WRONG physical page (a mapping-level divergence), not merely a wild store.
-- **A qemu write watchpoint on the statics' VA never fires under TCG** (where watchpoints work in softmmu) while the corruption still occurs — consistent with the write (if any) traversing a DIFFERENT virtual mapping of the same physical page, or with the corruption being a stale/mis-mapped READ rather than a write.
-- **The panic format/location machinery is unreliable under inlining** (stale-register format args and misattributed locations — repeatedly proven; only memory-side records are trustworthy) — this complicated every probe and is documented as 7d for the follow-up.
-- **Exonerated by evidence**: the four swtch sites (shim), set_current_proc (detector), the MCS lock drop (the park fix removed the aliased-stack unlock), the IRQ frame build on a garbage rsp0 (pick_next sets rsp0 under the lock from table-resident kstack_top), the physpage allocator (kernel image marked used), and now the device-MMIO fault class (the alias window closed it; TCG boots the full chain).
+- The named devpipe/qreopen suspicion was run live per the mandate and ELIMINATED (no queue misbehavior in the whole pid-keyed run — the probe ring is the proof).
+- The REAL root cause — sched_loop's `Resume::Return` arm diverging via trap_return without re-saving the scheduler context, leaving SCHED_CONTEXT stale against a stack the intervening iterations reuse — was proven with the scheduler-path ring (the failure window pinned between pid 4's block and the next pick), the parked-machine register/stack symbolization (the panic entry reached only from sched_loop's loop head; the "misaligned" value self-contradictory), and the page-table walk (mapping divergence re-eliminated — H1/H3 stay dead).
+- The fix (every resume rides the one swtch arm; fork children seeded to a first_entry trampoline) is committed, the gate is green twice consecutively (four passes total), and the full regression battery is green at r9@8aa9ba2.
+- The previously-recorded H2 "garbage parent pointer" and the cycle-2 "register-file writes onto the statics" observations are explained as collateral of the same wild execution (no separate bug remains open).
 
-Cycle 3 (the hypothesis-ranked mandate) results — H1 ELIMINATED, H3 ELIMINATED, H2 unproven, plus a NEW primary thread:
-
-- **H1 ELIMINATED**: the source audit of pml4_map_user/pml4_unmap_user (index masks can never reach 400/510/511 for user VAs; the walk allocates intermediates below PML4 only) and new_user_proc's kernel-half copy (reads the linked boot table, writes exactly slots 510/511) found them clean; a memory-side probe INSIDE Deref::deref (rejecting non-table pointers, recording pointer+CR3+PML4[511] for the monitor) NEVER FIRED across runs while the panic persisted — the "CURRENT_PROC := &SCHED_CONTEXT" signature is a MISATTRIBUTED PANIC LOCATION (LLVM cold-block merging shares panic entries between inlined deref sites; the cycle-2 'divergent loads' reading is equally explainable by the lying format machinery).
-- **H3 ELIMINATED**: CR4=0xa0 (PAE|PGE, NO PCID) and l.S's leaves carry no PTE_G — every CR3 write flushes all non-global entries; window-VA staleness across switches is architecturally impossible. The kstack free paths never free the active CR3's table.
-- **H2 UNPROVEN**: the trap-frame-through-garbage-RSP shape matches the corrupting value set, but the panic machinery's stale-register prints (proven repeatedly: self-contradictory messages like "multiple of 8 but is 0x...5010" where 0x5010 % 8 == 0, "add with overflow" at provably-inert expressions) make per-site confirmation impossible with in-tree instruments.
-- **NEW PRIMARY THREAD (probe-evidenced)**: the failure decomposes into (a) the userland paqfs 9P server dying mid-chain — its read9pmsg returns 0 on a short BODY read (a torn message tail: live probes caught a 3-byte orphan in its stdin queue with the writer never misframing — devpipe writes are atomic and length-consistent); (b) later RPCs against the dead mount writing/reading fragments (probes: 7-byte writes, 3-byte reads after the exit); (c) rc's exec parking forever on the dead mount (the idle wedge); (d) the wedge-autopsy dump crashing on a garbage parent pointer — FIXED (r9@a82d5a0: the dump is now bounds-defensive and prints raw pointers). The garbage parent field itself remains unexplained (H2-class). The next cycle's first probe should be a memory-side record in devpipe::write + the drain arm keyed by pid, catching WHICH proc's write/read sequence orphans the tail — and whether the torn tail is a queue-lifetime bug (a chan closing mid-message with buffered bytes, i.e. the qreopen reset at qref==[0,0] dropping in-flight bytes while a reader holds a stale chan).
-
-Instrumentation that worked and should be reused: the in-kernel memory-side record (volatile store + qemu monitor read), the TCG -d int,exec flight recorder, the unix-socket monitor dumps at the panic park. Instrumentation blocked in this sandbox: gdb over a pipe bridge (hangs), KVM HMP watchpoints (never engage).
-
-Recorded in .planning/WINDOWS.md as an open unmet-truth; the q35exec/q35/q35net/aarch64/ureg-check/check/clippy/host-test regression battery is GREEN at the final commit (all six fixes carry; only the NEW multi-proc path is broken — q35exec's single-proc leg is untouched and green).
-
-## Issues Encountered
-
-The Known Issue above — the plan's terminal truth (q35shell green twice) is not met; everything below it on the chain (14-07's composed artifact and the Harvey-side smoke) depends on its closure.
+The WINDOWS.md unmet-truth entry for 14-06 should be closed with this resolution.
 
 ## TDD Gate Compliance
 
@@ -243,11 +252,11 @@ N/A — no task carries tdd="true".
 
 ## Next Plan Readiness
 
-NOT ready for 14-07's composed gate: the chain bake and profile exist, but the r9-side chain gate must first go green twice (the scheduler-corruption fix is the one open item — it is a well-characterized kernel bug, not a chain-artifacts gap). 14-07's ISO-builder work is otherwise unblocked (it consumes the bake + template conventions that this plan landed).
+READY for 14-07's composed one-command artifact: the chain bake (bootfs-chain.paq + its guards), the q35shell profile, and the green gate are all landed; 14-07 consumes the bake + the template conventions this plan proved, wraps the one-command artifact, and runs the Harvey-side interactive smoke that closes XEXEC-03's composed leg.
 
 ## Self-Check: PASSED
 
 - harvey files exist: mkfile.amd64, root-tree/{rc/bin/termrc,lib/namespace,usr/glenda/lib/profile} created; {stage-build.sh,mkimage.sh,embed.c,ABI.md} modified in harvey@{66cd0fc1b,a8cdb4c45,86422fdea}
-- r9 files exist: config_q35shell.toml created; {seg,dat,exec,syscall,trap,main}.rs + xtask/main.rs modified in r9@ac7aa92; {l.S,proc.rs,platform/q35/{pci,lapic,ioapic}.rs} modified in r9@c166164
-- commits are ancestors of HEAD: harvey 66cd0fc1b/a8cdb4c45/86422fdea ✓; r9 ac7aa92/c166164 ✓
-- plan-level verification: Task 1+2 verifies green (logged in coverage); Task 3's verify is the documented OPEN failure after the authorized cycle (the gate red at the refined Known Issue; the full regression battery green at c166164)
+- r9 files exist: config_q35shell.toml created; {seg,dat,exec,syscall,trap,main}.rs + xtask/main.rs modified in r9@ac7aa92; {l.S,proc.rs,platform/q35/{pci,lapic,ioapic}.rs} modified in r9@c166164; proc.rs's cycle-4 fix (the first_entry trampoline + the one-swtch-arm sched loop) in r9@8aa9ba2
+- commits are ancestors of HEAD: harvey 66cd0fc1b/a8cdb4c45/86422fdea ✓; r9 ac7aa92/c166164/a82d5a0/8aa9ba2 ✓
+- plan-level verification: all three tasks' verifies green (Task 3's gate twice consecutively, four passes total; the full regression battery green at r9@8aa9ba2)
