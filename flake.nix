@@ -182,6 +182,21 @@
             export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
+          # 14-08 (XEXEC-04's r9 gate): the tier-1 sweep — the SAME
+          # pipeline as boot-r9-smoke-x64 but the build is the TIER
+          # build (subset-build.sh), the bake is the TIER bake
+          # (bootfs-tier.paq), and build/x86_64/tier1-r9.expect asserts
+          # the sweep's marker set (computed from the committed tier
+          # data — never a second hardcoded list) + the float canary +
+          # T1-DONE + the exact SKIP set.  The same /amd64/bin set the
+          # k10t1 donor kernel embeds (the witness manifest) executes
+          # here — the both-kernels ABI witness's r9 half.
+          # smokeR9X64Pkg's shape verbatim (expect in runtimeInputs).
+          tier1R9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-tier1-x64" ./nix/tier1-r9-x64.sh ''
+            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
+            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -210,6 +225,7 @@
           (builtins.all (a: builtins.hasAttr a r9.packages.${system}) [ "kernel-x64" "iso-builder" ]) {
           boot-r9-x64 = mkApp bootR9X64Pkg;
           boot-r9-smoke-x64 = mkApp smokeR9X64Pkg;
+          boot-r9-tier1-x64 = mkApp tier1R9X64Pkg;
         });
 
       devShells = forAllSystems (system:
