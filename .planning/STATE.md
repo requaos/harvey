@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: Completed 14-07-PLAN.md (the composed gate green twice — XEXEC-03 closed)
-last_updated: "2026-11-09T08:31:46.893Z"
+stopped_at: Completed 14-08-PLAN.md (XEXEC-04 closed — the tier machinery proven on BOTH kernels, the gate green twice)
+last_updated: "2026-11-09T15:25:57.684Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 14 execution started
-state_head: 6c5f1788e3a91dde6b69acfdafba756d6a2c2bd3
+state_head: b50a0e1cac8a90d34d84518e1b25247967e81fe2
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 15
-  completed_plans: 13
+  completed_plans: 14
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 14 (Harvey amd64 Userspace on r9) — EXECUTING
-Plan: 8 of 9
+Plan: 9 of 9
 Status: 14-06 COMPLETE (q35shell green twice — the chain reaches the interactive `% ` prompt; XEXEC-03's r9-side leg closed)
 Last activity: 2026-11-09 — 14-06 cycle 4: the stale-SCHED_CONTEXT root cause proven + fixed (r9@8aa9ba2)
 
@@ -67,6 +67,7 @@ Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 | Phase 14 P06 | 146+196 min | 2 tasks | 16 files |
 | Phase 14 P06 | 417 min (3 cycles) | 3 tasks | 17 files |
 | Phase 14 P07 | 142 min | 3 tasks | 8 files |
+| Phase 14 P08 | 70 min active (wall 7h; kill gap) | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -120,6 +121,9 @@ Recent decisions affecting current work:
 - [Phase 14-07]: 14-07: OQ-1 resolved both-shapes-from-one-source — r9 exports the argv-driven iso-builder script AND the flake-lib bootIo function, both from one writeShellApplication text (D-05, un-forked); kernel-x64 re-keyed to q35shell (the compose kernel)
 - [Phase 14-07]: 14-07: the stale boot-iso FOD hash re-wired per the 13-06 discipline — old body ≡ new builder over four independent kernel builds at both hash layers; FOD mismatch reports name the NAR hash, not the file sha (proofs compare like-for-like)
 - [Phase 14-07]: 14-07: two gate-surfaced kernel defects closed — console RX delivery (the 16550 RX ring + ConsHooks, r9@8a338a6) and the SWAPGS witness-bit stale-byte leak (the donor CS-word cmpw on both sides, r9@e5def72; caught by a GS-observation ring — the flip was inside an idle-hlt tick return)
+- [Phase 14]: 14-08: the ABI witness is structural — build-9k10t1's r9 leg pins a 38-member sha256 manifest of the exact /amd64/bin set the k10t1 kernel embedded, and mkimage's tier bake digest-verifies it before staging the r9 image; identical 36-marker T1-OK sets proven on both kernels at gate time
+- [Phase 14]: 14-08: the tier image runs the sweep from the boot flow (tier-termrc override — the donor's k10t1.rc shape, no typed line); SKIP expectations extracted verbatim from the committed sweep's own lines, OK sets computed from the tier data in all three gate consumers
+- [Phase 14]: 14-08: two r9 kernel gaps fixed push-before-pin (r9@e417660, pin 5294f27b8 lock-only) — user SSE armed (CR4.OSFXSR/OSXMMEXCPT + per-exec fninit/ldmxcsr reset; era limit: no per-proc FXSAVE yet) and the eager stack grown 32->64 pages (cmp's 2x64KiB frame); full regression battery green
 
 ### Pending Todos
 
@@ -142,6 +146,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-09T08:31:46.856Z
-Stopped at: Completed 14-07-PLAN.md (the composed gate green twice — XEXEC-03 closed)
+Last session: 2026-11-09T15:25:57.637Z
+Stopped at: Completed 14-08-PLAN.md (XEXEC-04 closed — the tier machinery proven on BOTH kernels, the gate green twice)
 Resume file: None
