@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: Completed 14-05-PLAN.md
-last_updated: "2026-11-08T22:57:44.203Z"
+stopped_at: 14-06 INCOMPLETE at the two-proc scheduler corruption (q35shell gate red; chain reaches init's rc handoff); resume by fixing proc.rs's CURRENT_PROC wild-write then driving q35shell green twice
+last_updated: "2026-11-09T01:28:27.540Z"
 last_activity: 2026-11-08
 last_activity_desc: Phase 14 execution started
-state_head: 3131ae41a48756fead76b3a6e70f441b4647d421
+state_head: 86422fdea399d7c3d290a78ba6c0b3aaca9e26da
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 15
-  completed_plans: 11
+  completed_plans: 12
 ---
 
 # Project State
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 
 Phase: 14 (Harvey amd64 Userspace on r9) — EXECUTING
 Plan: 6 of 9
-Status: Ready to execute
-Last activity: 2026-11-08 — Phase 14 execution started
+Status: 14-06 INCOMPLETE (blocked on the two-proc scheduler corruption — see Blockers); re-run 14-06 after the fix before 14-07
+Last activity: 2026-11-09 — 14-06 executed to the blocker
 
 Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 
@@ -63,6 +63,7 @@ Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 | Phase 14 P03 | 12 min | 2 tasks | 5 files |
 | Phase 14 P04 | 48 min | 3 tasks | 12 files |
 | Phase 14 P05 | 108 min | 3 tasks | 26 files |
+| Phase 14 P06 | 146 min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -109,6 +110,9 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-04: usize::next_multiple_of banned in the SSE-free kernel — it lowers to u128/__multi3 soft-float; power-of-two masks everywhere (the link error surfaced the moment the syscall chain made the mapping bodies live)
 - [Phase 14]: 14-05 D-03 landed: bootfs rides an mb2 tag-3 module off the same GRUB ISO — the committed grub.cfg is a TEMPLATE SOURCE (@R9-MODULE@ markers; kernel-only emission byte-identical to Phase 13, unit-test-pinned), and the module bytes ride an l.S .bss stash because GRUB placed the first live module INSIDE the Mach mebibyte the early boot zeroes
 - [Phase 14]: 14-05: the first ring-3 exec exposed and fixed three latent x86_64 defects — the kernel had been executing in the IDENTITY alias since 13-01 (l.S RIP-relative entry; fatal at the first per-process CR3 load), KSTACK_VA was non-canonical (0xffff_3200... = index 100's offset sign-extended; every window access #GP), and the panic handler was a silent loop (the aarch64 loud shape ported)
+- [Phase 14]: 14-06: TWO IMAGES, not one — the chain bakes out/bootfs-chain.paq while q35exec keeps out/bootfs.paq (the marker IS the leg-1 image's /amd64/init); chain binaries harvest to out/ (the boot chain's home), never smoke-out/
+- [Phase 14]: 14-06: the amd64 exec-entry contract is AX = Tos (the donor's exec-return: sysexecregs returns the pointer, syscallreturn lands ar0.p in AX, main9.s stores AX into _tos — and 6l fuses that prologue into main9-less mains like boot(8)'s); 14-03's bp planting mis-read RARG; ABI.md corrected
+- [Phase 14]: 14-06: ktext must be NON-conforming (0x9A) — a conforming gate target makes ring-3 interrupt delivery stay at CPL 3 (dpl:=cpl), invisible at CPL 0 (every prior gate) and fatal at the first ring-3-origin interrupt
 
 ### Pending Todos
 
@@ -118,6 +122,7 @@ None yet.
 
 - aarch64 is FROZEN at the v2.0 pin — all v2.1 work keys to x86_64; do not "fix" aarch64 paths in passing
 - raspi3b-on-qemu-11.1.2 boot defect — accepted (pre-existing, A/B-proven not-a-regression); tracked in PROJECT.md Active
+- 14-06 incomplete: two-proc scheduler corruption in r9 x86_64 — CURRENT_PROC := &SCHED_CONTEXT by a wild .bss write at init's fexec fork (the first two-proc tick-preempt switch); q35shell gate red just past 'init: starting /bin/rc'; four other latent defects already fixed (conforming ktext, AX/Tos seed, eager stack+Tos placement, eager brk) with the full regression battery green; evidence in 14-06-SUMMARY Known Issues — the fix is required before 14-07
 
 ## Deferred Items
 
@@ -130,6 +135,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-08T22:57:44.156Z
-Stopped at: Completed 14-05-PLAN.md
+Last session: 2026-11-09T01:28:18.487Z
+Stopped at: 14-06 INCOMPLETE at the two-proc scheduler corruption (q35shell gate red; chain reaches init's rc handoff); resume by fixing proc.rs's CURRENT_PROC wild-write then driving q35shell green twice
 Resume file: None

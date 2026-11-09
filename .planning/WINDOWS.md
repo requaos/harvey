@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 50
+open_count: 52
 waived_count: 3
 fixed_count: 4
-total_count: 57
-last_updated: 2026-11-08T22:55:27.978Z
+total_count: 59
+last_updated: 2026-11-09T01:27:39.799Z
 ---
 
 # Broken Windows Ledger
@@ -72,6 +72,7 @@ last_updated: 2026-11-08T22:55:27.978Z
 | 55 | 14 | deviation | r9/x86_64/src/l.S |  | the boot PML4's slot-0 identity window is dead weight post-14-05 (the linked-VA entry fix left it never-entered; retire it in a one-line l.S cleanup) | open |  | 2026-11-08T22:55:27.720Z |  |
 | 56 | 14 | deviation | r9/flake.nix |  | boot-iso FOD outputHash stale since 14-01 (kernel-byte drift; proven pre-existing at abee15c) — 14-07 re-wires with a fresh byte-identity proof | open |  | 2026-11-08T22:55:27.857Z |  |
 | 57 | 14 | deviation | build/x86_64/stage-build.sh |  | the sudoless userns venue is CI/agent-only machinery; a present user's documented venue stays sudo-unshare (nsrun) — fold the adapter into nsrun.sh if a third consumer appears | open |  | 2026-11-08T22:55:27.978Z |  |
+| 59 | 14 | unmet-truth | .planning/phases/14-harvey-amd64-userspace-on-r9/14-06-SUMMARY.md |  | 14-06 open: two-proc scheduler corruption in r9 x86_64 (CURRENT_PROC := &SCHED_CONTEXT by a wild bss write at init's fexec fork; the q35shell gate red just past 'init: starting /bin/rc') — evidence + leading theory in 14-06-SUMMARY Known Issues; the fix is the one open item before 14-07 | open |  | 2026-11-09T01:27:39.799Z |  |
 
 ````json
 [
@@ -813,6 +814,19 @@ last_updated: 2026-11-08T22:55:27.978Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-08T22:55:27.978Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 59,
+    "kind": "unmet-truth",
+    "phase": "14",
+    "file": ".planning/phases/14-harvey-amd64-userspace-on-r9/14-06-SUMMARY.md",
+    "line": null,
+    "description": "14-06 open: two-proc scheduler corruption in r9 x86_64 (CURRENT_PROC := &SCHED_CONTEXT by a wild bss write at init's fexec fork; the q35shell gate red just past 'init: starting /bin/rc') — evidence + leading theory in 14-06-SUMMARY Known Issues; the fix is the one open item before 14-07",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-09T01:27:39.799Z",
     "resolved_at": null,
     "milestone": "v2.1"
   }
