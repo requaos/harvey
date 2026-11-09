@@ -122,11 +122,15 @@ if not echo SVC-FAIL mntgen
 # The test ndb rides /env (ip=… dom=probehost tcp=…  — a baked probe
 # host, throwaway values only).  hcs -f serves it mounted at /net/cs;
 # hcsquery is the canned client (csquery.c).  The marker rides the
-# ANSWER carrying the baked address — never the daemon's start.
+# ANSWER carrying the baked address — never the daemon's start.  The
+# daemon's stderr stays on the serial capture (a startup sysfatal is
+# the classified FAIL's diagnosis) and the SVC-CSOBS observation line
+# (the T1-XDOBS precedent) records the raw answer.
 svcndb='ip=127.0.0.1 dom=probehost tcp=9930'
-$B/hcs -f /env/svcndb >[2]/dev/null &
+$B/hcs -f /env/svcndb &
 if(svc_waitpath 10 /net/cs){
 	qout=`{$B/hcsquery /net/cs 'tcp!probehost'}
+	echo SVC-CSOBS $"qout
 	if(~ $"qout *127.0.0.1*) echo SVC-OK cs
 	if not echo SVC-FAIL cs
 }
