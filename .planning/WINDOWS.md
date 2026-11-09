@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 50
+open_count: 49
 waived_count: 3
-fixed_count: 5
-total_count: 58
-last_updated: 2026-11-09T05:13:38.890Z
+fixed_count: 7
+total_count: 59
+last_updated: 2026-11-09T16:38:46.914Z
 ---
 
 # Broken Windows Ledger
@@ -70,9 +70,10 @@ last_updated: 2026-11-09T05:13:38.890Z
 | 53 | 14 | deviation | r9/x86_64/src/exec.rs |  | x86_64 exec maps text EAGERLY (no trap-context pager this era) — demand text + deeper stack/tos growth beyond the two seed pages arrive with the pager (14-04) | open |  | 2026-11-08T20:57:10.410Z |  |
 | 54 | 14 | deviation | r9/x86_64/src/syscall.rs |  | NSEC(53) returns the loud no-RTC errstr on x86_64 — no epoch clock this era; the nsec_now seam is ready for one (14-04) | open |  | 2026-11-08T20:57:10.551Z |  |
 | 55 | 14 | deviation | r9/x86_64/src/l.S |  | the boot PML4's slot-0 identity window is dead weight post-14-05 (the linked-VA entry fix left it never-entered; retire it in a one-line l.S cleanup) | open |  | 2026-11-08T22:55:27.720Z |  |
-| 56 | 14 | deviation | r9/flake.nix |  | boot-iso FOD outputHash stale since 14-01 (kernel-byte drift; proven pre-existing at abee15c) — 14-07 re-wires with a fresh byte-identity proof | open |  | 2026-11-08T22:55:27.857Z |  |
+| 56 | 14 | deviation | r9/flake.nix |  | boot-iso FOD outputHash stale since 14-01 (kernel-byte drift; proven pre-existing at abee15c) — 14-07 re-wires with a fresh byte-identity proof | fixed |  | 2026-11-08T22:55:27.857Z | 2026-11-09T16:38:25.859Z |
 | 57 | 14 | deviation | build/x86_64/stage-build.sh |  | the sudoless userns venue is CI/agent-only machinery; a present user's documented venue stays sudo-unshare (nsrun) — fold the adapter into nsrun.sh if a third consumer appears | open |  | 2026-11-08T22:55:27.978Z |  |
 | 59 | 14 | unmet-truth | .planning/phases/14-harvey-amd64-userspace-on-r9/14-06-SUMMARY.md |  | 14-06 open: two-proc scheduler corruption in r9 x86_64 (CURRENT_PROC := &SCHED_CONTEXT by a wild bss write at init's fexec fork; the q35shell gate red just past 'init: starting /bin/rc') — evidence + leading theory in 14-06-SUMMARY Known Issues; the fix is the one open item before 14-07 | fixed |  | 2026-11-09T01:27:39.799Z | 2026-11-09T05:13:38.890Z |
+| 60 | 14 | deviation | r9/flake.nix |  | 14-VERIFICATION gap fix: the boot-iso FOD re-staled AGAIN at the phase-close pin — the phase's own post-fe39d83 kernel commits (8a338a6/e5def72/e417660) changed kernel bytes after the 14-07 re-wire, and the 14-EVIDENCE regression row claimed a green never run at that rev. Re-wired at r9@4132e25 with the two-derivation proof (fresh-kernel clones byte-identical: file bd0281bb…, NAR 9706c34a…=sha256-lwbDSqYx…), nix build .#boot-iso + --rebuild green, pushed, harvey pin f6622b35f. STANDING RULE: any r9 kernel-byte commit re-stales the FOD — re-wire-then-pin at every close; never record the FOD green unrun at the pin | fixed |  | 2026-11-09T16:38:25.739Z | 2026-11-09T16:38:46.914Z |
 
 ````json
 [
@@ -798,10 +799,10 @@ last_updated: 2026-11-09T05:13:38.890Z
     "file": "r9/flake.nix",
     "line": null,
     "description": "boot-iso FOD outputHash stale since 14-01 (kernel-byte drift; proven pre-existing at abee15c) — 14-07 re-wires with a fresh byte-identity proof",
-    "status": "open",
+    "status": "fixed",
     "reason": "",
     "recorded_at": "2026-11-08T22:55:27.857Z",
-    "resolved_at": null,
+    "resolved_at": "2026-11-09T16:38:25.859Z",
     "milestone": "v2.1"
   },
   {
@@ -828,6 +829,19 @@ last_updated: 2026-11-09T05:13:38.890Z
     "reason": "",
     "recorded_at": "2026-11-09T01:27:39.799Z",
     "resolved_at": "2026-11-09T05:13:38.890Z",
+    "milestone": "v2.1"
+  },
+  {
+    "id": 60,
+    "kind": "deviation",
+    "phase": "14",
+    "file": "r9/flake.nix",
+    "line": null,
+    "description": "14-VERIFICATION gap fix: the boot-iso FOD re-staled AGAIN at the phase-close pin — the phase's own post-fe39d83 kernel commits (8a338a6/e5def72/e417660) changed kernel bytes after the 14-07 re-wire, and the 14-EVIDENCE regression row claimed a green never run at that rev. Re-wired at r9@4132e25 with the two-derivation proof (fresh-kernel clones byte-identical: file bd0281bb…, NAR 9706c34a…=sha256-lwbDSqYx…), nix build .#boot-iso + --rebuild green, pushed, harvey pin f6622b35f. STANDING RULE: any r9 kernel-byte commit re-stales the FOD — re-wire-then-pin at every close; never record the FOD green unrun at the pin",
+    "status": "fixed",
+    "reason": "",
+    "recorded_at": "2026-11-09T16:38:25.739Z",
+    "resolved_at": "2026-11-09T16:38:46.914Z",
     "milestone": "v2.1"
   }
 ]

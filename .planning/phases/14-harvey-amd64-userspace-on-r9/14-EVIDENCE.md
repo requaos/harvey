@@ -8,7 +8,8 @@
 
 | Repo | SHA | Role |
 |------|-----|------|
-| r9 (`requaos/r9`, branch `main`) | **`e417660f215e688b65428f97394503477a01dbed`** | the phase-complete HEAD at consolidation — the whole phase is PUSHED (`origin/main..HEAD` = 0; the push-before-pin discipline held at every advance), and Harvey's `flake.lock` pins exactly this rev (the lock-only commit `5294f27b8`). |
+| r9 (`requaos/r9`, branch `main`) | **`e417660f215e688b65428f97394503477a01dbed`** | the phase-complete HEAD at consolidation — the whole phase is PUSHED (`origin/main..HEAD` = 0; the push-before-pin discipline held at every advance), and Harvey's `flake.lock` pinned exactly this rev at close (the lock-only commit `5294f27b8`). |
+| r9 (`requaos/r9`, branch `main`) | **`4132e259e12f559edda97ea7c9ffee830ad7e32f`** | post-verification gap fix (2026-11-09, 14-VERIFICATION gap 1): the boot-iso FOD hash re-wired at the phase-close pin per the two-derivation proof discipline — pushed (`e417660..4132e25`), then pinned by Harvey's lock-only commit `f6622b35f` (push-before-pin held). |
 | harvey | `4bf559e6c` | 14-09 Task 1: the x64 net fixtures + the net-binary bake. |
 | harvey | `187984ac1` | 14-09 Task 2: the composed net gate — `boot-r9-net-smoke-x64` green twice + both captures retained. |
 | harvey | this docs commit | 14-EVIDENCE.md + `evidence/` + the 14-09 summary (the consolidation you are reading). |
@@ -98,7 +99,7 @@ ONE `/amd64/bin` set — the 38-member sha256 manifest the donor (k10t1) build p
 |-----|--------|
 | q35exec, q35shell, q35, q35net boot-tests + aarch64 virt sibling | PASS (the full battery re-run at r9@e417660, the 14-08 close) |
 | `cargo xtask test` (101 port tests) / check / clippy | green / exit 0 / clean (exec.rs zero warnings) |
-| `nix build .#boot-iso --rebuild` (r9) | green — the FOD hash re-verified (re-wired 14-07 after the four-derivation byte-identity proof) |
+| `nix build .#boot-iso` (r9) | at the close itself (r9@e417660): **NOT run, and NOT green** — the verifier caught the wired hash stale there (exit 1: specified `sha256-lEqthp7h…` ≠ got `sha256-lwbDSqYx…`; the fe39d83-era 14-07 hash could not survive the phase's own post-fe39d83 kernel commits `8a338a6`/`e5def72`/`e417660` — 14-VERIFICATION gap 1, the row previously claiming green here has been corrected). FIXED post-verification: re-wired at r9@`4132e25` after the two-derivation fresh-kernel byte-identity proof; `nix build .#boot-iso` AND `--rebuild` both exit 0 at the new pin (proof transcript retained at `evidence/14-gap-fod-proof.md`). |
 | Harvey flake | `nix run .#boot-r9-x64` → `% `; `.#boot-r9-smoke-x64` green ×2 (14-07); `.#boot-r9-tier1-x64` green ×2 (14-08); `.#boot-r9-net-smoke-x64` green ×2 (14-09) |
 | this plan's runs | subset-build `TIER-BUILD-OK` (15+40 markers + the net section); all four bakes PASS with the witness manifest verified; the net gate green ×2 consecutively |
 

@@ -5,11 +5,11 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: Completed 14-09-PLAN.md (XEXEC-05 closed — the net gates green twice; 14-EVIDENCE.md consolidates the phase)
-last_updated: "2026-11-09T15:51:08.576Z"
+stopped_at: "Completed the 14-VERIFICATION gap fix: boot-iso FOD re-wired at r9@4132e25 (two-derivation proof, pushed), harvey pin f6622b35f, 14-EVIDENCE row corrected, drift-class rule recorded — awaiting re-verification"
+last_updated: "2026-11-09T16:39:20.677Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 14 execution started
-state_head: e49f5c00a0923e489940594fa5c14d06213daf40
+state_head: f6622b35fdc90ae53a800f0237081346ea5e89fe
 progress:
   total_phases: 2
   completed_phases: 1
@@ -149,6 +149,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-09T15:51:08.356Z
-Stopped at: Completed 14-09-PLAN.md (XEXEC-05 closed — the net gates green twice; 14-EVIDENCE.md consolidates the phase)
+Last session: 2026-11-09T16:39:20.629Z
+Stopped at: Completed the 14-VERIFICATION gap fix: boot-iso FOD re-wired at r9@4132e25 (two-derivation proof, pushed), harvey pin f6622b35f, 14-EVIDENCE row corrected, drift-class rule recorded — awaiting re-verification
 Resume file: None

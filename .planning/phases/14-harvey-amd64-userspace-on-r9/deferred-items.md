@@ -23,3 +23,28 @@ kernel builds, produced the identical ISO (file sha256 cdcfa008…,
 NAR 944aad86… = sha256-lEqthp7h…); `nix build .#boot-iso --rebuild`
 re-verifies on every rebuild (r9@fe39d83, the kernel re-keyed to
 q35shell for the compose).
+
+## RESOLVED (14-VERIFICATION gap fix, 2026-11-09): the hash re-staled at the phase-close pin — the drift class is standing
+
+The 14-07 re-wire (above) went stale AGAIN before the phase closed: the
+phase's own post-fe39d83 kernel commits (8a338a6 console RX, e5def72
+SWAPGS cmpw, e417660 user SSE + eager stack — the phase-close pin
+itself) changed the staged kernel bytes, and neither re-wired the hash
+nor recorded the staleness; the 14-EVIDENCE regression row then claimed
+a green that was never run at the pinned rev (the verifier caught it:
+`nix build .#boot-iso` exit 1 at e417660 — 14-VERIFICATION gap 1).
+The gap fix re-wired it at r9@4132e25 with the same two-derivation
+discipline (two independent fresh-kernel version-override clones through
+the non-FOD lib.bootIso, byte-identical: file sha256 bd0281bb…, NAR
+9706c34a… = sha256-lwbDSqYx…, three-way agreement with the FOD's own
+measured got-value); `nix build .#boot-iso` + `--rebuild` green at the
+new pin; r9 pushed e417660..4132e25, then the harvey lock-only pin
+f6622b35f (proof transcript: evidence/14-gap-fod-proof.md; WINDOWS rows
+56 + 60 closed).
+
+STANDING RULE (every later phase that lands r9 kernel-byte commits):
+ANY kernel-byte commit re-stales the boot-iso FOD.  The close discipline
+is re-wire-then-pin: run the two-derivation fresh-kernel proof, wire the
+hash, verify `nix build .#boot-iso` (+ `--rebuild`) green, push r9, THEN
+advance the harvey pin (lock-only).  Never record the FOD green without
+running it at the pinned rev.
