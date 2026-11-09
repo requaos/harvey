@@ -159,6 +159,7 @@ if(~ $svclo bound){
 		# the CONSOLE and wrote the reply into the ctl channel — a
 		# silent block that only serial input could unmask)
 		lconv=`{$B/hcat /fd/7}
+		echo SVC-LCONV-$lconv
 		if(~ $#lconv 1){
 			svclo=cloned
 		}
@@ -176,18 +177,22 @@ if(~ $svclo bound){
 		if(! ~ $svclo up) echo SVC-LOOPBACK-NOT-UP
 
 		# --- cs: the connection server answers a scripted lookup ------
-		# The test ndb rides /env (ip=… dom=probehost tcp=… — a baked
-		# probe host, throwaway values only).  hcs -f serves it mounted
-		# at /net/cs (its netlist scan sees /net/tcp/clone — the #I bind
-		# above); hcsquery is the canned client (csquery.c).  The marker
-		# rides the ANSWER carrying the baked address — never the
-		# daemon's start.  The daemon's stderr stays on the capture (a
-		# startup sysfatal is the classified FAIL's diagnosis) and the
-		# SVC-CSOBS observation line records the raw answer.
-		svcndb='ip=127.0.0.1 dom=probehost tcp=9930'
+		# The test ndb rides /env (ip=… dom=probehost — a baked probe
+		# host, throwaway values only).  hcs -f serves it mounted at
+		# /net/cs (its netlist scan sees /net/tcp/clone — the #I bind
+		# above); hcsquery is the canned client (csquery.c).  The query
+		# carries an EXPLICIT numeric port >= 1024: a bare `tcp!host'
+		# query has an empty service part and cs's ipserv rejects the
+		# empty name ("can't translate service", measured), while a
+		# numeric port >= 1024 passes through with no port-database
+		# lookup.  The marker rides the ANSWER carrying the baked
+		# address — never the daemon's start.  The daemon's stderr stays
+		# on the capture and the SVC-CSOBS observation line records the
+		# raw answer.
+		svcndb='ip=127.0.0.1 dom=probehost'
 		$B/hcs -f /env/svcndb &
 		if(svc_waitpath 10 /net/cs){
-			qout=`{$B/hcsquery /net/cs 'tcp!probehost'}
+			qout=`{$B/hcsquery /net/cs 'tcp!probehost!19730'}
 			echo SVC-CSOBS $"qout
 			if(~ $"qout *127.0.0.1*) echo SVC-OK cs
 			if not echo SVC-FAIL cs
