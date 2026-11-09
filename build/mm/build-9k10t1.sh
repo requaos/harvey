@@ -18,6 +18,20 @@
 # portmkfile on every 9k build and unreachable by the nuke, so it (plus
 # k10t1.c and the transient .tier1-stage/) rides .gitignore instead.
 #
+# 14-08 (XEXEC-04) extends the venue script additively, twice:
+#   - the passwordless venue (the 14-05 discipline): when the host
+#     grants no passwordless sudo, the SAME build-steps core runs
+#     inside the unprivileged user+mount namespace's tmpfs chroot
+#     scaffold (build/x86_64/stage-build.sh's proven shape) instead of
+#     RUN_BUILD_IN_PRIVATE_NAMESPACE — the nuke sandwich, asserts, and
+#     products are identical, only the namespace entry differs.
+#   - the r9-x64 execution leg: after the 9k build, the tier binary
+#     set BOTH venues consume (/amd64/bin — this kernel's embed source
+#     AND the r9 tier image's staging home) is asserted complete and
+#     pinned to .build/9k10t1-tier-manifest.sha256; mkimage.sh's tier
+#     bake verifies against it — the identical-6.outs ABI witness
+#     (D-01's both-kernels consequence, T-14-15) made structural.
+#
 # Usage (from the repo root, inside the nix devshell):
 #   nix develop -c sh build/mm/build-9k10t1.sh
 # darwin (the namespace build is linux-only — run it in the lima guest):
@@ -27,8 +41,8 @@
 #   HARVEY   repo root (default: $PWD)
 #
 # Exit: 0 iff both kernels built, the venue kernel embeds exactly 43
-# root files, amd64/9k10t1.elf landed, and the k10 tree is git-clean
-# after the trailing nuke.
+# root files, amd64/9k10t1.elf landed, the k10 tree is git-clean after
+# the trailing nuke, and the r9 leg's tier-set manifest is written.
 
 set -eu
 
@@ -57,7 +71,8 @@ NS_HBIN="$HARVEY/.build/hostbin-linux-$_ha/bin"
 for t in 6c 6l 6a; do
 	[ -x "$NS_HBIN/$t" ] || err "$NS_HBIN/$t missing — run 'nix run .#setup && nix run .#toolchain' first"
 done
-command -v sudo >/dev/null || err "sudo missing — the namespace build needs it (unshare -m + bind mounts)"
+# sudo: only the passwordless-sudo venue needs it (the 14-08 userns
+# venue below runs unprivileged); checked at the venue split
 [ -n "${PLAN9:-}" ] && [ -x "$PLAN9/bin/rc" ] || err "\$PLAN9/bin/rc missing — run inside the nix devshell (nix develop)"
 
 # the 06-02 idiom (D-02): the log greps below use -q/-E, which plan9
@@ -94,9 +109,18 @@ _sha1=$(sha1sum "$STAGE/sentinel.txt" | awk '{print $1}')
 [ "$_sha1" = "893404a2c36b54f5c7874070d1acefe38f7ce652" ] || err "sentinel sha1 drift: $_sha1 (want 893404a2c36b54f5c7874070d1acefe38f7ce652)"
 echo "== staged: tier1-sweep.rc + nm-input.7 + sentinel.txt (digests pinned)"
 
-# /bin/rc guard (the gethunk fix's runner finding): mk's FORCERCFORMK
-# recipes exec /bin/rc inside the namespace.
-[ -x /bin/rc ] || sudo cp "$PLAN9/bin/rc" /bin/rc
+# the nvram rootdir stub (build/scripts/build:48-49's rule, host-side):
+# k10cpu's rootdir names ../root/nvram, which the full in-OS build
+# creates as a 512-byte zero file — on a host where only the subset
+# drivers ran (never `nix run .#build`), the stub is absent and mk dies
+# "don't know how to make '../root/nvram'".  head (never shadowed by
+# hostbin — Plan 9 dd's dash-pair syntax is; the D-02 class) emits the
+# same 512 zero bytes.  gitignored (the same rule the full build's
+# artifact rides).
+if [ ! -f "$HARVEY/sys/src/9k/root/nvram" ]; then
+	head -c 512 /dev/zero > "$HARVEY/sys/src/9k/root/nvram" || err "cannot write the nvram stub"
+	echo "== staged: sys/src/9k/root/nvram stub (512 zero bytes)"
+fi
 
 # --- the namespace build (nuke sandwich) --------------------------------
 # NS_HBIN is computed host-side above and EXPORTED into the namespace —
@@ -105,21 +129,12 @@ echo "== staged: tier1-sweep.rc + nm-input.7 + sentinel.txt (digests pinned)"
 export NS_HBIN
 LOG="$HARVEY/.build/build-9k10t1.log"
 mkdir -p "$HARVEY/.build"
-NSK="$(mktemp "${TMPDIR:-/tmp}/ns-9k10t1.XXXXXX.sh")"
-# The script is bash (NS_TARGET="bash …") carrying the namespace-proven
-# line shape: buildnamespace is RUN_BUILD_IN_PRIVATE_NAMESPACE's own
-# `export`-dump, sourced to restore the captured environment.  The
-# /rc/bin:. tail is load-bearing (the phase-01 namespace-env rule — the
-# proven nix/build.sh:28-30 shape): inside the namespace /rc is the
-# repo's rc/ bind, and bootmkfile's archive rule execs `membername`
-# from rc/bin; without the tail the BOOTLIB archive silently builds
-# EMPTY and the boot$CONF.out link fails with undefined boot/connecttcp.
-cat > "$NSK" <<'EOF'
-cd /sys/src || exit 1
-. buildnamespace
-PATH="$NS_HBIN:$PATH:/rc/bin:."
-export PATH
-export FORCERCFORMK=1
+# 14-08: the build-steps CORE, shared verbatim by BOTH namespace venues
+# (the passwordless split below) — everything from the k10 cd through
+# the trailing nuke; each venue's wrapper only sets the environment
+# (PATH shape, FORCERCFORMK) and runs this file.
+CORE="$(mktemp "${TMPDIR:-/tmp}/ns-9k10t1-core.XXXXXX.sh")"
+cat > "$CORE" <<'EOF'
 cd /sys/src/9k/k10 || exit 1
 fails=0
 # leading nuke: clean slate (portmkfile's nuke chain removes *.root.[cs],
@@ -158,13 +173,119 @@ fi
 mk nuke || fails=1
 exit "$fails"
 EOF
-echo "== namespace build: mk nuke && mk CONF=k10cpu 9k10cpu && mk CONF=k10t1 9k10t1 && mk nuke"
-echo "== build log: $LOG (tail -f to follow)"
+
+# venue split (the 14-05 discipline, carried by build/x86_64's drivers):
+# passwordless sudo → the documented RUN_BUILD_IN_PRIVATE_NAMESPACE
+# path (real root, the su drop, the buildnamespace export-dump);
+# otherwise the unprivileged user+mount namespace with the tmpfs chroot
+# scaffold (same binds, no privilege, same uid — the artifacts land
+# owned right).  The build steps, asserts, and products are IDENTICAL —
+# only the namespace entry differs.
 set +e
-(cd "$HARVEY/sys/src" && NS_TARGET="bash $NSK" bash RUN_BUILD_IN_PRIVATE_NAMESPACE) > "$LOG" 2>&1
-NSRC=$?
+if sudo -n true 2>/dev/null; then
+	# /bin/rc guard (the gethunk fix's runner finding; SUDO venue only —
+	# the namespace here is the host root plus binds, so mk's
+	# FORCERCFORMK recipes exec the HOST /bin/rc): mk's recipes exec
+	# /bin/rc inside the namespace.
+	[ -x /bin/rc ] || sudo cp "$PLAN9/bin/rc" /bin/rc
+	NSK="$(mktemp "${TMPDIR:-/tmp}/ns-9k10t1.XXXXXX.sh")"
+	# The wrapper is bash (NS_TARGET="bash …") carrying the namespace-
+	# proven line shape: buildnamespace is RUN_BUILD_IN_PRIVATE_
+	# NAMESPACE's own `export`-dump, sourced to restore the captured
+	# environment.  The /rc/bin:. tail is load-bearing (the phase-01
+	# namespace-env rule — the proven nix/build.sh:28-30 shape): inside
+	# the namespace /rc is the repo's rc/ bind, and bootmkfile's
+	# archive rule execs `membername` from rc/bin; without the tail the
+	# BOOTLIB archive silently builds EMPTY and the boot$CONF.out link
+	# fails with undefined boot/connecttcp.
+	cat > "$NSK" <<EOF
+cd /sys/src || exit 1
+. buildnamespace
+PATH="$NS_HBIN:\$PATH:/rc/bin:."
+export PATH
+export FORCERCFORMK=1
+bash $CORE
+EOF
+	echo "== namespace build (sudo unshare): mk nuke && mk CONF=k10cpu 9k10cpu && mk CONF=k10t1 9k10t1 && mk nuke"
+	echo "== build log: $LOG (tail -f to follow)"
+	(cd "$HARVEY/sys/src" && NS_TARGET="bash $NSK" bash RUN_BUILD_IN_PRIVATE_NAMESPACE) > "$LOG" 2>&1
+	NSRC=$?
+	rm -f "$NSK"
+else
+	# The chroot scaffold for the passwordless venue (unshare -Ur -m):
+	# build/x86_64/stage-build.sh's proven shape, carried verbatim in
+	# spirit — the tmpfs owns everything (never rm'd; dies with the
+	# namespace), leaf binds only, /bin a usrmerge symlink farm + the
+	# plan9port rc bind, the per-arch dirs bound (libmach's absolute
+	# /$objtype/include includes), /unix for the host-toolchain mkfile.
+	# No cleanup trap — the tmpfs IS the cleanup (an rm -rf would walk
+	# THROUGH the bind mounts into the source trees).
+	TMPD="$(mktemp -d "${TMPDIR:-/tmp}/ns-9k10t1-scaffold.XXXXXX")"
+	cat > "$TMPD/ns-9k10t1-userns.sh" <<'USERNS_EOF'
+#!/usr/bin/env bash
+# ns-9k10t1-userns.sh — the passwordless venue's namespace side: the
+# tmpfs chroot scaffold + the shared build core.  Never committed;
+# regenerated each run.
 set -e
-rm -f "$NSK"
+NSX=$(mktemp -d "${TMPDIR:-/tmp}/ns-9k10t1-root.XXXXXX")
+mount -t tmpfs tmpfs "$NSX"
+
+mkdir -p "$NSX"/{sys,amd64,rc,lib,etc,tmp,harvey,unix,nix/store,run,dev,usr,bin}
+mount --bind "$HARVEY_SYS" "$NSX/sys"
+mount --bind "$HARVEY_AMD64" "$NSX/amd64"
+mount --bind "$HARVEY_RC" "$NSX/rc"
+# /lib: the 9k kernel build consumes /lib/keyboard (portmkfile:82-83's
+# mklatinkbd -> ../port/latin1.h rule).  The sudo venue builds a MERGED
+# /lib (BUILD_SETUP_NAMESPACE: the distro loader must stay reachable);
+# in THIS chroot every binary's interpreter is a nix-store absolute
+# path (bound above), so a plain bind of the repo's lib/ is safe.
+mount --bind "$HARVEY_LIB" "$NSX/lib"
+mount --bind "$HARVEY_UNIX" "$NSX/unix"
+for a in 386 aarch64 arm mips mips64 power power64 riscv riscv64 sparc acme; do
+	mkdir -p "$NSX/$a"
+	mount --bind "$HARVEY_REAL/$a" "$NSX/$a"
+done
+mount --bind /etc "$NSX/etc"
+mount --bind /tmp "$NSX/tmp"
+mount --bind "$HARVEY_REAL" "$NSX/harvey"
+mount --bind /nix/store "$NSX/nix/store"
+ln -sfn "$(readlink /run/current-system)" "$NSX/run/current-system"
+ln -sfn ../run/current-system/sw/bin "$NSX/usr/bin"
+for b in sh bash env cp mv rm ls cat mkdir touch sed grep find od tr; do
+	ln -sfn "../run/current-system/sw/bin/$b" "$NSX/bin/$b"
+done
+for d in null zero urandom random; do
+	touch "$NSX/dev/$d"
+	mount --bind "/dev/$d" "$NSX/dev/$d"
+done
+touch "$NSX/bin/rc"
+mount --bind "$PLAN9/bin/rc" "$NSX/bin/rc"
+
+export HARVEY=/harvey
+INNER_BIN="/harvey${HARVEY_LINUX_BIN#"$HARVEY_REAL"}"
+# the core's env (the sudo venue's wrapper equivalents): hostbin FIRST,
+# the /rc/bin:. tail load-bearing (membername), FORCERCFORMK for mk.
+exec chroot "$NSX" /usr/bin/env \
+	HARVEY=/harvey \
+	HARVEY_LINUX_BIN="$INNER_BIN" \
+	PLAN9="$PLAN9" \
+	GREP="$GREP" \
+	PATH="$INNER_BIN:/rc/bin:$PATH:." \
+	HOME="$HOME" \
+	FORCERCFORMK=1 CGO_ENABLED=0 objtype=amd64 cputype=unix \
+	bash "$1"
+USERNS_EOF
+	echo "== no passwordless sudo — namespace build in an unprivileged user namespace (unshare -Ur -m chroot scaffold): mk nuke && mk CONF=k10cpu 9k10cpu && mk CONF=k10t1 9k10t1 && mk nuke"
+	echo "== build log: $LOG (tail -f to follow)"
+	HARVEY_SYS="$HARVEY/sys" HARVEY_AMD64="$HARVEY/amd64" HARVEY_RC="$HARVEY/rc" HARVEY_LIB="$HARVEY/lib" \
+	HARVEY_UNIX="$HARVEY/unix" HARVEY_REAL="$HARVEY" HARVEY_LINUX_BIN="$HARVEY_LINUX_BIN" \
+	PATH="$HARVEY_LINUX_BIN:$PATH" \
+	unshare -Ur -m bash "$TMPD/ns-9k10t1-userns.sh" "$CORE" > "$LOG" 2>&1
+	NSRC=$?
+	rm -rf "$TMPD"
+fi
+set -e
+rm -f "$CORE"
 # mk exit status is never enough on its own (02-12) — check the harness
 # status AND the product asserts below.
 [ "$NSRC" -eq 0 ] || {
@@ -201,3 +322,38 @@ fi
 # success: surface the key evidence lines from the captured log
 "$GREP" -E '^embedded root files: |9k10(t1|cpu)\.elf' "$LOG" | tail -6 || true
 echo "== build-9k10t1 OK: amd64/9k10t1.elf ($(wc -c < "$HARVEY/amd64/9k10t1.elf" | tr -d ' ') bytes), 9k10cpu relinked against devroot(Nbootfiles=64), k10 tree git-clean"
+
+# --- the r9-x64 execution leg (14-08, XEXEC-04): ONE binary set, TWO
+#     venues.  The kernel above just embedded /amd64/bin's tier set;
+#     the r9 tier image stages the SAME set (mkimage.sh's tier bake
+#     verifies every digest against the manifest written here — the
+#     identical-6.outs ABI witness, T-14-15, is structural: a drifted
+#     member between the two builds reds the BAKE, not the eye).  The
+#     member list is computed from the x64 tier data (the same
+#     entry->name mapping the venue gates' expectations use), plus
+#     bind — the embed's bare-name boot-plumbing member subset-build
+#     installs outside the tier data (insertion-only, the aarch64
+#     driver's 07-07 shape).
+R9_MANIFEST="$HARVEY/.build/9k10t1-tier-manifest.sha256"
+R9_RELS=$(
+	awk 'NF && $1 !~ /^#/ { print $1 }' "$HARVEY/build/x86_64/tiers/tier1-cmds.txt" |
+	while read -r e; do
+		case "$e" in
+		9k/boot|stage/*|cmd/paqfs:paqfs|cmd/cc) continue ;;
+		esac
+		case "$e" in *:*) e="${e%%:*}" ;; esac
+		echo "amd64/bin/${e#cmd/}"
+	done
+)
+R9_RELS="$R9_RELS amd64/bin/bind"
+[ -n "$R9_RELS" ] || err "the r9 leg's member list is empty — the tier data parse failed"
+_r9miss=""
+for rel in $R9_RELS; do
+	[ -f "$HARVEY/$rel" ] || _r9miss="$_r9miss $rel"
+done
+[ -z "$_r9miss" ] || err "the r9 leg's tier set is incomplete:$_r9miss — run sh build/x86_64/subset-build.sh first (the ONE build both venues consume)"
+: > "$R9_MANIFEST"
+for rel in $R9_RELS; do
+	echo "$(sha256sum "$HARVEY/$rel" | cut -d' ' -f1)  $rel" >> "$R9_MANIFEST"
+done
+echo "== r9 leg: pinned $(wc -l < "$R9_MANIFEST" | tr -d ' ') /amd64/bin members to $R9_MANIFEST (mkimage's tier bake verifies against it — the witness input set)"

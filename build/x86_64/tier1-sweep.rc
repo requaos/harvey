@@ -1,0 +1,307 @@
+#!/bin/rc
+# tier1-sweep.rc — the 14-08 x64 in-guest tier-1 sweep (XEXEC-04), the
+# build/aarch64/tier1-sweep.rc discipline re-keyed to the r9-x64 venue.
+# Bakes into the r9 tier image at /lib/tier1-sweep.rc; the tier image's
+# termrc (build/x86_64/tier-termrc staged as rc/bin/termrc) runs it from
+# the boot flow (`rc /lib/tier1-sweep.rc r9`) — the donor venue's
+# k10t1.rc shape, no typed interaction (the gates —
+# build/x86_64/tier1-r9.expect via nix/tier1-r9-x64.sh, and
+# build/mm/boot-9k10t1-sweep.sh's r9 arm — assert the markers; r9's
+# devcons serves reads, the 05-03 finding, but this venue never needs
+# them).
+#
+# The amd64 DONOR venue (k10t1, Harvey's own 9k kernel) runs the
+# aarch64 sweep verbatim (build/aarch64/tier1-sweep.rc, embedded from
+# .tier1-stage — byte-preserved there); THIS file is the r9-x64 venue's
+# sweep over the SAME binaries (the identical-6.outs ABI witness,
+# D-01): the read-only check bodies below are the aarch64 sweep's,
+# carried verbatim; the venue path prefixes map /bin + /lib/tier1 (the
+# aarch64 r9 block, re-keyed /aarch64→/amd64 through the namespace's
+# /bin union).
+#
+# Membership (this phase's tier-1 core scope — build/x86_64/tiers/
+# tier1-cmds.txt, anchored to the k10t1-proven 35-command embed set):
+# the read-only checks run on the r9-x64 venue; the write-flow /
+# build-chain / toolchain classes are NOT in this phase's amd64 tier
+# data (Phase 15 appends them onto this machinery — the driver-only
+# ipconfig/factotum container members take their named T1-SKIP lines
+# here: the 06-07 measured r9-era gaps carried to x86_64 — no
+# /dev/random for ipconfig's startup, factotum's devproc
+# protect/noswap verbs + devsrv mount; Phase 17/18 close them).
+# NO libtest block on amd64 venues (the 06-09 9k-venue discipline:
+# the amd64 libtest build machinery is out of scope — never an
+# unearned T1-OK).
+#
+#	usage: rc /lib/tier1-sweep.rc [venue]	venue: r9 (default; x64
+#	                                        accepts no other this era)
+#
+# Markers over serial (host asserts presence, never interleaving order;
+# TCG-timing tolerant):
+#	T1-OK <name>	the binary's fixed-input check passed
+#	T1-FAIL <name>	it failed — the sweep CONTINUES (USPACE-04's
+#			empty edge: a failing entry never wedges or
+#			shortens the sweep); the host gate reds on any
+#	T1-SKIP <name>	a tier-data member this venue honestly cannot
+#			run (declared, never silent)
+#	T1-OK float-d01	D-01's mandatory canary: %e/%f/%g correctness
+#			is execution-asserted on BOTH kernels (Pitfall 7:
+#			user SSE under r9 needs CR4.OSFXSR ownership —
+#			this check is the proof, not an assumption)
+#	T1-DONE		the sweep ran to completion
+#
+# The fixed inputs re-express the aarch64 sweep's step table verbatim:
+# $D/sentinel.txt (the byte-exact known-content file — its md5/sha1
+# digests are pinned in the asserts below AND in
+# build/mm/build-9k10t1.sh's staging asserts) and $D/nm-input.6 (nm's
+# baked object — PRODUCED AT AUTHORING TIME by the host 6c over the
+# committed build/x86_64/hello.c and reproduced byte-identically with:
+#   objtype=amd64 6c -FTVw -Isys/include -Iamd64/include \
+#       $HARVEY/build/x86_64/hello.c   # -> hello.6 == nm-input.6
+# (the absolute source path rides the object's file symbol — compile
+# from the same path); the aarch64 venue's nm-input.7 is its own object
+# — nm itself is the same 6.out on both venues, the witness is the
+# binaries).
+
+venue=$1
+if(~ $#venue 0) venue=r9
+
+# Venue path prefixes (the aarch64 sweep's r9 block): the binaries bake
+# into the image's /amd64/bin (resolved through the namespace's /bin
+# union — /lib/namespace's `bind /root/$cputype/bin /bin`), the data
+# rides /lib/tier1 (the paqfs image is read-only; /boot on r9 is the
+# kernel's devroot).
+B=/bin
+D=/lib/tier1
+
+# check NAME CMD... — run the fixed input; zero exit status → T1-OK.
+# A failing entry never aborts the sweep: the command rides if(), its
+# status becomes the marker, and the sweep continues.
+fn check {
+	n=$1
+	shift
+	if($*) echo T1-OK $n
+	if not echo T1-FAIL $n
+}
+
+# --- read-only checks (the aarch64 sweep's bodies, verbatim) ---------
+
+# echo: fixed sentinel
+checko_echo=`{$B/hecho __T1_SENTINEL__}
+if(~ $checko_echo __T1_SENTINEL__) echo T1-OK echo
+if not echo T1-FAIL echo
+
+# ls: / non-empty, /boot present
+lsout=`{$B/hls /}
+if(~ /boot $lsout) echo T1-OK ls
+if not echo T1-FAIL ls
+
+# cat: the baked known-content file (2 lines, 4 words) — the fixed
+# expectation is the FIRST line (v1.0's anchored-line assertion); the
+# trailing pattern covers the second (grep-marker) line
+catout=`{$B/hcat $D/sentinel.txt}
+if(~ $"catout 'alpha bravo charlie '*) echo T1-OK cat
+if not echo T1-FAIL cat
+
+# grep pipeline
+grepout=`{$B/hcat $D/sentinel.txt | $B/hgrep __SUBSET_GREP_LINE__}
+if(~ $"grepout __SUBSET_GREP_LINE__) echo T1-OK grep
+if not echo T1-FAIL grep
+
+# sed transform pipeline
+sedout=`{$B/hecho __T1_SENTINEL__ | $B/hsed s/SENTINEL/VERIFIED/}
+if(~ $"sedout __T1_VERIFIED__) echo T1-OK sed
+if not echo T1-FAIL sed
+
+# wc -l: deterministic count from the known-content file
+wcout=`{$B/hcat $D/sentinel.txt | $B/hwc -l}
+if(~ $"wcout 2) echo T1-OK wc
+if not echo T1-FAIL wc
+
+# date: parseable line carrying a 20xx year
+dateout=`{$B/hdate}
+if(~ $dateout *20[0-9][0-9]*) echo T1-OK date
+if not echo T1-FAIL date
+
+# test -f true-branch
+check test $B/htest -f $B/hcat
+
+# rc: OUR rc (hrc) evaluates — caret concat + command substitution
+# inside a forked hrc -c proves the parser/evaluator/exec/exits path
+# (the image ships /rc/lib/rcmain; no -m override needed on this venue)
+rcout=`{$B/hrc -c 'x=`{echo hello}; echo __T1_RC_^$x^_OK__'}
+if(~ $"rcout __T1_RC_hello_OK__) echo T1-OK rc
+if not echo T1-FAIL rc
+
+# ps: the sweep's own shell (named rc) is resident
+psout=`{$B/hps}
+if(~ rc $psout) echo T1-OK ps
+if not echo T1-FAIL ps
+
+# awk: field splitting through a pipe (the G1 maketab generator path
+# produced this binary's proctab.c at build time)
+awkout=`{echo 'alpha bravo charlie' | $B/hawk '{print $2}'}
+if(~ $"awkout bravo) echo T1-OK awk
+if not echo T1-FAIL awk
+
+# float canary (D-01, MANDATORY): %.3f of 1/3 must print 0.333 —
+# execution-asserts the FP path end to end on BOTH kernels (Pitfall 7:
+# the FIRST user-SSE execution under r9-x86_64 — CR4.OSFXSR/OSXMMEXCPT
+# ownership is proven here, faulting loudly if the kernel owes the user
+# FP state and did not arm it)
+out=`{$B/hawk 'BEGIN{printf "%.3f\n", 1.0/3.0}'}
+if(~ $out 0.333) echo T1-OK float-d01
+if not echo T1-FAIL float-d01
+
+# sort: '_' (0x5f) sorts before 'a' (0x61), so the grep-marker line
+# comes first
+sortout=`{$B/hsort $D/sentinel.txt}
+if(~ $"sortout '__SUBSET_GREP_LINE__ '*) echo T1-OK sort
+if not echo T1-FAIL sort
+
+# tr: upper-case transform of the sentinel
+trout=`{$B/hcat $D/sentinel.txt | $B/htr a-z A-Z}
+if(~ $"trout 'ALPHA BRAVO CHARLIE '*) echo T1-OK tr
+if not echo T1-FAIL tr
+
+# uniq: collapse an adjacent duplicate in a generated stream.  The
+# producer is a fn — the rc lexer rejects subshells with separators
+# inside backquotes, so the sweep keeps backquote bodies to
+# simple-command pipelines
+fn uniqin { $B/hecho alpha ; $B/hecho alpha ; $B/hecho bravo }
+unqout=`{uniqin | $B/huniq}
+if(~ $"unqout 'alpha bravo') echo T1-OK uniq
+if not echo T1-FAIL uniq
+
+# tail: last line of the sentinel
+tailout=`{$B/hcat $D/sentinel.txt | $B/htail -1}
+if(~ $"tailout __SUBSET_GREP_LINE__) echo T1-OK tail
+if not echo T1-FAIL tail
+
+# basename: strip dir + suffix
+baseout=`{$B/hbasename $D/sentinel.txt .txt}
+if(~ $"baseout sentinel) echo T1-OK basename
+if not echo T1-FAIL basename
+
+# sleep: zero-second status check
+check sleep $B/hsleep 0
+
+# cmp: identical files compare clean (status)
+check cmp $B/hcmp $D/sentinel.txt $D/sentinel.txt
+
+# sum: CRC + block count + name (two-condition shape assert)
+sumout=`{$B/hsum $D/sentinel.txt}
+sumok=0
+if(~ $"sumout [0-9a-f]*) if(~ $"sumout *sentinel.txt*) sumok=1
+if(~ $sumok 1) echo T1-OK sum
+if not echo T1-FAIL sum
+
+# md5sum/sha1sum: exact known-content asserts — the digests of the
+# baked sentinel (computed from its exact 41 bytes: 'alpha bravo
+# charlie\n__SUBSET_GREP_LINE__\n').  The path in the assert is
+# caret-concatenated from $D — single quotes never expand (rc), so the
+# venue-mapped path must be BUILT, not embedded literal.
+md5out=`{$B/hmd5sum $D/sentinel.txt}
+if(~ $"md5out '6c3d57e94871f9606c5b63c315e76135 '^$D^/sentinel.txt) echo T1-OK md5sum
+if not echo T1-FAIL md5sum
+sha1out=`{$B/hsha1sum $D/sentinel.txt}
+if(~ $"sha1out '893404a2c36b54f5c7874070d1acefe38f7ce652 '^$D^/sentinel.txt) echo T1-OK sha1sum
+if not echo T1-FAIL sha1sum
+
+# dc: postfix 2+3 prints 5
+dcout=`{$B/hecho '2 3+p' | $B/hdc}
+if(~ $"dcout 5) echo T1-OK dc
+if not echo T1-FAIL dc
+
+# units: usage-level — the image carries no /lib/units db, so the usage
+# text on a bad flag is the execution proof (ipconfig shape)
+uout=`{$B/hunits -Z >[2=1]}
+if(~ $"uout *units*) echo T1-OK units
+if not echo T1-FAIL units
+
+# cal: a fixed month renders its banner
+calout=`{$B/hcal 11 2026}
+if(~ $"calout *'November 2026'*) echo T1-OK cal
+if not echo T1-FAIL cal
+
+# fmt: passthrough fold of a short line
+fmtout=`{$B/hecho 'alpha bravo charlie' | $B/hfmt}
+if(~ $"fmtout 'alpha bravo charlie') echo T1-OK fmt
+if not echo T1-FAIL fmt
+
+# seq: 1..3
+seqout=`{$B/hseq 3}
+if(~ $"seqout '1 2 3') echo T1-OK seq
+if not echo T1-FAIL seq
+
+# time: runs its argument command; the sentinel rides stdout (time's
+# own line rides stderr, not captured)
+tout=`{$B/htime $B/hecho __T1_TIME__}
+if(~ $"tout __T1_TIME__) echo T1-OK time
+if not echo T1-FAIL time
+
+# read: echoes one stdin line back (read.c)
+rout=`{$B/hecho __T1_READ__ | $B/hread}
+if(~ $"rout __T1_READ__) echo T1-OK read
+if not echo T1-FAIL read
+
+# pr: paginated print carries the content line under its header
+prout=`{$B/hpr $D/sentinel.txt}
+if(~ $"prout *'alpha bravo charlie'*) echo T1-OK pr
+if not echo T1-FAIL pr
+
+# strings: a text file's lines are all printable runs
+strout=`{$B/hstrings $D/sentinel.txt}
+if(~ $"strout *'alpha bravo charlie'*) echo T1-OK strings
+if not echo T1-FAIL strings
+
+# xd: 4-byte hex dump (-4x) of the sentinel — the byte-order words are
+# deterministic on the fixed input: 'alph' → 616c7068, 'char' →
+# 63686172 (xd prints bytes in memory order per 4-byte unit, NOT
+# endian-composed values — anchors are the 4-byte-aligned words)
+xdout=`{$B/hxd -4x $D/sentinel.txt}
+echo T1-XDOBS $xdout
+xdok=0
+if(~ $"xdout *616c7068*) if(~ $"xdout *63686172*) xdok=1
+if(~ $xdok 1) echo T1-OK xd
+if not echo T1-FAIL xd
+
+# du: block count + name for the file argument (two-condition assert)
+duout=`{$B/hdu $D/sentinel.txt}
+duok=0
+if(~ $"duout [0-9]*) if(~ $"duout *sentinel.txt*) duok=1
+if(~ $duok 1) echo T1-OK du
+if not echo T1-FAIL du
+
+# comm: the sentinel against itself — every line is column-3 (common),
+# so the flattened words are the file's words in order
+cout=`{$B/hcomm $D/sentinel.txt $D/sentinel.txt}
+if(~ $"cout 'alpha bravo charlie __SUBSET_GREP_LINE__') echo T1-OK comm
+if not echo T1-FAIL comm
+
+# join: the sentinel joined with itself on field 1 — the alpha-keyed
+# line joins its tails
+jout=`{$B/hjoin $D/sentinel.txt $D/sentinel.txt}
+if(~ $"jout *'alpha bravo charlie bravo charlie'*) echo T1-OK join
+if not echo T1-FAIL join
+
+# nm: reads the committed baked object (nm-input.6 — produced at
+# authoring time by the host 6c over the committed
+# build/x86_64/hello.c); libmach's consumer-carrier (D-06).  The
+# output must name the program's main symbol
+nmout=`{$B/hnm $D/nm-input.6}
+if(~ $"nmout *main*) echo T1-OK nm
+if not echo T1-FAIL nm
+
+# --- the donor-guarded tier-data members (this venue's declared gaps,
+#     named T1-SKIPs — USPACE-04 transparency: never an unearned
+#     T1-OK, never a silent drop).  ipconfig opens /dev/random at
+#     startup (r9 has no devrandom this era); factotum's startup needs
+#     the devproc protect/noswap ctl verbs + a devsrv-service mount
+#     (r9's sys_mount is pipe-9P-only this era; the image's auth
+#     stub-by-absence already means no factotum service).  Phase 17/18
+#     close the gaps; the checks move in then. ---
+echo T1-SKIP ipconfig
+echo T1-SKIP factotum
+
+echo T1-DONE
+exit

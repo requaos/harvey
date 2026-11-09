@@ -37,3 +37,6 @@ libsec		# 14-08 seed: authsrv/paqfs closure (factotum transitive)
 libauth		# 14-08 seed: factotum + init closure
 libauthsrv	# 14-08 seed: factotum + init closure
 libflate	# 14-08 seed: paqfs closure (flate.h #pragma lib)
+libString	# 14-08 append: du's closure (du.c <String.h> autolib — caught by the first subset-build run, the gate discipline working)
+libthread	# 14-08 append: factotum's closure (dat.h <thread.h> autolib — caught by the second run's 6l "cannot open libthread.a"; the aarch64 tier-0 list names the same closure)
+lib9p		# 14-08 append: factotum's closure (dat.h <9p.h> autolib; thread.h "only for 9p.h" — lib9p after libthread)

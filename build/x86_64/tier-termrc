@@ -1,0 +1,17 @@
+#!/bin/rc
+# tier-termrc — the TIER image's /rc/bin/termrc (14-08, XEXEC-04):
+# the chain skeleton's termrc (build/x86_64/root-tree/rc/bin/termrc —
+# `exec rc -i`) with ONE insertion: the in-image tier-1 sweep runs from
+# the boot flow, exactly as the DONOR venue runs it (k10t1.rc's
+# `rc -m /boot/rcmain -c '. /boot/tier1-sweep.rc 9k'` — both venues run
+# the sweep from the boot flow, no typed interaction; the witness
+# symmetry).  mkimage.sh's tier bake stages THIS file as the tier
+# image's rc/bin/termrc; the chain image's skeleton termrc is
+# untouched.
+#
+# The sweep runs in a CHILD rc (its trailing exit never kills init's
+# shell); the interactive %  prompt follows T1-DONE.
+
+rc /lib/tier1-sweep.rc r9
+
+exec rc -i

@@ -141,3 +141,13 @@ __pycache__/
 /build/x86_64/smoke-r9.log
 /build/x86_64/smoke-r9-run1.log
 /build/x86_64/smoke-r9-run2.log
+
+# 14-08: the x64 tier sweep's committed fixtures — the nm-input.7
+# discipline (the aarch64 venue's baked object is tracked): nm-input.6
+# is a deliberate SOURCE fixture (the host 6c's object over the
+# committed hello.c — the sweep's T1-OK nm input), not a build product;
+# *.6 above ignores Plan 9 objects tree-wide, so negate THIS one.  The
+# r9-x64 gate's transient capture (a passing copy lands in the phase
+# dir) mirrors the aarch64 tier1-r9.log rule.
+!build/x86_64/nm-input.6
+/build/x86_64/tier1-r9-x64.log
