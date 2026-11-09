@@ -134,6 +134,10 @@ if not echo SVC-FAIL mntgen
 svclo=''
 if(bind -a '#I' /net){
 	echo SVC-NETBOUND
+	lsnet=`{$B/hls /net}`
+	echo SVC-STEP1-NET $lsnet
+	lsifc=`{$B/hls /net/ipifc}`
+	echo SVC-STEP2-IPIFC $lsifc
 	if($B/htest -e /net/ipifc/clone){
 		{
 			lconv=`{$B/hcat <[0=7]}
