@@ -130,16 +130,18 @@ if($B/hmntgen -s mnttest /mnt){
 }
 if not echo SVC-FAIL mntgen
 
-# --- the loopback bring-up (the 14-09 netip-loopback shape, minimal) --
+# --- the loopback bring-up (the 14-09 netip-loopback shape verbatim) --
 # bind #I at /net + one loopback ipifc carrying the 127.0.0.1 probe
-# address.  The conv is HELD on fd 7 for the block's duration (the
-# 14-09 conv-lifetime discipline: a devip conv resets on its last close
-# — per-command ctl opens would drop the address between probes).  The
-# bind must precede every daemon below: cs's netlist scan and dns's
-# myipaddr both need the tree.  A failed bring-up degrades the
-# net-dependent probes to their named SKIPs (the flagged assumption's
-# honest landing — never a weaker pass).  The ladder is FLAT
-# (svclo carries the state; the rc-syntax discipline above).
+# address: a TRANSIENT clone read for the conv number, then per-write
+# ctl opens by path — exactly the fixture's own shape (its measured
+# finding: the medium binding persists across ctl closes, the conv
+# survives — no held fd needed on the ipifc side).  NO fd-dup machinery
+# anywhere: Harvey rc's `<[n=m]' dup redirect is unreliable inside
+# backquotes in nested sourced blocks (measured twice — see the
+# discipline note above).  The bind must precede every daemon below:
+# cs's netlist scan and dns's myipaddr both need the tree.  A failed
+# bring-up degrades the net-dependent probes to their named SKIPs (the
+# flagged assumption's honest landing — never a weaker pass).
 svclo=''
 echo SVC-PREBIND
 if(bind -a '#I' /net){
@@ -151,54 +153,44 @@ if(~ $svclo ''){
 	echo SVC-SKIP cs
 }
 if(~ $svclo bound){
-	{
-		# the conv number read rides the /fd dup device (bound at #d by
-		# the boot script) — NEVER the `<[0=7]' fd-dup redirect, which
-		# Harvey rc misapplies inside a backquote in a nested sourced
-		# block (measured: the dup lands reversed on fd 1, so hcat read
-		# the CONSOLE and wrote the reply into the ctl channel — a
-		# silent block that only serial input could unmask)
-		lconv=`{$B/hcat /fd/7}
-		echo SVC-LCONV-$lconv
-		if(~ $#lconv 1){
-			svclo=cloned
-		}
-		if(~ $svclo cloned){
+	lconv=`{$B/hcat /net/ipifc/clone}
+	echo SVC-LCONV-$lconv
+	if(~ $#lconv 1){
+		if($B/htest -e /net/ipifc/$lconv/ctl){
 			if($B/hecho bind loopback > /net/ipifc/$lconv/ctl){
-				svclo=mediumbound
+				if($B/hecho add 127.0.0.1 255.0.0.0 > /net/ipifc/$lconv/ctl){
+					svclo=up
+				}
 			}
 		}
-		if(~ $svclo mediumbound){
-			if($B/hecho add 127.0.0.1 255.0.0.0 > /net/ipifc/$lconv/ctl){
-				svclo=up
-			}
-		}
-		if(~ $svclo up) echo SVC-LOOPBACK-UP
-		if(! ~ $svclo up) echo SVC-LOOPBACK-NOT-UP
+	}
+	if(~ $svclo up) echo SVC-LOOPBACK-UP
+	if(! ~ $svclo up) echo SVC-LOOPBACK-NOT-UP
+}
 
-		# --- cs: the connection server answers a scripted lookup ------
-		# The test ndb rides /env (ip=… dom=probehost — a baked probe
-		# host, throwaway values only).  hcs -f serves it mounted at
-		# /net/cs (its netlist scan sees /net/tcp/clone — the #I bind
-		# above); hcsquery is the canned client (csquery.c).  The query
-		# carries an EXPLICIT numeric port >= 1024: a bare `tcp!host'
-		# query has an empty service part and cs's ipserv rejects the
-		# empty name ("can't translate service", measured), while a
-		# numeric port >= 1024 passes through with no port-database
-		# lookup.  The marker rides the ANSWER carrying the baked
-		# address — never the daemon's start.  The daemon's stderr stays
-		# on the capture and the SVC-CSOBS observation line records the
-		# raw answer.
-		svcndb='ip=127.0.0.1 dom=probehost'
-		$B/hcs -f /env/svcndb &
-		if(svc_waitpath 10 /net/cs){
-			qout=`{$B/hcsquery /net/cs 'tcp!probehost!19730'}
-			echo SVC-CSOBS $"qout
-			if(~ $"qout *127.0.0.1*) echo SVC-OK cs
-			if not echo SVC-FAIL cs
-		}
+# --- cs: the connection server answers a scripted lookup --------------
+# The test ndb rides /env (ip=… dom=probehost — a baked probe host,
+# throwaway values only).  hcs -f serves it mounted at /net/cs (its
+# netlist scan sees /net/tcp/clone — the #I bind above); hcsquery is
+# the canned client (csquery.c).  The query carries an EXPLICIT numeric
+# port >= 1024: a bare `tcp!host' query has an empty service part and
+# cs's ipserv rejects the empty name ("can't translate service",
+# measured), while a numeric port >= 1024 passes through with no
+# port-database lookup.  The marker rides the ANSWER carrying the baked
+# address — never the daemon's start.  The daemon's stderr stays on the
+# capture and the SVC-CSOBS observation line records the raw answer.
+# cs itself needs only the #I bind (its netlist), not the loopback
+# address — it runs on $svclo=bound or up.
+if(! ~ $svclo ''){
+	svcndb='ip=127.0.0.1 dom=probehost'
+	$B/hcs -f /env/svcndb &
+	if(svc_waitpath 10 /net/cs){
+		qout=`{$B/hcsquery /net/cs 'tcp!probehost!19730'}
+		echo SVC-CSOBS $"qout
+		if(~ $"qout *127.0.0.1*) echo SVC-OK cs
 		if not echo SVC-FAIL cs
-	} <>[7]/net/ipifc/clone
+	}
+	if not echo SVC-FAIL cs
 }
 
 echo SVC-DONE
