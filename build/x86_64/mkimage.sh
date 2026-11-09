@@ -90,7 +90,7 @@ done
 # the boot chain's home, the aarch64 separation; the marker owns
 # smoke-out/init and the real init must never overwrite it)
 CHAIN_OUT="$HARVEY/build/x86_64/out"
-for f in boot init rc paqfs; do
+for f in boot init rc paqfs ls cat echo ps; do
 	[ -s "$CHAIN_OUT/$f" ] || err "$CHAIN_OUT/$f missing — run sh build/x86_64/stage-build.sh first (the boot-chain section)"
 done
 [ -f "$HARVEY/rc/lib/rcmain" ] || err "rc/lib/rcmain missing (ships verbatim)"
@@ -215,11 +215,17 @@ mkdir -p "$STAGE2/root" "$STAGE2/env" "$STAGE2/proc" "$STAGE2/dev" "$STAGE2/srv"
 	"$STAGE2/net" "$STAGE2/boot" "$STAGE2/amd64/bin" \
 	"$STAGE2/rc/lib" "$STAGE2/rc/bin" "$STAGE2/adm/timezone"
 
-# 8d. the chain binaries (deterministic staging order)
+# 8d. the chain binaries (deterministic staging order; the 14-07 sweep
+#     set joins rc in amd64/bin — /bin binds /root/$cputype/bin, so the
+#     smoke's ls /bin assertion finds them there)
 cp "$CHAIN_OUT/boot" "$STAGE2/boot/boot"
 cp "$CHAIN_OUT/paqfs" "$STAGE2/boot/paqfs"
 cp "$CHAIN_OUT/init" "$STAGE2/amd64/init"
 cp "$CHAIN_OUT/rc" "$STAGE2/amd64/bin/rc"
+cp "$CHAIN_OUT/ls" "$STAGE2/amd64/bin/ls"
+cp "$CHAIN_OUT/cat" "$STAGE2/amd64/bin/cat"
+cp "$CHAIN_OUT/echo" "$STAGE2/amd64/bin/echo"
+cp "$CHAIN_OUT/ps" "$STAGE2/amd64/bin/ps"
 
 # 8e. bake-time verbatim copies (rcmain: never edited, single source of
 #     truth — the rc-main that sets the '% ' prompt; timezone: the
@@ -230,6 +236,7 @@ cp "$HARVEY/adm/timezone/local" "$STAGE2/adm/timezone/local"
 # 8f. pre-bake manifest: every mandated chain path exists — PRINTED as
 #     the staging manifest (the bake log is the gate's evidence)
 for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
+	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
 	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
 	usr/glenda/lib/profile; do
 	[ -f "$STAGE2/$p" ] || err "chain manifest: $p missing from staged tree"

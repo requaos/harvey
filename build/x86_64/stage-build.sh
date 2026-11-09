@@ -155,11 +155,37 @@ echo "== chain: paqfs (per-target — mkpaqfs stays host-only)"
 (cd /sys/src/cmd/paqfs && objtype=amd64 mk paqfs.install) || fail "paqfs.install"
 cp /amd64/bin/paqfs "$CHAIN_OUT/paqfs" || fail "harvest paqfs to out/"
 
+# 14-07: the composed smoke's sweep commands (the aarch64 gate
+# vocabulary carried verbatim — ls/cat/echo/ps must BE in the image or
+# the gate cannot run; /bin binds /root/$cputype/bin, so they stage at
+# amd64/bin in the chain image).  echo is an rc builtin too — the
+# BINARY ships so the ls /bin presence assertion has something real to
+# find (the aarch64 subset image's shape).
+#
+# LINK-ONLY targets (mk 6.<cmd>), never <cmd>.install: mkmany's
+# $BIN/% recipe's literal `cp` does not resolve inside the userns
+# chroot (mk then stages /bin/cp as ._cp — a dynamic nix binary with
+# no interpreter in the chroot — and the recipe dies; measured this
+# plan).  The outer script's cp does the harvest instead.  Prior plans
+# never hit this: init is special-cased in cmd/mkfile, rc/paqfs are
+# mkone dirs with working recipes.
+for cmd in ls cat echo ps; do
+	echo "== chain: $cmd (the smoke sweep set)"
+	(cd /sys/src/cmd && objtype=amd64 mk 6.$cmd) || fail "link $cmd"
+	cp "/sys/src/cmd/6.$cmd" "$CHAIN_OUT/$cmd" || fail "harvest $cmd to out/"
+done
+
 # clean the cmd-tree droppings the per-target installs leave behind
 # (the checkout IS the build tree here — the aarch64 venue built in a
 # guest copy, this venue keeps the tree pristine by explicit cleans;
 # rc's x.tab.h is mkone-clean's one gap, removed by hand)
 (cd /sys/src/cmd && objtype=amd64 mk init.clean) || fail "cmd init clean"
+# the sweep set's droppings — TARGETED rm, never a blanket `mk clean`:
+# cmd's clean recurses into every DIRS subdir, and jpg's clean deletes
+# its COMMITTED generated tables (rgbv.h/ycbcr.h — the Phase-6
+# in-tree workaround for the broken oc path; measured this plan, both
+# restored from git after the first run)
+(cd /sys/src/cmd && rm -f 6.ls ls.6 6.cat cat.6 6.echo echo.6 6.ps ps.6 ._ls ._cat ._echo ._ps ._cp) || fail "cmd sweep-set droppings"
 (cd /sys/src/cmd/paqfs && objtype=amd64 mk paqfs.clean) || fail "paqfs clean"
 (cd /sys/src/cmd/rc && objtype=amd64 mk clean && rm -f x.tab.h) || fail "rc clean"
 
@@ -285,10 +311,11 @@ for f in $STAGE_SRCS init; do
 done
 
 # 14-06: the chain binaries carry the same proof (boot, the REAL init,
-# rc, paqfs — out/ is their home; the real init's identity guard is
-# mkimage.sh's job, this is the magic check class)
+# rc, paqfs + 14-07's sweep set ls/cat/echo/ps — out/ is their home; the
+# real init's identity guard is mkimage.sh's job, this is the magic
+# check class)
 CHAIN_OUT="$HARVEY/build/x86_64/out"
-for f in boot init rc paqfs; do
+for f in boot init rc paqfs ls cat echo ps; do
 	[ -s "$CHAIN_OUT/$f" ] || err "build/x86_64/out/$f missing after stage (the boot-chain section)"
 	magic=$(od -An -tx1 -N4 "$CHAIN_OUT/$f" | tr -d ' \n')
 	[ "$magic" = "00008a97" ] || err "build/x86_64/out/$f: bad magic $magic (want 00008a97)"

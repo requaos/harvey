@@ -135,3 +135,9 @@ __pycache__/
 # 08-x rate-measurement build logs (transient; same class as the other
 # build/aarch64 log ignores above)
 /build/aarch64/plain-rate-r*.log
+
+# 14-07: the composed x64 smoke gate's captures (transients; the
+# twice-green gate run retains both as evidence)
+/build/x86_64/smoke-r9.log
+/build/x86_64/smoke-r9-run1.log
+/build/x86_64/smoke-r9-run2.log

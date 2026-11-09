@@ -167,6 +167,21 @@
             export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
+          # 14-07 (XEXEC-03's gate): the composed smoke — the SAME
+          # pipeline as boot-r9-x64 but launched under
+          # build/x86_64/smoke-r9.expect, which drives the full sweep
+          # (echo round-trip, empty-line safety, ls/ps/cat, DEL safety,
+          # init restart, the whole-capture post-passes) against the
+          # composed ISO and exits 0/1 for CI.  Green TWICE
+          # consecutively with both captures retained is XEXEC-03's
+          # proof (D-06: the composed-system gate lives Harvey-side,
+          # where the composed ISO exists).  boot-r9-x64's behavior is
+          # untouched; smokeR9Pkg's shape (expect in runtimeInputs).
+          smokeR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-smoke-x64" ./nix/smoke-r9-x64.sh ''
+            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
+            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -194,6 +209,7 @@
         // nixpkgs.lib.optionalAttrs
           (builtins.all (a: builtins.hasAttr a r9.packages.${system}) [ "kernel-x64" "iso-builder" ]) {
           boot-r9-x64 = mkApp bootR9X64Pkg;
+          boot-r9-smoke-x64 = mkApp smokeR9X64Pkg;
         });
 
       devShells = forAllSystems (system:
