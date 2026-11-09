@@ -132,6 +132,9 @@ if not echo SVC-FAIL mntgen
 # net-dependent probes to their named SKIPs (the flagged assumption's
 # honest landing — never a weaker pass).
 svclo=''
+echo SVC-B1
+lsdev=`{$B/hls '#I'}
+echo SVC-B2-DEVLIST $lsdev
 if(bind -a '#I' /net){
 	echo SVC-NETBOUND
 	lsnet=`{$B/hls /net}`
