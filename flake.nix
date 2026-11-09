@@ -197,6 +197,27 @@
             export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
+          # 14-09 (XEXEC-05's gate, D-07/D-13): the composed NET smoke
+          # — the SAME pipeline as boot-r9-tier1-x64 but the bake
+          # carries the NET payload (mkimage's net section →
+          # bootfs-net.paq: the chain tree + the ip-container binaries
+          # + the 6c C helpers + the /lib netip fixtures) and
+          # build/x86_64/smoke-r9-net.expect drives the in-guest net
+          # flows through the prompt in ONE boot (ipconfig static +
+          # dhcp — both NOT-L2-TRUTH venue-labeled per Pitfall 10, the
+          # slirp evidence is never L2 truth and the tap-leg verdict is
+          # Phase 16's NETIP-08 — the duplicate-binding and no-address
+          # degenerate rejections, loopback ping + udp echo, the inline
+          # tcp/7 echo leg, the NET-SMOKE completion marker, and the
+          # whole-capture post-passes).  Green TWICE consecutively with
+          # both captures retained is XEXEC-05's proof.  The aarch64
+          # netSmokeR9Pkg stays byte-untouched (frozen at the v2.0
+          # pin); smokeR9X64Pkg's shape verbatim.
+          netSmokeR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-net-smoke-x64" ./nix/smoke-r9-net-x64.sh ''
+            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
+            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -226,6 +247,7 @@
           boot-r9-x64 = mkApp bootR9X64Pkg;
           boot-r9-smoke-x64 = mkApp smokeR9X64Pkg;
           boot-r9-tier1-x64 = mkApp tier1R9X64Pkg;
+          boot-r9-net-smoke-x64 = mkApp netSmokeR9X64Pkg;
         });
 
       devShells = forAllSystems (system:

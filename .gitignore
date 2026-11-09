@@ -151,3 +151,8 @@ __pycache__/
 # dir) mirrors the aarch64 tier1-r9.log rule.
 !build/x86_64/nm-input.6
 /build/x86_64/tier1-r9-x64.log
+# 14-09: the composed net gate's transient captures (passing copies
+# land in the phase dir's evidence/) — the same rule.
+/build/x86_64/smoke-r9-net.log
+/build/x86_64/smoke-r9-net-run1.log
+/build/x86_64/smoke-r9-net-run2.log
