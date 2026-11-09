@@ -156,6 +156,13 @@ rootdir
 	./.tier1-stage/hmntgen hmntgen
 	./.tier1-stage/hcs hcs
 	./.tier1-stage/hcsquery hcsquery
+	./.tier1-stage/hdns hdns
+	./.tier1-stage/hdnsquery hdnsquery
+	./.tier1-stage/hexportfs hexportfs
+	./.tier1-stage/hsrv hsrv
+	./.tier1-stage/hlisten hlisten
+	./.tier1-stage/hsvctcpecho hsvctcpecho
+	./.tier1-stage/tcp9901 tcp9901
 
 conf
 	int cpuserver = 1;

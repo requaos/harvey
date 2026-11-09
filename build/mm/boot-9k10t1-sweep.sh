@@ -213,10 +213,10 @@ compute_svc_skip() {
 SVC_T2="$HARVEY/build/x86_64/tiers/tier2-services.txt"
 SVC_T1="$HARVEY/build/x86_64/tiers/tier1-cmds.txt"
 compute_svc_expected() {
-	for e in cmd/mntgen cmd/ndb; do
+	for e in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv cmd/aux:listen; do
 		"$GREP" -q "^$e[[:space:]#]" "$SVC_T2" || err "svc expectation: tier-2 data lacks the probe-subject entry $e"
 	done
-	echo "mntgen cs"
+	echo "mntgen cs dns exportfs srv listen"
 }
 
 in_svcskip() {

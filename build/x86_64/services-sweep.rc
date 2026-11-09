@@ -183,7 +183,11 @@ if(~ $svclo bound){
 # (its netlist), not the loopback address — it runs on $svclo=bound or
 # up.
 if(! ~ $svclo ''){
+	# both baked hosts: cs's ipinfo lookup (dom=probehost) and dns's A
+	# record (dom=probehost.test) — the trailing newline is load-bearing
+	# (libndb drops an unterminated final line)
 	svcndb='ip=127.0.0.1 dom=probehost
+ip=127.0.0.1 dom=probehost.test
 '
 	$B/hcs -f /env/svcndb &
 	if(svc_waitpath 10 /net/cs){
@@ -197,6 +201,70 @@ if(! ~ $svclo ''){
 		if not echo SVC-FAIL cs
 	}
 	if not echo SVC-FAIL cs
+}
+
+# --- dns: the resolver answers a baked A record -----------------------
+# hdns -f serves the test ndb; hdnsquery is the canned client — piped
+# the fixed query, it self-mounts /srv/dns at /net and prints the
+# answer.  dns REQUIRES the loopback address (its myipaddr sysfatals
+# without a readable /net/ipselftab — measured upstream), so this probe
+# and the listen probe below gate on $svclo=up and take their named
+# SKIPs together when the venue cannot bring loopback up.
+if(~ $svclo up){
+	$B/hdns -f /env/svcndb &
+	if(svc_waitpath 10 /srv/dns){
+		dqout=`{$B/hecho -n 'probehost.test ip' | $B/hdnsquery}
+		echo SVC-DNSOBS $"dqout
+		if(~ $"dqout *127.0.0.1*) echo SVC-OK dns
+		if not echo SVC-FAIL dns
+	}
+	if not echo SVC-FAIL dns
+}
+
+# --- exportfs + srv: a guest-side mount with content through it -------
+# hsrv -n -e execs hexportfs over its pipe, posts /srv/xprobe, and
+# mounts the served tree at /mnt/xprobe (the kernel's mount walk
+# materializes the mount point through mntgen's union).  The exportfs
+# marker rides CONTENT compared through the mount — the tier-1 sentinel
+# byte-for-byte — and srv earns its own marker as the enabler whose
+# exec+post+mount interaction IS the exchange (the plan's data
+# membership names both).  srv's internal 10s alarm bounds the setup.
+if($B/hsrv -n -e 'hexportfs -r /boot' xprobe /mnt/xprobe){
+	if($B/hcmp /boot/sentinel.txt /mnt/xprobe/sentinel.txt){
+		echo SVC-OK srv
+		echo SVC-OK exportfs
+	}
+	if not echo SVC-FAIL exportfs
+}
+if not echo SVC-FAIL srv
+
+# --- listen: the announce accepts a real loopback connect -------------
+# hlisten -q -t /boot tcp announces every /boot/tcpNNNN service (the
+# staged-copy trick: tcp9901 IS echo under its service name — listen
+# execes servdir/<proto><port> per connection).  The interaction: a
+# one-shot client (hsvctcpecho, the compiled 15-02 helper) connects to
+# 127.0.0.1!9901 and prints the line the per-connection service sent
+# back through the connection.
+if(~ $svclo up){
+	$B/hlisten -q -t /boot tcp &
+	svc_waitport 10 9901
+	if(! ~ $svcportfound ''){
+		lout=`{$B/hsvctcpecho 'tcp!127.0.0.1!9901'}
+		echo SVC-LISTENOBS $"lout
+		if(~ $"lout tcp9901*) echo SVC-OK listen
+		if not echo SVC-FAIL listen
+	}
+	if not echo SVC-FAIL listen
+}
+
+# the loopback-gated probes' shared named-SKIP arm (the flagged
+# assumption's honest landing: 9k devip loopback is proven on this
+# venue now, so this fires only if the bring-up regresses — the reason
+# line names the cause either way)
+if(! ~ $svclo up){
+	echo SVC-SKIP-WHY k10t1-no-loopback
+	echo SVC-SKIP dns
+	echo SVC-SKIP listen
 }
 
 echo SVC-DONE
