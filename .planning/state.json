@@ -71,7 +71,7 @@
     {
       "number": "14",
       "name": "Harvey amd64 Userspace on r9",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "15",
@@ -100,9 +100,9 @@
     }
   ],
   "next": {
-    "command": "/gsd-progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 13 (9 of 19 roadmap phases complete) · executing"
+    "command": "/gsd-progress",
+    "label": "Show progress",
+    "reason": "Unsure of state — showing progress"
   },
-  "updated_at": "2026-11-09T15:25:35.869Z"
+  "updated_at": "2026-11-09T16:49:18.320Z"
 }
