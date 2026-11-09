@@ -1,0 +1,39 @@
+# tier0-libs.txt — 14-08 append-only amd64 library allowlist (XEXEC-04).
+#
+# Plain data, one entry per line: the bare lib dir name (sys/src-relative),
+# `libname` entry form.  Consumers: the objtype-gated LIBS filter in
+# sys/src/mkfile and the tier driver build/x86_64/subset-build.sh (both
+# read through the $HARVEY-absolute path — live under unshare -m; /build
+# is never bound in the namespace).
+#
+# APPEND-ONLY: growth is appending a line, after the lib's per-tier gate
+# passes.  Never reorder, edit, or delete existing lines — Phase 15's
+# fuller tiers append, and the venue gates assert their computed marker
+# expectations against this file (a quiet trim to reach green is gate
+# fraud, not a pass).
+#
+# Comment safety: the mk keep-rule extraction keeps only lines starting
+# [a-z0-9] and cuts each at the first whitespace, so `#` full-line
+# comments and trailing `#` provenance notes can never match a candidate
+# name.
+#
+# Seeded 2026-11-09 (14-08) with the tier-1 build closure — the k10t1
+# venue's proven embed set (06-09's 43-file kernel embed, the k10cpu
+# device lineage) names these libs as its link closure: the 35 swept
+# commands + ipconfig + factotum + the boot-chain members.  The subset
+# driver's loop reads the file in THIS order, so libc stays line 1
+# (everything links it; the driver also keeps an explicit idempotent
+# libc bootstrap before the loop — the aarch64 primacy rule, carried).
+# The mk filter emits the sweep in ALLLIBS on-disk order, not in this
+# file's order.
+libc		# 14-08 seed: everything links it (subset loop line 1 + explicit bootstrap)
+libbio		# 14-08 seed: grep/awk/nm + boot(8)'s closure (aarch64 tier0's ls/ps/sed/wc/grep class)
+libregexp	# 14-08 seed: grep/sed closure
+libmach		# 14-08 seed: nm consumer-carries (nm.c <mach.h>, D-06 carried)
+libip		# 14-08 seed: ipconfig + boot(8) closure
+libndb		# 14-08 seed: ipconfig closure
+libmp		# 14-08 seed: authsrv/paqfs closure (factotum transitive)
+libsec		# 14-08 seed: authsrv/paqfs closure (factotum transitive)
+libauth		# 14-08 seed: factotum + init closure
+libauthsrv	# 14-08 seed: factotum + init closure
+libflate	# 14-08 seed: paqfs closure (flate.h #pragma lib)

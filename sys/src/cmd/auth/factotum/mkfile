@@ -10,8 +10,13 @@ ALLTARG=factotum\
 # COVERAGE_SWEEP=1.
 TIER1=$HARVEY/build/aarch64/tiers/tier1-cmds.txt
 T1KEEPT=`{awk '/^cmd\/auth\/factotum:/{ sub(/^cmd\/auth\/factotum:/,""); sub(/[\/: 	].*$/,""); print }' $TIER1}
+# 14-08 (XEXEC-04): the amd64 arm — build/x86_64/tiers (factotum the
+# seeded target; fgui still excluded).  The aarch64 arm above stays
+# as-is.
+TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt
+T1KEEPTA=`{awk '/^cmd\/auth\/factotum:/{ sub(/^cmd\/auth\/factotum:/,""); sub(/[\/: 	].*$/,""); print }' $TIER1A}
 
-TARG=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEPT) echo $i; if not echo $ALLTARG}
+TARG=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEPT) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEPTA) echo $i; if not echo $ALLTARG}
 
 PROTO=\
 	apop.$O\

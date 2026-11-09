@@ -1,0 +1,108 @@
+# tier1-cmds.txt — 14-08 append-only amd64 command allowlist (XEXEC-04).
+#
+# Plain data, one entry per line, sys/src-relative.  Consumers: the
+# objtype-gated mk filters (sys/src/mkfile CMDS/SUBSYS, sys/src/cmd/mkfile
+# TARG/DIRS, and the container mkfiles cmd/ip, cmd/auth,
+# cmd/auth/factotum), all reading through the $HARVEY-absolute path, the
+# tier driver build/x86_64/subset-build.sh, and the venue gates
+# (build/mm/boot-9k10t1-sweep.sh's r9 arm + build/x86_64/tier1-r9.expect
+# via its driver) — every marker expectation is COMPUTED from this file,
+# never a second hardcoded list.
+#
+# APPEND-ONLY: growth is appending a line, after the entry's per-tier
+# gate passes.  Never reorder, edit, or delete existing lines — Phase
+# 15's fuller tiers append, and the venue gates assert against this
+# file.  A quiet trim to reach T1-DONE is gate fraud, not a pass.
+#
+# Entry forms:
+#   cmd/<single>           single-file command in cmd/ (cmd/cat)
+#   cmd/<dir>              whole dir recursed by the sweep (cmd/rc)
+#   cmd/<container>/<dir>  nested dir inside a container (cmd/ip/ipconfig)
+#   cmd/<dir>:<target>     the dir is kept in the sweep; the <target>
+#                          qualifier is consumed by the tier driver
+#                          (per-target `mk <target>.install`, never
+#                          whole-dir) and by filter-equipped leaf mkfiles
+#                          (cmd/auth/factotum drops fgui this way)
+#   9k/boot, stage/<name>  driver-only: never seen by the mk sweep
+#                          (9k/boot builds via 9k/boot/mkfile.amd64;
+#                          stage/* are harvested by the subset driver)
+#
+# Keep-rule (uniform across all five filter mkfiles): a candidate survives
+# iff its name is the first path component after that mkfile's prefix in
+# some entry below — member (cmd/rc keeps rc), container (cmd/ip/ipconfig
+# keeps ip here and ipconfig in cmd/ip), and dir:target
+# (cmd/auth/factotum:factotum keeps factotum here and only factotum in
+# the filter-equipped leaf).  `#` lines and trailing comments never
+# match: the extraction keeps only lines starting [a-z0-9] and cuts at
+# the first whitespace.
+#
+# Seeded 2026-11-09 (14-08) anchored to the k10t1-proven embed set —
+# Phase 6's 06-09 venue kernel (k10cpu's device set, verbatim) embedded
+# and swept exactly this core: the 35 read-only commands below are the
+# embed's swept h* membership, the sources arch-neutral (the aarch64
+# tier-1 list's own members — same cmd/ sources, objtype-keyed builds).
+# The write-flow / build-chain / toolchain members of the aarch64 list
+# are NOT here this phase: Phase 14's tier scope is tier-0 libs + tier-1
+# CORE commands as execution proof (14-CONTEXT); Phase 15 appends them
+# onto this machinery after their own per-entry gates.
+#
+# Documented exclusions from this phase's amd64 sweep (transparency —
+# nothing is silently dropped; they append later with their gates):
+#   cmd/mkdir cp mv rm bc dd tar tee chmod touch split look ed
+#                       write-flow class — the r9-x64 root is read-only
+#                       this era (the donor venue runs them; the r9 venue
+#                       takes named T1-SKIPs when they append)
+#   cmd/cpp mk yacc lex cmd/7a cmd/7c cmd/7l cmd/cc
+#                       build-chain/toolchain class (Phase 15)
+#   the libtest markers no libtest binaries build for amd64 yet (the
+#                       06-09 9k-venue discipline, carried — never an
+#                       unearned T1-OK)
+#   ape gs games nboot  same standing exclusions as the aarch64 list
+#
+# --- the k10t1 embed set's swept core (06-09-proven, 35 members) ---
+cmd/rc				# dir; the boot chain's shell + the sweep's hrc parser check
+cmd/grep				# dir; yacc-driven (grep.y) — the mkmany/link-only class
+cmd/cat
+cmd/date
+cmd/echo
+cmd/ls
+cmd/ps
+cmd/sed
+cmd/test
+cmd/wc
+cmd/awk				# dir; the G1 host-safe maketab generator path; carries the MANDATORY float canary (T1-OK float-d01 — Pitfall 7: user SSE under r9 needs CR4.OSFXSR ownership proven, not assumed)
+cmd/sort
+cmd/tr
+cmd/uniq
+cmd/tail
+cmd/basename
+cmd/sleep
+cmd/cmp
+cmd/sum
+cmd/md5sum			# exact known-content assert (digest of the baked sentinel)
+cmd/sha1sum			# exact known-content assert (digest of the baked sentinel)
+cmd/dc
+cmd/units				# usage-level (the image carries no /lib/units db)
+cmd/cal
+cmd/fmt
+cmd/seq
+cmd/time
+cmd/read
+cmd/pr
+cmd/strings
+cmd/xd
+cmd/du
+cmd/comm
+cmd/join
+cmd/nm				# links libmach (nm.c <mach.h>) — consumer-carries tier-0 libmach (D-06); fixed input is the committed baked nm-input.6
+# --- the container members (k10cpu's own embed closure; this venue's
+# declared r9-era gaps take named T1-SKIPs on the r9-x64 venue — the
+# 06-07 measured findings carried to x86_64: no /dev/random, factotum's
+# devproc verbs + devsrv mount) ---
+cmd/ip/ipconfig			# the 14-09 net gates' binary; k10cpu's devroot embed member
+cmd/auth/factotum:factotum	# fgui excluded: needs the out-of-tier graphics stack (libdraw/libcontrol)
+# --- driver-only: the r9 tier image's boot chain (never swept markers;
+#     the subset driver's dedicated blocks build + harvest them) ---
+9k/boot				# driver-only: sys/src/9k/boot/mkfile.amd64 (14-06-proven), harvested to build/x86_64/out
+stage/init			# driver-only: cmd/init.c via per-target init.install, harvested from /amd64/init
+cmd/paqfs:paqfs			# mkpaqfs stays host-only: only the host bakes images; the driver installs paqfs per-target

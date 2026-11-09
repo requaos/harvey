@@ -69,10 +69,17 @@ TIER0=$HARVEY/build/aarch64/tiers/tier0-libs.txt
 TIER1=$HARVEY/build/aarch64/tiers/tier1-cmds.txt
 T0KEEP=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER0}
 T1KEEP=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1}
+# 14-08 (XEXEC-04): the amd64 arm — the same keep-rule, the tier data
+# re-keyed to build/x86_64/tiers (the k10t1-proven core scope; Phase 15
+# appends).  The aarch64 arms above stay as-is (frozen-at-pin).
+TIER0A=$HARVEY/build/x86_64/tiers/tier0-libs.txt
+TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt
+T0KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER0A}
+T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A}
 
-LIBS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not echo $ALLLIBS}
-CMDS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEP) echo $i; if not echo $ALLCMDS}
-SUBSYS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEP) echo $i; if not echo $ALLSUBSYS}
+LIBS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEPA) echo $i; if not echo $ALLLIBS}
+CMDS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLCMDS}
+SUBSYS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLSUBSYS}
 
 none:VQ:
 	echo mk all, install, clean, nuke, release, kernels, or libs
