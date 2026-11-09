@@ -5,11 +5,11 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: 14-06 INCOMPLETE at the two-proc scheduler corruption (q35shell gate red; chain reaches init's rc handoff); resume by fixing proc.rs's CURRENT_PROC wild-write then driving q35shell green twice
-last_updated: "2026-11-09T01:28:27.540Z"
-last_activity: 2026-11-08
+stopped_at: "14-06 INCOMPLETE after the authorized cycle (two more fixes landed; the corruption refined to a mapping-divergence signature with ranked hypotheses) — next: audit pml4_map/unmap_user index derivation + the [510]/[511] copy; then drive q35shell green twice"
+last_updated: "2026-11-09T03:44:57.451Z"
+last_activity: 2026-11-09
 last_activity_desc: Phase 14 execution started
-state_head: 86422fdea399d7c3d290a78ba6c0b3aaca9e26da
+state_head: 2f2142f8ba885c4693c4d73f8f68fcaa22fd8e1b
 progress:
   total_phases: 2
   completed_phases: 1
@@ -64,6 +64,7 @@ Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 | Phase 14 P04 | 48 min | 3 tasks | 12 files |
 | Phase 14 P05 | 108 min | 3 tasks | 26 files |
 | Phase 14 P06 | 146 min | 2 tasks | 16 files |
+| Phase 14 P06 | 146+196 min | 2 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -123,6 +124,7 @@ None yet.
 - aarch64 is FROZEN at the v2.0 pin — all v2.1 work keys to x86_64; do not "fix" aarch64 paths in passing
 - raspi3b-on-qemu-11.1.2 boot defect — accepted (pre-existing, A/B-proven not-a-regression); tracked in PROJECT.md Active
 - 14-06 incomplete: two-proc scheduler corruption in r9 x86_64 — CURRENT_PROC := &SCHED_CONTEXT by a wild .bss write at init's fexec fork (the first two-proc tick-preempt switch); q35shell gate red just past 'init: starting /bin/rc'; four other latent defects already fixed (conforming ktext, AX/Tos seed, eager stack+Tos placement, eager brk) with the full regression battery green; evidence in 14-06-SUMMARY Known Issues — the fix is required before 14-07
+- 14-06 STILL INCOMPLETE after the authorized fix cycle: the chain reached init's rc handoff with SIX total kernel/userland fixes landed (conforming-ktext delivery, AX/Tos seed, eager stack+Tos placement, eager brk, embed.c waitpid, preempt-park; + the device-MMIO alias window r9@c166164) — but one deterministic corruption remains: CURRENT_PROC reads as &SCHED_CONTEXT in init's fork window, with hard evidence pointing at a per-proc CR3 mapping divergence (divergent back-to-back loads; no store path, no swtch site, no watchpoint hit) — three ranked hypotheses + working instrumentation recorded in 14-06-SUMMARY Known Issues; full regression battery green at r9@c166164
 
 ## Deferred Items
 
@@ -135,6 +137,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-09T01:28:18.487Z
-Stopped at: 14-06 INCOMPLETE at the two-proc scheduler corruption (q35shell gate red; chain reaches init's rc handoff); resume by fixing proc.rs's CURRENT_PROC wild-write then driving q35shell green twice
+Last session: 2026-11-09T03:44:57.408Z
+Stopped at: 14-06 INCOMPLETE after the authorized cycle (two more fixes landed; the corruption refined to a mapping-divergence signature with ranked hypotheses) — next: audit pml4_map/unmap_user index derivation + the [510]/[511] copy; then drive q35shell green twice
 Resume file: None
