@@ -24,7 +24,7 @@
 #          -cdrom <composed ISO>
 #          -netdev user,id=n0 -device virtio-net-pci-non-transitional,netdev=n0
 #          -nographic
-#      NO DTB patch, NO -device loader anywhere — the aarch64 delivery
+#      NO DTB patch, NO qemu loader-device flag anywhere — the aarch64 delivery
 #      is deliberately not carried: GRUB delivers bootfs as an mb2
 #      tag-3 module off the same ISO (14-05 D-03).  qemu runs in the
 #      FOREGROUND with stdio inherited — the user's terminal IS the
@@ -87,7 +87,10 @@ fi
 [ -n "$R9_KERNEL" ] && [ -f "$R9_KERNEL" ] || err "kernel-x64.elf not found under $R9_KERNEL_X64_PKG"
 
 [ -n "${R9_ISO_BUILDER:-}" ] || err "R9_ISO_BUILDER unset — run via the flake app (nix run .#boot-r9-x64), which exports r9's iso-builder script path"
-[ -x "$R9_ISO_BUILDER" ] || err "R9_ISO_BUILDER $R9_ISO_BUILDER: not executable (the pin predates r9's iso-builder export? — 14-07)"
+# a plain -x accepts DIRECTORIES too (the package root passes it —
+# measured); the contract is the executable FILE <pkg>/bin/r9-iso-builder
+[ -f "$R9_ISO_BUILDER" ] && [ -x "$R9_ISO_BUILDER" ] \
+	|| err "R9_ISO_BUILDER $R9_ISO_BUILDER: not an executable file (want <pkg>/bin/r9-iso-builder — a directory here means the app exported the package root, or the pin predates r9's iso-builder export)"
 
 # --- step 0b: accel selection (no silent downgrade) --------------------
 

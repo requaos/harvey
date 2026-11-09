@@ -164,7 +164,7 @@
           # DTB; git stays (the KERNDATE provenance step).
           bootR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-x64" ./nix/boot-r9-x64.sh ''
             export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
-            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}"
+            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
