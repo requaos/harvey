@@ -23,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
-**Current focus:** v2.1 milestone complete — ready for /gsd:complete-milestone v2.1
+**Current focus:** Phase 15 — Userspace Tiers + Bootfs Payload (amd64); phases 15-19 remain in v2.1
 
 ## Current Position
 
@@ -32,7 +32,7 @@ Plan: Not started
 Status: All phases complete
 Last activity: 2026-11-09 — Phase 14 complete
 
-Progress: [██████████████████] 100% (v2.1: 2/2 phases, 15/15 plans)
+Progress: [█████░░░░░░░░░░░░░░░] 29% (v2.1: 2/7 phases — 13-14 complete, 15-19 next)
 
 ## Performance Metrics
 
@@ -150,5 +150,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-09
-Stopped at: Phase 14 complete — v2.1 milestone complete, ready for /gsd:complete-milestone v2.1
+Stopped at: Phase 14 complete + review debt triaged — Phase 15 (Userspace Tiers + Bootfs Payload) next
 Resume file: None
