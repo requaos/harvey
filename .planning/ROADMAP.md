@@ -95,7 +95,7 @@ Plans:
   3. The full boot chain boot(8)→init→rc reaches the interactive `% ` prompt on x86_64 — the expect smoke gate (boot-r9-smoke equivalent) is green twice consecutively (XEXEC-03)
   4. The tier machinery runs keyed to `objtype=amd64`: tier-0 libraries + tier-1 core commands prove executing on r9-x86_64 with committed artifact+execution markers, donor venue = Harvey's own 9k kernel (k10t1) (XEXEC-04)
   5. `/net` is re-gated on x86_64: loopback ping/udp/tcp echo, static + DHCP ipconfig, and the composed net smoke are all green as committed gates on the new arch (XEXEC-05)
-**Plans**: 6/9 plans executed
+**Plans**: 7/9 plans executed
 Plans:
 **Wave 1**
 - [x] 14-01-PLAN.md — ABI contract freeze: the 184-byte 9k-verbatim Ureg rework + witness re-derivation, amd64/ABI.md publication, ureg-check amd64 arm + NEGATIVE CONTROL + the x86_64 boot-test gate — every Phase-13 gate re-green (XEXEC-01, D-01/D-02/D-02b)
@@ -116,7 +116,7 @@ Plans:
 - [x] 14-06-PLAN.md — boot chain boot(8)→init→rc to the `% ` prompt: mkfile.amd64 boot(8) build, the chain bake (rcmain/termrc/identity guards), config_q35shell + BOOT_ENTRY — the q35shell gate green twice (XEXEC-03 r9-side leg)
 
 **Wave 7** *(blocked on Wave 6)*
-- [ ] 14-07-PLAN.md — compose: r9's parameterized ISO builder (kernel-only FOD preserved), Harvey's boot-r9-x64 app chain, the smoke-r9.expect re-key — the composed smoke green twice consecutively + push-before-pin (XEXEC-03, D-05/D-06)
+- [x] 14-07-PLAN.md — compose: r9's parameterized ISO builder (kernel-only FOD preserved), Harvey's boot-r9-x64 app chain, the smoke-r9.expect re-key — the composed smoke green twice consecutively + push-before-pin (XEXEC-03, D-05/D-06)
 
 **Wave 8** *(blocked on Wave 7)*
 - [ ] 14-08-PLAN.md — tiers re-keyed to objtype=amd64: allowlists + mk filter arms, subset-build with artifact markers, the k10t1 donor venue r9 leg — identical 6.outs on BOTH kernels, the r9 tier gate + ledger (XEXEC-04)
@@ -204,7 +204,7 @@ Plans:
 | 11. In-Guest p9sk1 Auth Domain | v2.0 | - | Subsumed → Phase 18 | - |
 | 12. CPU Service + Drawterm + rio Desktop | v2.0 | - | Subsumed → Phase 19 | - |
 | 13. r9 x86_64 Platform Bring-Up | v2.1 | 6/6 | Complete    | 2026-11-07 |
-| 14. Harvey amd64 Userspace on r9 | v2.1 | 6/9 | In Progress | - |
+| 14. Harvey amd64 Userspace on r9 | v2.1 | 7/9 | In Progress | - |
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | - | Not started | - |
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | - | Not started | - |
 | 17. r9 Kernel Flush-Out | v2.1 | - | Not started | - |

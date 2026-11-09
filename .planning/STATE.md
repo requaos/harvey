@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: Completed 14-06 (q35shell green twice; the stale-SCHED_CONTEXT root cause fixed r9@8aa9ba2)
-last_updated: "2026-11-09T05:14:03.658Z"
+stopped_at: Completed 14-07-PLAN.md (the composed gate green twice — XEXEC-03 closed)
+last_updated: "2026-11-09T08:31:46.893Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 14 execution started
-state_head: 43373046042be461f83bcb3328ec739f97d890dc
+state_head: 6c5f1788e3a91dde6b69acfdafba756d6a2c2bd3
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 15
-  completed_plans: 12
+  completed_plans: 13
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-07)
 ## Current Position
 
 Phase: 14 (Harvey amd64 Userspace on r9) — EXECUTING
-Plan: 7 of 9
+Plan: 8 of 9
 Status: 14-06 COMPLETE (q35shell green twice — the chain reaches the interactive `% ` prompt; XEXEC-03's r9-side leg closed)
 Last activity: 2026-11-09 — 14-06 cycle 4: the stale-SCHED_CONTEXT root cause proven + fixed (r9@8aa9ba2)
 
@@ -66,6 +66,7 @@ Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 | Phase 14 P06 | 146 min | 2 tasks | 16 files |
 | Phase 14 P06 | 146+196 min | 2 tasks | 16 files |
 | Phase 14 P06 | 417 min (3 cycles) | 3 tasks | 17 files |
+| Phase 14 P07 | 142 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -116,6 +117,9 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-06: the amd64 exec-entry contract is AX = Tos (the donor's exec-return: sysexecregs returns the pointer, syscallreturn lands ar0.p in AX, main9.s stores AX into _tos — and 6l fuses that prologue into main9-less mains like boot(8)'s); 14-03's bp planting mis-read RARG; ABI.md corrected
 - [Phase 14]: 14-06: ktext must be NON-conforming (0x9A) — a conforming gate target makes ring-3 interrupt delivery stay at CPL 3 (dpl:=cpl), invisible at CPL 0 (every prior gate) and fatal at the first ring-3-origin interrupt
 - [Phase 14]: 14-06 cycle 4: the chain panic root-caused and closed (r9@8aa9ba2) — sched_loop's Resume::Return/trap_return arm diverged without re-saving the scheduler context, so the next blocked proc's swtch re-entered a STALE SCHED_CONTEXT save whose stack slot the intervening iterations had reused — wild execution explains the whole 'lying panic' syndrome (merged cold-block entries under garbage registers, truncated prints, the H2-class garbage parent); fix: every resume (fresh forks via a first_entry trampoline, frame ptr in rbx) rides the ONE swtch arm; the devpipe/qreopen suspicion was run live and ELIMINATED (pid-keyed rings: no EOF/err/reopen, paqfs never died — readied and never resumed); q35shell green twice
+- [Phase 14-07]: 14-07: OQ-1 resolved both-shapes-from-one-source — r9 exports the argv-driven iso-builder script AND the flake-lib bootIo function, both from one writeShellApplication text (D-05, un-forked); kernel-x64 re-keyed to q35shell (the compose kernel)
+- [Phase 14-07]: 14-07: the stale boot-iso FOD hash re-wired per the 13-06 discipline — old body ≡ new builder over four independent kernel builds at both hash layers; FOD mismatch reports name the NAR hash, not the file sha (proofs compare like-for-like)
+- [Phase 14-07]: 14-07: two gate-surfaced kernel defects closed — console RX delivery (the 16550 RX ring + ConsHooks, r9@8a338a6) and the SWAPGS witness-bit stale-byte leak (the donor CS-word cmpw on both sides, r9@e5def72; caught by a GS-observation ring — the flip was inside an idle-hlt tick return)
 
 ### Pending Todos
 
@@ -138,6 +142,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-09T05:14:03.615Z
-Stopped at: Completed 14-06 (q35shell green twice; the stale-SCHED_CONTEXT root cause fixed r9@8aa9ba2)
+Last session: 2026-11-09T08:31:46.856Z
+Stopped at: Completed 14-07-PLAN.md (the composed gate green twice — XEXEC-03 closed)
 Resume file: None
