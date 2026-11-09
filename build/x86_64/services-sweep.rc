@@ -44,15 +44,19 @@
 # a bare `test' or `sleep' resolves to nothing on the donor (only
 # /boot's htest/hsleep exist; measured on the first tracer boot: rc's
 # "file does not exist" Xerror per call).
-
+#
 # Venue facts this file rides (the donor, k10t1): the devroot embed is
 # READ-ONLY — writable scratch is /env (devenv) for probe FILES and
 # mntgen's walk-create mount for probe DIRECTORIES (mntgen /mnt, the
 # repo's own rc/bin/termrc idiom; devroot has no /tmp and mkdir is not
-# a tier member on x64).  The loopback leg binds #I at /net with the
-# 14-09 netip-loopback shape (raw ipifc ctl writes — ipconfig is not a
-# donor embed member).  NO srv9, NO 9front tree, NO NIC: serial is the
-# only egress and every probe is file/loopback-backed.
+# a tier member on x64).  The loopback leg binds #I at /net the 14-09
+# netip-loopback shape (raw ipifc ctl writes — ipconfig is not a donor
+# embed member) BEFORE any daemon that names a network: cs registers
+# its network list by scanning /net/*/clone at startup (cs.c netinit —
+# measured: without #I bound, `tcp' is an unknown network and the query
+# falls through to the no-translation clone reply).  NO srv9, NO
+# 9front tree, NO NIC: serial is the only egress and every probe is
+# file/loopback-backed.
 
 venue=$1
 if(~ $#venue 0) venue=9k
@@ -118,23 +122,54 @@ if($B/hmntgen -s mnttest /mnt){
 }
 if not echo SVC-FAIL mntgen
 
-# --- cs: the connection server answers a scripted lookup --------------
-# The test ndb rides /env (ip=… dom=probehost tcp=…  — a baked probe
-# host, throwaway values only).  hcs -f serves it mounted at /net/cs;
-# hcsquery is the canned client (csquery.c).  The marker rides the
-# ANSWER carrying the baked address — never the daemon's start.  The
-# daemon's stderr stays on the serial capture (a startup sysfatal is
-# the classified FAIL's diagnosis) and the SVC-CSOBS observation line
-# (the T1-XDOBS precedent) records the raw answer.
-svcndb='ip=127.0.0.1 dom=probehost tcp=9930'
-$B/hcs -f /env/svcndb &
-if(svc_waitpath 10 /net/cs){
-	qout=`{$B/hcsquery /net/cs 'tcp!probehost'}
-	echo SVC-CSOBS $"qout
-	if(~ $"qout *127.0.0.1*) echo SVC-OK cs
-	if not echo SVC-FAIL cs
+# --- the loopback bring-up (the 14-09 netip-loopback shape, minimal) --
+# bind #I at /net + one loopback ipifc carrying the 127.0.0.1 probe
+# address.  The conv is HELD on fd 7 for the block's duration (the
+# 14-09 conv-lifetime discipline: a devip conv resets on its last close
+# — per-command ctl opens would drop the address between probes).  The
+# bind must precede every daemon below: cs's netlist scan (above) and
+# dns's myipaddr both need the tree.  A failed bring-up degrades the
+# net-dependent probes to their named SKIPs (the flagged assumption's
+# honest landing — never a weaker pass).
+svclo=''
+if(bind -a '#I' /net){
+	{
+		lconv=`{$B/hcat <[0=7]}
+		if(~ $#lconv 1){
+			if($B/htest -e /net/ipifc/$lconv/ctl){
+				if($B/hecho bind loopback > /net/ipifc/$lconv/ctl){
+					if($B/hecho add 127.0.0.1 255.0.0.0 > /net/ipifc/$lconv/ctl)
+						svclo=up
+				}
+			}
+		}
+		if(~ $svclo up) echo SVC-LOOPBACK-UP
+		if not echo SVC-LOOPBACK-BOUND-NOT-UP
+
+		# --- cs: the connection server answers a scripted lookup ------
+		# The test ndb rides /env (ip=… dom=probehost tcp=… — a baked
+		# probe host, throwaway values only).  hcs -f serves it mounted
+		# at /net/cs (its netlist scan sees /net/tcp/clone — the #I bind
+		# above); hcsquery is the canned client (csquery.c).  The marker
+		# rides the ANSWER carrying the baked address — never the
+		# daemon's start.  The daemon's stderr stays on the capture (a
+		# startup sysfatal is the classified FAIL's diagnosis) and the
+		# SVC-CSOBS observation line records the raw answer.
+		svcndb='ip=127.0.0.1 dom=probehost tcp=9930'
+		$B/hcs -f /env/svcndb &
+		if(svc_waitpath 10 /net/cs){
+			qout=`{$B/hcsquery /net/cs 'tcp!probehost'}
+			echo SVC-CSOBS $"qout
+			if(~ $"qout *127.0.0.1*) echo SVC-OK cs
+			if not echo SVC-FAIL cs
+		}
+		if not echo SVC-FAIL cs
+	} <>[7]/net/ipifc/clone
 }
-if not echo SVC-FAIL cs
+if not {
+	echo SVC-SKIP-WHY no-netdev-the-#I-bind-failed
+	echo SVC-SKIP cs
+}
 
 echo SVC-DONE
 exit
