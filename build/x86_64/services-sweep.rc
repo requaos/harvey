@@ -170,19 +170,22 @@ if(~ $svclo bound){
 
 # --- cs: the connection server answers a scripted lookup --------------
 # The test ndb rides /env (ip=… dom=probehost — a baked probe host,
-# throwaway values only).  hcs -f serves it mounted at /net/cs (its
-# netlist scan sees /net/tcp/clone — the #I bind above); hcsquery is
-# the canned client (csquery.c).  The query carries an EXPLICIT numeric
-# port >= 1024: a bare `tcp!host' query has an empty service part and
-# cs's ipserv rejects the empty name ("can't translate service",
-# measured), while a numeric port >= 1024 passes through with no
-# port-database lookup.  The marker rides the ANSWER carrying the baked
-# address — never the daemon's start.  The daemon's stderr stays on the
-# capture and the SVC-CSOBS observation line records the raw answer.
-# cs itself needs only the #I bind (its netlist), not the loopback
-# address — it runs on $svclo=bound or up.
+# throwaway values only).  The value's closing quote sits on the NEXT
+# LINE: the string carries a trailing newline, which libndb's Brdline
+# parser REQUIRES (a final unterminated line is dropped whole —
+# measured: the lookup missed on the correct content until the newline
+# rode along).  hcs -f serves it mounted at /net/cs (its netlist scan
+# sees /net/tcp/clone — the #I bind above); hcsquery is the canned
+# client (csquery.c).  The query carries an EXPLICIT numeric port >=
+# 1024: a bare `tcp!host' query has an empty service part and cs's
+# ipserv rejects the empty name ("can't translate service", measured),
+# while a numeric port >= 1024 passes through with no port-database
+# lookup.  The marker rides the ANSWER carrying the baked address —
+# never the daemon's start.  cs needs only the #I bind (its netlist),
+# not the loopback address — it runs on $svclo=bound or up.
 if(! ~ $svclo ''){
-	svcndb='ip=127.0.0.1 dom=probehost'
+	svcndb='ip=127.0.0.1 dom=probehost
+'
 	$B/hcs -f /env/svcndb &
 	if(svc_waitpath 10 /net/cs){
 		qout=`{$B/hcsquery /net/cs 'tcp!probehost!19730'}
