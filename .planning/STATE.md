@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: Completed 14-08-PLAN.md (XEXEC-04 closed — the tier machinery proven on BOTH kernels, the gate green twice)
-last_updated: "2026-11-09T15:25:57.684Z"
+stopped_at: Completed 14-09-PLAN.md (XEXEC-05 closed — the net gates green twice; 14-EVIDENCE.md consolidates the phase)
+last_updated: "2026-11-09T15:51:08.576Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 14 execution started
-state_head: b50a0e1cac8a90d34d84518e1b25247967e81fe2
+state_head: e49f5c00a0923e489940594fa5c14d06213daf40
 progress:
   total_phases: 2
   completed_phases: 1
   total_plans: 15
-  completed_plans: 14
+  completed_plans: 15
 ---
 
 # Project State
@@ -68,6 +68,7 @@ Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
 | Phase 14 P06 | 417 min (3 cycles) | 3 tasks | 17 files |
 | Phase 14 P07 | 142 min | 3 tasks | 8 files |
 | Phase 14 P08 | 70 min active (wall 7h; kill gap) | 3 tasks | 17 files |
+| Phase 14 P09 | 14 min | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -124,6 +125,8 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-08: the ABI witness is structural — build-9k10t1's r9 leg pins a 38-member sha256 manifest of the exact /amd64/bin set the k10t1 kernel embedded, and mkimage's tier bake digest-verifies it before staging the r9 image; identical 36-marker T1-OK sets proven on both kernels at gate time
 - [Phase 14]: 14-08: the tier image runs the sweep from the boot flow (tier-termrc override — the donor's k10t1.rc shape, no typed line); SKIP expectations extracted verbatim from the committed sweep's own lines, OK sets computed from the tier data in all three gate consumers
 - [Phase 14]: 14-08: two r9 kernel gaps fixed push-before-pin (r9@e417660, pin 5294f27b8 lock-only) — user SSE armed (CR4.OSFXSR/OSXMMEXCPT + per-exec fninit/ldmxcsr reset; era limit: no per-proc FXSAVE yet) and the eager stack grown 32->64 pages (cmp's 2x64KiB frame); full regression battery green
+- [Phase 14]: 14-09: the x64 net gate re-key went GREEN ON THE FIRST BOOT — the port devip stack + virtio-net held under the real userspace drivers; the degenerate-input backstop edges are named stages (netgate: DUPBIND-REJECTED with devip's own 'interface already bound' asserted + netgate: NOADDR-REJECTED), a marker prefix distinct from the fixtures' netip: FAIL fast-fail arm
+- [Phase 14]: 14-09: the D-11 single-seam discipline became a BAKE-TIME assert (mkimage's net section greps root-tree/lib for venue literals outside netaddr.rc) — even the fixtures' own comment prose had to be reworded to keep the mechanical check clean; the tier sweep's ipconfig T1-SKIP reason is stale for x64 (the port devcons serves /dev/random there, no-hooks deterministic-seed era) and flips with Phase 15's tier append
 
 ### Pending Todos
 
@@ -146,6 +149,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-09T15:25:57.637Z
-Stopped at: Completed 14-08-PLAN.md (XEXEC-04 closed — the tier machinery proven on BOTH kernels, the gate green twice)
+Last session: 2026-11-09T15:51:08.356Z
+Stopped at: Completed 14-09-PLAN.md (XEXEC-05 closed — the net gates green twice; 14-EVIDENCE.md consolidates the phase)
 Resume file: None
