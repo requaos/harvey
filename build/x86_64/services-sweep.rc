@@ -188,8 +188,11 @@ if(~ $svclo bound){
 if(! ~ $svclo ''){
 	svcndb='ip=127.0.0.1 dom=probehost
 '
+	echo SVC-HCS-SPAWNING
 	$B/hcs -f /env/svcndb &
+	echo SVC-HCS-SPAWNED
 	if(svc_waitpath 10 /net/cs){
+		echo SVC-CS-READY
 		qout=`{$B/hcsquery /net/cs '!ipinfo dom=probehost ip'}
 		echo SVC-CSOBS $"qout
 		if(~ $"qout *ip=127.0.0.1*) echo SVC-OK cs
