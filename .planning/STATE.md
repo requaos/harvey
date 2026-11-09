@@ -20,10 +20,10 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-07)
+See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
-**Current focus:** Phase 14 — Harvey amd64 Userspace on r9
+**Current focus:** v2.1 milestone complete — ready for /gsd:complete-milestone v2.1
 
 ## Current Position
 
@@ -32,7 +32,7 @@ Plan: Not started
 Status: All phases complete
 Last activity: 2026-11-09 — Phase 14 complete
 
-Progress: [█░░░░░░░░░] 14% (v2.1: 1/7 phases)
+Progress: [██████████████████] 100% (v2.1: 2/2 phases, 15/15 plans)
 
 ## Performance Metrics
 
@@ -149,6 +149,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-09T16:39:20.629Z
-Stopped at: Phase 14 complete — all phases complete
+Last session: 2026-11-09
+Stopped at: Phase 14 complete — v2.1 milestone complete, ready for /gsd:complete-milestone v2.1
 Resume file: None
