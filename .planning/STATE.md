@@ -4,13 +4,13 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 status: completed
-stopped_at: Phase 14 complete — all phases complete
-last_updated: "2026-11-09T16:49:18.307Z"
+stopped_at: Phase 15 context gathered
+last_updated: "2026-11-09T18:30:22.571Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 14 complete
-state_head: 20b52f0049deb836d443094f7d36b880fe74f34d
+state_head: c35d584b6e9cab94b04f2db3cf65120b40640a4d
 progress:
-  total_phases: 2
+  total_phases: 3
   completed_phases: 2
   total_plans: 15
   completed_plans: 15
@@ -149,6 +149,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-09
-Stopped at: Phase 14 complete + review debt triaged — Phase 15 (Userspace Tiers + Bootfs Payload) next
-Resume file: None
+Last session: 2026-11-09T18:30:22.463Z
+Stopped at: Phase 15 context gathered
+Resume file: .planning/phases/15-userspace-tiers-bootfs-payload-amd64/15-CONTEXT.md
