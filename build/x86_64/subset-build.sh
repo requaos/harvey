@@ -20,6 +20,12 @@
 #     install; cmd/<container>/<dir> nested; cmd/<dir>:<target>
 #     per-target install; 9k/boot + stage/init driver-only blocks)
 #     with a T1-ART sha256 marker per artifact.
+#   - the tier-2 services allowlist (15-01, USPACE-07's compile half:
+#     build/x86_64/tiers/tier2-services.txt) with the 06-03
+#     anti-staleness decision LANDED here — a per-entry fresh build
+#     (mk <target>.clean / in-tree object rm before every build) so a
+#     stale object can never earn a marker — and a T2-ART sha256
+#     marker + 00008a97 magic check per harvested binary.
 #
 # Artifacts install to the namespace's /amd64 (the checkout's amd64/ —
 # gitignored): /amd64/lib/*.a, /amd64/bin/*.  The k10t1 venue kernel
@@ -56,6 +62,18 @@ GREP=$(command -v /usr/bin/grep || command -v grep) || err "no host grep found"
 [ -f "$HARVEY/sys/src/9k/boot/mkfile.amd64" ] || err "sys/src/9k/boot/mkfile.amd64 missing (the 14-06 driver-only boot build)"
 [ -d "$HARVEY/amd64" ] || err "amd64/ arch dir missing"
 [ "$(uname -s)" = "Linux" ] || err "build/x86_64/subset-build.sh is native-linux only (sudo unshare / userns chroot; no lima leg — the aarch64 driver's darwin venue does not carry)"
+
+# 15-01: the phase build-tree lock — /amd64 is untracked shared state,
+# and every later driver that writes or harvests it (15-02's venue
+# scripts, 15-05's build-9kdraw.sh, 15-07's coverage-sweep.sh + the gs
+# harness) takes this SAME lock (flock on .build/amd64-tree.lock), so
+# same-wave parallel plans can never interleave /amd64 writers.  The fd
+# stays open for the whole run — the lock releases at exit.
+command -v flock >/dev/null 2>&1 || err "flock not found — the amd64 build-tree lock needs util-linux flock"
+mkdir -p "$HARVEY/.build"
+exec 9>"$HARVEY/.build/amd64-tree.lock"
+flock 9 || err "cannot acquire the amd64 build-tree lock"
+echo "== amd64 build-tree lock held: $HARVEY/.build/amd64-tree.lock"
 
 # host toolchain for the namespace build (subset-build.sh's ensure,
 # host-side).  HARVEY must be EXPORTED here: the userns venue's --wrap
@@ -288,6 +306,100 @@ for h in netblast tcpblast tcpecho; do
 	[ -s "$HARVEY/build/x86_64/out/$h" ] || fail "net helper $h: no artifact out/$h"
 done
 
+# tier-2 services (15-01, USPACE-07's compile half): the allowlist,
+# dispatched per entry form with the 06-03 anti-staleness decision
+# LANDED HERE (tier-2 is the first mass cmd wave since the toolchain
+# fixes): a per-entry fresh build — `mk <target>.clean` / the in-tree
+# object rm BEFORE every build — so a stale object can never earn a
+# marker (mk's freshness graph never names the toolchain; the
+# donor-vm-build step-4b precedent, the tier-0 D-07 fresh-archive
+# sibling).  T2-ART <bin> <sha256> per harvested binary, each
+# magic-checked 00008a97 (mk exit status is never trusted — artifact
+# asserts are the only gates).  A dir entry yields one marker per
+# binary the dir installed (>= 1); the entry forms: cmd/<dir> (whole
+# dir — its own or no filter governs members), cmd/<single> and
+# cmd/<container>/<single> (link-only + driver cp harvest), and the
+# container leaf cmd/<container>:<target> (per-target clean + link-only
+# + driver cp — aux's aggregate install never installs TARG members,
+# and the leaf filter in the container's mkfile scopes the default
+# build).
+TIER2="$HARVEY/build/x86_64/tiers/tier2-services.txt"
+[ -f "$TIER2" ] || fail "tier2 data file missing: $TIER2"
+t2art() {
+	f="$1"
+	[ -s "$f" ] || fail "tier2: no artifact $f"
+	magic=$(od -An -tx1 -N4 "$f" | tr -d ' \n')
+	[ "$magic" = "00008a97" ] || fail "tier2 ${f##*/}: bad magic $magic (want 00008a97 — amd64 S_MAGIC)"
+	echo "T2-ART ${f##*/} $(sha256sum "$f" | cut -d' ' -f1)"
+}
+while read -r line; do
+	case "$line" in ''|'#'*) continue;; esac
+	entry="${line%%[ 	]*}"
+	case "$entry" in ''|'#'*) continue;; esac
+	echo "== tier2 entry: $entry"
+	case "$entry" in
+	cmd/*:*)
+		# container leaf (cmd/aux:<target>): per-target clean (the
+		# mkmany %.clean removes <t>.6/6.<t>/<t> in-tree — fresh
+		# objects), link-only in the container, driver cp harvest
+		# to /amd64/bin/<target>, then the droppings rm.
+		dir="${entry%%:*}"
+		tgt="${entry##*:}"
+		(cd "/sys/src/$dir" && objtype=amd64 mk "$tgt.clean") || fail "tier2 clean $entry"
+		rm -f "/amd64/bin/$tgt"
+		(cd "/sys/src/$dir" && objtype=amd64 mk "6.$tgt") || fail "tier2 $entry"
+		cp "/sys/src/$dir/6.$tgt" "/amd64/bin/$tgt" || fail "tier2 harvest $tgt"
+		rm -f "/sys/src/$dir/6.$tgt" "/sys/src/$dir/$tgt.6"
+		t2art "/amd64/bin/$tgt"
+		;;
+	cmd/*)
+		if [ -d "/sys/src/$entry" ]; then
+			# dir entry: whole-dir clean (fresh objects), install,
+			# one marker per installed binary, then clean again
+			# (droppings — the checkout IS the build tree; never a
+			# blanket clean elsewhere).
+			rel="${entry#cmd/}"
+			(cd "/sys/src/$entry" && objtype=amd64 mk clean) || fail "tier2 clean $entry"
+			(cd "/sys/src/$entry" && objtype=amd64 mk install) || fail "tier2 $entry"
+			if [ -f "/amd64/bin/$rel" ]; then
+				t2art "/amd64/bin/$rel"
+			elif [ -d "/amd64/bin/$rel" ]; then
+				found=0
+				for f in $(find "/amd64/bin/$rel" -type f | sort); do
+					t2art "$f"
+					found=$((found+1))
+				done
+				[ "$found" -ge 1 ] || fail "tier2 $entry: no artifacts under /amd64/bin/$rel"
+			else
+				fail "tier2 $entry: no artifact /amd64/bin/$rel"
+			fi
+			(cd "/sys/src/$entry" && objtype=amd64 mk clean) || fail "tier2 droppings clean $entry"
+		else
+			# single-file command, cmd/<single> or nested
+			# cmd/<container>/<single>: the 06-09 both-delete rule
+			# (in-tree 6.<name>/<name>.6 AND the installed copy) —
+			# then link-only + driver cp harvest (the 14-07
+			# lesson, nested-container aware).
+			name="${entry#cmd/}"
+			base="${name##*/}"
+			if [ "$name" = "$base" ]; then
+				srcdir=/sys/src/cmd
+			else
+				srcdir="/sys/src/cmd/${name%/*}"
+			fi
+			rm -f "$srcdir/6.$base" "$srcdir/$base.6" "/amd64/bin/$name"
+			(cd "$srcdir" && objtype=amd64 mk "6.$base") || fail "tier2 $entry"
+			cp "$srcdir/6.$base" "/amd64/bin/$name" || fail "tier2 harvest $name"
+			rm -f "$srcdir/6.$base" "$srcdir/$base.6"
+			t2art "/amd64/bin/$name"
+		fi
+		;;
+	*)
+		fail "tier2 entry form not understood: $entry"
+		;;
+	esac
+done < "$TIER2"
+
 # dir-build droppings (the checkout IS the build tree): mkone clean
 # removes the *.$O/y.tab.* class; rc's x.tab.h is its one documented
 # gap; awk's generated grammar/table files (awkgram.c proctab.c) are
@@ -426,6 +538,12 @@ for f in netblast tcpblast tcpecho; do
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/x86_64/out/$f" | tr -d ' \n')
 	[ "$magic" = "00008a97" ] || err "build/x86_64/out/$f: bad magic $magic (want 00008a97)"
 done
+# 15-01: the tier-2 tracer's host-side spot-check (the T2-ART marker
+# asserts ran namespace-side; this pins the same artifact through the
+# checkout's own path)
+[ -x "$HARVEY/amd64/bin/listen" ] || err "amd64/bin/listen missing after the tier build (the 15-01 tier-2 tracer)"
+magic=$(od -An -tx1 -N4 "$HARVEY/amd64/bin/listen" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "amd64/bin/listen: bad magic $magic (want 00008a97)"
 for f in boot init paqfs; do
 	[ -s "$HARVEY/build/x86_64/out/$f" ] || err "build/x86_64/out/$f missing after the tier build"
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/x86_64/out/$f" | tr -d ' \n')

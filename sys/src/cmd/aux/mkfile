@@ -1,6 +1,6 @@
 </$objtype/mkfile
 
-TARG=\
+ALLTARG=\
 	8prefix\
 	9pcon\
 	accupoint\
@@ -40,6 +40,30 @@ TARG=\
 	write\
 	zerotrunc\
 
+ALLDIRS=mnihongo\
+	flashfs\
+	gps\
+	na\
+	vga\
+	realemu
+
+# 15-01 (USPACE-07) tier allowlist filter, the aux LEAF (the
+# sys/src/cmd/auth/factotum T1KEEPT pattern re-keyed; the uniform
+# keep-rule comment lives in sys/src/mkfile): a cmd/aux:<target> tier2
+# entry keeps ONLY <target> in TARG here, and a cmd/aux/<dir> entry
+# keeps that dir in DIRS — a bare `cmd/aux` container line is
+# forbidden (Pitfall 3: it would sweep aux's 39-member TARG + 6 DIRS
+# whole; the leaf filter landed in the SAME commit as the first
+# cmd/aux: entry).  Passthrough for every other objtype and under
+# COVERAGE_SWEEP=1 (the 15-07 coverage proof certifies the whole tree,
+# never the allowlist to itself).
+T2=$HARVEY/build/x86_64/tiers/tier2-services.txt
+T2KEEPTA=`{awk '/^cmd\/aux:/{ sub(/^cmd\/aux:/,""); sub(/[\/: 	].*$/,""); print }' $T2}
+T2KEEPDA=`{awk '/^cmd\/aux\//{ sub(/^cmd\/aux\//,""); sub(/[\/: 	].*$/,""); print }' $T2}
+
+TARG=`{if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T2KEEPTA) echo $i; if not echo $ALLTARG}
+DIRS=`{if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T2KEEPDA) echo $i; if not echo $ALLDIRS}
+
 BIN=/$objtype/bin/aux
 
 UPDATE=\
@@ -50,16 +74,14 @@ UPDATE=\
 
 </sys/src/cmd/mkmany
 
-DIRS=mnihongo\
-	flashfs\
-	gps\
-	na\
-	vga\
-	realemu
-
 all:V:	$DIRS
 
-$DIRS:V:
+# 15-01: the per-dir rule's target list is $ALLDIRS, not $DIRS — the
+# tier filter can empty $DIRS (amd64 keeps no aux subdirs today), and a
+# variable rule target that expands empty is a parse error ("no var on
+# left side"); the body iterates the filtered $DIRS either way, so
+# behavior is identical whenever $DIRS is non-empty.
+$ALLDIRS:V:
 	for (i in $DIRS) @{
 		echo mk $i
 		cd $i

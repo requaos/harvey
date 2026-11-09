@@ -72,10 +72,15 @@ T1KEEP=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1}
 # 14-08 (XEXEC-04): the amd64 arm — the same keep-rule, the tier data
 # re-keyed to build/x86_64/tiers (the k10t1-proven core scope; Phase 15
 # appends).  The aarch64 arms above stay as-is (frozen-at-pin).
+# 15-01 (USPACE-07): the amd64 cmd keep widens to the tier1+tier2 UNION
+# in ONE multi-file awk (the tier-0 lib keep stays tier0-only — the
+# services tier names cmds, never libs; closure growth appends to
+# tier0-libs.txt itself).
 TIER0A=$HARVEY/build/x86_64/tiers/tier0-libs.txt
 TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt
+TIER2A=$HARVEY/build/x86_64/tiers/tier2-services.txt
 T0KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER0A}
-T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A}
+T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A}
 
 LIBS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEPA) echo $i; if not echo $ALLLIBS}
 CMDS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLCMDS}

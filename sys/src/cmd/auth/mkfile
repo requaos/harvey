@@ -50,8 +50,12 @@ T1KEEP=`{awk '/^cmd\/auth\//{ sub(/^cmd\/auth\//,""); sub(/[\/: 	].*$/,""); prin
 # 14-08 (XEXEC-04): the amd64 arm — build/x86_64/tiers (factotum is the
 # seeded member via cmd/auth/factotum:factotum; Phase 18 appends the
 # auth suite).  The aarch64 arm above stays as-is.
+# 15-01 (USPACE-07): the amd64 keep widens to the tier1+tier2 UNION in
+# ONE multi-file awk — the services tier's auth members join from the
+# tier-2 data (factotum stays a tier-1 line, never moved).
 TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt
-T1KEEPA=`{awk '/^cmd\/auth\//{ sub(/^cmd\/auth\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1A}
+TIER2A=$HARVEY/build/x86_64/tiers/tier2-services.txt
+T1KEEPA=`{awk '/^cmd\/auth\//{ sub(/^cmd\/auth\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A}
 
 TARG=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEPA) echo $i; if not echo $ALLTARG}
 DIRS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLDIRS}

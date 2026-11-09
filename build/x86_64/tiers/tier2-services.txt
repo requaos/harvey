@@ -1,0 +1,52 @@
+# tier2-services.txt — 15-01 append-only amd64 services-tier allowlist
+# (USPACE-07's compile half; the execution half is 15-02/15-03's probes).
+#
+# Plain data, one entry per line, sys/src-relative.  Consumers: the
+# objtype-gated mk filters' amd64 arms (sys/src/mkfile CMDS/SUBSYS,
+# sys/src/cmd/mkfile TARG/DIRS, the container mkfiles cmd/ip, cmd/auth,
+# cmd/auth/factotum, and the 15-01 aux leaf filter in cmd/aux — all six
+# reading the tier1+tier2 UNION in one multi-file awk through the
+# $HARVEY-absolute path), the tier driver build/x86_64/subset-build.sh's
+# tier-2 loop, and the Phase-15 venue gates (15-02 donor / 15-03 r9) —
+# every marker expectation is COMPUTED from this file, never a second
+# hardcoded list.
+#
+# APPEND-ONLY: growth is appending a line, after the entry's per-tier
+# gate passes.  Never reorder, edit, or delete existing lines.  A quiet
+# trim to reach T2 green is gate fraud, not a pass (D-12, the 14-08
+# discipline).
+#
+# Entry forms (the tier1 grammar verbatim):
+#   cmd/<single>           single-file command in cmd/ (cmd/mntgen)
+#   cmd/<dir>              whole dir recursed by the sweep (cmd/ndb)
+#   cmd/<container>/<dir>  nested dir inside a container (cmd/ip/ipconfig)
+#   cmd/<dir>:<target>     the dir is kept in the sweep; the <target>
+#                          qualifier is consumed by the tier driver
+#                          (per-target fresh build, never whole-dir:
+#                          the container-leaf link-only `mk 6.<target>`
+#                          + driver cp harvest) and by filter-equipped
+#                          leaf mkfiles (cmd/aux keeps ONLY its listed
+#                          :targets this way — the Pitfall-3 rule: a
+#                          bare `cmd/aux` container line is forbidden,
+#                          it would sweep aux's 39-member TARG whole)
+#
+# Keep-rule (uniform across all six filter mkfiles): a candidate survives
+# iff its name is the first path component after that mkfile's prefix in
+# some entry below — member (cmd/ndb keeps ndb), container
+# (cmd/ip/ipconfig keeps ip here and ipconfig in cmd/ip), and dir:target
+# (cmd/aux:listen keeps aux here and only listen in the aux leaf
+# filter).  `#` lines and trailing comments never match: the extraction
+# keeps only lines starting [a-z0-9] and cuts at the first whitespace.
+#
+# Comment safety: the mk keep-rule extraction keeps only lines starting
+# [a-z0-9] and cuts each at the first whitespace, so `#` full-line
+# comments and trailing `#` provenance notes can never match a candidate
+# name.
+#
+# Tracer 2026-11-09 (15-01 Task 1): the ONE-entry slice proving
+# data -> six filters (incl. the NEW aux leaf) -> namespace build ->
+# harvested binary -> T2-ART sha256 marker end-to-end.  Task 2 appends
+# the full USPACE-07 services set (the ip/ suite, ndb, the auth suite,
+# exportfs, dial, mntgen + the probe clients) below with per-entry
+# provenance.
+cmd/aux:listen		# USPACE-07/D-02: the services listener; its loopback-announce probe lands 15-02 (k10t1) / 15-03 (r9)

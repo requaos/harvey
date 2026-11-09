@@ -30,8 +30,13 @@ TIER1=$HARVEY/build/aarch64/tiers/tier1-cmds.txt
 T1KEEP=`{awk '/^cmd\//{ sub(/^cmd\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1}
 # 14-08 (XEXEC-04): the amd64 arm — build/x86_64/tiers (the k10t1-proven
 # core scope; Phase 15 appends).  The aarch64 arm above stays as-is.
+# 15-01 (USPACE-07): the amd64 keep widens to the tier1+tier2 UNION in
+# ONE multi-file awk — the services tier's dirs/singles/leaf entries
+# (ndb, dial, exportfs, aux via cmd/aux:listen, the ip/auth members)
+# join the sweep's membership from the same data the driver reads.
 TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt
-T1KEEPA=`{awk '/^cmd\//{ sub(/^cmd\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1A}
+TIER2A=$HARVEY/build/x86_64/tiers/tier2-services.txt
+T1KEEPA=`{awk '/^cmd\//{ sub(/^cmd\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A}
 
 TARG=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEPA) echo $i; if not echo $ALLTARG}
 DIRS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLDIRS}
