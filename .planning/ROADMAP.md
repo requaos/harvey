@@ -133,10 +133,10 @@ Plans:
   2. The GUI stack compiles for amd64 (libdraw family + rio + acme + sam + plumb) and donor-kernel syscall traces for rio/acme/sam are captured and committed — the measure-first input for any r9 kernel growth the desktop needs (USPACE-08)
   3. The long tail compiles for amd64: upas + lp + the remaining cmd dirs; fossil + venti are compile-gated and documented as runtime-unverifiable this milestone (no block device in r9); gs is included (USPACE-09)
   4. The bootfs payload is staged with manifest assertions: `/lib/font/bit/*`, a glenda-style lib/profile, and a `/lib/ndb/local` template are present in the baked image (DESK-03)
-**Plans**: 9 plans
+**Plans**: 1/9 plans executed
 Plans:
 **Wave 1**
-- [ ] 15-01-PLAN.md — tier-2 services data + filters + driver (the anti-staleness decision lands) + aux leaf filter — T2-ART compile green (USPACE-07)
+- [x] 15-01-PLAN.md — tier-2 services data + filters + driver (the anti-staleness decision lands) + aux leaf filter — T2-ART compile green (USPACE-07)
 
 **Wave 2** *(blocked on Wave 1)*
 - [ ] 15-02-PLAN.md — services functional probes on the k10t1 donor: services-sweep.rc (D-02/D-08), the grown embed, computed SVC expectations (USPACE-07)
@@ -225,7 +225,7 @@ Plans:
 | 12. CPU Service + Drawterm + rio Desktop | v2.0 | - | Subsumed → Phase 19 | - |
 | 13. r9 x86_64 Platform Bring-Up | v2.1 | 6/6 | Complete    | 2026-11-07 |
 | 14. Harvey amd64 Userspace on r9 | v2.1 | 9/9 | Complete    | 2026-11-09 |
-| 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | - | Not started | - |
+| 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 1/9 | In Progress | - |
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | - | Not started | - |
 | 17. r9 Kernel Flush-Out | v2.1 | - | Not started | - |
 | 18. In-Guest p9sk1 Auth Domain | v2.1 | - | Not started | - |

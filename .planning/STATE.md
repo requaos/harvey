@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 15
 current_phase_name: Userspace Tiers + Bootfs Payload (amd64)
-status: completed
-stopped_at: Phase 15 context gathered
-last_updated: "2026-11-09T20:54:16.133Z"
+status: executing
+stopped_at: Completed 15-01-PLAN.md
+last_updated: "2026-11-09T21:33:16.126Z"
 last_activity: 2026-11-09
-last_activity_desc: Phase 14 complete
-state_head: b74d9feaf677c7a20922baeab2b59d827805954a
+last_activity_desc: Phase 15 execution started
+state_head: e18066dd39c6f63584ce42ac08fc8bc156c103e7
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 24
-  completed_plans: 15
+  completed_plans: 16
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
-**Current focus:** Phase 15 — Userspace Tiers + Bootfs Payload (amd64); phases 15-19 remain in v2.1
+**Current focus:** Phase 15 — Userspace Tiers + Bootfs Payload (amd64)
 
 ## Current Position
 
-Phase: 15 (Userspace Tiers + Bootfs Payload (amd64)) — READY TO EXECUTE
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-11-09 — Phase 14 complete
+Phase: 15 (Userspace Tiers + Bootfs Payload (amd64)) — EXECUTING
+Plan: 2 of 9
+Status: Ready to execute
+Last activity: 2026-11-09 — Phase 15 execution started
 
 Progress: [█████░░░░░░░░░░░░░░░] 29% (v2.1: 2/7 phases — 13-14 complete, 15-19 next)
 
@@ -70,6 +70,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 14 P07 | 142 min | 3 tasks | 8 files |
 | Phase 14 P08 | 70 min active (wall 7h; kill gap) | 3 tasks | 17 files |
 | Phase 14 P09 | 14 min | 3 tasks | 17 files |
+| Phase 15 P01 | 30 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -128,6 +129,8 @@ Recent decisions affecting current work:
 - [Phase 14]: 14-08: two r9 kernel gaps fixed push-before-pin (r9@e417660, pin 5294f27b8 lock-only) — user SSE armed (CR4.OSFXSR/OSXMMEXCPT + per-exec fninit/ldmxcsr reset; era limit: no per-proc FXSAVE yet) and the eager stack grown 32->64 pages (cmp's 2x64KiB frame); full regression battery green
 - [Phase 14]: 14-09: the x64 net gate re-key went GREEN ON THE FIRST BOOT — the port devip stack + virtio-net held under the real userspace drivers; the degenerate-input backstop edges are named stages (netgate: DUPBIND-REJECTED with devip's own 'interface already bound' asserted + netgate: NOADDR-REJECTED), a marker prefix distinct from the fixtures' netip: FAIL fast-fail arm
 - [Phase 14]: 14-09: the D-11 single-seam discipline became a BAKE-TIME assert (mkimage's net section greps root-tree/lib for venue literals outside netaddr.rc) — even the fixtures' own comment prose had to be reworded to keep the mechanical check clean; the tier sweep's ipconfig T1-SKIP reason is stale for x64 (the port devcons serves /dev/random there, no-hooks deterministic-seed era) and flips with Phase 15's tier append
+- [Phase 15]: The 06-03 anti-staleness decision landed in the tier-2 driver loop: per-entry fresh build (mk <t>.clean / in-tree rm before every build) + run-granularity freshness for shared in-tree archives (auth lib.6.a rm at run end) — stale objects can never earn T2-ART markers
+- [Phase 15]: gping re-derived OUT of tier-2 as the GUI class (links libdraw, measured at 6l) — the factotum:fgui precedent; and a filter-emptied $DIRS:V: rule target is a mk parse error (retarget $ALLDIRS) — the aux leaf filter's two new invariants
 
 ### Pending Todos
 
@@ -150,6 +153,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-09T18:30:22.463Z
-Stopped at: Phase 15 context gathered
-Resume file: .planning/phases/15-userspace-tiers-bootfs-payload-amd64/15-CONTEXT.md
+Last session: 2026-11-09T21:33:16.018Z
+Stopped at: Completed 15-01-PLAN.md
+Resume file: None

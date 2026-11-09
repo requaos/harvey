@@ -76,7 +76,7 @@
     {
       "number": "15",
       "name": "Userspace Tiers + Bootfs Payload (amd64)",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "16",
@@ -100,9 +100,9 @@
     }
   ],
   "next": {
-    "command": "/gsd-progress",
-    "label": "Show progress",
-    "reason": "Unsure of state — showing progress"
+    "command": "/gsd-progress --next",
+    "label": "Advance to the next step",
+    "reason": "Phase 15 (10 of 19 roadmap phases complete) · executing"
   },
-  "updated_at": "2026-11-09T16:49:18.320Z"
+  "updated_at": "2026-11-09T21:33:07.134Z"
 }
