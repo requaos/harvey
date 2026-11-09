@@ -236,6 +236,20 @@ user sp, DS/ES/FS/GS loaded with the flat user data selector
 the entry is `UTZERO+0x28` (past the a.out header — see Stack-top
 policy); for exec'd processes it is the a.out header's `entry` field.
 
+**Exec return / `_tos` (the first-instruction AX contract).** The
+donor's `sysexecregs` (k10 `syscall.c:328-347`) RETURNS the address of
+the kernel-written Tos (`USTKTOP-sizeof(Tos)`); the syscall machinery
+lands that return in `AX` (`ureg->ax = ar0.p`). The C startup
+consumes it as its first instruction: `main9.s` opens with
+`MOVQ AX, _tos(SB)` — and 6l emits the same store at the head of
+`main` even when `_main` is absent (the linker-fused prologue; boot(8)
+links without main9 and still carries it). Kernels seeding a first
+process (no exec syscall happened) must therefore plant the Tos
+pointer in `AX`, not in any argument register — argc/argv arrive on
+the seeded stack and the prologue reloads them; `BP` (6c's first-arg
+register) is left alone. A zero `_tos` is not benign: libc's malloc
+`plock` reads `_tos->pid` (offset 0x40) on the first allocation.
+
 **Note delivery (`syscall.c:182-192`).** When a note must reach a
 process with a `notify` handler installed, the kernel copies the
 whole `Ureg` into a user-allocated `NFrame` placed at

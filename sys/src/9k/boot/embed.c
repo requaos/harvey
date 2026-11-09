@@ -67,8 +67,14 @@ connectembed(void)
 	default:
 		break;
 	}
-	waitpid();
-
+	/* NOTE (14-06, the r9 boot-chain bring-up): no waitpid() here.
+	 * The 4e original waited for the child before using the pipe —
+	 * but paqfs -i is a PERSISTENT server on fds 0/1 and never exits,
+	 * so the wait deadlocks the chain at the first fversion (the
+	 * embed method was never exercised on 4e/9k: their boots used
+	 * tcp/local, so the bug slept until the r9 chain's gate).  The
+	 * 9front sibling's embedpaq.c has no wait — drop it (the in-tree
+	 * fix; Harvey is the maintained fork). */
 	close(p[1]);
 	return p[0];
 }
