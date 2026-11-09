@@ -176,21 +176,23 @@ if(~ $svclo bound){
 # measured: the lookup missed on the correct content until the newline
 # rode along).  hcs -f serves it mounted at /net/cs (its netlist scan
 # sees /net/tcp/clone — the #I bind above); hcsquery is the canned
-# client (csquery.c).  The query carries an EXPLICIT numeric port >=
-# 1024: a bare `tcp!host' query has an empty service part and cs's
-# ipserv rejects the empty name ("can't translate service", measured),
-# while a numeric port >= 1024 passes through with no port-database
-# lookup.  The marker rides the ANSWER carrying the baked address —
-# never the daemon's start.  cs needs only the #I bind (its netlist),
-# not the loopback address — it runs on $svclo=bound or up.
+# client (csquery.c).  The query is cs's general ipinfo form — the
+# measured route that exercises the ndb end-to-end: a `tcp!host!port'
+# network translation takes the dns-first path (dnsiplookup) whose
+# /srv/dns failure errstr swamps the successful ndb fallback, while
+# `!ipinfo dom=probehost ip' answers straight from the ndb (measured
+# live: `ip=127.0.0.1').  The marker rides the ANSWER carrying the
+# baked address — never the daemon's start.  cs needs only the #I bind
+# (its netlist), not the loopback address — it runs on $svclo=bound or
+# up.
 if(! ~ $svclo ''){
 	svcndb='ip=127.0.0.1 dom=probehost
 '
 	$B/hcs -f /env/svcndb &
 	if(svc_waitpath 10 /net/cs){
-		qout=`{$B/hcsquery /net/cs 'tcp!probehost!19730'}
+		qout=`{$B/hcsquery /net/cs '!ipinfo dom=probehost ip'}
 		echo SVC-CSOBS $"qout
-		if(~ $"qout *127.0.0.1*) echo SVC-OK cs
+		if(~ $"qout *ip=127.0.0.1*) echo SVC-OK cs
 		if not echo SVC-FAIL cs
 	}
 	if not echo SVC-FAIL cs
