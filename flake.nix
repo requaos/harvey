@@ -145,6 +145,28 @@
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
             ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
+          # 14-07 (D-05/D-06, XEXEC-03): the x64 one-command compose —
+          # the same pipeline shape as boot-r9 (kernel-package contract →
+          # KERNDATE provenance → userland build → bake) but the kernel
+          # arrives as the r9 input's kernel-x64 (the q35shell-config
+          # kernel: exec+bootchain devs — plain q35 carries no user
+          # mode), the bake is the 14-05/14-06 x64 pipeline (stage-build
+          # + mkimage → bootfs.paq + bootfs-chain.paq), and the ISO
+          # composition calls r9's exported iso-builder (ONE
+          # reproducibility implementation, un-forked) before launching
+          # qemu-system-x86_64 -M q35 -accel kvm -cdrom — NO DTB patch,
+          # NO -device loader anywhere (the aarch64 delivery is
+          # deliberately not carried: GRUB delivers bootfs as an mb2
+          # tag-3 module off the same ISO).  The aarch64 app names and
+          # bodies stay byte-untouched (frozen-at-pin; Phase 19's INT-05
+          # owns any ONE-command consolidation).
+          # dtc is NOT carried: nothing in the x64 pipeline touches a
+          # DTB; git stays (the KERNDATE provenance step).
+          bootR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-x64" ./nix/boot-r9-x64.sh ''
+            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
+            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -162,6 +184,16 @@
           boot-r9-smoke = mkApp smokeR9Pkg;
           boot-r9-net-smoke = mkApp netSmokeR9Pkg;
           boot-r9-tier1 = mkApp tier1R9Pkg;
+        }
+        # 14-07: the x64 compose apps live ONLY where r9 exports BOTH
+        # kernel-x64 and iso-builder (its own gates: the kernel on every
+        # linux host, the BIOS ISO machinery — grub's i386-pc modules —
+        # on x86_64-linux only).  The hasAttr discipline re-keyed to the
+        # attrs actually consumed, so evaluation stays lazy everywhere
+        # else and widens automatically if r9 ever widens its exports.
+        // nixpkgs.lib.optionalAttrs
+          (builtins.all (a: builtins.hasAttr a r9.packages.${system}) [ "kernel-x64" "iso-builder" ]) {
+          boot-r9-x64 = mkApp bootR9X64Pkg;
         });
 
       devShells = forAllSystems (system:
