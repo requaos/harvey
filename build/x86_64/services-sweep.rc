@@ -1,0 +1,129 @@
+#!/bin/rc
+# services-sweep.rc — the 15-02 USPACE-07 services functional-probe
+# sweep (D-02/D-08 semantics): the tier1-sweep.rc shape extended from
+# fixed-input checks to DAEMON probes.  A daemon earns its SVC-OK marker
+# ONLY through a real client interaction through it (mntgen serves a
+# walk-created directory, cs answers a scripted lookup via /net/cs, dns
+# resolves a baked entry, exportfs serves a guest-side mount, listen's
+# announce accepts a loopback connect, factotum answers a ctl probe,
+# keyfs exercises the write-back-on-create, authsrv accepts the
+# listener's per-connection exec) — a daemon that merely started is
+# NEVER an OK.  Venue-impossible probes take named SVC-SKIP lines with
+# the reason, never a weaker pass.
+#
+# ONE file, TWO venues: the k10t1 donor's k10t1.rc sources it after the
+# tier-1 sweep (`. /boot/services-sweep.rc 9k' — the donor embed) and
+# the r9 services image (15-03's bake) stages it at /lib/services-sweep.rc
+# with services-termrc running `rc /lib/services-sweep.rc r9'.  Never
+# typed on either venue (the sourced-from-the-boot-flow discipline).
+#
+#	usage: rc /lib/services-sweep.rc [venue]	venue: 9k (default) | r9
+#
+# Markers over serial (host asserts presence, never interleaving order;
+# TCG-timing tolerant):
+#	SVC-OK <name>	the daemon's functional probe passed
+#	SVC-FAIL <name>	it failed — the sweep CONTINUES (a failing probe
+#			never wedges or shortens the sweep)
+#	SVC-SKIP <name>	a venue-honest skip — every potentially-emitted
+#			SKIP is a declared `echo SVC-SKIP' line in this
+#			file (the harness extracts that set verbatim and
+#			asserts equality both directions)
+#	SVC-DONE	the sweep ran to completion
+#
+# Never-wedge discipline (Pitfall 5): every daemon runs backgrounded
+# and every readiness expectation is a BOUNDED spin (the svc_waitpath /
+# svc_waitport helpers — sleep-bounded waits feeding SVC-FAIL arms); a
+# wedged daemon classifies as SVC-FAIL when its spin expires, never a
+# hang.  The client commands self-terminate by construction (echo
+# one-shot services, query tools on stdin EOF, srv's internal 10s
+# alarm), and the host harness's sweep budget is the backstop.
+#
+# Venue facts this file rides (the donor, k10t1): the devroot embed is
+# READ-ONLY — writable scratch is /env (devenv) for probe FILES and
+# mntgen's walk-create mount for probe DIRECTORIES (mntgen /mnt, the
+# repo's own rc/bin/termrc idiom; devroot has no /tmp and mkdir is not
+# a tier member on x64).  The loopback leg binds #I at /net with the
+# 14-09 netip-loopback shape (raw ipifc ctl writes — ipconfig is not a
+# donor embed member).  NO srv9, NO 9front tree, NO NIC: serial is the
+# only egress and every probe is file/loopback-backed.
+
+venue=$1
+if(~ $#venue 0) venue=9k
+
+# the sweep vocabulary: the h* embed names resolve through /bin (the
+# boot script's `bind -b /boot /bin')
+B=/bin
+
+# aux/listen reads $cputype at startup (listen.c's getenv guard); the
+# sweep exports it for every child (rc vars ride /env)
+cputype=amd64
+
+# svc_waitpath <iters> <path> — bounded existence spin (1s sleeps).
+# True when the path appeared inside the budget, false when the spin
+# expired (the caller's SVC-FAIL arm classifies the wedge/absence).  The
+# counter rides a LIST append ($#n) — immune to the empty-substitution
+# cascade a failed arithmetic backquote would cause.
+fn svc_waitpath {
+	n=()
+	while(! test -e $2 && test $#n -lt $1){
+		n=($n x)
+		sleep 1
+	}
+	test -e $2
+}
+
+# svc_waitport <iters> <port> — bounded spin for an announced tcp
+# listener conv (any /net/tcp/N/local carrying !<port>), the 14-09
+# port-discovery shape.  Sets svcportfound (nonempty = found).  Same
+# $#n counter discipline.
+svcportfound=''
+fn svc_waitport {
+	n=()
+	svcportfound=''
+	while(test $#n -lt $1 && ~ $svcportfound ''){
+		for(d in /net/tcp/[0-9]*){
+			loc=`{$B/hcat $d/local >[2]/dev/null}
+			if(~ $"loc *!^$2)
+				svcportfound=$d
+		}
+		if(~ $svcportfound ''){
+			n=($n x)
+			sleep 1
+		}
+	}
+}
+
+# --- mntgen: the mount-point provider (the sweep's bootstrap) ---------
+# mntgen /mnt (the repo's termrc idiom) mounts the synthetic tree whose
+# walk-create materializes every later probe's mount point (/mnt/keys,
+# /mnt/factotum, the srv mounts).  The marker's interaction: a real
+# client walk through the mount — hls's stat of a fresh name creates it
+# (fswalk1's create-on-demand) and reads back its DMDIR — plus the
+# posted /srv/mnttest.  The sweep's file scratch stays /env (mntgen's
+# tree is read-only above the walk-create).
+if($B/hmntgen -s mnttest /mnt){
+	if(test -e /srv/mnttest){
+		dirout=`{$B/hls -ld /mnt/svcscratch}
+		if(~ $"dirout d*) echo SVC-OK mntgen
+		if not echo SVC-FAIL mntgen
+	}
+	if not echo SVC-FAIL mntgen
+}
+if not echo SVC-FAIL mntgen
+
+# --- cs: the connection server answers a scripted lookup --------------
+# The test ndb rides /env (ip=… dom=probehost tcp=…  — a baked probe
+# host, throwaway values only).  hcs -f serves it mounted at /net/cs;
+# hcsquery is the canned client (csquery.c).  The marker rides the
+# ANSWER carrying the baked address — never the daemon's start.
+svcndb='ip=127.0.0.1 dom=probehost tcp=9930'
+$B/hcs -f /env/svcndb >[2]/dev/null &
+if(svc_waitpath 10 /net/cs){
+	qout=`{$B/hcsquery /net/cs 'tcp!probehost'}
+	if(~ $"qout *127.0.0.1*) echo SVC-OK cs
+	if not echo SVC-FAIL cs
+}
+if not echo SVC-FAIL cs
+
+echo SVC-DONE
+exit

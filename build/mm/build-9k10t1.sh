@@ -9,7 +9,10 @@
 #      and links against the raised devroot.c (Nbootfiles 32 -> 64);
 #   2. 9k10t1  — the venue kernel: k10cpu's device set verbatim with the
 #      43-file tier embed (the amd64 tier-1 read-only set + the D-10
-#      sweep + sentinel + nm-input) baked into devroot.
+#      sweep + sentinel + nm-input) baked into devroot, grown by 15-02
+#      (USPACE-07) with the services-sweep embed — the sweep + the
+#      tier-2-built services binaries + the tcpNNNN listener service
+#      programs (47 embedded files total this plan).
 # The build is nuke-sandwiched (build/scripts/build:50-52's shape:
 # `mk nuke && mk … && mk nuke`) because the k10 build products
 # (k10t1.c, k10t1.root.s, 9k10t1{,.elf}, 9k10cpu{,.elf}, errstr.h,
@@ -40,9 +43,10 @@
 # Env overrides:
 #   HARVEY   repo root (default: $PWD)
 #
-# Exit: 0 iff both kernels built, the venue kernel embeds exactly 43
-# root files, amd64/9k10t1.elf landed, the k10 tree is git-clean after
-# the trailing nuke, and the r9 leg's tier-set manifest is written.
+# Exit: 0 iff both kernels built, the venue kernel embeds exactly 47
+# root files (the 15-02 services growth), amd64/9k10t1.elf landed, the
+# k10 tree is git-clean after the trailing nuke, and the r9 leg's
+# tier-set manifest is written.
 
 set -eu
 
@@ -74,6 +78,17 @@ done
 # sudo: only the passwordless-sudo venue needs it (the 14-08 userns
 # venue below runs unprivileged); checked at the venue split
 [ -n "${PLAN9:-}" ] && [ -x "$PLAN9/bin/rc" ] || err "\$PLAN9/bin/rc missing — run inside the nix devshell (nix develop)"
+
+# 15-02: the phase build-tree lock — the kernel build embeds from the
+# untracked /amd64 tree and the same-wave tier drivers (15-04's
+# subset-build runs) hold this SAME lock for their whole runs (the
+# 15-01 coupling contract), so embed harvests and tier builds can never
+# interleave.  Held from here (before the embed staging reads /amd64)
+# to exit.
+command -v flock >/dev/null 2>&1 || err "flock not found — the amd64 build-tree lock needs util-linux flock"
+exec 9>"$HARVEY/.build/amd64-tree.lock"
+flock 9 || err "cannot acquire the amd64 build-tree lock"
+echo "== amd64 build-tree lock held: $HARVEY/.build/amd64-tree.lock"
 
 # the 06-02 idiom (D-02): the log greps below use -q/-E, which plan9
 # grep lacks — resolve a host grep once (never rely on PATH ordering
@@ -108,6 +123,29 @@ _sha1=$(sha1sum "$STAGE/sentinel.txt" | awk '{print $1}')
 [ "$_md5" = "6c3d57e94871f9606c5b63c315e76135" ] || err "sentinel md5 drift: $_md5 (want 6c3d57e94871f9606c5b63c315e76135) — tier1-sweep.rc's pinned assert would red in the guest"
 [ "$_sha1" = "893404a2c36b54f5c7874070d1acefe38f7ce652" ] || err "sentinel sha1 drift: $_sha1 (want 893404a2c36b54f5c7874070d1acefe38f7ce652)"
 echo "== staged: tier1-sweep.rc + nm-input.7 + sentinel.txt (digests pinned)"
+
+# --- 15-02 (USPACE-07): the services-sweep embed members ---------------
+# The donor venue's services leg: the committed sweep + the tier-2-built
+# /amd64/bin binaries it probes (the ONE build both venues consume —
+# run sh build/x86_64/subset-build.sh first).  Staged copies carry the
+# h* sweep vocabulary (the $B/h* idiom); the tcpNNNN members are the
+# listener's per-connection SERVICE programs (listen.c execs
+# servdir/<proto><port> — the staged-copy trick again: parse keys each
+# rootdir entry's C symbol name off the SOURCE path, so a second embed
+# NAME for the same source needs its own staged file, like rc/echo).
+SVC_SWEEP="$HARVEY/build/x86_64/services-sweep.rc"
+[ -f "$SVC_SWEEP" ] || err "services sweep missing: $SVC_SWEEP"
+cp "$SVC_SWEEP" "$STAGE/services-sweep.rc"
+svc_copy() {
+	[ -f "$HARVEY/$1" ] || err "services embed member missing: $HARVEY/$1 — run 'sh build/x86_64/subset-build.sh' first (the tier-2 build)"
+	cp "$HARVEY/$1" "$STAGE/$2"
+	magic=$(od -An -tx1 -N4 "$STAGE/$2" | tr -d ' \n')
+	[ "$magic" = "00008a97" ] || err "services embed member $2: bad magic $magic (want 00008a97 — amd64 S_MAGIC)"
+}
+svc_copy amd64/bin/mntgen hmntgen
+svc_copy amd64/bin/ndb/cs hcs
+svc_copy amd64/bin/ndb/csquery hcsquery
+echo "== staged: services-sweep.rc + 3 services members (magic-checked)"
 
 # the nvram rootdir stub (build/scripts/build:48-49's rule, host-side):
 # k10cpu's rootdir names ../root/nvram, which the full in-OS build
@@ -159,7 +197,7 @@ fi
 if [ "$fails" -eq 0 ]; then
 	N=$("$GREP" -c 'addbootfile("' k10t1.c)
 	echo "embedded root files: $N"
-	[ "$N" = 43 ] || { echo "error: embedded root file count $N != 43 (devroot.c's panic ceiling is 64; a missing stage file fails mk's prerequisite check first)" >&2; fails=1; }
+	[ "$N" = 47 ] || { echo "error: embedded root file count $N != 47 (devroot.c's panic ceiling is 64; a missing stage file fails mk's prerequisite check first)" >&2; fails=1; }
 fi
 # land the venue kernel in /amd64 (inside the namespace the repo root is
 # /; host-side that is $HARVEY/amd64/9k10t1.elf — gitignored via the
@@ -300,11 +338,12 @@ if [ ! -s "$HARVEY/amd64/9k10t1.elf" ]; then
 	tail -40 "$LOG" >&2
 	exit 1
 fi
-# the embedded-count line must be exactly 43 (re-asserted host-side from
+# the embedded-count line must be exactly 47 (the 43-entry tier-1 venue
+# embed + the 15-02 services-sweep members; re-asserted host-side from
 # the captured log — the in-namespace assert is the primary; this is the
 # driver's own record)
-if ! "$GREP" -q '^embedded root files: 43$' "$LOG"; then
-	echo "error: the build log lacks 'embedded root files: 43' — the venue embed count is wrong; last 40 lines:" >&2
+if ! "$GREP" -q '^embedded root files: 47$' "$LOG"; then
+	echo "error: the build log lacks 'embedded root files: 47' — the venue embed count is wrong; last 40 lines:" >&2
 	tail -40 "$LOG" >&2
 	exit 1
 fi

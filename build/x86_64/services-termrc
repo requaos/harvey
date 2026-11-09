@@ -1,0 +1,17 @@
+#!/bin/rc
+# services-termrc — the SERVICES image's /rc/bin/termrc (15-02, staged
+# for 15-03's bake): the tier-termrc shape with the sweep swapped — the
+# in-image services sweep (build/x86_64/services-sweep.rc baked at
+# /lib/services-sweep.rc) runs from the boot flow exactly as the DONOR
+# venue runs it (k10t1.rc's `rc -m /boot/rcmain -c '. /boot/
+# services-sweep.rc 9k'' — both venues run the sweep from the boot
+# flow, no typed interaction; the venue symmetry).  mkimage.sh's
+# services contract (15-03) stages THIS file as the image's
+# rc/bin/termrc; the chain/tier skeletons' termrc are untouched.
+#
+# The sweep runs in a CHILD rc (its trailing exit never kills init's
+# shell); the interactive %  prompt follows SVC-DONE.
+
+rc /lib/services-sweep.rc r9
+
+exec rc -i

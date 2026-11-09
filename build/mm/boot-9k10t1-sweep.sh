@@ -95,10 +95,32 @@
 #   stderr (06-10's CI step mirrors the digest into GITHUB_STEP_SUMMARY
 #   — D-16's self-print convention: runner logs are auth-gated).
 #
+# Marker contract, services arm (15-02, USPACE-07 — asserted on the SAME
+# 9k capture; the donor boot runs the services sweep after the tier-1
+# sweep, both from the boot flow):
+#   - the expected SVC-OK set is COMPUTED from the tier data (the
+#     probe-subject entries verified present in
+#     build/x86_64/tiers/tier2-services.txt — cmd/ndb is the resolver
+#     pair's home, cs+dns ride its members) and the subject list the
+#     committed services-sweep.rc actually probes;
+#   - the expected SVC-SKIP set is extracted verbatim from the sweep's
+#     own `echo SVC-SKIP' lines — never a second hardcoded list;
+#   - every expected subject needs a boundary-anchored `SVC-OK m' OR a
+#     declared `SVC-SKIP m'; the CONVERSE holds (an emitted SVC-SKIP
+#     outside the sweep's declared set reds);
+#   - zero SVC-FAIL; SVC-DONE present (the phase-B poll now waits for
+#     SVC-DONE — the boot's LAST marker, after T1-DONE).
+#
 # Accel: /dev/kvm writable → -accel kvm -cpu host; else TCG (-accel tcg
 # -cpu qemu64) with the larger budgets — probed EXACTLY ONCE per run and
 # recorded in the result file.  Capture-before-start: the log is
 # truncated, THEN qemu launches with -serial file: (no stale banner).
+#
+# 15-02: the phase build-tree lock — the harness boots the kernel the
+# shared /amd64 tree produced (and 15-04's same-wave subset-build runs
+# hold the SAME lock for their whole runs), so the 9k leg holds it from
+# launch to classification (the 15-01 coupling contract; skipped for
+# classify-only runs, which touch nothing shared).
 #
 # Boundary: amd64/9k + the x64 r9 leg.  aarch64 donor/r9 venues stay in
 # build/aarch64/.
@@ -118,6 +140,18 @@ LEG="${T1_LEG:-9k}"
 err() { echo "error: $*" >&2; exit 1; }
 
 [ -d "$HARVEY/sys/src" ] || err "$HARVEY does not look like the harvey checkout (missing sys/src)"
+
+# 15-02: the phase build-tree lock (see the header note) — held from
+# here to exit, EXCEPT classify-only runs (no qemu, no shared-tree
+# reads).  Blocking is by design: same-wave /amd64 writers serialize.
+CLASSIFY_ONLY="${T1_CLASSIFY_ONLY:-}"
+if [ -z "$CLASSIFY_ONLY" ]; then
+	command -v flock >/dev/null 2>&1 || err "flock not found — the amd64 build-tree lock needs util-linux flock"
+	mkdir -p "$HARVEY/.build"
+	exec 9>"$HARVEY/.build/amd64-tree.lock"
+	flock 9 || err "cannot acquire the amd64 build-tree lock"
+	echo "== amd64 build-tree lock held: $HARVEY/.build/amd64-tree.lock"
+fi
 
 # Resolve a host grep once (the 06-02 idiom, D-02): the greps below need
 # -q/-E, which plan9 grep lacks — but a hardcoded /usr/bin/grep breaks on
@@ -158,6 +192,40 @@ compute_expected() {
 	echo "$EXPECTED float-d01 selfhost-compile selfhost libtest-tdraw libtest-disktest"
 }
 
+# 15-02: the services-sweep expected SKIP set, extracted VERBATIM from
+# the committed sweep's own `echo SVC-SKIP' lines (the r9-arm rule,
+# carried; catches a stale embedded sweep diverging from the committed
+# one).  The donor sweep declares its conditional SKIPs as literal
+# `echo SVC-SKIP <name>' lines inside probe arms — this reads exactly
+# those.
+compute_svc_skip() {
+	"$GREP" -oE '(^|[[:space:]])echo SVC-SKIP [A-Za-z0-9.-]+' "$HARVEY/build/x86_64/services-sweep.rc" \
+		| awk '{print $NF}' | sort -u
+}
+
+# 15-02: the services-sweep expected OK set — COMPUTED from the tier
+# data (the probe-subject entries verified present; never a second
+# hardcoded membership): each subject names the tier entry it rides
+# (cmd/ndb is the resolver pair's home — cs + dns are its probe
+# subjects), factotum rides the TIER-1 line (cmd/auth/factotum:factotum
+# — never a tier-2 member).  Grows with the sweep's probe set (the
+# committed sweep is the probe record).
+SVC_T2="$HARVEY/build/x86_64/tiers/tier2-services.txt"
+SVC_T1="$HARVEY/build/x86_64/tiers/tier1-cmds.txt"
+compute_svc_expected() {
+	for e in cmd/mntgen cmd/ndb; do
+		"$GREP" -q "^$e[[:space:]#]" "$SVC_T2" || err "svc expectation: tier-2 data lacks the probe-subject entry $e"
+	done
+	echo "mntgen cs"
+}
+
+in_svcskip() {
+	case " $(compute_svc_skip | tr '\n' ' ') " in
+	*" $1 "*) return 0 ;;
+	esac
+	return 1
+}
+
 # in_whitelist <name>: fixed-list membership (space-padded exact word)
 in_whitelist() {
 	case " $SKIPLIST " in
@@ -192,9 +260,13 @@ classify_log() {
 	_fails=0
 	_missing=""
 	_badskip=""
+	_badsvcskip=""
 	_ok=0
 	_skip=0
 	_skiplibtest=0
+	_svcok=0
+	_svcskip=0
+	_nsvcfail=0
 	for m in $(compute_expected); do
 		if "$GREP" -qE 'T1-OK '"$m"'([^A-Za-z0-9.-]|$)' "$_norm"; then
 			_ok=$((_ok + 1))
@@ -220,6 +292,38 @@ classify_log() {
 		fi
 	done
 
+	# 15-02: the services-sweep contract on the same capture — the
+	# computed OK set (boundary-anchored), the SKIP set both directions,
+	# zero SVC-FAIL, SVC-DONE present
+	for m in $(compute_svc_expected); do
+		if "$GREP" -qE 'SVC-OK '"$m"'([^A-Za-z0-9.-]|$)' "$_norm"; then
+			_svcok=$((_svcok + 1))
+			continue
+		fi
+		if in_svcskip "$m" && "$GREP" -qE 'SVC-SKIP '"$m"'([^A-Za-z0-9.-]|$)' "$_norm"; then
+			_svcskip=$((_svcskip + 1))
+			continue
+		fi
+		_missing="$_missing svc:$m"
+		_fails=1
+	done
+	for s in $("$GREP" -oE 'SVC-SKIP [A-Za-z0-9.-]+' "$_norm" | awk '{print $2}' | sort -u); do
+		if ! in_svcskip "$s"; then
+			_badsvcskip="$_badsvcskip $s"
+			_fails=1
+		fi
+	done
+	if "$GREP" -q 'SVC-FAIL' "$_norm"; then
+		_nsvcfail=$("$GREP" -c 'SVC-FAIL' "$_norm" || true)
+		_fails=1
+	fi
+	if "$GREP" -q 'SVC-DONE' "$_norm"; then
+		:
+	else
+		_missing="$_missing svc:SVC-DONE"
+		_fails=1
+	fi
+
 	_nfail=0
 	if "$GREP" -q 'T1-FAIL' "$_norm"; then
 		_nfail=$("$GREP" -c 'T1-FAIL' "$_norm" || true)
@@ -241,11 +345,13 @@ classify_log() {
 		echo "== T1-VENUE-FAIL" >&2
 		[ -z "$_missing" ] || echo "   missing markers:$_missing" >&2
 		[ -z "$_badskip" ] || echo "   unwhitelisted T1-SKIP names:$_badskip" >&2
+		[ -z "$_badsvcskip" ] || echo "   undeclared SVC-SKIP names:$_badsvcskip" >&2
 		[ "$_nfail" = 0 ] || echo "   T1-FAIL lines: $_nfail" >&2
+		[ "$_nsvcfail" = 0 ] || echo "   SVC-FAIL lines: $_nsvcfail" >&2
 		[ -z "$_fault" ] || echo "   kernel fault lines present (panic|trap:)" >&2
 		[ "$_done" = yes ] || echo "   T1-DONE absent (the sweep did not run to completion)" >&2
 		echo "   marker-state digest:" >&2
-		"$GREP" -oE 'T1-(OK|FAIL|SKIP) [A-Za-z0-9.-]+|T1-DONE' "$_norm" >&2 || true
+		"$GREP" -oE 'T1-(OK|FAIL|SKIP) [A-Za-z0-9.-]+|T1-DONE|SVC-(OK|FAIL|SKIP) [A-Za-z0-9.-]+|SVC-DONE' "$_norm" >&2 || true
 		echo "   last 40 lines of $_log:" >&2
 		tail -40 "$_norm" >&2
 		{
@@ -254,6 +360,9 @@ classify_log() {
 			echo "skip=$_skip"
 			echo "fail=$_nfail"
 			echo "done=$_done"
+			echo "svc_ok=$_svcok"
+			echo "svc_skip=$_svcskip"
+			echo "svc_fail=$_nsvcfail"
 			echo "accel=$_accel"
 			echo "kernel=$KERNEL"
 			echo "log=$_log"
@@ -272,15 +381,20 @@ classify_log() {
 		echo "skip_libtest=$_skiplibtest"
 		echo "fail=0"
 		echo "done=$_done"
+		echo "svc_ok=$_svcok"
+		echo "svc_skip=$_svcskip"
+		echo "svc_fail=0"
 		echo "accel=$_accel"
 		echo "kernel=$KERNEL"
 		echo "log=$_log"
 		echo "commit=$COMMIT"
 		echo "date=$DATE"
 	} > "$RESULT"
-	echo "== T1-VENUE-PASS ok=$_ok skip=$((_skip - _skiplibtest))+$((_skiplibtest))libtest fail=0 done=yes accel=$_accel commit=$COMMIT"
+	echo "== T1-VENUE-PASS ok=$_ok skip=$((_skip - _skiplibtest))+$((_skiplibtest))libtest fail=0 done=yes svc=$_svcok/$_svcskip ok/skip fail=0 accel=$_accel commit=$COMMIT"
 	echo "   ok markers (D-16 self-print — the capture is the authority, this is the runner-visible digest):"
 	"$GREP" -oE 'T1-OK [A-Za-z0-9.-]+' "$_norm" | sort -u
+	echo "   services ok markers (D-16 self-print):"
+	"$GREP" -oE 'SVC-(OK|SKIP) [A-Za-z0-9.-]+' "$_norm" | sort -u
 	echo "   result file: $RESULT"
 	rm -f "$_norm"
 	return 0
@@ -621,20 +735,24 @@ run_9k_leg() {
 		elapsed=$((elapsed + 5))
 	done
 
-	# Phase B: poll for T1-DONE within the sweep budget; early-break on the
-	# poolpanic harness's signature set (the FAIL is then locked at classify
-	# time) or if qemu dies.
+	# Phase B: poll for SVC-DONE within the sweep budget — the boot's
+	# LAST marker (15-02: the services sweep runs after the tier-1
+	# sweep, so SVC-DONE implies T1-DONE landed; T1-DONE stays
+	# independently asserted at classify time).  Early-break on the
+	# poolpanic harness's signature set (the FAIL is then locked at
+	# classify time), a classified SVC-FAIL, or if qemu dies.
 	if [ "$found" -eq 0 ]; then
 		echo "== banner captured at ${elapsed}s — sweeping (budget ${SWEEP_BUDGET}s)"
 		celapsed=0
 		while [ "$celapsed" -lt "$SWEEP_BUDGET" ]; do
-			if "$GREP" -q 'T1-DONE' "$LOG" 2>/dev/null; then
-				echo "== T1-DONE observed at +${celapsed}s"
+			if "$GREP" -q 'SVC-DONE' "$LOG" 2>/dev/null; then
+				echo "== SVC-DONE observed at +${celapsed}s"
 				break
 			fi
 			if "$GREP" -qF 'bad magic' "$LOG" 2>/dev/null || \
 			   "$GREP" -qF 'panic' "$LOG" 2>/dev/null || \
-			   "$GREP" -qF 'suicide: sys: trap' "$LOG" 2>/dev/null; then
+			   "$GREP" -qF 'suicide: sys: trap' "$LOG" 2>/dev/null || \
+			   "$GREP" -qF 'SVC-FAIL' "$LOG" 2>/dev/null; then
 				echo "== signature line observed at +${celapsed}s"
 				break
 			fi

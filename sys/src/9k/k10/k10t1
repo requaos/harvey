@@ -14,7 +14,12 @@
 # zero venue benefit.  The deliberate deltas vs k10cpu are ONLY:
 #   rootdir — the 43-entry venue embed set below (35 swept h* binaries
 #             + rc/echo/bind/rcmain + the boot script + 5 staged files;
-#             devroot.c's Nbootfiles is raised 32 -> 64 for this).
+#             devroot.c's Nbootfiles is raised 32 -> 64 for this)
+#             grown by 15-02 (USPACE-07) with the services-sweep embed:
+#             the sweep itself + the tier-2-built services binaries it
+#             probes (staged h* copies + the tcpNNNN listener service
+#             programs — 57 entries at the full leg; still under the
+#             63-addbootfile capacity of Nbootfiles=64).
 #             NOTE: rc and echo embed under TWO names each (hrc+rc,
 #             hecho+echo — the sweep's $B/h* vocabulary plus the boot
 #             chain's bare-name resolution).  parse keys each entry's C
@@ -99,6 +104,10 @@ misc +dev
 boot cpu
 	tcp
 
+# 15-02 (USPACE-07): the rootdir growth below (services-sweep.rc + the
+# h* members + the tcpNNNN listener service programs) — parse takes
+# entries ONLY inside the rootdir section (no comment lines there), and
+# the section itself never reorders: appends land at the tail.
 rootdir
 	/amd64/bin/echo hecho
 	/amd64/bin/ls hls
@@ -143,6 +152,10 @@ rootdir
 	./.tier1-stage/tier1-sweep.rc tier1-sweep.rc
 	./.tier1-stage/sentinel.txt sentinel.txt
 	./.tier1-stage/nm-input.7 nm-input.7
+	./.tier1-stage/services-sweep.rc services-sweep.rc
+	./.tier1-stage/hmntgen hmntgen
+	./.tier1-stage/hcs hcs
+	./.tier1-stage/hcsquery hcsquery
 
 conf
 	int cpuserver = 1;

@@ -46,6 +46,13 @@ echo -n sys > '#c/hostowner'
 # the command.
 rc -m /boot/rcmain -c '. /boot/tier1-sweep.rc 9k'
 
+# 15-02 (USPACE-07): the services sweep — the D-02/D-08 functional
+# probes (the committed build/x86_64/services-sweep.rc, embedded) — in
+# the same child-rc shape, after the tier-1 sweep.  Same rules: the
+# child's trailing exit never kills init, and the sweep is sourced from
+# the boot flow, never typed.
+rc -m /boot/rcmain -c '. /boot/services-sweep.rc 9k'
+
 # init must never exit (an exiting init panics the kernel and would foul
 # the harness's zero-fault-lines assertion with a post-DONE panic line)
 # — k10root.rc:114's idiom.
