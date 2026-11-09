@@ -5,11 +5,11 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 13
 current_phase_name: Harvey amd64 Userspace on r9
 status: executing
-stopped_at: "14-06 INCOMPLETE after the authorized cycle (two more fixes landed; the corruption refined to a mapping-divergence signature with ranked hypotheses) — next: audit pml4_map/unmap_user index derivation + the [510]/[511] copy; then drive q35shell green twice"
-last_updated: "2026-11-09T03:44:57.451Z"
+stopped_at: "14-06 INCOMPLETE after cycle 3 (H1/H3 eliminated; the paqfs torn-tail/dead-server thread is the new primary; dump fixed) — next: pid-keyed pipe probes, then q35shell green twice"
+last_updated: "2026-11-09T04:14:02.948Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 14 execution started
-state_head: 2f2142f8ba885c4693c4d73f8f68fcaa22fd8e1b
+state_head: a91137fcdfdeb8c603de10a2800438f038b81d13
 progress:
   total_phases: 2
   completed_phases: 1
@@ -124,6 +124,7 @@ None yet.
 - aarch64 is FROZEN at the v2.0 pin — all v2.1 work keys to x86_64; do not "fix" aarch64 paths in passing
 - raspi3b-on-qemu-11.1.2 boot defect — accepted (pre-existing, A/B-proven not-a-regression); tracked in PROJECT.md Active
 - 14-06 STILL INCOMPLETE after the authorized fix cycle: the chain reached init's rc handoff with SIX total kernel/userland fixes landed (conforming-ktext delivery, AX/Tos seed, eager stack+Tos placement, eager brk, embed.c waitpid, preempt-park; + the device-MMIO alias window r9@c166164) — but one deterministic corruption remains: CURRENT_PROC reads as &SCHED_CONTEXT in init's fork window, with hard evidence pointing at a per-proc CR3 mapping divergence (divergent back-to-back loads; no store path, no swtch site, no watchpoint hit) — three ranked hypotheses + working instrumentation recorded in 14-06-SUMMARY Known Issues; full regression battery green at r9@c166164
+- 14-06 INCOMPLETE after authorized cycle 3 (stop rule): H1 (PML4 walk/kernel-half copy) ELIMINATED by audit + a never-firing memory-side probe in Deref; H3 (window-VA TLB) ELIMINATED architecturally (no PCID/PTE_G — CR3 write flushes); H2 (trap frame via garbage RSP) UNPROVEN — the panic location/format machinery provably prints stale registers (cold-block merging), blocking per-site confirmation; NEW probe-evidenced primary thread: the userland paqfs 9P server dies mid-chain on a TORN MESSAGE TAIL (read9pmsg short-body; a 3-byte orphan in its stdin queue with no misframed writer — suspect queue-lifetime/qreopen dropping in-flight bytes), rc's exec then parks on the dead mount (idle wedge) and the wedge dump crashed on a garbage parent (FIXED r9@a82d5a0); next probe: pid-keyed memory-side records in devpipe write/drain; regression battery green at r9@a82d5a0
 
 ## Deferred Items
 
@@ -136,6 +137,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-09T03:44:57.408Z
-Stopped at: 14-06 INCOMPLETE after the authorized cycle (two more fixes landed; the corruption refined to a mapping-divergence signature with ranked hypotheses) — next: audit pml4_map/unmap_user index derivation + the [510]/[511] copy; then drive q35shell green twice
+Last session: 2026-11-09T04:14:02.874Z
+Stopped at: 14-06 INCOMPLETE after cycle 3 (H1/H3 eliminated; the paqfs torn-tail/dead-server thread is the new primary; dump fixed) — next: pid-keyed pipe probes, then q35shell green twice
 Resume file: None
