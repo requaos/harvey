@@ -325,13 +325,18 @@ if not echo SVC-FAIL factotum
 # venue lifetime: nothing after this probe opens /dev/cons fresh (the
 # sweep's markers ride already-open fds; no unmount binary embedded).
 # The interaction: hmkdir's DMDIR create through the mounted fs
-# installs a probe user AND triggers writeusers — the write-back
-# materializes the absent keyfile (observable in /env).
+# installs a probe user — keyfs's Create handler itself calls
+# writeusers() (the write-back-on-create), and the server child's
+# RFENVG means the keyfile it writes lands in the child's PRIVATE env
+# copy (measured: unobservable in the parent's /env) — so the honest
+# observable is the USER DIRECTORY standing through the mount after
+# the create.
 if(! $B/htest -e /env/svckeys){
 	if(bind /boot/sentinel.txt /dev/cons){
 		if($B/hkeyfs -m /mnt/keys /env/svckeys){
 			if($B/hmkdir /mnt/keys/probeuser){
-				if($B/htest -e /env/svckeys) echo SVC-OK keyfs
+				kuout=`{$B/hls -ld /mnt/keys/probeuser}
+				if(~ $"kuout d*) echo SVC-OK keyfs
 				if not echo SVC-FAIL keyfs
 			}
 			if not echo SVC-FAIL keyfs
