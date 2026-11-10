@@ -33,9 +33,9 @@
 
 ### Userspace Tiers on amd64 (USPACE — continuing v2.0 numbering, re-keyed)
 
-- [ ] **USPACE-07**: Session daemons + services compile and execute: aux/listen, mntgen, ndb/cs+dns, exportfs, ip/ suite, auth/ suite (~80 files) — on the k10t1 (9k amd64) venue, then r9-x86_64
-- [ ] **USPACE-08**: GUI stack compiles for amd64 (libdraw family + rio + acme + sam + plumb) and donor-kernel syscall traces for rio/acme/sam are captured (measure-first input for r9 kernel growth)
-- [ ] **USPACE-09**: Long tail compiles for amd64: upas + lp + remaining cmd dirs; fossil + venti compile-gated (runtime-unverifiable — no block device in r9); gs included
+- [x] **USPACE-07**: Session daemons + services compile and execute: aux/listen, mntgen, ndb/cs+dns, exportfs, ip/ suite, auth/ suite (~80 files) — on the k10t1 (9k amd64) venue, then r9-x86_64
+- [x] **USPACE-08**: GUI stack compiles for amd64 (libdraw family + rio + acme + sam + plumb) and donor-kernel syscall traces for rio/acme/sam are captured (measure-first input for r9 kernel growth)
+- [x] **USPACE-09**: Long tail compiles for amd64: upas + lp + remaining cmd dirs; fossil + venti compile-gated (runtime-unverifiable — no block device in r9); gs included
 
 ### r9 TCP/IP Path — exit gate (NETIP — continuing)
 
@@ -72,7 +72,7 @@
 
 - [ ] **DESK-01**: Flake drawterm app: provenance decision recorded; wrapper pins `-O`, scrubs `$cpu`/`$auth`/`$PASS`, prints the exact connect line
 - [ ] **DESK-02**: profile `case cpu` binds /mnt/term/dev over /dev and execs rio (serial marker proves rio did NOT start at boot)
-- [ ] **DESK-03**: `/lib/font/bit/*` + glenda-style lib/profile + `/lib/ndb/local` template staged in bootfs with manifest assertions
+- [x] **DESK-03**: `/lib/font/bit/*` + glenda-style lib/profile + `/lib/ndb/local` template staged in bootfs with manifest assertions
 - [ ] **DESK-04**: r9 devssl `#D` (rc4_256/sha1) for encrypted sessions via pushssl; `-e clear` documented fallback (stronger crypto is PROTOCOL-blocked — the hardening milestone)
 - [ ] **DESK-05**: plumb/plumber runs in the drawterm session
 - [ ] **DESK-06**: `-G` text-mode drawterm interop gate in CI via hostfwd (scripted login → shell marker)
@@ -130,10 +130,10 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | XEXEC-03 | Phase 14 | Complete |
 | XEXEC-04 | Phase 14 | Complete |
 | XEXEC-05 | Phase 14 | Complete |
-| USPACE-07 | Phase 15 | Pending |
-| USPACE-08 | Phase 15 | Pending |
-| USPACE-09 | Phase 15 | Pending |
-| DESK-03 | Phase 15 | Pending |
+| USPACE-07 | Phase 15 | Complete |
+| USPACE-08 | Phase 15 | Complete |
+| USPACE-09 | Phase 15 | Complete |
+| DESK-03 | Phase 15 | Complete |
 | HNET-01 | Phase 16 | Pending |
 | HNET-02 | Phase 16 | Pending |
 | HNET-03 | Phase 16 | Pending |

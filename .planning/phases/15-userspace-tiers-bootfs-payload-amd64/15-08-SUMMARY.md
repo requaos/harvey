@@ -83,7 +83,7 @@ coverage:
     requirement: DESK-03
     verification:
       - kind: command
-        ref: "both Task-3 verifies PASS verbatim: the four requirement IDs + flagged-assumption + gate-marker greps, and all 23 distinct cited evidence paths resolve on disk; every marker claim re-checked against its capture (SCV-DONE x5, SCRIPT-DONE x3, DRAWTEST/ARCTEST-OK, GS-RENDER-OK + GS-BITS 43269, 702/702 build=ok) — stale-record and console-verdict cases called out explicitly rather than glossed"
+        ref: "both Task-3 verifies PASS verbatim: the four requirement IDs + flagged-assumption + gate-marker greps, and all 23 distinct cited evidence paths resolve on disk; every marker claim re-checked against its capture (SVC-DONE x5, SCRIPT-DONE x3, DRAWTEST/ARCTEST-OK, GS-RENDER-OK + GS-BITS 43269, 702/702 build=ok) — stale-record and console-verdict cases called out explicitly rather than glossed"
         status: pass
       - kind: command
         ref: "the phase-close regression re-runs at the advanced pin af52fee: services (final), tier-1 (38 T1-OK / zero SKIP), net-smoke (ALL STAGES, NOT-L2-TRUTH live), smoke (ALL STAGES) — all exit 0, captures retained; r9 battery q35exec/q35shell/q35/q35net/aarch64-virt PASS + port 101/101 + FOD green at the clean committed rev"

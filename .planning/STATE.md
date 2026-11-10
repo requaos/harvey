@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 15
 current_phase_name: Userspace Tiers + Bootfs Payload (amd64)
 status: executing
-stopped_at: Completed 15-07-PLAN.md (green DIRS-coverage proof + tier4 + gs render smoke; continuation of an interrupted executor)
-last_updated: "2026-11-10T18:09:12.553Z"
+stopped_at: Completed 15-08-PLAN.md (DESK-03 payload staged + 15-EVIDENCE.md; Phase 15 plans 9/9 — ready for phase verification)
+last_updated: "2026-11-10T19:38:46.008Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 15 execution started
-state_head: 149bbb7af8deb4fd9bf6ad7b6442f55677f1da11
+state_head: 3af226adc2b872bd2145a72d5e8684535ef1b16d
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 24
-  completed_plans: 23
+  completed_plans: 24
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 15 (Userspace Tiers + Bootfs Payload (amd64)) — EXECUTING
-Plan: 8 of 9   # pointer corrected after 15-04 ran out of wave order (04 before 03): 15-01/02/04 summarized; 15-03 is the next unsummarized plan
+Plan: 9 of 9   # pointer corrected after 15-04 ran out of wave order (04 before 03): 15-01/02/04 summarized; 15-03 is the next unsummarized plan
 Status: Ready to execute
 Last activity: 2026-11-09 — Phase 15 execution started
 
@@ -78,6 +78,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 15 P09 | 11 min | 3 tasks | 5 files |
 | Phase 15 P06 | 146 min | 3 tasks | 18 files |
 | Phase 15 P07 | ~50 min continuation (wall <=3h44m; interrupted mid-Task-2) | 3 tasks | 17 files |
+| Phase 15 P08 | 77 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -158,6 +159,9 @@ Recent decisions affecting current work:
 - [Phase 15]: [15-07] The amd64 DIRS-coverage proof is green and full-set (702 rows, zero not-ok, 1353 VISIT/EXIT): 7 failures are re-derived upstream-disabled/dead-tool exclusions recorded as named tier4 '# exclude:' comments with measured digests (postscript's '# UNIX remnants' five, tcs/font, games/blabs) — the sweep never visits them and a stale exclusion fails the run; the aarch64 'x86-hardware-only' aux class is re-derived as amd64 MEMBERS; sys/src/cmd/games does not exist in this tree
 - [Phase 15]: [15-07] mkpaqfs silently DROPS any file past blocksize^2/4 (4 MiB at the 4096 default — warn, exit 0): the gs bake uses -b 16384 with an arithmetic fit assert and fails on any mkpaqfs diagnostic (every other bake script is unprotected — phase deferred item); Harvey's rc lexer ends a word at every bare '=' (single-quote =-bearing argv in guest scripts — plan9port's rc hides the class); and a second recipe for a target mkone already defines (clean:V:) is mk 'ambiguous recipes' — extend by prerequisite, never by recipe
 - [Phase 15]: [15-07] gs renders headless on the donor venue: the FILE device is ppmraw (gdevpbm is in this build's link set, gdevbit is not), its init chain needs the non-.ps config tables xlatmap + FAPIconfig beyond the *.ps library (measured-minimal staging; zero font payloads anywhere), and GS-BITS 43269 is the recorded bitmap size at -m 1024; fossil + venti are compile-gated only — runtime-unverifiable until r9 has a block device (virtio-blk, future milestone)
+- [Phase 15]: [15-08] The DESK-03 payload is a DECLARE-by-invocation mkimage section (stage_payload + the committed bootfs-payload.txt manifest: [paths]/[fonts]/[floors] consumed by name) and the SERVICES contract declares it — the whole lib/font/bit tree as a bake-time copy with a staged==source count check, /lib/ndb/local sed-substituted from the token template through the netaddr seam (both-direction asserts), and the D-17 profile shape asserted on the staged file (terminal case rio-free, cpu case intact); every assert class is proven by a doctored-input negative control
+- [Phase 15]: [15-08] r9's boot-module stash is now 64 MiB (was 8): the font-carrying services paq is ~26.5MB and the 8 MiB clamp panicked the stash-length reconciliation at the EARLY check's first boot — venue -m was never the limit (a fixed .bss cap); fixed under D-01 at r9 236d5a7 with the FOD re-wired at af52fee (pin eba6b07e2); A3's <=15MB font-deflate guess is falsified (~18.8MB measured); every r9 gate re-greened at the new pin (services/tier-1/net-smoke/smoke)
+- [Phase 15]: [15-08] The tier witness is tree-history-sensitive for the yacc-grammar directory entries (rc/grep/awk): this plan's first tier build produced different bytes for exactly those three once (the tree had matched the pinned digests before it), then every later build reproduced the pinned digests byte-for-byte — measured, cause undetermined — re-pin order is tier-driver-THEN-build-9k10t1.sh (root cause open, phase deferred item); and the expect gates' panic fast-fail truncates the kernel's panic text mid-line (deferred item)
 
 ### Pending Todos
 
@@ -180,6 +184,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-10T18:09:12.466Z
-Stopped at: Completed 15-07-PLAN.md (green DIRS-coverage proof + tier4 + gs render smoke; continuation of an interrupted executor)
+Last session: 2026-11-10T19:38:45.889Z
+Stopped at: Completed 15-08-PLAN.md (DESK-03 payload staged + 15-EVIDENCE.md; Phase 15 plans 9/9 — ready for phase verification)
 Resume file: None

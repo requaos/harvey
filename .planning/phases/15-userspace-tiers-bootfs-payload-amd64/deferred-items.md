@@ -22,8 +22,10 @@ live this plan; worked around in-plan — the fixes own later plans):
   re-pinned from the one-off bytes and the next gate run re-reded —
   the working order is driver-then-pin).
   status: open
-  **What:** the tier driver's first run after a foreign build route
-  produces different bytes for cmd/{rc,grep,awk}; root cause open.
+  **What:** one tier-driver run produced different bytes for
+  cmd/{rc,grep,awk} from identical sources (then converged); whether
+  a prior build route's leftover state caused it is unestablished —
+  root cause open.
 
 - build/x86_64/tier1.ledger still carries its two 14-08-era
   `exec=SKIP:r9x64-…` rows (ipconfig no-devrandom, factotum
