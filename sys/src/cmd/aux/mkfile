@@ -61,11 +61,16 @@ ALLDIRS=mnihongo\
 # multi-file call (uniformity with the other five filter sites — the
 # ^cmd/aux anchors match no GUI entry; one file set everywhere is the
 # established pattern, so a future aux member can live in any tier).
+# 15-07 (USPACE-09): the four-file union — tier4's first aux members
+# land here: the 'x86-hardware-only' aarch64 exclusion class re-derived
+# as amd64 MEMBERS (aux/vga, aux/realemu, aux/na, aux/gps, aux/mnihongo,
+# aux/flashfs all compile natively, measured by the coverage proof).
 TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt
 TIER2A=$HARVEY/build/x86_64/tiers/tier2-services.txt
 TIER3A=$HARVEY/build/x86_64/tiers/tier3-gui.txt
-T2KEEPTA=`{awk '/^cmd\/aux:/{ sub(/^cmd\/aux:/,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A}
-T2KEEPDA=`{awk '/^cmd\/aux\//{ sub(/^cmd\/aux\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A}
+TIER4A=$HARVEY/build/x86_64/tiers/tier4-tail.txt
+T2KEEPTA=`{awk '/^cmd\/aux:/{ sub(/^cmd\/aux:/,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A $TIER4A}
+T2KEEPDA=`{awk '/^cmd\/aux\//{ sub(/^cmd\/aux\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A $TIER4A}
 
 TARG=`{if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T2KEEPTA) echo $i; if not echo $ALLTARG}
 DIRS=`{if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T2KEEPDA) echo $i; if not echo $ALLDIRS}

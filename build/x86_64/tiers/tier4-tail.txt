@@ -1,0 +1,175 @@
+# tier4-tail.txt — 15-07 append-only amd64 long-tail allowlist (USPACE-09;
+# D-09's proof is this tier's gate, D-12's per-class data discipline).
+#
+# Plain data, one entry per line, sys/src-relative.  Consumers: the
+# objtype-gated mk filters' amd64 arms (sys/src/mkfile CMDS/SUBSYS,
+# sys/src/cmd/mkfile TARG/DIRS, the container mkfiles cmd/ip, cmd/auth,
+# cmd/auth/factotum, and the aux leaf in cmd/aux — all six reading the
+# tier1+tier2+tier3+tier4 UNION in one multi-file awk through the
+# $HARVEY-absolute path).  No tier-4 driver loop exists in
+# subset-build.sh BY DESIGN: this tier's compile evidence is the D-09
+# machine-verified coverage proof (build/x86_64/dir-coverage.txt — every
+# row build=ok), which covers these dirs, every cmd-root single, and the
+# mkmany container members the drivers never dispatched.
+#
+# APPEND-ONLY: growth is appending a line.  Never reorder, edit, or
+# delete existing lines.  A quiet trim to reach green is gate fraud
+# (D-12); a compile failure inside the membership is root-caused and
+# fixed in-tree (D-10), never a dropped member.
+#
+# Entry forms (the tier1 grammar): cmd/<dir> whole-dir entries here (the
+# long tail is dir-shaped; the singles stay tier-1/2/3 members pending
+# their own per-entry gates — the coverage proof compiles them all
+# regardless, COVERAGE_SWEEP=1 certifies the whole tree).
+#
+# Keep-rule (uniform across all six filter mkfiles): a candidate survives
+# iff its name is the first path component after that mkfile's prefix in
+# some entry below (cmd/upas keeps upas; the aux leaf keeps only its
+# listed subdirs).  `#` lines and trailing comments never match.
+#
+# Membership provenance: the coverage inventory's full ok set minus the
+# tier1/2/3 membership — 112 cmd dirs + the 6 aux subdirs (the
+# 'x86-hardware-only' aarch64 exclusion class RE-DERIVED as members:
+# aux/vga, aux/realemu et al compile natively on amd64, measured).
+# sys/src/cmd/unix is not a member and needs no exclusion: it carries no
+# mkfile (cmd/mkfile's BUGGERED=unix class — the vendored host tooling,
+# built host-side by nix/toolchain.sh, never a target).
+#
+# The games ROOT (sys/src/games, a sibling of cmd in sys/src/mkfile's
+# ALLCMDS — sys/src/cmd/games does not exist in this tree, the aarch64
+# plan's named fact re-verified) stays outside the default amd64 build
+# surface this phase exactly as tier-1 recorded it: the coverage proof
+# visits and proves every games dir anyway (mahjongg mp3dec mp3enc
+# music sokoban sudoku build=ok), and default-surface membership is a
+# future plan's gated append, never a silent sweep-in.
+#
+# --- the re-derived exclusion record (D-10: every exclusion re-derived
+#     against the ACTUAL amd64 tree with its measured reason — carried
+#     from aarch64 unexamined is forbidden; these are the coverage
+#     sweep's own digests, not inherited labels) ---
+# exclude: sys/src/cmd/postscript/picpack upstream-disabled (commented out of postscript/mkfile's TARGETS; unix-era code: the pcc cpp cascade dies in its own grammar directives)
+# exclude: sys/src/cmd/postscript/postbgi upstream-disabled (same TARGETS class; the link wants ../common/*.6 objects no recursion ever staged)
+# exclude: sys/src/cmd/postscript/postdaisy upstream-disabled (same TARGETS class; same missing ../common/*.6)
+# exclude: sys/src/cmd/postscript/postdmd upstream-disabled (same TARGETS class; same missing ../common/*.6)
+# exclude: sys/src/cmd/postscript/postmd upstream-disabled (same TARGETS class + real type errors: postmd.c IND CHAR/INT AS at :788 and :1123)
+# exclude: sys/src/cmd/tcs/font dead mkfile (no `all` target; links -lg which does not exist in this tree; tcs itself never recurses into font)
+# exclude: sys/src/games/blabs dead toolchain (mkface drives fb/enc2bit — sys/src/cmd/fb does not exist in this tree; commented out of games/mkfile's DIRS upstream)
+#
+cmd/4a
+cmd/4c
+cmd/4l
+cmd/5a
+cmd/5c
+cmd/5i
+cmd/5l
+cmd/6a
+cmd/6c
+cmd/6l
+cmd/7a
+cmd/7c
+cmd/7l
+cmd/8a
+cmd/8c
+cmd/8l
+cmd/9660srv
+cmd/9a
+cmd/9c
+cmd/9l
+cmd/9nfs
+cmd/abaco
+cmd/acid
+cmd/aquarela
+cmd/astro
+cmd/aux/flashfs
+cmd/aux/gps
+cmd/aux/mnihongo
+cmd/aux/na
+cmd/aux/realemu
+cmd/aux/vga
+cmd/bzip2
+cmd/cb
+cmd/cc
+cmd/cdfs
+cmd/cec
+cmd/cfs
+cmd/cifs
+cmd/compress
+cmd/con
+cmd/cpp
+cmd/cwfs
+cmd/db
+cmd/dict
+cmd/diff
+cmd/disk
+cmd/dossrv
+cmd/eqn
+cmd/execnet
+cmd/ext2srv
+cmd/faces
+cmd/fax
+cmd/fossil	# compile-gated; runtime-UNVERIFIABLE this milestone: no block device in r9 (virtio-blk is a future milestone) — a committed note, never a silent gap
+cmd/fscfs
+cmd/git
+cmd/go
+cmd/grap
+cmd/graph
+cmd/gs	# the 753-file LP64-fossil habitat, compiled through the stock pcc route; the D-11 render smoke is its execution proof (15-07 Task 3)
+cmd/gzip
+cmd/hoc
+cmd/htmlfmt
+cmd/htmlroff
+cmd/ia
+cmd/ic
+cmd/il
+cmd/iostats
+cmd/jpg
+cmd/jtagfs
+cmd/ka
+cmd/kc
+cmd/ki
+cmd/kl
+cmd/ld
+cmd/lex
+cmd/lp	# the print spooler (pcc/APE class)
+cmd/lzip
+cmd/map
+cmd/mk
+cmd/pic
+cmd/plot
+cmd/postscript
+cmd/ptrace
+cmd/qa
+cmd/qc
+cmd/qi
+cmd/ql
+cmd/ramcfs
+cmd/ratfs
+cmd/replica
+cmd/scat
+cmd/scuzz
+cmd/snap
+cmd/spell
+cmd/spin
+cmd/srvold9p
+cmd/ssh1
+cmd/ssh2
+cmd/syscall
+cmd/tapefs
+cmd/tarsplit
+cmd/tbl
+cmd/tcs
+cmd/telco
+cmd/troff
+cmd/troff2html
+cmd/upas	# the mail suite (whole container: 16 members + the fs/ml/smtp subtrees)
+cmd/usb
+cmd/va
+cmd/vac
+cmd/vc
+cmd/venti	# compile-gated; runtime-UNVERIFIABLE this milestone: no block device in r9 (virtio-blk is a future milestone) — a committed note, never a silent gap
+cmd/vi
+cmd/vl
+cmd/vnc
+cmd/vt
+cmd/webfs
+cmd/wikifs

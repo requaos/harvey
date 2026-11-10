@@ -41,10 +41,13 @@ T1KEEP=`{awk '/^cmd\/ip\//{ sub(/^cmd\/ip\//,""); sub(/[\/: 	].*$/,""); print }'
 # call (uniformity — this container's ^cmd/ip/ anchor matches no GUI
 # entry; keeping every filter site on one file set is the established
 # pattern).
+# 15-07 (USPACE-09): the four-file union (tier4 names no ip member —
+# one file set across every filter site).
 TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt
 TIER2A=$HARVEY/build/x86_64/tiers/tier2-services.txt
 TIER3A=$HARVEY/build/x86_64/tiers/tier3-gui.txt
-T1KEEPA=`{awk '/^cmd\/ip\//{ sub(/^cmd\/ip\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A}
+TIER4A=$HARVEY/build/x86_64/tiers/tier4-tail.txt
+T1KEEPA=`{awk '/^cmd\/ip\//{ sub(/^cmd\/ip\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A $TIER4A}
 
 TARG=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEPA) echo $i; if not echo $ALLTARG}
 DIRS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLDIRS}

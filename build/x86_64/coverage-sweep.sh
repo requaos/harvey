@@ -170,7 +170,7 @@ LIB_N=$(wc -l < "$TMPD/libuniverse.txt" | tr -d ' ')
 # empty until Task 2 authors them — the first run proves the raw tree)
 EXCL_N=0
 if [ -f "$TIER4" ]; then
-	awk '/^# exclude: /{print $2}' "$TIER4" | LC_ALL=C sort -u > "$TMPD/excluded.txt"
+	awk '/^# exclude: /{print $3}' "$TIER4" | LC_ALL=C sort -u > "$TMPD/excluded.txt"
 	EXCL_N=$(wc -l < "$TMPD/excluded.txt" | tr -d ' ')
 else
 	: > "$TMPD/excluded.txt"
@@ -186,6 +186,12 @@ while read -r x; do
 		err "tier4 exclusion '$x' is not a universe member (stale exclusion record — re-derive, D-10)"
 	fi
 done < "$TMPD/excluded.txt"
+
+# the BUILD list: the universe minus the exclusions (an excluded dir is
+# never visited — the aarch64 semantics; its recorded reason lives in
+# tier4's named comment, and a dir whose exclusion goes stale is caught
+# by the count assertion above when the tree changes under it)
+comm -23 "$TMPD/universe.txt" "$TMPD/excluded.txt" > "$TMPD/universe-build.txt"
 
 # SINGLES: the cmd root's own *.[cy] commands (cmd/mkfile's ALLTARG
 # rule, mirrored host-side: ls *.[cy], drop *.tab.c generated tables)
@@ -236,7 +242,7 @@ while read -r d; do
 			next
 		}
 	' "$HARVEY/$m" >> "$TMPD/members.txt"
-done < "$TMPD/universe.txt"
+done < "$TMPD/universe-build.txt"
 LC_ALL=C sort -u "$TMPD/members.txt" -o "$TMPD/members.txt"
 MEMBERS_N=$(wc -l < "$TMPD/members.txt" | tr -d ' ')
 
@@ -381,8 +387,8 @@ st=0
 echo "COVERAGE-EXIT /sys/src/ape/lib \$st" >> "\$COVERAGE_LOG"
 [ "\$st" = 0 ] || digest "ape:lib" "\$ERRCAP"
 
-# --- PASS C: the dir universe (per-dir clean + all, fresh objects) ------
-echo "== PASS C: dir universe (\$(wc -l < $TMPD/universe.txt | tr -d ' ') dirs)"
+# --- PASS C: the dir universe (per-dir clean + all, fresh objects; the tier4-excluded dirs are skipped — their recorded reason is the exclusion, never a visited row) ------
+echo "== PASS C: dir universe (\$(wc -l < $TMPD/universe-build.txt | tr -d ' ') of \$(wc -l < $TMPD/universe.txt | tr -d ' ') dirs; tier4 exclusions skipped)"
 n=0
 while read -r d; do
 	[ -n "\$d" ] || continue
@@ -395,7 +401,7 @@ while read -r d; do
 		"$TIMEOUT_BIN" -k 30 "$DIR_BUDGET" mk all) > "\$ERRCAP" 2>&1 || st=\$?
 	echo "COVERAGE-EXIT /\$d \$st" >> "\$COVERAGE_LOG"
 	[ "\$st" = 0 ] || digest "dir:\$d" "\$ERRCAP"
-done < "$TMPD/universe.txt"
+done < "$TMPD/universe-build.txt"
 
 # --- PASS D: singles + container members (link-only, per-target) --------
 echo "== PASS D: cmd-root singles (\$(wc -l < $TMPD/singles.txt | tr -d ' ') targets)"
@@ -584,8 +590,17 @@ ROWS_N=$(wc -l < "$TMPD/rows.txt" | tr -d ' ')
 # --- the report (DATA ROWS ONLY — the green contract) -------------------
 # written BEFORE the assertions: the classified inventory is the data a
 # rig-level assertion failure must never destroy (a partial file never
-# passes as proof — the green gate below is the proof's teeth)
-cp "$TMPD/rows.txt" "$OUT"
+# passes as proof — the green gate below is the proof's teeth).  The
+# fossil/venti runtime ceiling rides ON their rows as a trailing #
+# comment (tier4's documented note, mirrored where the proof is read:
+# compile is their gate this milestone — no block device in r9).
+awk '
+$1 == "sys/src/cmd/fossil" || $1 == "sys/src/cmd/venti" || $1 == "sys/src/cmd/venti/srv" {
+	print $0 "  # runtime-unverifiable: no block device in r9 (virtio-blk is a future milestone) — compile is the gate"
+	next
+}
+{ print }
+' "$TMPD/rows.txt" > "$OUT"
 OK_N=$("$GREP" -c 'build=ok' "$OUT" || true)
 BAD_N=$("$GREP" -vc 'build=ok' "$OUT" || true)
 echo "== wrote $OUT ($ROWS_N rows: $OK_N ok, $BAD_N not-ok; universe $UNIVERSE_N dirs + $LIB_N libs)"

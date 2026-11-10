@@ -1,11 +1,13 @@
 #!/bin/sh
-# 15-01-scoping-proof.sh — the Task-3 scoping proof (15-01).
+# 15-01-scoping-proof.sh — the Task-3 scoping proof (15-01; widened to
+# the four-file tier union by 15-04's recorded heads-up + 15-07's tier-4
+# append).
 #
 # Proves: under objtype=amd64 WITHOUT COVERAGE_SWEEP, the default
 # build's cmd-level surface (cmd/mkfile TARG+DIRS) and every container
-# leaf (aux, ip, auth, factotum) evaluate to EXACTLY the tier1+tier2
-# membership — and COVERAGE_SWEEP=1 bypasses every filter (the 15-07
-# coverage proof depends on that escape).
+# leaf (aux, ip, auth, factotum) evaluate to EXACTLY the
+# tier1+tier2+tier3+tier4 membership — and COVERAGE_SWEEP=1 bypasses
+# every filter (the 15-07 coverage proof depends on that escape).
 #
 # Method: mk dry runs INSIDE the Plan 9 namespace (the mkfiles parse
 # only there — /sys, /amd64, rc), extracting the mk-EXPANDED variable
@@ -40,6 +42,8 @@ cd "$HARVEY"
 EVID="$HARVEY/.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence"
 T1="$HARVEY/build/x86_64/tiers/tier1-cmds.txt"
 T2="$HARVEY/build/x86_64/tiers/tier2-services.txt"
+T3="$HARVEY/build/x86_64/tiers/tier3-gui.txt"
+T4="$HARVEY/build/x86_64/tiers/tier4-tail.txt"
 LOG="$EVID/15-01-scoping-proof.log"
 
 [ -n "${PLAN9:-}" ] || { echo "error: run inside the nix devshell (\$PLAN9 unset)" >&2; exit 1; }
@@ -47,18 +51,20 @@ LOG="$EVID/15-01-scoping-proof.log"
 
 # ---------- expected sets (host-side, the filters' own awk rules) ----------
 
-# cmd-level keep: first path component after cmd/
-KEEP_CMD=$(awk '/^cmd\//{ sub(/^cmd\//,""); sub(/[\/: 	].*$/,""); print }' "$T1" "$T2" | sort -u)
+# cmd-level keep: first path component after cmd/ (15-07: the four-file
+# union — the filters' own read set; 15-04's recorded heads-up closed)
+KEEP_CMD=$(awk '/^cmd\//{ sub(/^cmd\//,""); sub(/[\/: 	].*$/,""); print }' "$T1" "$T2" "$T3" "$T4" | sort -u)
 # candidates the cmd sweep would see (NOTSYS/BUGGERED/OUTOFDATE applied as in cmd/mkfile)
 CAND_DIRS=$(ls -l sys/src/cmd | sed '/^d/!d; s/.* //;' | grep -Ev '^(sml|dup|unix|old)$|\.')
 CAND_TARG=$(ls sys/src/cmd/*.[cy] | sed 's|.*/||; s|\.[cy]$||' | grep -Ev '\.' | sort -u)
 EXP_TARG=$(for c in $CAND_TARG; do echo "$KEEP_CMD" | grep -qx "$c" && echo "$c"; done | sort -u | awk '{printf "%s ", $0} END {print ""}')
 EXP_DIRS=$(for c in $CAND_DIRS; do echo "$KEEP_CMD" | grep -qx "$c" && echo "$c"; done | sort -u | awk '{printf "%s ", $0} END {print ""}')
-# container keeps
-KEEP_AUX_T=$(awk '/^cmd\/aux:/{ sub(/^cmd\/aux:/,""); sub(/[\/: 	].*$/,""); print }' "$T2" | sort -u | awk '{printf "%s ", $0} END {print ""}')
-KEEP_IP=$(awk '/^cmd\/ip\//{ sub(/^cmd\/ip\//,""); sub(/[\/: 	].*$/,""); print }' "$T1" "$T2" | sort -u)
-KEEP_AUTH=$(awk '/^cmd\/auth\//{ sub(/^cmd\/auth\//,""); sub(/[\/: 	].*$/,""); print }' "$T1" "$T2" | sort -u)
-KEEP_FACT=$(awk '/^cmd\/auth\/factotum:/{ sub(/^cmd\/auth\/factotum:/,""); sub(/[\/: 	].*$/,""); print }' "$T1" "$T2" | sort -u | awk '{printf "%s ", $0} END {print ""}')
+# container keeps (the four-file union, the filters' read set)
+KEEP_AUX_T=$(awk '/^cmd\/aux:/{ sub(/^cmd\/aux:/,""); sub(/[\/: 	].*$/,""); print }' "$T1" "$T2" "$T3" "$T4" | sort -u | awk '{printf "%s ", $0} END {print ""}')
+KEEP_AUX_D=$(awk '/^cmd\/aux\//{ sub(/^cmd\/aux\//,""); sub(/[\/: 	].*$/,""); print }' "$T1" "$T2" "$T3" "$T4" | sort -u | awk '{printf "%s ", $0} END {print ""}')
+KEEP_IP=$(awk '/^cmd\/ip\//{ sub(/^cmd\/ip\//,""); sub(/[\/: 	].*$/,""); print }' "$T1" "$T2" "$T3" "$T4" | sort -u)
+KEEP_AUTH=$(awk '/^cmd\/auth\//{ sub(/^cmd\/auth\//,""); sub(/[\/: 	].*$/,""); print }' "$T1" "$T2" "$T3" "$T4" | sort -u)
+KEEP_FACT=$(awk '/^cmd\/auth\/factotum:/{ sub(/^cmd\/auth\/factotum:/,""); sub(/[\/: 	].*$/,""); print }' "$T1" "$T2" "$T3" "$T4" | sort -u | awk '{printf "%s ", $0} END {print ""}')
 # ip/auth candidates from their mkfiles, intersected with the keeps
 CAND_IP_T=$(sed 's/^ALLTARG *= *	*/ALLTARG=\
 	/' sys/src/cmd/ip/mkfile | sed -n '/^ALLTARG/,/^[^	\\]/p' | sed -n 's/^	//;s/\\$//p' | grep -v '^ALLTARG' | sort -u)
@@ -130,6 +136,7 @@ echo "expected (computed from the tier data by the filters' own awk keep-rules):
 echo "EXP:cmd-TARG: $EXP_TARG"
 echo "EXP:cmd-DIRS: cc $EXP_DIRS"
 echo "EXP:aux-TARG: $KEEP_AUX_T"
+echo "EXP:aux-DIRS: $KEEP_AUX_D"
 echo "EXP:ip-TARG: $EXP_IP_T"
 echo "EXP:auth-TARG: $EXP_AUTH_T"
 echo "EXP:fact-TARG: $KEEP_FACT"
@@ -159,6 +166,7 @@ check() {
 check MK:cmd-TARG "$EXP_TARG"
 check MK:cmd-DIRS "cc $EXP_DIRS"
 check MK:aux-TARG "$KEEP_AUX_T"
+check MK:aux-DIRS "$KEEP_AUX_D"
 check MK:ip-TARG "$EXP_IP_T"
 check MK:auth-TARG "$EXP_AUTH_T"
 check MK:fact-TARG "$KEEP_FACT"

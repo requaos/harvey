@@ -81,12 +81,17 @@ T1KEEP=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1}
 # only as their tier gate passes; the lib keep stays tier0-only for the
 # same reason — the GUI tier's libdraw-family closure appends to
 # tier0-libs.txt itself, k10f's lib order).
+# 15-07 (USPACE-09): widens once more to the four-file union — the
+# long-tail dirs (upas, lp, fossil, venti, gs, the compiler letters,
+# ...) join from tier4-tail.txt; their gate is the D-09 coverage proof
+# (every dir-coverage.txt row build=ok), not a driver loop.
 TIER0A=$HARVEY/build/x86_64/tiers/tier0-libs.txt
 TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt
 TIER2A=$HARVEY/build/x86_64/tiers/tier2-services.txt
 TIER3A=$HARVEY/build/x86_64/tiers/tier3-gui.txt
+TIER4A=$HARVEY/build/x86_64/tiers/tier4-tail.txt
 T0KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER0A}
-T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A}
+T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A $TIER4A}
 
 LIBS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEPA) echo $i; if not echo $ALLLIBS}
 CMDS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLCMDS}

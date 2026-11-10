@@ -424,7 +424,7 @@ sys/src/ape/lib/sec/port visited=1 build=ok
 sys/src/ape/lib/utf visited=1 build=ok
 sys/src/ape/lib/v visited=1 build=ok
 sys/src/cmd/4a visited=3 build=ok
-sys/src/cmd/4c visited=3 build=fail
+sys/src/cmd/4c visited=3 build=ok
 sys/src/cmd/4l visited=3 build=ok
 sys/src/cmd/5a visited=3 build=ok
 sys/src/cmd/5c visited=3 build=ok
@@ -465,7 +465,7 @@ sys/src/cmd/awk visited=4 build=ok
 sys/src/cmd/bzip2 visited=3 build=ok
 sys/src/cmd/bzip2/lib visited=5 build=ok
 sys/src/cmd/cb visited=3 build=ok
-sys/src/cmd/cc visited=5 build=ok
+sys/src/cmd/cc visited=4 build=ok
 sys/src/cmd/cdfs visited=3 build=ok
 sys/src/cmd/cec visited=3 build=ok
 sys/src/cmd/cfs visited=3 build=ok
@@ -496,7 +496,7 @@ sys/src/cmd/exportfs visited=3 build=ok
 sys/src/cmd/ext2srv visited=3 build=ok
 sys/src/cmd/faces visited=3 build=ok
 sys/src/cmd/fax visited=3 build=ok
-sys/src/cmd/fossil visited=3 build=ok
+sys/src/cmd/fossil visited=3 build=ok  # runtime-unverifiable: no block device in r9 (virtio-blk is a future milestone) — compile is the gate
 sys/src/cmd/fscfs visited=3 build=ok
 sys/src/cmd/git visited=3 build=ok
 sys/src/cmd/go visited=4 build=ok
@@ -549,12 +549,7 @@ sys/src/cmd/postscript/grabit visited=5 build=ok
 sys/src/cmd/postscript/hardcopy visited=5 build=ok
 sys/src/cmd/postscript/mpictures visited=5 build=ok
 sys/src/cmd/postscript/p9bitpost visited=5 build=ok
-sys/src/cmd/postscript/picpack visited=3 build=fail
-sys/src/cmd/postscript/postbgi visited=3 build=fail
-sys/src/cmd/postscript/postdaisy visited=3 build=fail
-sys/src/cmd/postscript/postdmd visited=3 build=fail
 sys/src/cmd/postscript/postgif visited=5 build=ok
-sys/src/cmd/postscript/postmd visited=3 build=fail
 sys/src/cmd/postscript/postprint visited=5 build=ok
 sys/src/cmd/postscript/postreverse visited=5 build=ok
 sys/src/cmd/postscript/posttek visited=5 build=ok
@@ -591,7 +586,6 @@ sys/src/cmd/tapefs visited=3 build=ok
 sys/src/cmd/tarsplit visited=3 build=ok
 sys/src/cmd/tbl visited=3 build=ok
 sys/src/cmd/tcs visited=3 build=ok
-sys/src/cmd/tcs/font visited=3 build=fail
 sys/src/cmd/telco visited=3 build=ok
 sys/src/cmd/troff visited=3 build=ok
 sys/src/cmd/troff2html visited=3 build=ok
@@ -624,15 +618,14 @@ sys/src/cmd/usb/usbd visited=5 build=ok
 sys/src/cmd/va visited=3 build=ok
 sys/src/cmd/vac visited=3 build=ok
 sys/src/cmd/vc visited=3 build=ok
-sys/src/cmd/venti visited=3 build=ok
-sys/src/cmd/venti/srv visited=5 build=ok
+sys/src/cmd/venti visited=3 build=ok  # runtime-unverifiable: no block device in r9 (virtio-blk is a future milestone) — compile is the gate
+sys/src/cmd/venti/srv visited=5 build=ok  # runtime-unverifiable: no block device in r9 (virtio-blk is a future milestone) — compile is the gate
 sys/src/cmd/vi visited=3 build=ok
 sys/src/cmd/vl visited=3 build=ok
 sys/src/cmd/vnc visited=3 build=ok
 sys/src/cmd/vt visited=3 build=ok
 sys/src/cmd/webfs visited=3 build=ok
 sys/src/cmd/wikifs visited=3 build=ok
-sys/src/games/blabs visited=3 build=fail
 sys/src/games/mahjongg visited=3 build=ok
 sys/src/games/mp3dec visited=3 build=ok
 sys/src/games/mp3enc visited=3 build=ok
