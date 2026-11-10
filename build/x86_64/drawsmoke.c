@@ -26,7 +26,16 @@ enum {
 	Fillid		= 1,				/* solid color image */
 	Maskid		= 2,				/* all-opaque GREY1 mask */
 
-	Fillval		= 0x000000ff,			/* blue in x8r8g8b8 */
+	/*
+	 * Fillval is the 'b' message's color[4], an RGBA32 value per
+	 * draw(3) — NOT an x8r8g8b8 pixel: 0x000000ff there is DBlack,
+	 * not blue, and a mask colored 1 converts to GREY1 zero, fully
+	 * transparent.  The three color channels are distinct and the
+	 * pattern is not palindromic, so no byte-order confusion or
+	 * single-color slip can satisfy the pixel readback below.
+	 */
+	Fillval		= 0x112233FF,			/* RGBA: opaque (r,g,b) = (0x11,0x22,0x33) */
+	Pixval		= 0x00112233,			/* the fill as an x8r8g8b8 pixel: 0x00RRGGBB */
 };
 
 /* the draw wire byte order comes from draw.h's own BG/BP macros — this
@@ -144,7 +153,7 @@ main(int, char *[])
 	char buf[512];
 	char ctl[512];
 	int vgafd, ctlfd, datafd, n, i;
-	ulong got;
+	ulong got, rev;
 
 	/* the mode-set verb chain is load-bearing: vgactl's readback
 	 * carries `type dispi` (the CMtype verb armed vgadispidev and
@@ -204,15 +213,21 @@ main(int, char *[])
 	if(write(datafd, msg, Msgalloc) != Msgalloc)
 		fail("alloc fill");
 
-	/* 'b' mask: GREY1, replicated, all ones (the opaque mask) */
+	/* 'b' mask: GREY1, replicated, all ones (the opaque mask) — the
+	 * 'b' color is RGBA, so white/opaque is 0xFFFFFFFF, not 1 (which
+	 * is transparent black in GREY1) */
 	msg[0] = 'b';
 	BPLONG(msg+1, Maskid);
 	BPLONG(msg+10, GREY1);
-	BPLONG(msg+47, 1);
+	BPLONG(msg+47, DOpaque);
 	if(write(datafd, msg, Msgalloc) != Msgalloc)
 		fail("alloc mask");
 
-	/* 'd': paint Rect(100,100,300,300) on the screen from the fill */
+	/* 'd': paint Rect(100,100,300,300) on the screen from the fill.
+	 * src and mask points are zeroed too: both images are 1x1
+	 * replicated so any point maps onto the single pixel, but leaving
+	 * stale bytes of the previous message in a wire field is how the
+	 * transparent-mask bug above went unnoticed */
 	msg[0] = 'd';
 	BPLONG(msg+1, 0);			/* dst: the screen */
 	BPLONG(msg+5, Fillid);
@@ -221,6 +236,10 @@ main(int, char *[])
 	BPLONG(msg+17, 100);
 	BPLONG(msg+21, 300);
 	BPLONG(msg+25, 300);
+	BPLONG(msg+29, 0);
+	BPLONG(msg+33, 0);
+	BPLONG(msg+37, 0);
+	BPLONG(msg+41, 0);
 	if(write(datafd, msg, Msgdraw) != Msgdraw)
 		fail("draw rectangle");
 
@@ -239,12 +258,20 @@ main(int, char *[])
 
 	p = px;
 	for(i = 0; i < 4; i++){
-		/* the memimage word byte order rides the same tree-local
-		 * convention as the BG/BP macros — accept the fill color in
-		 * either canonical byte order */
+		/* accept the fill color in either canonical byte order:
+		 * big-endian per value, or the little-endian wire this tree's
+		 * draw.h BG/BP macros pack.  The comparison is against the
+		 * COLOR, not against "the two readings agree", so a
+		 * palindromic byte pattern of the wrong color cannot satisfy
+		 * the assert.  The x byte (CIgnore) is masked off — it
+		 * carries no color. */
 		got = (p[0]<<24)|(p[1]<<16)|(p[2]<<8)|p[3];
-		if(got != Fillval && got != (p[0]|(p[1]<<8)|(p[2]<<16)|(p[3]<<24)))
+		rev = (p[3]<<24)|(p[2]<<16)|(p[1]<<8)|p[0];
+		if((got&0xFFFFFF) != Pixval && (rev&0xFFFFFF) != Pixval){
+			fprint(2, "drawsmoke: pixel %d: got %#.8lux rev %#.8lux want %#.8lux\n",
+				i, got, rev, (ulong)Pixval);
 			fail("pixel mismatch");
+		}
 		p += 4;
 	}
 
