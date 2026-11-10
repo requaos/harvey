@@ -62,6 +62,24 @@
 #                                the in-guest net fixtures
 #   NO /boot/factotum            auth stub = absence (same rule)
 #
+# Payload contract (15-08, DESK-03 — the desktop payload Phases 18-19
+# consume, staged so they never block on it).  NOT a sixth image: a
+# shared staging section (stage_payload, section P below) that a bake
+# contract DECLARES by invoking it on its staged tree — the services
+# image (section 11) is the declaring contract this era.  The cargo is
+# defined by ONE committed data file, build/x86_64/bootfs-payload.txt
+# (the tier-allowlist pattern; no second hardcoded list anywhere):
+#   /lib/font/bit/...            the WHOLE font tree — a BAKE-TIME
+#                                copy from the repo's lib/font/bit
+#                                (the adm/timezone rule above; never a
+#                                committed duplicate under root-tree/)
+#   /usr/glenda/lib/profile      committed skeleton
+#   the manifest asserts          every listed path present + non-empty
+#                                in the staged tree, the app-named
+#                                fonts present, the count/size floors
+#                                met — a miss FAILS the bake, and
+#                                every bake PRINTS what it carried
+#
 # Determinism (Pitfall 6, so 14-07's composed-ISO FOD can inherit): the
 # staged tree's mtimes are pinned to KERNDATE and mkpaqfs's header time
 # rides the same KERNDATE (the in-tree env override) — two bakes of one
@@ -577,6 +595,90 @@ trailer4=$(od -An -tx1 -j $((sz4 - 28)) -N 4 "$NET_IMAGE" | tr -d ' \n')
 echo "== PASS: baked $NET_IMAGE ($sz4 bytes; header $magic4 trailer $trailer4; KERNDATE $KERNDATE)"
 
 # ------------------------------------------------------------------
+# P. the DESK-03 PAYLOAD section (15-08 — D-13/D-14/D-15): the desktop
+#    payload Phases 18-19 consume.  ONE shared staging function + ONE
+#    committed manifest (build/x86_64/bootfs-payload.txt — plain data,
+#    consumed by block name; NO second hardcoded list anywhere).  A
+#    bake contract DECLARES the payload by calling stage_payload on
+#    its staged tree AFTER the skeleton tar (D-13: an image that
+#    declares it inherits the payload by construction, and a later
+#    contract composes it without re-staging).  The function stages
+#    the bake-time members, then asserts the WHOLE manifest against
+#    the staged tree — the asserts are the only authority on payload
+#    completeness (T-15-19: a drifted or partial copy fails the bake
+#    HERE, never the boot later).
+PAYLOAD_MANIFEST="$HARVEY/build/x86_64/bootfs-payload.txt"
+
+payload_block() {
+	# payload_block <name> — print the data lines of one manifest
+	# block ([name] ... up to the next [header]); `#' and blank lines
+	# never print
+	awk -v b="[$1]" '$0 == b { f = 1; next } /^\[/ { f = 0 } f && NF && $1 !~ /^#/ { print }' "$PAYLOAD_MANIFEST"
+}
+
+stage_payload() {
+	# stage_payload <staged-tree> <contract-label>
+	_ps=$1
+	_pl=$2
+	[ -s "$PAYLOAD_MANIFEST" ] || err "$PAYLOAD_MANIFEST missing — the committed DESK-03 payload manifest (15-08)"
+	[ -d "$HARVEY/lib/font/bit" ] || err "lib/font/bit missing (the D-14 font payload source)"
+
+	# P1. the bake-time font copy: the WHOLE tree (D-14 — no
+	#     exclusions; the 8e adm/timezone precedent, never a committed
+	#     duplicate)
+	mkdir -p "$_ps/lib/font"
+	cp -R "$HARVEY/lib/font/bit" "$_ps/lib/font/" || err "payload: the lib/font/bit copy failed"
+
+	# P2. the copy check: the staged tree carries exactly the source
+	#     tree's file count (the committed floors below are the
+	#     reviewable lower bound; this equality is what makes a
+	#     partial copy impossible even after the tree grows past them)
+	_scount=$(find "$HARVEY/lib/font/bit" -type f | wc -l | tr -d ' ')
+	_fcount=$(find "$_ps/lib/font/bit" -type f | wc -l | tr -d ' ')
+	[ "$_fcount" -eq "$_scount" ] || err "payload: staged lib/font/bit carries $_fcount files, the source tree $_scount (a partial copy)"
+
+	# P3. [paths]: every listed path present + non-empty in the staged
+	#     tree (a directory entry is a tree entry — it must carry a
+	#     file; anything else must be a non-empty file)
+	_pn=0
+	for _p in $(payload_block paths); do
+		if [ -d "$_ps/$_p" ]; then
+			_tn=$(find "$_ps/$_p" -type f | wc -l | tr -d ' ')
+			[ "$_tn" -ge 1 ] || err "payload manifest: /$_p missing from staged tree (an empty tree)"
+			echo "payload manifest: /$_p staged (tree, $_tn files) [$_pl]"
+		elif [ -s "$_ps/$_p" ]; then
+			echo "payload manifest: /$_p staged [$_pl]"
+		else
+			err "payload manifest: /$_p missing from staged tree (or empty)"
+		fi
+		_pn=$((_pn + 1))
+	done
+	[ "$_pn" -ge 1 ] || err "payload manifest: the [paths] block is empty — the manifest parse failed"
+
+	# P4. [fonts]: the app-named fonts (the defaults the GUI programs
+	#     open by literal path) — each a non-empty staged file, each
+	#     PRINTED
+	_fn=0
+	for _f in $(payload_block fonts); do
+		[ -s "$_ps/$_f" ] || err "payload manifest: font /$_f missing from staged tree (or empty)"
+		echo "payload manifest: font /$_f staged [$_pl]"
+		_fn=$((_fn + 1))
+	done
+	[ "$_fn" -ge 1 ] || err "payload manifest: the [fonts] block is empty — the manifest parse failed"
+
+	# P5. [floors]: the committed count/size floors over the staged
+	#     font tree
+	_ffloor=$(payload_block floors | awk '$1 == "font-files" { print $2 }')
+	_bfloor=$(payload_block floors | awk '$1 == "font-bytes" { print $2 }')
+	echo "$_ffloor" | "$GREP" -qE '^[0-9]+$' || err "payload manifest: the font-files floor is missing or non-numeric"
+	echo "$_bfloor" | "$GREP" -qE '^[0-9]+$' || err "payload manifest: the font-bytes floor is missing or non-numeric"
+	_fbytes=$(find "$_ps/lib/font/bit" -type f -printf '%s\n' | awk '{ s += $1 } END { printf "%d\n", s }')
+	[ "$_fcount" -ge "$_ffloor" ] || err "payload manifest: /lib/font/bit carries $_fcount files, below the $_ffloor floor (D-14: the WHOLE tree ships)"
+	[ "$_fbytes" -ge "$_bfloor" ] || err "payload manifest: /lib/font/bit carries $_fbytes bytes, below the $_bfloor floor (D-14: the WHOLE tree ships)"
+	echo "payload manifest: /lib/font/bit $_fcount files $_fbytes bytes (floors: $_ffloor files, $_bfloor bytes) [$_pl]"
+}
+
+# ------------------------------------------------------------------
 # 11. the SERVICES bake (15-03, USPACE-07's r9 leg): the chain tree +
 #     the services sweep payload — out/bootfs-services.paq.  The
 #     services image boots on r9-x86_64 through the composed ISO and
@@ -615,6 +717,11 @@ echo "== PASS: baked $NET_IMAGE ($sz4 bytes; header $magic4 trailer $trailer4; K
 #         6c/6l link-only (the donor venue's own staging discipline:
 #         relative -I paths from the repo root, 6l -L to the
 #         checkout's amd64/lib)
+#       - the DESK-03 payload (section P's stage_payload, 11e2): the
+#         WHOLE lib/font/bit tree as a bake-time copy + the skeleton's
+#         profile, asserted against build/x86_64/bootfs-payload.txt —
+#         this image is the payload-declaring contract (the image
+#         Phases 18-19 consume)
 #       - NO /boot/factotum (auth-stub-by-absence — hfactotum in
 #         /amd64/bin is the sweep payload, not the boot auth stub)
 SVC_IMAGE="$OUT/bootfs-services.paq"
@@ -715,6 +822,12 @@ mkdir -p "$STAGE5"
 # 11e. the committed skeleton (the chain bake's shape — the /lib net
 #      fixtures ride the skeleton tar)
 (cd "$ROOT_TREE" && tar -cf - .) | (cd "$STAGE5" && tar -xf -)
+
+# 11e2. the DESK-03 payload declaration (15-08): the services image
+#       carries the desktop payload — the whole font tree copied at
+#       bake time + the manifest asserts over the staged tree (section
+#       P; the profile rode the skeleton tar above)
+stage_payload "$STAGE5" services
 
 # 11f. empty mount-point dirs + staging parents (the chain set + the
 #      ip container's home + the /boot service-program home)
@@ -842,7 +955,15 @@ done
 cmp -s "$HARVEY/rc/lib/rcmain" "$STAGE5/rc/lib/rcmain" || err "staged rcmain diverges from rc/lib/rcmain"
 cmp -s "$HARVEY/rc/lib/rcmain" "$STAGE5/boot/rcmain" || err "staged /boot/rcmain diverges from rc/lib/rcmain"
 
-# 11r. determinism + bake (the chain bake's rule)
+# 11r. determinism + bake (the chain bake's rule), preceded by the
+#      mkpaqfs per-file cap assert (the 15-07 measured hazard: mkpaqfs
+#      silently DROPS any file past blocksize^2/4 — 4194304 bytes at
+#      the 4096 default — warning but exiting 0): every staged file
+#      must fit the default blocksize, so a silent drop cannot happen
+#      (grow to a -b blocksize HERE, in the same commit as the member
+#      that needs it, never by trusting the warn)
+_maxf=$(find "$STAGE5" -type f -printf '%s\n' | sort -n | tail -1)
+[ "$_maxf" -le 4194304 ] || err "services bake: a staged file of $_maxf bytes exceeds mkpaqfs's 4194304-byte per-file cap (blocksize^2/4 at the 4096 default) — it would be silently DROPPED from the image"
 find "$STAGE5" -exec touch -h -d "@$KERNDATE" {} +
 rm -f "$SVC_IMAGE"
 KERNDATE="$KERNDATE" "$MKPAQFS" -o "$SVC_IMAGE" "$STAGE5" || err "mkpaqfs failed (services)"

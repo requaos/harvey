@@ -1,0 +1,62 @@
+# bootfs-payload.txt — the committed DESK-03 bootfs payload manifest
+# (15-08, D-15).
+#
+# Plain data, consumed BY NAME by build/x86_64/mkimage.sh's payload
+# section (stage_payload) — the tier-allowlist pattern
+# (tiers/tier1-cmds.txt): this file is the SINGLE list of what the
+# desktop payload is, and every assertion the bake makes about it is
+# computed from the blocks below.  There is no second hardcoded list
+# anywhere; a payload change is a reviewable diff of this file.
+#
+# The payload is what Phases 18-19 consume (auth, cpu/drawterm, rio) —
+# staged here so they never block on it (the v2.0 DESK-03 precedent):
+#   - the WHOLE lib/font/bit tree (D-14: no exclusions, no "essential
+#     fonts" curation — every app finds every font; font choice stays
+#     a runtime concern).  It rides as a BAKE-TIME copy from the
+#     repo's lib/font/bit (the adm/timezone precedent) — never a
+#     committed duplicate under root-tree/.
+#   - /usr/glenda/lib/profile — the committed root-tree skeleton file.
+#
+# Blocks — one assertion class per block:
+#
+#   [paths]   staged-tree paths (relative to the image root) that must
+#             exist and be non-empty.  A directory entry is a TREE
+#             entry (it must carry at least one file); any other entry
+#             is a FILE entry (it must be a non-empty file).  A missing
+#             or empty listed path FAILS the bake.
+#   [fonts]   the app-named fonts — the defaults the GUI programs open
+#             by literal path.  Each must be a non-empty staged file;
+#             each is PRINTED by the bake (the bake log lists the
+#             cargo).  A font named here that is missing FAILS the
+#             bake.
+#   [floors]  `<name> <value>' numeric floors asserted over the staged
+#             font tree, so a partial copy cannot pass silently:
+#               font-files  minimum file count under lib/font/bit
+#               font-bytes  minimum total apparent bytes under it
+#             (the bake ALSO asserts the staged count equals the
+#             source tree's count — the floors are the committed,
+#             reviewable lower bound; the equality is the copy check).
+#
+# `#' lines and blank lines are ignored.  Block headers are exact.
+
+[paths]
+lib/font/bit
+usr/glenda/lib/profile
+
+[fonts]
+# rio's default font (sys/src/cmd/rio/rio.c)
+lib/font/bit/lucm/unicode.9.font
+# acme's default font (sys/src/cmd/acme/acme.c; lucm is its fallback)
+lib/font/bit/lucidasans/euro.8.font
+# the profile's fonts: the cpu case (latin1.8) and the shared head
+# (euro.9)
+lib/font/bit/pelm/latin1.8.font
+lib/font/bit/pelm/euro.9.font
+
+[floors]
+# measured 2026-11-10: 4303 files, 27676353 apparent bytes (36M on
+# disk).  The file floor is the measured count; the byte floor leaves
+# the tree room to be re-encoded without a manifest edit while still
+# failing any partial copy.
+font-files 4303
+font-bytes 27000000
