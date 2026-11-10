@@ -25,7 +25,14 @@ static int	tablesbuilt;
 #define MUL02(a, x, t)		(t = (a)*(((x)&MASK02)>>0)+128, ((t+((t>>8)&MASK02))>>8)&MASK02)
 #define MUL0123(a, x, s, t)	((MUL13(a, x, s)<<8)|MUL02(a, x, t))
 
-#define MUL2(u, v, x, y)	(t = (u)*(v)+(x)*(y)+256, (t+(t>>8))>>8)
+/*
+ * MUL2 rounds the SUM of the two products once, like MUL does for one:
+ * for s = u*v+x*y <= 255*255 it is exactly (s+127)/255, the round-to-
+ * nearest compositing value.  Summing two MULs instead rounds each
+ * product separately, which differs from that value on about half of
+ * all inputs — the divergence drawtest's reference comparison caught.
+ */
+#define MUL2(u, v, x, y, t)	(t = (u)*(v)+(x)*(y)+128, (t+(t>>8))>>8)
 
 static void mktables(void);
 typedef int Subdraw(Memdrawparam*);
@@ -935,7 +942,7 @@ alphacalc3679(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 		}
 
 		if(grey){
-			*bdst.grey = MUL(fs, *bsrc.grey, s)+MUL(fd, *bdst.grey, t);
+			*bdst.grey = MUL2(fs, *bsrc.grey, fd, *bdst.grey, t);
 			bsrc.grey += bsrc.delta;
 			bdst.grey += bdst.delta;
 		}else{
@@ -948,9 +955,9 @@ alphacalc3679(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 				bdst.alpha += bdst.delta;
 				continue;
 			}
-			*bdst.red = MUL(fs, *bsrc.red, s)+MUL(fd, *bdst.red, t);
-			*bdst.grn = MUL(fs, *bsrc.grn, s)+MUL(fd, *bdst.grn, t);
-			*bdst.blu = MUL(fs, *bsrc.blu, s)+MUL(fd, *bdst.blu, t);
+			*bdst.red = MUL2(fs, *bsrc.red, fd, *bdst.red, t);
+			*bdst.grn = MUL2(fs, *bsrc.grn, fd, *bdst.grn, t);
+			*bdst.blu = MUL2(fs, *bsrc.blu, fd, *bdst.blu, t);
 			bsrc.red += bsrc.delta;
 			bsrc.blu += bsrc.delta;
 			bsrc.grn += bsrc.delta;
@@ -959,7 +966,7 @@ alphacalc3679(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 			bdst.grn += bdst.delta;
 		}
 		if(bdst.alpha != &ones){
-			*bdst.alpha = MUL(fs, sa, s)+MUL(fd, da, t);
+			*bdst.alpha = MUL2(fs, sa, fd, da, t);
 			bdst.alpha += bdst.delta;
 		}
 		bmask.alpha += bmask.delta;
@@ -998,7 +1005,7 @@ alphacalc11(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 		fd = 255-MUL(sa, ma, t);
 
 		if(grey){
-			*bdst.grey = MUL(ma, *bsrc.grey, s)+MUL(fd, *bdst.grey, t);
+			*bdst.grey = MUL2(ma, *bsrc.grey, fd, *bdst.grey, t);
 			bsrc.grey += bsrc.delta;
 			bdst.grey += bdst.delta;
 		}else{
@@ -1010,9 +1017,9 @@ alphacalc11(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 				bmask.alpha += bmask.delta;
 				continue;
 			}
-			*bdst.red = MUL(ma, *bsrc.red, s)+MUL(fd, *bdst.red, t);
-			*bdst.grn = MUL(ma, *bsrc.grn, s)+MUL(fd, *bdst.grn, t);
-			*bdst.blu = MUL(ma, *bsrc.blu, s)+MUL(fd, *bdst.blu, t);
+			*bdst.red = MUL2(ma, *bsrc.red, fd, *bdst.red, t);
+			*bdst.grn = MUL2(ma, *bsrc.grn, fd, *bdst.grn, t);
+			*bdst.blu = MUL2(ma, *bsrc.blu, fd, *bdst.blu, t);
 			bsrc.red += bsrc.delta;
 			bsrc.blu += bsrc.delta;
 			bsrc.grn += bsrc.delta;
@@ -1021,7 +1028,7 @@ alphacalc11(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 			bdst.grn += bdst.delta;
 		}
 		if(bdst.alpha != &ones){
-			*bdst.alpha = MUL(ma, sa, s)+MUL(fd, *bdst.alpha, t);
+			*bdst.alpha = MUL2(ma, sa, fd, *bdst.alpha, t);
 			bdst.alpha += bdst.delta;
 		}
 		bmask.alpha += bmask.delta;
@@ -1077,7 +1084,7 @@ alphacalcS(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 	Buffer obdst;
 	int fd;
 	int i, ma;
-	ulong s, t;
+	ulong t;
 
 	USED(op);
 	obdst = bdst;
@@ -1087,13 +1094,13 @@ alphacalcS(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 		fd = 255-ma;
 
 		if(grey){
-			*bdst.grey = MUL(ma, *bsrc.grey, s)+MUL(fd, *bdst.grey, t);
+			*bdst.grey = MUL2(ma, *bsrc.grey, fd, *bdst.grey, t);
 			bsrc.grey += bsrc.delta;
 			bdst.grey += bdst.delta;
 		}else{
-			*bdst.red = MUL(ma, *bsrc.red, s)+MUL(fd, *bdst.red, t);
-			*bdst.grn = MUL(ma, *bsrc.grn, s)+MUL(fd, *bdst.grn, t);
-			*bdst.blu = MUL(ma, *bsrc.blu, s)+MUL(fd, *bdst.blu, t);
+			*bdst.red = MUL2(ma, *bsrc.red, fd, *bdst.red, t);
+			*bdst.grn = MUL2(ma, *bsrc.grn, fd, *bdst.grn, t);
+			*bdst.blu = MUL2(ma, *bsrc.blu, fd, *bdst.blu, t);
 			bsrc.red += bsrc.delta;
 			bsrc.blu += bsrc.delta;
 			bsrc.grn += bsrc.delta;
@@ -1151,7 +1158,7 @@ boolcalc236789(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 	Buffer obdst;
 	int fs, fd;
 	int i, ma, da, zero;
-	ulong s, t;
+	ulong t;
 
 	obdst = bdst;
 	zero = !(op&1);
@@ -1168,16 +1175,16 @@ boolcalc236789(Buffer bdst, Buffer bsrc, Buffer bmask, int dx, int grey, int op)
 
 		if(grey){
 			if(ma)
-				*bdst.grey = MUL(fs, *bsrc.grey, s)+MUL(fd, *bdst.grey, t);
+				*bdst.grey = MUL2(fs, *bsrc.grey, fd, *bdst.grey, t);
 			else if(zero)
 				*bdst.grey = 0;
 			bsrc.grey += bsrc.delta;
 			bdst.grey += bdst.delta;
 		}else{
 			if(ma){
-				*bdst.red = MUL(fs, *bsrc.red, s)+MUL(fd, *bdst.red, t);
-				*bdst.grn = MUL(fs, *bsrc.grn, s)+MUL(fd, *bdst.grn, t);
-				*bdst.blu = MUL(fs, *bsrc.blu, s)+MUL(fd, *bdst.blu, t);
+				*bdst.red = MUL2(fs, *bsrc.red, fd, *bdst.red, t);
+				*bdst.grn = MUL2(fs, *bsrc.grn, fd, *bdst.grn, t);
+				*bdst.blu = MUL2(fs, *bsrc.blu, fd, *bdst.blu, t);
 			}
 			else if(zero)
 				*bdst.red = *bdst.grn = *bdst.blu = 0;
