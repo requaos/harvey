@@ -1,0 +1,21 @@
+# tier2.ledger — the tier-2 services execution ledger (15-03, USPACE-07).
+# Line grammar: tier1.ledger's shape; exec carries BOTH venues' verdicts
+# (k10t1 = 15-02's donor record, evidence/15-02-donor-services-serial.log;
+# r9x64 = this plan's twice-green gate, both captures retained below).
+# factotum rides its TIER-1 line (never a tier-2 member); hsvctcpecho and
+# hmkdir are the venue's host-side 6c/6l builds (the donor's own staging
+# discipline — no /amd64/bin home; sha256 over the rebuilt artifact).
+tier=2 dir=cmd/mntgen bin=mntgen sha256=79d20dba311cd5186bcee8e32e25530d51453f5894d41bdc3e539b1e6d236de7 exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=2 dir=cmd/ndb bin=cs sha256=295463ceb098f140505f0112af7ac6de6a1044fa2dda8befd315616b37379942 exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=2 dir=cmd/ndb bin=csquery sha256=1a5fb5b4762c1bd8e36b7dbf01619cbea1288e2ce6fbdd93f6ff23d9ed13f894 exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=2 dir=cmd/ndb bin=dns sha256=e7e9169bae670be9b8efcbfdd3b66993fac06613d1bc6a8f6e0aae823aaece3f exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=2 dir=cmd/ndb bin=dnsquery sha256=6e0b395b9fff8ca60f4a15f0d8f795649d16ff4de007a5a08fc2053a76aa1235 exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=2 dir=cmd/exportfs bin=exportfs sha256=8b3e1625ad5f9e21816e271561670795a86fbc5a24496044922d83c1568462ce exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=2 dir=cmd/srv bin=srv sha256=dd964d1b3f14daa6a77669aa7a716dd7b809fbe7516c634615e55364376906a3 exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=2 dir=cmd/aux:listen bin=listen sha256=3289ba74cdf6f597a80b1a569b0b8205ef946e9638ff6c57174eb6edbf7f2e46 exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=2 dir=cmd/auth/keyfs bin=keyfs sha256=e7703b7ee6a680fd210ccd4f72d89571d00ed2784750a8cb4d26a49db7324733 exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=2 dir=cmd/auth/authsrv bin=authsrv sha256=52dd8cd891d378ea3318fec43b4c9405b180a2264c79f9740f81f8d9697cc772 exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=1 dir=cmd/auth/factotum:factotum bin=factotum sha256=1d33b63a4ece6c391a0f9e8c76acee058c71f0478599145057471bb22dfd6df3 exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=2 dir=build/x86_64/svctcpecho.c bin=hsvctcpecho sha256=fc85c466ba661c6ca92f8e5344923a3f27e4743b2f2ba948c1113ff29ba3edd8 exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+tier=2 dir=sys/src/cmd/mkdir.c bin=hmkdir sha256=fdf59e880e60d77f128c488575f77c1aea15edd5775095da45f8148a2ac1a7be exec=SVC-OK:k10t1+SVC-OK:r9x64 evidence=.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runA.log commit=7a9ad4b70 date=2026-11-10
+# the second venue run's capture (the twice-green rule): .planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-03-services-runB.log
