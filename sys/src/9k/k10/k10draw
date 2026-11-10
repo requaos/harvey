@@ -1,0 +1,222 @@
+# k10draw — the draw donor venue config (15-05, USPACE-08, D-04).
+#
+# The kernel-local devdraw venue: k10t1's header discipline + device set,
+# PLUS k10f's draw deltas (k10f:25-28,39-40,193-199) with the BIOS-VBE
+# route REPLACED by the qemu-native DISPI VGAdev (route 1, 15-RESEARCH
+# Pattern 4): the venue boots text-mode under `qemu -kernel ... -vga std`,
+# userspace drives the mode-set through #v/vgactl (`type dispi`,
+# `linear`, `size 1024x768x32 x8r8g8b8`, `drawinit` — devvga.c's
+# CMsize/CMdrawinit verbs), the LFB maps through the in-tree
+# vgalinearpci(), and /dev/draw/new opens against the kernel-local
+# devdraw (#i).  The vesa VGAdev and the real-mode trampoline link are
+# deliberately ABSENT (k10 serves no BIOS-call service — Enonexist,
+# Pitfall 1), as is any sd section (k10t1 carries none).
+#
+# The device/dbgflg/mach/port/dir sections are k10t1's set VERBATIM
+# (its header rule: DO NOT PRUNE) — the deliberate deltas vs k10t1 are
+# ONLY:
+#   dev     — the k10f draw device set appended (draw/mouse/vga/kbmap)
+#   vga     — the NEW `vga +dev` section naming vgadispi (k10/vgadispi.c,
+#             the 9k/386 vesa VGAdev's struct shape with DISPI for enable)
+#   rootdir — the venue embed set below (the draw smoke's minimal boot:
+#             rc/echo/cat/test/sleep/read/bind/paqfs + rcmain + the
+#             host-built mkdir + drawsmoke + k10draw.rc as /boot/boot)
+#   lib     — k10f's libdraw family ahead of k10cpu's lib set (the kernel
+#             links the /amd64/lib archives 15-04's tier-0 closure built)
+# k10cpu/k10t1/k10f stay untouched (the frozen-config discipline).
+
+dev +dev
+	root
+	cons
+	arch
+	env
+	pipe
+	proc
+	mnt
+	srv
+	dup
+	rtc
+	ssl
+	tls
+	cap
+	kprof
+	acpi
+
+	ether		netif
+	ip		arp chandial ip ipv6 ipaux iproute netlog nullmedium pktmedium ptclbsum
+
+	uart
+
+	draw		drawalloc screen vga vgax
+	mouse		mouse
+	vga
+	kbmap
+
+uart +dev
+	uarti8250
+	uartpci		pci
+
+vga +dev
+	vgadispi
+
+ip +dev
+	tcp
+	udp
+	ipifc
+	icmp
+	icmp6
+
+link +dev
+	ether8139	pci
+	ether8169	pci ethermii
+	ether82557	pci
+	ether82563	pci
+	ether82598	pci
+	etherigbe	pci ethermii
+	etherm10g	pci
+	ethervirtio	pci
+	ethermedium
+	loopbackmedium
+	netdevmedium
+
+#	acpi		hpet
+#	ht
+
+misc +dev
+	cache
+	mp		apic ioapic pci sipi mpacpi
+
+#
+#boot cpu
+#	int cpuflag = 1;
+#boot cpu boot $3
+#	int cpuflag = 1;
+#	char* bootdisk = "$3";
+#boot rootdir $3
+#	char* rootdir = "$3";
+#boot (bboot|romboot|dosboot)
+#	int cpuflag = 1;
+#	char* bootprog = $2;
+#boot boot $3
+#	char* bootdisk = "$3";
+#
+boot cpu
+	tcp
+
+rootdir
+	/amd64/bin/echo echo
+	/amd64/bin/cat cat
+	/amd64/bin/test test
+	/amd64/bin/sleep sleep
+	/amd64/bin/read read
+	/amd64/bin/rc rc
+	/amd64/bin/bind bind
+	/amd64/bin/paqfs paqfs
+	/rc/lib/rcmain rcmain
+	./.draw-stage/mkdir mkdir
+	./.draw-stage/drawsmoke drawsmoke
+	./root/k10draw.rc boot
+
+conf
+	int cpuserver = 1;
+
+#
+#dbgflg
+#	chan		'c'
+#	apic		'A'
+#	acpi		'C'
+#	hpet		'H'
+#	ht		'H'
+#	ioapic		'I'
+#	mp		'M'
+#	pci		'P'
+#	arch		'V'
+#
+dbgflg
+	apic		'A'
+	devacpi		'C'
+	hpet		'H'
+	ht		'H'
+	ioapic		'I'
+	mp		'M'
+	arch		'V'
+	archk10		'V'
+	sysproc		'E'
+	main		'x'
+	mmu		'm'
+	asm		'a'
+	sipi		'y'
+
+amd64 +dev
+	l32p
+	l64v
+	l64idt
+	l64syscall
+	l64fpu
+	l64cpuid
+	arch
+	archk10
+	asm
+	cga
+	crap
+	fpu
+	i8254
+	i8259
+	kbd
+	main
+	map
+	mmu
+	multiboot
+	qmalloc
+	random
+	syscall
+	trap
+	vsvm
+
+port
+	alarm
+	allocb
+	chan
+	dev
+	devtab
+	edf
+	fault
+	image
+	latin1
+	page
+	parse
+	pgrp
+	portclock
+	print
+	proc
+	ps
+	qio
+	qlock
+	rebootcmd
+	segment
+	sysauth
+	sysfile
+	sysproc
+	sysseg
+	systab
+	taslock
+	tod
+	watermarks
+
+#
+#dir
+# pc		-.I.
+#
+dir
+	386
+	ip
+	port
+
+lib
+	libmemlayer
+	libmemdraw
+	libdraw
+	libip
+	libsec
+	libmp
+	libc

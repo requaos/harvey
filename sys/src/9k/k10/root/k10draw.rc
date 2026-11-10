@@ -1,0 +1,58 @@
+#!/boot/rc -m /boot/rcmain
+# k10draw.rc — the embedded /boot/boot of the draw donor venue kernel
+# (15-05, USPACE-08, D-04).  initcode.c pre-binds #c->/dev, #e/#ec->/env,
+# #s->/srv and opens cons on fds 0/1/2 before exec'ing this script —
+# never re-bind those here.  The -m flag on the shebang is NOT optional
+# (devroot has no compiled-in rcmain — k10t1.rc's measured lesson), and
+# the console output fans to BOTH the vga screen and the serial consdev
+# (putstrn0's loop), so every marker below lands on the serial capture —
+# the venue's only egress wire.
+
+# path FIRST: rcmain's fallback default is (. /bin); with /boot first
+# every bare command resolves to the embedded set.
+path=(/boot /bin .)
+
+# namespace setup — bare binds resolve to /boot/bind via the path just
+# set (k10t1.rc's own idiom).  The device binds onto /dev are UNION
+# binds (-a, MAFTER): a plain bind is MREPL and would REPLACE initcode's
+# #c mount (measured on the first venue boot: /dev/time vanished behind
+# #m and the boot script died).
+bind '#p' /proc
+bind '#d' /fd
+bind -b /boot /bin
+bind -a '#v' /dev
+bind -a '#m' /dev
+
+# venue plumbing the rc-script boot path otherwise skips (k10t1.rc's
+# measured pair): set the kernel clock from the RTC, and name a
+# hostowner BEFORE the draw/input choreography (writing #c/hostowner
+# also sets the process user — the eve-gate on #c/kbin and #m/mousein
+# depends on it).
+cat '#r/rtc' > /dev/time
+echo -n sys > '#c/hostowner'
+
+# the VGA bring-up choreography (userspace-driven, devvga.c's verbs):
+# type dispi arms the DISPI VGAdev (vgadispi.c's enable — the mode-set
+# itself), linear maps the LFB through vgalinearpci (the soft-screen
+# discipline: the LFB is the flush destination), size allocates the
+# 1024x768x32 screen image and installs it for devdraw, drawinit
+# completes the sequence (a no-op for dispi but the canonical verb).
+echo type dispi > '#v/vgactl'
+echo linear 16777216 > '#v/vgactl'
+echo 'size 1024x768x32 x8r8g8b8' > '#v/vgactl'
+echo drawinit > '#v/vgactl'
+
+# #i LAST and only now: devdraw's ATTACH installs the screen image
+# (drawattach -> initscreenimage -> attachscreen), so binding #i before
+# the size verb fails the bind itself ("#i: no frame buffer" — measured
+# on the first venue boot).  Union bind, initdraw's own MAFTER shape.
+bind -a '#i' /dev
+
+# the /dev/draw exerciser: /dev/draw/new opens, a fill image allocates,
+# a rectangle paints, pixels read back — prints DRAW-SMOKE-OK.
+drawsmoke
+
+# the harness's phase-B completion signal; then init must never exit
+# (an exiting init panics the kernel — k10root.rc's idiom).
+echo DRAW-VENUE-DONE
+while(~ 1 1){ . -i '#d/0' }
