@@ -1,9 +1,9 @@
 # 15-06 rio distilled syscall table — the 05-03 measured-set format
-# derived from /home/req/code/harvey/.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence/15-06-rio-raw.txt by build/x86_64/trace-distill.sh (the committed
+# derived from 15-06-rio-raw.txt by build/x86_64/trace-distill.sh (the committed
 # derivation path — re-running it over the raw reproduces this file)
 # venue: k10draw draw donor (amd64 9k kernel), scripted-interaction
 # replay via /dev/mousein + /dev/kbin, tracesup born-traced arming
-# run: commit=3680ad88f date=2026-11-10T13:51:33Z accel=kvm
+# run: commit=c9d135a45 date=2026-11-10T14:09:15Z accel=kvm
 # row grammar: <syscall>\t<count>\t<args-shape (first sample)>
 #              B<TAB>syscall<TAB>count = per-binary aggregate
 #              P<TAB>syscall<TAB>count<TAB>path = distinct path args (digits->N)

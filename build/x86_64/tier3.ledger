@@ -1,0 +1,31 @@
+# tier3.ledger — the tier-3 GUI execution ledger (15-06, USPACE-08).
+# Line grammar: tier2.ledger's shape; the exec field carries the
+# execution evidence pointer — for the traced subjects that IS the
+# D-07 rule: the distilled syscall table committed under the phase
+# evidence dir, produced by a completion-marker-gated session (the
+# raw fragment log sits beside it; both are reconstructible from the
+# committed capture).  The utility class rode the venue payload
+# (bootfs-draw.paq's /amd64/bin harvest) but has NO independent trace:
+# its exec field says so honestly — a utility earns a TRACE: pointer
+# when a plan drives it through its own scripted interaction, never by
+# inheritance.  sha256 digests are over the /amd64/bin artifacts the
+# paq harvest computed from (build/x86_64/tiers/tier3-gui.txt's
+# membership; the tier-3 harvest's own T3-ART markers).
+# Session runs: 3680ad88f (rio tracer gate), c9d135a45 (acme+sam set,
+# the rio+acme+sam one-boot run), the 15-06 Task 3 full-set run
+# (rio+acme+sam+rejoin on one capture).
+tier=3 dir=cmd/rio bin=rio sha256=803528e7f336c9b2886259de3f93b9d416b101f93f8dafece655d99d6e447876 exec=TRACE:evidence/15-06-rio-table.txt commit=c9d135a45 date=2026-11-10
+tier=3 dir=cmd/acme bin=acme sha256=d53c87120991e856f14d2a3e273870af7422ea14679e016906146e73d17a6fb5 exec=TRACE:evidence/15-06-acme-table.txt commit=c9d135a45 date=2026-11-10
+tier=3 dir=cmd/sam bin=sam sha256=715fcae294e58f2139f3394503777c13c8111ab31bc888a68b108eececd166bc exec=TRACE:evidence/15-06-sam-table.txt commit=c9d135a45 date=2026-11-10
+# samterm's fragments ride the SAME sam table (the born-traced pair —
+# sam + samterm pids are aggregated per-binary inside it):
+tier=3 dir=cmd/samterm bin=samterm sha256=1a570895570f49e09d88fd8d7c878a15e3010abbb81d46020d3df8d17698a3f7 exec=TRACE:evidence/15-06-sam-table.txt commit=c9d135a45 date=2026-11-10
+# the utility class (tier3-gui.txt members beyond the trace subjects):
+tier=3 dir=cmd/page bin=page sha256=bf0f53bca20a213fa77f6ea2bafc85405f095cd30fc9856c5827f30671cb5adc exec=STAGED:draw-venue-payload commit=c9d135a45 date=2026-11-10
+tier=3 dir=cmd/plumb bin=plumber sha256=bf8fcee8a6f5383edd56714e702a14ffada5d314be18ea4b8f125b0db15b0188 exec=STAGED:draw-venue-payload commit=c9d135a45 date=2026-11-10
+tier=3 dir=cmd/plumb:plumb bin=plumb sha256=572c318f9fb088ad8d0e2e6dcc7948042e562b0df6185436b64a7965b5edd27f exec=STAGED:draw-venue-payload commit=c9d135a45 date=2026-11-10
+tier=3 dir=cmd/stats bin=stats sha256=2ad4ba667c784b32c499efe93e0c213ba05589e454ca152f5356ae06443a77d5 exec=STAGED:draw-venue-payload commit=c9d135a45 date=2026-11-10
+tier=3 dir=cmd/winwatch bin=winwatch sha256=4997b12024e5b56de6954c5509001306cbd7f3df627ca1508e316b2294e880ee exec=STAGED:draw-venue-payload commit=c9d135a45 date=2026-11-10
+tier=3 dir=cmd/proof bin=proof sha256=80aabac0e340af2e5dabce0184f5a94e3e981f55d5622a71a72b4e60bb97ce5d exec=STAGED:draw-venue-payload commit=c9d135a45 date=2026-11-10
+tier=3 dir=cmd/screenlock bin=screenlock sha256=7d023416b9f2899265549f7276507390e6dff57d11a811f54ef2f122461edb4a exec=STAGED:draw-venue-payload commit=c9d135a45 date=2026-11-10
+tier=3 dir=cmd/ip/gping bin=gping sha256=534d3fb49995577344ab96b0acc8eaa5e10bcada945ffa04c09ad780d4ca927c exec=STAGED:draw-venue-payload commit=c9d135a45 date=2026-11-10

@@ -180,7 +180,7 @@ NTOT=$($GREP -c '^T	' "$T2" || true)
 
 {
 	echo "# 15-06 $NAME distilled syscall table — the 05-03 measured-set format"
-	echo "# derived from $RAW by build/x86_64/trace-distill.sh (the committed"
+	echo "# derived from $(basename "$RAW") by build/x86_64/trace-distill.sh (the committed"
 	echo "# derivation path — re-running it over the raw reproduces this file)"
 	echo "# venue: k10draw draw donor (amd64 9k kernel), scripted-interaction"
 	echo "# replay via /dev/mousein + /dev/kbin, tracesup born-traced arming"

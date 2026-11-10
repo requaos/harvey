@@ -140,6 +140,32 @@ magic=$(od -An -tx1 -N4 "$STAGE/ramfs" | tr -d ' \n')
 [ "$magic" = "00008a97" ] || err "ramfs: bad magic $magic (want 00008a97 — amd64 S_MAGIC)"
 echo "== staged: ramfs (magic-checked — the writable /tmp scratch)"
 
+# drawtest + arctest: the 15-09 runtime re-join binaries (the recorded
+# contract runs them on this venue — DRAWTEST-OK / ARCTEST-OK is the
+# pixel-path audit's runtime proof stage).  Host-built with the SAME
+# shape libmemdraw's mkfile names for them ($O.drawtest: drawtest.$O
+# $LIB; $O.arctest: arctest.$O draw.$O arc.$O $LIB) against the
+# tier-0-fresh /amd64/lib/libmemdraw.a the kernel also links.
+for t in drawtest arctest; do :; done
+(	cd "$HARVEY" && \
+	"$NS_HBIN/6c" -FTVw -o "$STAGE/drawtest.6" -Isys/include -Iamd64/include sys/src/libmemdraw/drawtest.c && \
+	"$NS_HBIN/6l" -o "$STAGE/drawtest" -L "$HARVEY/amd64/lib" "$STAGE/drawtest.6" -lmemdraw && \
+	rm -f "$STAGE/drawtest.6"
+) || err "drawtest host-side build failed (the 15-09 re-join binary)"
+magic=$(od -An -tx1 -N4 "$STAGE/drawtest" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "drawtest: bad magic $magic (want 00008a97 — amd64 S_MAGIC)"
+echo "== staged: drawtest (magic-checked — the 15-09 re-join, default r8g8b8 channels)"
+(	cd "$HARVEY" && \
+	"$NS_HBIN/6c" -FTVw -o "$STAGE/arctest.6" -Isys/include -Iamd64/include sys/src/libmemdraw/arctest.c && \
+	"$NS_HBIN/6c" -FTVw -o "$STAGE/draw.6" -Isys/include -Iamd64/include sys/src/libmemdraw/draw.c && \
+	"$NS_HBIN/6c" -FTVw -o "$STAGE/arc.6" -Isys/include -Iamd64/include sys/src/libmemdraw/arc.c && \
+	"$NS_HBIN/6l" -o "$STAGE/arctest" -L "$HARVEY/amd64/lib" "$STAGE/arctest.6" "$STAGE/draw.6" "$STAGE/arc.6" -lmemdraw && \
+	rm -f "$STAGE/arctest.6" "$STAGE/draw.6" "$STAGE/arc.6"
+) || err "arctest host-side build failed (the 15-09 re-join binary)"
+magic=$(od -An -tx1 -N4 "$STAGE/arctest" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "arctest: bad magic $magic (want 00008a97 — amd64 S_MAGIC)"
+echo "== staged: arctest (magic-checked — the 15-09 re-join, timed memarc loop)"
+
 # --- the namespace build (nuke sandwich) --------------------------------
 export NS_HBIN
 LOG="$HARVEY/.build/build-9kdraw.log"
@@ -353,6 +379,8 @@ done
 cp "$STAGE/drawsmoke" "$PSTAGE/amd64/bin/drawsmoke"
 cp "$STAGE/tracesup" "$PSTAGE/amd64/bin/tracesup"
 cp "$STAGE/ramfs" "$PSTAGE/amd64/bin/ramfs"
+cp "$STAGE/drawtest" "$PSTAGE/amd64/bin/drawtest"
+cp "$STAGE/arctest" "$PSTAGE/amd64/bin/arctest"
 
 # --- the 15-06 trace payload: the committed replay scripts (D-05's
 # measurement drivers — the scripted interaction set, in-guest kbin +
@@ -469,7 +497,7 @@ fn trace-one {
 	echo TRACE-EGRESS-DONE-^$name
 }
 SESSIONEOF
-TRACE_SESSIONS="${DRAW_TRACE_SESSIONS:-rio acme sam}"
+TRACE_SESSIONS="${DRAW_TRACE_SESSIONS:-rio acme sam rejoin}"
 for s in $TRACE_SESSIONS; do
 	case "$s" in
 	rio|acme)
@@ -489,10 +517,17 @@ for s in $TRACE_SESSIONS; do
 
 # the 15-09 runtime re-join (DRAWTEST-OK / ARCTEST-OK — the recorded
 # contract): drawtest runs its full stochastic verification on the
-# default channels (r8g8b8 x3), arctest its timed memarc loop; a
-# failure is a 15-09 fix regression — root-cause again, never a skip.
+# default channels (r8g8b8 x3) and exits(0) itself; arctest's timed
+# memarc loop FALLS OFF MAIN, and Harvey's _main epilogue then calls
+# exits("main") — a failure status to rc's && (measured: the marker
+# never fired while the timings printed) — so ARCTEST-OK gates on the
+# loop's OWN completion output (the timings line), with the harness's
+# zero-panic/trap assert as the without-faulting half.  A failure is a
+# 15-09 fix regression — root-cause again, never a skip.
 drawtest && echo DRAWTEST-OK
-arctest 1000 && echo ARCTEST-OK
+arctest 1000 > /tmp/arctest.out
+cat /tmp/arctest.out
+test -s /tmp/arctest.out && echo ARCTEST-OK
 REJOINEOF
 		;;
 	*)
@@ -518,7 +553,7 @@ for p in lib/font/bit/lucm/unicode.9.font lib/font/bit/lucidasans/euro.8.font \
 	[ -s "$PSTAGE/$p" ] || err "paq manifest: $p missing/empty from staged tree"
 	echo "paq manifest: /$p staged"
 done
-for rel in $DRAW_RELS amd64/bin/drawsmoke amd64/bin/tracesup amd64/bin/ramfs lib/trace-session.rc rc/lib/rcmain; do
+for rel in $DRAW_RELS amd64/bin/drawsmoke amd64/bin/tracesup amd64/bin/ramfs amd64/bin/drawtest amd64/bin/arctest lib/trace-session.rc rc/lib/rcmain; do
 	[ -s "$PSTAGE/$rel" ] || err "paq manifest: $rel missing/empty"
 	echo "paq manifest: /$rel staged"
 done
