@@ -42,7 +42,12 @@
 # usage: nix develop -c sh build/mm/boot-9kgs-smoke.sh  (repo root)
 # Env: HARVEY, GS_KERNEL (default amd64/9kdraw.elf), GS_MEM (default
 #   1024), GS_BOOT_BUDGET/GS_SMOKE_BUDGET (s; default 60/600 KVM,
-#   600/1800 TCG), GS_LOG (default .build/gs-serial.log)
+#   600/1800 TCG), GS_LOG (default .build/gs-serial.log),
+#   GS_EVIDENCE/GS_EVIDENCE_NAME (evidence dir + capture basename;
+#   default the phase 15 evidence dir / 15-07-gs-smoke — the committed
+#   evidence of record.  The capture is retained there ONLY on a
+#   passing run; a failing run never touches it, its capture stays at
+#   $GS_LOG — point GS_EVIDENCE at a scratch dir for diagnostic runs)
 
 set -eu
 
@@ -354,12 +359,20 @@ if [ "$RC" -eq 0 ]; then
 	echo "GS-GATE-PASS: GS-EXIT-OK + GS-RENDER-OK + GS-BITS $BITBYTES bytes (gs exited clean, non-empty bitmap on the FILE device), zero panic/trap, accel=$ACCEL, -m $MEM"
 fi
 
-# the capture is the gate's evidence — cat it and retain a copy in the
-# phase evidence dir
+# the capture is the gate's evidence — cat it to THIS stdout always; a
+# copy is retained in the evidence dir ONLY on a passing run: the
+# default destination is the committed evidence of record, and a red or
+# bring-up run must never replace it (the failing capture lives at
+# $GS_LOG, catted above — set GS_LOG per-run when debugging)
 echo "== serial capture ($BOOTLOG):"
 cat "$BOOTLOG"
-EVID="$HARVEY/.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence"
-mkdir -p "$EVID"
-cp "$BOOTLOG" "$EVID/15-07-gs-smoke.log"
-echo "== capture retained: $EVID/15-07-gs-smoke.log"
+EVID="${GS_EVIDENCE:-$HARVEY/.planning/phases/15-userspace-tiers-bootfs-payload-amd64/evidence}"
+EVNAME="${GS_EVIDENCE_NAME:-15-07-gs-smoke}"
+if [ "$RC" -eq 0 ]; then
+	mkdir -p "$EVID"
+	cp "$BOOTLOG" "$EVID/$EVNAME.log"
+	echo "== capture retained: $EVID/$EVNAME.log"
+else
+	echo "== gate failed — capture NOT retained (the evidence of record is untouched; this run's capture is $BOOTLOG)"
+fi
 exit "$RC"

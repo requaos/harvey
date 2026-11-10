@@ -39,7 +39,11 @@
 #   TRACE_MEM        guest memory (default 512)
 #   TRACE_BUDGET     seconds to wait for TRACE-VENUE-DONE (default 1800 KVM / 3600 TCG)
 #   TRACE_LOG        serial capture (default $HARVEY/.build/draw-trace-serial.log)
-#   TRACE_EVIDENCE   evidence dir (default the phase 15 evidence dir)
+#   TRACE_EVIDENCE   evidence dir (default the phase 15 evidence dir —
+#                    the committed evidence of record; distilled layers
+#                    and the capture are promoted into it ONLY on a
+#                    green run.  A failing run never writes there —
+#                    point this at a scratch dir for diagnostic runs)
 #   TRACE_EVIDENCE_NAME  the committed capture's basename (default 15-06-trace-venue)
 #   TRACE_MONITOR    a unix socket path: qemu's monitor listens there
 #                    (screendump debugging of the replay geometry; unset
@@ -221,10 +225,16 @@ fi
 
 # --- the evidence layers (D-06) ---------------------------------------
 # raw: the per-pid framed egress section, extracted verbatim; table:
-# the distiller's output over that raw.  Only for proven venues, only
-# for sessions whose egress actually landed (an incomplete session's
-# evidence is the capture itself, not a hollow table).
+# the distiller's output over that raw.  Everything is distilled into a
+# SCRATCH dir first and promoted into $EVIDENCE only when the whole run
+# is green: the default $EVIDENCE is the committed evidence of record,
+# and a red or partial run (a missing session marker, an egress that
+# never landed, a distillation that failed) must never replace it.  A
+# failing run's evidence is the capture itself ($BOOTLOG, catted below)
+# plus the scratch dir, which is kept and named for diagnosis.
+# (An unproven venue distills nothing at all — the provenness rule.)
 COMMIT=$(git -C "$HARVEY" rev-parse --short HEAD 2>/dev/null || echo unknown)
+SCRATCH=$(mktemp -d "${TMPDIR:-/tmp}/trace-evidence.XXXXXX")
 if [ "$PROVEN" -eq 1 ]; then
 	for s in $SESSIONS; do
 		case "$s" in
@@ -232,11 +242,11 @@ if [ "$PROVEN" -eq 1 ]; then
 			b="$BOOTLOG"
 			if "$GREP" -q "__GSD_EGRESS_BEGIN_$s" "$BOOTLOG" && \
 			   "$GREP" -q "__GSD_EGRESS_END_$s" "$BOOTLOG"; then
-				sed -n "/__GSD_EGRESS_BEGIN_$s/,/__GSD_EGRESS_END_$s/p" "$b" > "$EVIDENCE/15-06-$s-raw.txt"
-				if [ -s "$EVIDENCE/15-06-$s-raw.txt" ]; then
+				sed -n "/__GSD_EGRESS_BEGIN_$s/,/__GSD_EGRESS_END_$s/p" "$b" > "$SCRATCH/15-06-$s-raw.txt"
+				if [ -s "$SCRATCH/15-06-$s-raw.txt" ]; then
 					sh "$HARVEY/build/x86_64/trace-distill.sh" "$s" \
-						"$EVIDENCE/15-06-$s-raw.txt" \
-						"$EVIDENCE/15-06-$s-table.txt" \
+						"$SCRATCH/15-06-$s-raw.txt" \
+						"$SCRATCH/15-06-$s-table.txt" \
 						"run: commit=$COMMIT date=$DATE accel=$ACCEL" \
 						|| { echo "TRACE-GATE-FAIL: $s distillation produced nothing"; RC=1; }
 				else
@@ -250,10 +260,21 @@ if [ "$PROVEN" -eq 1 ]; then
 			;;
 		esac
 	done
-	# the capture itself is evidence (bring-up + sessions + rejoin on
-	# one wire — the provenness rule's proof)
+fi
+if [ "$RC" -eq 0 ]; then
+	# the whole run is green — promote the distilled layers and the
+	# capture itself (bring-up + sessions + rejoin on one wire — the
+	# provenness rule's proof) into the evidence dir
+	cp "$SCRATCH"/15-06-* "$EVIDENCE/" 2>/dev/null || true
 	cp "$BOOTLOG" "$EVIDENCE/$EVNAME.log"
+	rm -rf "$SCRATCH"
 	ls -l "$EVIDENCE/15-06-"* "$EVIDENCE/$EVNAME.log" 2>/dev/null || true
+else
+	if [ -z "$(ls -A "$SCRATCH" 2>/dev/null)" ]; then
+		rmdir "$SCRATCH" 2>/dev/null || true
+	else
+		echo "== gate failed — evidence NOT promoted (the evidence of record is untouched; partial distillation kept for diagnosis: $SCRATCH)"
+	fi
 fi
 
 if [ "$RC" -eq 0 ]; then
