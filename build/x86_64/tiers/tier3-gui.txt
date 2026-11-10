@@ -48,3 +48,34 @@
 # set (rio, acme, sam, samterm, plumb + the utility class) below with
 # per-entry provenance.
 cmd/page		# the lightest genuine GUI-stack member (mkone, LIB=libdraw.a; plumb/bio join by autolib — measured: no page source touches memdraw; the family's memdraw/memlayer halves are the kernel-side closure, tier-0 data)
+
+# --- the full GUI membership (USPACE-08; appended 15-04 Task 2 after
+#     the tracer proved the machinery end-to-end.  Every member's 6l
+#     autolib chain closed inside tier-0 on the first full run) ---
+cmd/rio			# the window system (mkone; its mkfile names libdraw+libframe+libthread+libplumb — all tier-0 lines now); the 15-06 trace subject
+cmd/acme		# the programmer's editor (mkone; libframe+libdraw+libthread by mkfile, libplumb by autolib); the 15-06 trace subject
+cmd/sam			# the editor's host half (mkone; text-only B side — no libdraw at all; the GUI half is samterm, its SIBLING dir per CONTEXT canonical_refs)
+cmd/samterm		# sam's terminal half (mkone; libdraw+libframe; CFLAGS -I../sam; installs to /amd64/bin/AUX — its mkfile's BIN, the mtime-stamp harvest finds it); the 15-06 trace subject
+cmd/plumb		# whole dir (mkmany TARG=plumber plumb — TWO markers: plumber + plumb; libplumb+libthread+libauth by autolib); the plumber is rio/acme's message bus
+# the utility class (RESEARCH USPACE-08 row — the lighter GUI consumers):
+cmd/stats		# single; the resource grapher (draw.h+event.h → libdraw; auth.h → libauth)
+cmd/winwatch		# single; the window lister (draw.h+event.h → libdraw; regexp.h → libregexp)
+cmd/proof		# dir (mkone); the troff proof viewer — screen.c's draw closure; $O.pout stays a never-built-by-default host rule
+cmd/screenlock		# single; the screen locker (draw.h → libdraw; libsec+thread+auth closures)
+# gping re-derives IN (the 15-01 exclusion record's named destination:
+# "joins with tier 3 (the GUI tier's libdraw-family closure), the
+# factotum:fgui precedent" — libdraw is now a tier-0 line, so the wall
+# 15-01 measured at 6l is gone; harvested to /amd64/bin/ip/gping):
+cmd/ip/gping		# single in the ip container (the nested-single dispatch); links libdraw (15-01's live 6l measurement)
+# GUI exclusions, named (D-10 — nothing carried unexamined, nothing
+# dropped to dodge a compile failure):
+#   cmd/auth/factotum:fgui  stays EXCLUDED, re-derived 15-04: fgui.c
+#                          includes <control.h> → libcontrol, a whole
+#                          widget-toolkit closure (libcontrol + its own
+#                          deps) outside this plan's tier-0 file budget
+#                          and outside USPACE-08's named set; the tier-1
+#                          data's original exclusion record stands.  It
+#                          appends when a plan owns the libcontrol
+#                          closure — never silently
+#   nothing else excluded — every compile failure inside the membership
+#   above is root-caused and fixed in-tree (D-10)
