@@ -225,6 +225,14 @@ syscall(int scallnr, Ureg* ureg)
 	if(up->trace && (pt = proctrace) != nil)
 		pt(up, STrap, todget(nil), STrapSC|scallnr);
 
+	/*
+	 * startsyscall can arm tracing on a process that is already
+	 * stopped inside a syscall; the return-side block below then
+	 * runs without the entry block ever having stamped startns.
+	 * Zero is the "entry not seen" timestamp — never stack garbage.
+	 */
+	startns = 0;
+
 	if(up->procctl == Proc_tracesyscall){
 		/*
 		 * Format the ENTRY fragment from the user-stack args (up->arg
