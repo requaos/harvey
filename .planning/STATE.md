@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 15
 current_phase_name: Userspace Tiers + Bootfs Payload (amd64)
 status: executing
-stopped_at: Completed 15-02-PLAN.md
-last_updated: "2026-11-10T00:38:01.988Z"
+stopped_at: "Completed 15-04-PLAN.md (GUI tier compile: 11 entries -> 12 T3-ART; 15-03 remains the next unsummarized plan)"
+last_updated: "2026-11-10T01:08:23.843Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 15 execution started
-state_head: 09eb9125b29789ec0347728021844659bce35233
+state_head: d83bf9995931fac530056f59cc7ebe2b33d26e38
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 24
-  completed_plans: 17
+  completed_plans: 18
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 15 (Userspace Tiers + Bootfs Payload (amd64)) — EXECUTING
-Plan: 3 of 9
+Plan: 3 of 9   # pointer corrected after 15-04 ran out of wave order (04 before 03): 15-01/02/04 summarized; 15-03 is the next unsummarized plan
 Status: Ready to execute
 Last activity: 2026-11-09 — Phase 15 execution started
 
@@ -72,6 +72,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 14 P09 | 14 min | 3 tasks | 17 files |
 | Phase 15 P01 | 30 min | 3 tasks | 12 files |
 | Phase 15 P02 | 179 min | 3 tasks | 10 files |
+| Phase 15 P04 | 26 min | 2 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -135,6 +136,9 @@ Recent decisions affecting current work:
 - [Phase 15]: The in-guest rc dialect is a measurement surface: braced if-not bodies are parse errors that kill a sourced file mid-stream (rc parses blocks whole); bare = in match patterns is a lexer token error; the fd-dup redirect is unreliable in nested sourced blocks — flat status ladders, =-free patterns, the transient 14-09 conv shape and /fd reads are the reliable forms (15-02, measured on the donor across 13 boot cycles)
 - [Phase 15]: cs queries ride the !ipinfo route (the dom-attr network translation takes dnsiplookup first whose /srv/dns failure swamps the ndb fallback); libndb drops an unterminated final line whole (generated ndb files carry their newline); myipaddr never falls back to loopback (a loopback-only venue carries a second non-loopback probe address)
 - [Phase 15]: The donor venue gained the standard /rc root dir in devroot (srv -e execs rc -c which sources /rc/lib/rcmain unconditionally — no /rc means no srv -e service at all) and the namespace bootstrap for it; keyfs probes isolate getauthkey interactive prompt by binding the read-only sentinel over /dev/cons, and the write-back observable is the through-mount user dir (the server forks RFENVG)
+- [Phase 15]: [15-04] The libdraw family landed in tier-0 as DATA closure in k10f's lib order — memlayer/memdraw are the KERNEL-side closure (no userspace GUI source reaches them by autolib, measured), draw/frame/plumb/close are the consumers' link closures; one tier-0 file feeds the LIBS filter and the 15-05 draw-donor kernel
+- [Phase 15]: [15-04] gping re-derived IN to tier-3 (15-01's exclusion record named tier 3 as its destination once libdraw closed — the promise kept); fgui stays excluded re-derived (<control.h> -> libcontrol, a closure no plan owns yet — appends when one does, never silently)
+- [Phase 15]: [15-04] T3-ART is artifact evidence ONLY (D-07's boundary in the marker vocabulary): compile green is never execution proof for the GUI tier — 15-06's traces are the gate, and 15-09's libmemdraw audit stays sequenced before the trace capture
 
 ### Pending Todos
 
@@ -157,6 +161,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-10T00:38:01.192Z
-Stopped at: Completed 15-02-PLAN.md
+Last session: 2026-11-10T01:08:23.735Z
+Stopped at: Completed 15-04-PLAN.md (GUI tier compile: 11 entries -> 12 T3-ART; 15-03 remains the next unsummarized plan)
 Resume file: None
