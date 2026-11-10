@@ -28,9 +28,9 @@
 #      wc (the GS-BITS size line's `wc -c < /tmp/render.bit` — the
 #      venue kernel's embedded root carries echo/cat/test/sleep/read/
 #      rc/bind/paqfs only, no wc).
-#   3. CLASSIFY — GS-RENDER-OK + the GS-BITS size line on the serial
-#      capture, zero panic/trap lines; the capture is copied to the
-#      phase evidence dir.
+#   3. CLASSIFY — GS-EXIT-OK (gs's own exit status) + GS-RENDER-OK + the
+#      GS-BITS size line on the serial capture, zero panic/trap lines;
+#      the capture is copied to the phase evidence dir.
 #
 # The device: -sDEVICE=ppmraw (gdevpbm.c, in the committed ld.tr link
 # set).  The plan's example named `-sDEVICE=bit', but gdevbit.o is not
@@ -170,11 +170,22 @@ if (test -e /bin/gs && test -x /bin/gs)
 if not
 	echo GS-BIN-MISSING
 /bin/gs -q -dNOPAUSE -dBATCH '-sDEVICE=ppmraw' '-sOutputFile=/tmp/render.bit' -I/mnt/sys/lib/ghostscript /lib/gs-render.ps
+# gs's exit status is PART of the verdict: ppmraw writes its header and
+# rows incrementally, so a gs that dies mid-render still leaves a
+# non-empty file — a bitmap alone is not a render.  $status is captured
+# on the very next line (any later command overwrites it); the empty
+# string is rc's success status.
+gsstatus=$status
+if (~ $gsstatus '')
+	echo GS-EXIT-OK
+if not
+	echo GS-EXIT-FAIL $gsstatus
 if (test -s /tmp/render.bit) {
 	gsbits=`{wc -c < /tmp/render.bit}
 	echo GS-BITS $gsbits
-	echo GS-RENDER-OK
 }
+if (~ $gsstatus '' && test -s /tmp/render.bit)
+	echo GS-RENDER-OK
 if not
 	echo GS-RENDER-FAIL
 echo GS-SMOKE-DONE
@@ -324,9 +335,14 @@ wait "$QEMU_PID" 2>/dev/null || true
 QEMU_PID=""
 sleep 2
 
-# classify: GS-RENDER-OK + the GS-BITS size line + zero panic/trap
+# classify: GS-EXIT-OK + GS-RENDER-OK + the GS-BITS size line + zero
+# panic/trap.  GS-RENDER-OK is only printed when gs exited clean AND the
+# bitmap is non-empty; GS-EXIT-OK is asserted by name as well so a
+# partial render (bitmap present, gs failed) reds with its own message
+# rather than as a generic missing marker.
 RC=0
 "$GREP" -q 'Plan 9' "$BOOTLOG" || { echo "GS-GATE-FAIL: no banner"; RC=1; }
+"$GREP" -q 'GS-EXIT-OK' "$BOOTLOG" || { echo "GS-GATE-FAIL: gs did not exit clean (no GS-EXIT-OK; a GS-EXIT-FAIL line carries its status — a partial bitmap is not a render)"; RC=1; }
 "$GREP" -q 'GS-RENDER-OK' "$BOOTLOG" || { echo "GS-GATE-FAIL: missing GS-RENDER-OK (gs failed to render — the capture's gs error lines classify it; a typeface-referencing fixture is the first suspect)"; RC=1; }
 "$GREP" -qE 'GS-BITS [1-9][0-9]*' "$BOOTLOG" || { echo "GS-GATE-FAIL: no GS-BITS size line (the bitmap was empty or never created)"; RC=1; }
 if "$GREP" -qiE 'panic|sys: trap' "$BOOTLOG"; then
@@ -335,7 +351,7 @@ if "$GREP" -qiE 'panic|sys: trap' "$BOOTLOG"; then
 fi
 if [ "$RC" -eq 0 ]; then
 	BITBYTES=$("$GREP" -oE 'GS-BITS [0-9]+' "$BOOTLOG" | head -1 | awk '{print $2}')
-	echo "GS-GATE-PASS: GS-RENDER-OK + GS-BITS $BITBYTES bytes (non-empty bitmap on the FILE device), zero panic/trap, accel=$ACCEL, -m $MEM"
+	echo "GS-GATE-PASS: GS-EXIT-OK + GS-RENDER-OK + GS-BITS $BITBYTES bytes (gs exited clean, non-empty bitmap on the FILE device), zero panic/trap, accel=$ACCEL, -m $MEM"
 fi
 
 # the capture is the gate's evidence — cat it and retain a copy in the
