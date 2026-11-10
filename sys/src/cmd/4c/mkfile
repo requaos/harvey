@@ -58,12 +58,7 @@ t:V:	$O.out
 	t.out
 
 # XXX
-# 15-07: the clean override upstream dropped mkone's own object cleanup
-# (only the ../cc archive was removed), so stale *.[$OS] objects
-# survived between builds — the coverage sweep's per-dir fresh-build
-# discipline needs them gone.
-clean:V:	cleanlib
-	rm -f *.[$OS] [$OS].out y.tab.? y.debug y.output $TARG
+clean:	cleanlib
 
 cleanlib:
 	rm -f ../cc/cc.a[$OS]
