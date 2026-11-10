@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 15
 current_phase_name: Userspace Tiers + Bootfs Payload (amd64)
 status: executing
-stopped_at: "Completed 15-04-PLAN.md (GUI tier compile: 11 entries -> 12 T3-ART; 15-03 remains the next unsummarized plan)"
-last_updated: "2026-11-10T01:08:23.843Z"
+stopped_at: "Completed 15-03-PLAN.md (r9 services venue: gate green twice, 7 kernel fixes pinned at 3362cf7, tier-1 SKIP flips live, tier2.ledger committed)"
+last_updated: "2026-11-10T03:20:53.468Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 15 execution started
-state_head: d83bf9995931fac530056f59cc7ebe2b33d26e38
+state_head: ede5ea8fe36360e68e5ca6c53a4b48cb1c34773c
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 24
-  completed_plans: 18
+  completed_plans: 19
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 15 (Userspace Tiers + Bootfs Payload (amd64)) — EXECUTING
-Plan: 3 of 9   # pointer corrected after 15-04 ran out of wave order (04 before 03): 15-01/02/04 summarized; 15-03 is the next unsummarized plan
+Plan: 4 of 9   # pointer corrected after 15-04 ran out of wave order (04 before 03): 15-01/02/04 summarized; 15-03 is the next unsummarized plan
 Status: Ready to execute
 Last activity: 2026-11-09 — Phase 15 execution started
 
@@ -73,6 +73,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 15 P01 | 30 min | 3 tasks | 12 files |
 | Phase 15 P02 | 179 min | 3 tasks | 10 files |
 | Phase 15 P04 | 26 min | 2 tasks | 9 files |
+| Phase 15 P03 | 120 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -139,6 +140,9 @@ Recent decisions affecting current work:
 - [Phase 15]: [15-04] The libdraw family landed in tier-0 as DATA closure in k10f's lib order — memlayer/memdraw are the KERNEL-side closure (no userspace GUI source reaches them by autolib, measured), draw/frame/plumb/close are the consumers' link closures; one tier-0 file feeds the LIBS filter and the 15-05 draw-donor kernel
 - [Phase 15]: [15-04] gping re-derived IN to tier-3 (15-01's exclusion record named tier 3 as its destination once libdraw closed — the promise kept); fgui stays excluded re-derived (<control.h> -> libcontrol, a closure no plan owns yet — appends when one does, never silently)
 - [Phase 15]: [15-04] T3-ART is artifact evidence ONLY (D-07's boundary in the marker vocabulary): compile green is never execution proof for the GUI tier — 15-06's traces are the gate, and 15-09's libmemdraw audit stays sequenced before the trace capture
+- [Phase 15]: [15-03] lib9p's postmountsrv needs the kernel's non-RFPROC rfork RFFDG (the in-place fd-group copy, donor sysproc.c:50-57): without it every srv-mounted daemon died mount:bad-fd — fixed at r9 e045dde; devmnt Twrite/Tcreate landed the same plan (the read-only policy is the SERVER's, paqfs still refuses; Tcreate transforms its fid so it rides a clone)
+- [Phase 15]: [15-03] The kernel heap is now 32 MiB (measured: the services venue exhausted the 4 MiB arena mid-sweep — exec staging + resident daemons + a ~16 KiB per-exit residue); the residue LEAK audit stays Phase 17's RFMEM-OOM backlog, and the oom handler now prints the failed layout + arena high-water
+- [Phase 15]: [15-03] The tier-1 ipconfig/factotum SKIPs are retired (flipped live in one commit with every gate expectation at 7a9ad4b70): the r9 venue now expects ZERO tier-1 skips; the r9 gate's post-pass uses the donor classify semantics for conditional SVC skips (per-subject OK-or-declared + the converse), and expect stage sequences are EMISSION-ordered (expect consumes the buffer to each match — srv-before-exportfs measured)
 
 ### Pending Todos
 
@@ -161,6 +165,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-10T01:08:23.735Z
-Stopped at: Completed 15-04-PLAN.md (GUI tier compile: 11 entries -> 12 T3-ART; 15-03 remains the next unsummarized plan)
+Last session: 2026-11-10T03:20:53.380Z
+Stopped at: Completed 15-03-PLAN.md (r9 services venue: gate green twice, 7 kernel fixes pinned at 3362cf7, tier-1 SKIP flips live, tier2.ledger committed)
 Resume file: None
