@@ -155,8 +155,15 @@ if(~ $svclo bound){
 	if(~ $#lconv 1){
 		if($B/htest -e /net/ipifc/$lconv/ctl){
 			if($B/hecho bind loopback > /net/ipifc/$lconv/ctl){
+				# TWO addresses on the one loopback ipifc: 127.0.0.1 for
+				# the connects, plus a non-loopback probe address —
+				# libip's myipaddr skips 127.0.0.0/8 and NEVER falls
+				# back to loopback (measured: dns sysfatals "can't read
+				# my ip address" on a loopback-only venue)
 				if($B/hecho add 127.0.0.1 255.0.0.0 > /net/ipifc/$lconv/ctl){
-					svclo=up
+					if($B/hecho add 192.168.237.1 255.255.255.255 > /net/ipifc/$lconv/ctl){
+						svclo=up
+					}
 				}
 			}
 		}
@@ -222,21 +229,43 @@ if(~ $svclo up){
 }
 
 # --- exportfs + srv: a guest-side mount with content through it -------
+# srv's -e exec helper hardcodes /bin/rc -c (srv.c connectcmd), and rc
+# sources /rc/lib/rcmain on EVERY invocation — devroot has no /rc, so
+# the child rc died at the default rcmain walk (measured: "can't open:
+# '/rc'").  The bootstrap below satisfies it the namespace way: a
+# second mntgen at /rc (walk-created dirs), then /boot bound -b at
+# /rc/lib (the bind's own mount walk materializes the mount point
+# through that mntgen) — /rc/lib/rcmain is then the embedded rcmain.
 # hsrv -n -e execs hexportfs over its pipe, posts /srv/xprobe, and
 # mounts the served tree at /mnt/xprobe (the kernel's mount walk
-# materializes the mount point through mntgen's union).  The exportfs
-# marker rides CONTENT compared through the mount — the tier-1 sentinel
-# byte-for-byte — and srv earns its own marker as the enabler whose
-# exec+post+mount interaction IS the exchange (the plan's data
-# membership names both).  srv's internal 10s alarm bounds the setup.
-if($B/hsrv -n -e 'hexportfs -r /boot' xprobe /mnt/xprobe){
+# materializes that mount point through the first mntgen's union).  The
+# exportfs marker rides CONTENT compared through the mount — the tier-1
+# sentinel byte-for-byte — and srv earns its own marker as the enabler
+# whose exec+post+mount interaction IS the exchange.  srv's internal
+# 10s alarm bounds the setup.
+if($B/hmntgen /rc){
+	if(bind -b /boot /rc/lib){
+		svcr=ready
+	}
+}
+if(! ~ $svcr ready) echo SVC-SKIP-WHY no-rc-lib-rcmain-the-srv-child-rc-dies
+svcx=''
+if(~ $svcr ready){
+	if($B/hsrv -n -e 'hexportfs -r /boot' xprobe /mnt/xprobe){
+		svcx=posted
+	}
+}
+if(~ $svcx posted){
 	if($B/hcmp /boot/sentinel.txt /mnt/xprobe/sentinel.txt){
 		echo SVC-OK srv
 		echo SVC-OK exportfs
 	}
 	if not echo SVC-FAIL exportfs
 }
-if not echo SVC-FAIL srv
+if(! ~ $svcx posted){
+	echo SVC-FAIL srv
+	echo SVC-FAIL exportfs
+}
 
 # --- listen: the announce accepts a real loopback connect -------------
 # hlisten -q -t /boot tcp announces every /boot/tcpNNNN service (the
