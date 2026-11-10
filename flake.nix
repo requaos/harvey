@@ -218,6 +218,27 @@
             export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
+          # 15-03 (USPACE-07's r9 leg): the SERVICES gate — the SAME
+          # pipeline as boot-r9-tier1-x64 but the bake carries the
+          # SERVICES payload (mkimage's services section →
+          # bootfs-services.paq: the chain tree + the tier-1 h* helpers
+          # + the tier-2 services set computed from
+          # tiers/tier2-services.txt + the 14-09 net members + the
+          # sweep's /boot-side members + services-sweep.rc at /lib with
+          # the services-termrc override — 15-02's committed sweep
+          # rides UNCHANGED, both venues' single source) and
+          # build/x86_64/services-r9.expect drives the sweep from the
+          # boot flow in ONE boot (the net bring-up preceding the
+          # daemons, every subject's interaction-backed verdict, the
+          # computed-expectation post-pass with the SKIP converse, zero
+          # SVC-FAIL, zero panic).  Green TWICE consecutively with both
+          # captures retained is the r9 leg's proof.  The tier-1 gate's
+          # behavior is untouched; tier1R9X64Pkg's shape verbatim.
+          servicesR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-services-x64" ./nix/services-r9-x64.sh ''
+            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
+            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -248,6 +269,7 @@
           boot-r9-smoke-x64 = mkApp smokeR9X64Pkg;
           boot-r9-tier1-x64 = mkApp tier1R9X64Pkg;
           boot-r9-net-smoke-x64 = mkApp netSmokeR9X64Pkg;
+          boot-r9-services-x64 = mkApp servicesR9X64Pkg;
         });
 
       devShells = forAllSystems (system:

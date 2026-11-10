@@ -5,7 +5,10 @@
 # chain tree + the tier-1 sweep payload), and, since 14-09,
 # build/x86_64/out/bootfs-net.paq (the NET image — the chain tree + the
 # net-gate payload: the ip-container binaries + the 6c C helpers + the
-# /lib fixtures), the paqfs root
+# /lib fixtures), and, since 15-03,
+# build/x86_64/out/bootfs-services.paq (the SERVICES image — the chain
+# tree + the tier-2 services sweep payload for the r9-x64 venue), the
+# paqfs root
 # images for the r9 x86_64 boots (D-04:
 # the byte format carried VERBATIM from aarch64 — same header magic
 # 529ab12b, same trailer 6b46e688, same in-tree mkpaqfs, same r9
@@ -572,3 +575,284 @@ trailer4=$(od -An -tx1 -j $((sz4 - 28)) -N 4 "$NET_IMAGE" | tr -d ' \n')
 [ "$trailer4" = "6b46e688" ] || err "$NET_IMAGE: bad trailer magic $trailer4 (want 6b46e688)"
 
 echo "== PASS: baked $NET_IMAGE ($sz4 bytes; header $magic4 trailer $trailer4; KERNDATE $KERNDATE)"
+
+# ------------------------------------------------------------------
+# 11. the SERVICES bake (15-03, USPACE-07's r9 leg): the chain tree +
+#     the services sweep payload — out/bootfs-services.paq.  The
+#     services image boots on r9-x86_64 through the composed ISO and
+#     runs the committed services sweep (15-02's donor-proven
+#     build/x86_64/services-sweep.rc, baked UNCHANGED at
+#     /lib/services-sweep.rc) from the boot flow (services-termrc
+#     staged as rc/bin/termrc — the tier bake's 9g override shape).
+#     Composition (the 15-03 bake contract):
+#       - the chain manifest (8's set: boot(8), paqfs, the real init,
+#         rc + the core set, rcmain/termrc/namespace/profile skeleton)
+#       - the tier-1 h* helper payload (9's computed set — the sweep's
+#         $B/h{test,sleep,ls,cat,echo,cmp,...} helper vocabulary,
+#         INCLUDING hfactotum from factotum's tier-1 line)
+#       - the tier-2 services payload COMPUTED from
+#         tiers/tier2-services.txt (never a second hardcoded list):
+#         every /amd64/bin artifact each entry governs — a file entry
+#         stages itself, a directory entry stages its whole installed
+#         member tree, a dir entry whose member mkfile installs flat
+#         (subset-build's own BIN-disagreement table: ftpfs/snoopy at
+#         the bin root) stages its basename artifact.  Duplicate h*
+#         names are a bake error (the mapping must be unambiguous).
+#       - the 14-09 net members (the section-10 subset the sweep's
+#         vocabulary names: the ip trio + the utility set — `bind'
+#         unprefixed is the sweep's own call; the /lib net fixtures
+#         ride the committed skeleton tar)
+#       - the sweep's /boot-side members (the paq's boot/ rides /boot
+#         through the namespace's `bind -a /root /' union — the donor
+#         venue's devroot embed equivalents): the byte-exact sentinel
+#         (digest-pinned here, same as 9f), rcmain (verbatim, the
+#         srv -e child's /rc/lib bootstrap source), and the
+#         tcp9901/tcp9902 staged service-name copies (the listener's
+#         per-connection programs — echo and authsrv under their
+#         service names, the donor's staged-copy trick)
+#       - hsvctcpecho + hmkdir: the sweep's compiled one-shot client
+#         and the keyfs probe's DMDIR-create client, built HOST-SIDE
+#         6c/6l link-only (the donor venue's own staging discipline:
+#         relative -I paths from the repo root, 6l -L to the
+#         checkout's amd64/lib)
+#       - NO /boot/factotum (auth-stub-by-absence — hfactotum in
+#         /amd64/bin is the sweep payload, not the boot auth stub)
+SVC_IMAGE="$OUT/bootfs-services.paq"
+
+# 11a. the sweep + override inputs (named loudly, with remediation)
+[ -f "$HARVEY/build/x86_64/services-sweep.rc" ] || err "build/x86_64/services-sweep.rc missing (the committed services sweep, 15-02)"
+[ -f "$HARVEY/build/x86_64/services-termrc" ] || err "build/x86_64/services-termrc missing (the services image's termrc override)"
+# the probe-subject entries verified present in the tier data (the
+# donor gate's compute_svc_expected discipline: each subject names the
+# tier entry it rides — factotum rides its TIER-1 line, never a
+# tier-2 member); a missing entry means the data and the sweep
+# diverged — red HERE, never in the guest
+SVC_T2="$HARVEY/build/x86_64/tiers/tier2-services.txt"
+SVC_T1D="$HARVEY/build/x86_64/tiers/tier1-cmds.txt"
+for e in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv cmd/aux:listen cmd/auth/authsrv cmd/auth/keyfs; do
+	"$GREP" -q "^$e[[:space:]#]" "$SVC_T2" || err "services bake: tier-2 data lacks the probe-subject entry $e (the sweep and the data diverged)"
+done
+"$GREP" -q "^cmd/auth/factotum:factotum[[:space:]#]" "$SVC_T1D" || err "services bake: tier-1 data lacks cmd/auth/factotum:factotum (factotum rides its tier-1 line)"
+
+# 11b. the tier-2 h* staging set, COMPUTED from the tier data (the
+#      resolver consults the built tree: file entries stage
+#      themselves, dir entries stage their whole member tree, flat-
+#      installing dir entries stage their basename artifact).  The
+#      tier-1 helper set reuses 9b's TIER1_RELS computation verbatim.
+SVC_HLIST="$TMPD/svc-hlist"
+: > "$SVC_HLIST"
+svc_stage() {
+	# svc_stage <abs-src> <h-name> — record one h* member; a duplicate
+	# h-name from two sources is a bake error (ambiguous mapping)
+	_src=$1
+	_h=$2
+	if "$GREP" -q "^$_h " "$SVC_HLIST"; then
+		err "services bake: duplicate h* name $_h (two tier entries map to it — the staging mapping is ambiguous)"
+	fi
+	echo "$_h $_src" >> "$SVC_HLIST"
+}
+while read -r line; do
+	case "$line" in ''|'#'*) continue ;; esac
+	entry="${line%%[	 ]*}"
+	case "$entry" in ''|'#'*) continue ;; esac
+	case "$entry" in
+	cmd/*) ;;
+	*) continue ;;
+	esac
+	case "$entry" in
+	*:*)	tgt="${entry##*:}"; rel="${entry%%:*}"; rel="${rel#cmd/}" ;;
+	*)	tgt=""; rel="${entry#cmd/}" ;;
+	esac
+	if [ -n "$tgt" ]; then
+		# container leaf (cmd/aux:listen): the tier driver harvests
+		# $tgt at the bin root
+		[ -f "$BIN/$tgt" ] || err "services bake: $BIN/$tgt missing — run sh build/x86_64/subset-build.sh first (tier-2 $entry)"
+		svc_stage "$BIN/$tgt" "h$tgt"
+	elif [ -f "$BIN/$rel" ]; then
+		svc_stage "$BIN/$rel" "h${rel##*/}"
+	elif [ -d "$BIN/$rel" ]; then
+		for f in $(find "$BIN/$rel" -type f | sort); do
+			svc_stage "$f" "h${f##*/}"
+		done
+	else
+		# the member mkfile's BIN disagreement (subset-build's own
+		# table): ftpfs/snoopy install at the bin ROOT
+		base="${rel##*/}"
+		[ -f "$BIN/$base" ] || err "services bake: tier-2 entry $entry has no artifact at $BIN/$rel or $BIN/$base — run sh build/x86_64/subset-build.sh first"
+		svc_stage "$BIN/$base" "h$base"
+	fi
+done < "$SVC_T2"
+_nsvc=$(wc -l < "$SVC_HLIST" | tr -d ' ')
+[ "$_nsvc" -ge 1 ] || err "the tier-2 h* staging set is empty — the tier data parse failed"
+# every probe subject must be in the computed set (the sweep's probe
+# record consumes exactly these)
+for h in hmntgen hcs hcsquery hdns hdnsquery hexportfs hsrv hlisten hkeyfs hauthsrv; do
+	"$GREP" -q "^$h " "$SVC_HLIST" || err "services bake: probe subject $h missing from the computed tier-2 set (the resolver lost it)"
+done
+
+# 11c. the net members + the utility set (the section-10 subset: the
+#      ip trio + the utility set — bind unprefixed is the sweep's own
+#      vocabulary)
+for p in ip/ipconfig ip/ping ip/udpecho; do
+	[ -s "$BIN/$p" ] || err "$BIN/$p missing — run sh build/x86_64/subset-build.sh first (the 14-09 net section)"
+done
+for f in grep sed dd wc sha1sum test bind; do
+	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first (the utility set)"
+done
+[ -s "$HARVEY/amd64/init" ] || err "amd64/init missing — run sh build/x86_64/subset-build.sh first (stage/init)"
+[ -s "$CHAIN_OUT/boot" ] || err "$CHAIN_OUT/boot missing — run sh build/x86_64/subset-build.sh first (9k/boot)"
+
+# 11d. the host toolchain for the two host-side builds (the donor
+#      venue's own staging discipline; subset-build bootstraps it, a
+#      standalone bake names the remediation)
+SVC_NS_HBIN="${HARVEY_LINUX_BIN:-$HARVEY/.build/hostbin-linux-x86_64/bin}"
+[ -x "$SVC_NS_HBIN/6c" ] && [ -x "$SVC_NS_HBIN/6l" ] \
+	|| err "$SVC_NS_HBIN/{6c,6l} missing — run 'nix run .#setup && nix run .#toolchain' first (the hsvctcpecho/hmkdir host-side builds)"
+
+STAGE5="$TMPD/root-svc"
+mkdir -p "$STAGE5"
+
+# 11e. the committed skeleton (the chain bake's shape — the /lib net
+#      fixtures ride the skeleton tar)
+(cd "$ROOT_TREE" && tar -cf - .) | (cd "$STAGE5" && tar -xf -)
+
+# 11f. empty mount-point dirs + staging parents (the chain set + the
+#      ip container's home + the /boot service-program home)
+mkdir -p "$STAGE5/root" "$STAGE5/env" "$STAGE5/proc" "$STAGE5/dev" "$STAGE5/srv" \
+	"$STAGE5/fd" "$STAGE5/bin" "$STAGE5/tmp" "$STAGE5/mnt" \
+	"$STAGE5/net" "$STAGE5/boot" "$STAGE5/amd64/bin/ip" \
+	"$STAGE5/rc/lib" "$STAGE5/rc/bin" "$STAGE5/adm/timezone"
+
+# 11g. the chain binaries from THIS build's products (the tier bake's
+#      9e discipline: BIN + /amd64/init + out/boot, never a stale out/
+#      harvest for members that have a /amd64/bin home)
+cp "$CHAIN_OUT/boot" "$STAGE5/boot/boot"
+cp "$BIN/paqfs" "$STAGE5/boot/paqfs"
+cp "$HARVEY/amd64/init" "$STAGE5/amd64/init"
+for f in rc ls cat echo ps; do
+	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first"
+	cp "$BIN/$f" "$STAGE5/amd64/bin/$f"
+done
+
+# 11h. the tier-1 h* helper payload (9f's discipline over 9b's
+#      computed set — the sweep's helper vocabulary; hfactotum rides
+#      here from factotum's tier-1 line)
+for rel in $TIER1_RELS; do
+	[ -f "$BIN/$rel" ] || err "$BIN/$rel missing — run sh build/x86_64/subset-build.sh first (the tier-1 helper payload)"
+	cp "$BIN/$rel" "$STAGE5/amd64/bin/h${rel##*/}"
+done
+
+# 11i. the tier-2 services payload (the computed 11b set)
+while read -r _h _src; do
+	cp "$_src" "$STAGE5/amd64/bin/$_h"
+done < "$SVC_HLIST"
+
+# 11j. the net members + the utility set
+for f in ipconfig ping udpecho; do
+	cp "$BIN/ip/$f" "$STAGE5/amd64/bin/ip/$f"
+done
+for f in grep sed dd wc sha1sum test bind; do
+	cp "$BIN/$f" "$STAGE5/amd64/bin/$f"
+done
+
+# 11k. the two host-side builds: hsvctcpecho (the sweep's one-shot
+#      loopback tcp client) + hmkdir (the keyfs probe's DMDIR-create
+#      client; mkdir is not a tier member on x64 — the write-flow
+#      class) — 6c with relative -I paths from the repo root, 6l -L to
+#      the checkout's amd64/lib (the donor venue's nm-input.6
+#      discipline)
+(	cd "$HARVEY" && \
+	"$SVC_NS_HBIN/6c" -FTVw -o "$STAGE5/.svctcpecho.6" -Isys/include -Iamd64/include build/x86_64/svctcpecho.c && \
+	"$SVC_NS_HBIN/6l" -o "$STAGE5/amd64/bin/hsvctcpecho" -L "$HARVEY/amd64/lib" "$STAGE5/.svctcpecho.6" && \
+	rm -f "$STAGE5/.svctcpecho.6"
+) || err "hsvctcpecho host-side build failed"
+magic=$(od -An -tx1 -N4 "$STAGE5/amd64/bin/hsvctcpecho" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "hsvctcpecho: bad magic $magic (want 00008a97)"
+(	cd "$HARVEY" && \
+	"$SVC_NS_HBIN/6c" -FTVw -o "$STAGE5/.mkdir.6" -Isys/include -Iamd64/include sys/src/cmd/mkdir.c && \
+	"$SVC_NS_HBIN/6l" -o "$STAGE5/amd64/bin/hmkdir" -L "$HARVEY/amd64/lib" "$STAGE5/.mkdir.6" && \
+	rm -f "$STAGE5/.mkdir.6"
+) || err "hmkdir host-side build failed"
+magic=$(od -An -tx1 -N4 "$STAGE5/amd64/bin/hmkdir" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "hmkdir: bad magic $magic (want 00008a97)"
+
+# 11l. the sweep at /lib + the termrc OVERRIDE (the tier bake's 9g
+#      rule: the services image runs the sweep from the boot flow, no
+#      typed interaction)
+cp "$HARVEY/build/x86_64/services-sweep.rc" "$STAGE5/lib/services-sweep.rc"
+cp "$HARVEY/build/x86_64/services-termrc" "$STAGE5/rc/bin/termrc"
+
+# 11m. the /boot-side members (the donor venue's devroot-embed
+#      equivalents, riding the paq's boot/ through the namespace's
+#      /root union): rcmain verbatim, the digest-pinned sentinel, and
+#      the tcpNNNN staged service-name copies (listen execes
+#      servdir/<proto><port> per connection)
+cp "$HARVEY/rc/lib/rcmain" "$STAGE5/boot/rcmain"
+printf 'alpha bravo charlie\n__SUBSET_GREP_LINE__\n' > "$STAGE5/boot/sentinel.txt"
+_md5=$(md5sum "$STAGE5/boot/sentinel.txt" | cut -d' ' -f1)
+_sha1=$(sha1sum "$STAGE5/boot/sentinel.txt" | cut -d' ' -f1)
+[ "$_md5" = "6c3d57e94871f9606c5b63c315e76135" ] || err "sentinel md5 drift: $_md5 (want 6c3d57e94871f9606c5b63c315e76135) — the sweep's pinned assert would red in the guest"
+[ "$_sha1" = "893404a2c36b54f5c7874070d1acefe38f7ce652" ] || err "sentinel sha1 drift: $_sha1 (want 893404a2c36b54f5c7874070d1acefe38f7ce652)"
+cp "$BIN/echo" "$STAGE5/boot/tcp9901"
+cp "$BIN/auth/authsrv" "$STAGE5/boot/tcp9902"
+
+# 11n. bake-time verbatim copies (the chain bake's rule)
+cp "$HARVEY/rc/lib/rcmain" "$STAGE5/rc/lib/rcmain"
+cp "$HARVEY/adm/timezone/local" "$STAGE5/adm/timezone/local"
+
+# 11o. pre-bake manifest: the chain paths + the payload + the
+#      /boot-side members, PRINTED as the staging manifest (the bake
+#      log is the gate's evidence — the plan's verify greps these
+#      lines)
+for p in boot/boot boot/paqfs boot/rcmain boot/sentinel.txt \
+	boot/tcp9901 boot/tcp9902 amd64/init amd64/bin/rc \
+	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
+	amd64/bin/ip/ipconfig amd64/bin/ip/ping amd64/bin/ip/udpecho \
+	amd64/bin/grep amd64/bin/sed amd64/bin/dd amd64/bin/wc \
+	amd64/bin/sha1sum amd64/bin/test amd64/bin/bind \
+	amd64/bin/hsvctcpecho amd64/bin/hmkdir \
+	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
+	usr/glenda/lib/profile lib/netaddr.rc lib/netip-loopback.rc \
+	lib/netip-static.rc lib/netip-dhcp.rc lib/netip-tcp.rc \
+	lib/services-sweep.rc; do
+	[ -f "$STAGE5/$p" ] || err "services manifest: $p missing from staged tree"
+	echo "services manifest: /$p staged"
+done
+_nh=0
+while read -r _h _src; do
+	[ -f "$STAGE5/amd64/bin/$_h" ] || err "services manifest: amd64/bin/$_h missing from staged tree"
+	_nh=$((_nh + 1))
+done < "$SVC_HLIST"
+for rel in $TIER1_RELS; do
+	[ -f "$STAGE5/amd64/bin/h${rel##*/}" ] || err "services manifest: amd64/bin/h${rel##*/} missing from staged tree"
+	_nh=$((_nh + 1))
+done
+echo "services manifest: ${_nh} h* sweep binaries staged (tier-1 helpers + the tier-2 set computed from tiers/tier2-services.txt: $_nsvc tier-2 members)"
+for p in root env proc dev srv fd bin tmp mnt net; do
+	[ -d "$STAGE5/$p" ] || err "services manifest: mount-point dir /$p missing"
+done
+
+# 11p. /boot/factotum ABSENCE (auth-stub-by-absence — the same D-02
+#      rule as every bake above; boot/rcmain is the rcmain copy, NOT
+#      an auth stub)
+[ ! -e "$STAGE5/boot/factotum" ] || err "services manifest: /boot/factotum present — auth-stub-by-absence violated"
+
+# 11q. rcmain ships byte-verbatim BOTH copies (the chain bake's cmp
+#      guard)
+cmp -s "$HARVEY/rc/lib/rcmain" "$STAGE5/rc/lib/rcmain" || err "staged rcmain diverges from rc/lib/rcmain"
+cmp -s "$HARVEY/rc/lib/rcmain" "$STAGE5/boot/rcmain" || err "staged /boot/rcmain diverges from rc/lib/rcmain"
+
+# 11r. determinism + bake (the chain bake's rule)
+find "$STAGE5" -exec touch -h -d "@$KERNDATE" {} +
+rm -f "$SVC_IMAGE"
+KERNDATE="$KERNDATE" "$MKPAQFS" -o "$SVC_IMAGE" "$STAGE5" || err "mkpaqfs failed (services)"
+[ -s "$SVC_IMAGE" ] || err "$SVC_IMAGE missing/empty after mkpaqfs"
+
+# 11s. the byte-format contract (same header/trailer magic checks)
+magic5=$(od -An -tx1 -N4 "$SVC_IMAGE" | tr -d ' \n')
+[ "$magic5" = "529ab12b" ] || err "$SVC_IMAGE: bad header magic $magic5 (want 529ab12b)"
+sz5=$(wc -c < "$SVC_IMAGE" | tr -d ' ')
+trailer5=$(od -An -tx1 -j $((sz5 - 28)) -N 4 "$SVC_IMAGE" | tr -d ' \n')
+[ "$trailer5" = "6b46e688" ] || err "$SVC_IMAGE: bad trailer magic $trailer5 (want 6b46e688)"
+
+echo "== PASS: baked $SVC_IMAGE ($sz5 bytes; ${_nh} h* binaries; header $magic5 trailer $trailer5; KERNDATE $KERNDATE)"
