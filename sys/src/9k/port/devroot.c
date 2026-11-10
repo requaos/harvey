@@ -63,7 +63,15 @@ addlist(Dirlist *l, char *name, uchar *contents, ulong len, int perm)
 		panic("too many root files");
 	l->data[l->ndir] = contents;
 	d = &l->dir[l->ndir];
-	strcpy(d->name, name);
+	/*
+	 * Bound the copy: besides the compile-time names, multiboot
+	 * passes the -initrd module's basename here, which the boot
+	 * loader controls.  A name that does not fit Dirtab.name
+	 * (KNAMELEN) is truncated — the file then answers to the short
+	 * name — rather than run over the neighbouring entries.  No
+	 * diagnostic: this runs before the console exists.
+	 */
+	strecpy(d->name, d->name+sizeof d->name, name);
 	d->length = len;
 	d->perm = perm;
 	d->qid.type = 0;
