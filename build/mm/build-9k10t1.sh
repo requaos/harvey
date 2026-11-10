@@ -12,7 +12,7 @@
 #      sweep + sentinel + nm-input) baked into devroot, grown by 15-02
 #      (USPACE-07) with the services-sweep embed — the sweep + the
 #      tier-2-built services binaries + the tcpNNNN listener service
-#      programs (54 embedded files total this plan).
+#      programs (58 embedded files total this plan).
 # The build is nuke-sandwiched (build/scripts/build:50-52's shape:
 # `mk nuke && mk … && mk nuke`) because the k10 build products
 # (k10t1.c, k10t1.root.s, 9k10t1{,.elf}, 9k10cpu{,.elf}, errstr.h,
@@ -43,7 +43,7 @@
 # Env overrides:
 #   HARVEY   repo root (default: $PWD)
 #
-# Exit: 0 iff both kernels built, the venue kernel embeds exactly 54
+# Exit: 0 iff both kernels built, the venue kernel embeds exactly 58
 # root files (the 15-02 services growth), amd64/9k10t1.elf landed, the
 # k10 tree is git-clean after the trailing nuke, and the r9 leg's
 # tier-set manifest is written.
@@ -150,10 +150,12 @@ svc_copy amd64/bin/ndb/dnsquery hdnsquery
 svc_copy amd64/bin/exportfs hexportfs
 svc_copy amd64/bin/srv hsrv
 svc_copy amd64/bin/listen hlisten
-# tcp9901: the listener's per-connection SERVICE program (listen.c
-# execes servdir/<proto><port>) — echo under its service name, the
-# staged-copy trick (parse keys C symbols off the SOURCE path)
+# tcp9901/tcp9902: the listener's per-connection SERVICE programs
+# (listen.c execes servdir/<proto><port>) — echo and authsrv under
+# their service names, the staged-copy trick (parse keys C symbols off
+# the SOURCE path)
 svc_copy amd64/bin/echo tcp9901
+svc_copy amd64/bin/auth/authsrv tcp9902
 # hsvctcpecho: the sweep's one-shot tcp client — built HOST-SIDE link-
 # only (the nm-input.6 discipline: 6c with relative -I paths from the
 # repo root, 6l with -L to the checkout's amd64/lib for the libc
@@ -165,7 +167,20 @@ svc_copy amd64/bin/echo tcp9901
 ) || err "hsvctcpecho host-side build failed"
 magic=$(od -An -tx1 -N4 "$STAGE/hsvctcpecho" | tr -d ' \n')
 [ "$magic" = "00008a97" ] || err "hsvctcpecho: bad magic $magic (want 00008a97)"
-echo "== staged: services-sweep.rc + 10 services members (magic-checked)"
+# 15-02 Task 3 (the D-08 auth subset): factotum (tier-1-built) + keyfs
+# (tier-2), and hmkdir — the keyfs probe's DMDIR-create client, built
+# host-side link-only the same way (mkdir is not a tier member on x64 —
+# the write-flow class — so the venue builds its one embed copy here)
+svc_copy amd64/bin/factotum hfactotum
+svc_copy amd64/bin/auth/keyfs hkeyfs
+(	cd "$HARVEY" && \
+	"$NS_HBIN/6c" -FTVw -o "$STAGE/mkdir" -Isys/include -Iamd64/include sys/src/cmd/mkdir.c && \
+	"$NS_HBIN/6l" -o "$STAGE/hmkdir" -L "$HARVEY/amd64/lib" "$STAGE/mkdir" && \
+	rm -f "$STAGE/mkdir"
+) || err "hmkdir host-side build failed"
+magic=$(od -An -tx1 -N4 "$STAGE/hmkdir" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "hmkdir: bad magic $magic (want 00008a97)"
+echo "== staged: services-sweep.rc + 14 services members (magic-checked)"
 
 # the nvram rootdir stub (build/scripts/build:48-49's rule, host-side):
 # k10cpu's rootdir names ../root/nvram, which the full in-OS build
@@ -217,7 +232,7 @@ fi
 if [ "$fails" -eq 0 ]; then
 	N=$("$GREP" -c 'addbootfile("' k10t1.c)
 	echo "embedded root files: $N"
-	[ "$N" = 54 ] || { echo "error: embedded root file count $N != 54 (devroot.c's panic ceiling is 64; a missing stage file fails mk's prerequisite check first)" >&2; fails=1; }
+	[ "$N" = 58 ] || { echo "error: embedded root file count $N != 58 (devroot.c's panic ceiling is 64; a missing stage file fails mk's prerequisite check first)" >&2; fails=1; }
 fi
 # land the venue kernel in /amd64 (inside the namespace the repo root is
 # /; host-side that is $HARVEY/amd64/9k10t1.elf — gitignored via the
@@ -358,12 +373,12 @@ if [ ! -s "$HARVEY/amd64/9k10t1.elf" ]; then
 	tail -40 "$LOG" >&2
 	exit 1
 fi
-# the embedded-count line must be exactly 54 (the 43-entry tier-1 venue
-# embed + the 15-02 services-sweep members (54); re-asserted host-side from
+# the embedded-count line must be exactly 58 (the 43-entry tier-1 venue
+# embed + the 15-02 services-sweep members (58); re-asserted host-side from
 # the captured log — the in-namespace assert is the primary; this is the
 # driver's own record)
-if ! "$GREP" -q '^embedded root files: 54$' "$LOG"; then
-	echo "error: the build log lacks 'embedded root files: 54' — the venue embed count is wrong; last 40 lines:" >&2
+if ! "$GREP" -q '^embedded root files: 58' "$LOG"; then
+	echo "error: the build log lacks 'embedded root files: 58' — the venue embed count is wrong; last 40 lines:" >&2
 	tail -40 "$LOG" >&2
 	exit 1
 fi

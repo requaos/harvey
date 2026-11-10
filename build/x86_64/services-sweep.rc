@@ -288,6 +288,63 @@ if(~ $svclo up){
 	if not echo SVC-FAIL listen
 }
 
+# --- factotum: the ctl round-trip (D-08's start + answer) -------------
+# hfactotum posts /srv/factotum and mounts its tree MBEFORE at /mnt
+# (the fs root's single entry names /mnt/factotum).  The interaction:
+# a throwaway test key written to ctl, then the ctl READBACK — the
+# key list with the secret masked.  No real key material anywhere
+# (dom=probe-style test values only, the security-domain rule).
+if($B/hfactotum -s factotum){
+	if(svc_waitpath 10 /mnt/factotum/ctl){
+		if($B/hecho 'key proto=pass service=test user=probe !password=probe-only-test' > /mnt/factotum/ctl){
+			kout=`{$B/hcat /mnt/factotum/ctl}
+			echo SVC-FACTOBS $"kout
+			# no bare '=' in the pattern (the lexer discipline)
+			if(~ $"kout *proto*pass*) echo SVC-OK factotum
+			if not echo SVC-FAIL factotum
+		}
+		if not echo SVC-FAIL factotum
+	}
+	if not echo SVC-FAIL factotum
+}
+if not echo SVC-FAIL factotum
+
+# --- keyfs: the write-back-on-create over an absent test keyfile ------
+# hkeyfs -m /mnt/keys with an ABSENT keyfile: readnvram's amd64->"pc"
+# rows all target #S/nvram/9fat devices this venue does not have, so
+# the zero-key path serves an EMPTY db (the warning on the capture is
+# the evidence).  The interaction: hmkdir's DMDIR create through the
+# mounted fs installs a probe user AND triggers writeusers — the
+# write-back materializes the absent keyfile (observable in /env).
+if(! $B/htest -e /env/svckeys){
+	if($B/hkeyfs -m /mnt/keys /env/svckeys){
+		if($B/hmkdir /mnt/keys/probeuser){
+			if($B/htest -e /env/svckeys) echo SVC-OK keyfs
+			if not echo SVC-FAIL keyfs
+		}
+		if not echo SVC-FAIL keyfs
+	}
+	if not echo SVC-FAIL keyfs
+}
+if not echo SVC-FAIL keyfs
+
+# --- authsrv: the listener topology's per-connection exec (D-08) ------
+# tcp9902 IS authsrv under its service name (the staged-copy trick) —
+# the SAME hlisten instance announced it with tcp9901.  D-08's shape:
+# starts and LISTENS — the connect-accept is the proof (hsvctcpecho
+# -c dials; an announced port accepts, an unannounced one refuses);
+# the p9sk1 handshake itself is Phase 18's, never duplicated here.
+if(~ $svclo up){
+	svc_waitport 10 9902
+	if(! ~ $svcportfound ''){
+		aout=`{$B/hsvctcpecho -c 'tcp!127.0.0.1!9902'}
+		echo SVC-AUTHOBS $"aout
+		if(~ $"aout connected*) echo SVC-OK authsrv
+		if not echo SVC-FAIL authsrv
+	}
+	if not echo SVC-FAIL authsrv
+}
+
 # the loopback-gated probes' shared named-SKIP arm (the flagged
 # assumption's honest landing: 9k devip loopback is proven on this
 # venue now, so this fires only if the bring-up regresses — the reason
@@ -296,6 +353,7 @@ if(! ~ $svclo up){
 	echo SVC-SKIP-WHY k10t1-no-loopback
 	echo SVC-SKIP dns
 	echo SVC-SKIP listen
+	echo SVC-SKIP authsrv
 }
 
 echo SVC-DONE

@@ -213,10 +213,13 @@ compute_svc_skip() {
 SVC_T2="$HARVEY/build/x86_64/tiers/tier2-services.txt"
 SVC_T1="$HARVEY/build/x86_64/tiers/tier1-cmds.txt"
 compute_svc_expected() {
-	for e in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv cmd/aux:listen; do
+	for e in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv cmd/aux:listen cmd/auth/authsrv cmd/auth/keyfs; do
 		"$GREP" -q "^$e[[:space:]#]" "$SVC_T2" || err "svc expectation: tier-2 data lacks the probe-subject entry $e"
 	done
-	echo "mntgen cs dns exportfs srv listen"
+	# factotum is a TIER-1 line (never a tier-2 member — the data's
+	# named exclusion); its D-08 probe rides the donor leg for real
+	"$GREP" -q "^cmd/auth/factotum:factotum[[:space:]#]" "$SVC_T1" || err "svc expectation: tier-1 data lacks cmd/auth/factotum:factotum"
+	echo "mntgen cs dns exportfs srv listen factotum keyfs authsrv"
 }
 
 in_svcskip() {

@@ -163,6 +163,10 @@ rootdir
 	./.tier1-stage/hlisten hlisten
 	./.tier1-stage/hsvctcpecho hsvctcpecho
 	./.tier1-stage/tcp9901 tcp9901
+	./.tier1-stage/hfactotum hfactotum
+	./.tier1-stage/hkeyfs hkeyfs
+	./.tier1-stage/hmkdir hmkdir
+	./.tier1-stage/tcp9902 tcp9902
 
 conf
 	int cpuserver = 1;
