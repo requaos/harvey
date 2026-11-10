@@ -311,15 +311,30 @@ if not echo SVC-FAIL factotum
 
 # --- keyfs: the write-back-on-create over an absent test keyfile ------
 # hkeyfs -m /mnt/keys with an ABSENT keyfile: readnvram's amd64->"pc"
-# rows all target #S/nvram/9fat devices this venue does not have, so
-# the zero-key path serves an EMPTY db (the warning on the capture is
-# the evidence).  The interaction: hmkdir's DMDIR create through the
+# rows all target #S/nvram/9fat devices this venue does not have, and
+# THIS tree's getauthkey escalates the failed readnvram into an
+# INTERACTIVE Password prompt (getauthkey.c — readln opens /dev/cons
+# by path; measured: the no-input harness venue wedges there — the
+# zero-key+warning landing the plan projected lives one call lower,
+# inside readnvram itself).  The probe isolates the interaction the
+# namespace way: a one-line throwaway env file bound over /dev/cons
+# for the keyfs run — readln's fresh opens read the same fixed line
+# for the password AND its confirm (a chan's offset restarts at 0 per
+# open), passtokey derives the throwaway machine key, and the prompt's
+# own write merely rewrites the env file (harmless).  The bind stays
+# for the venue lifetime: nothing after this probe opens /dev/cons
+# fresh (the sweep's markers ride already-open fds; no unmount binary
+# is embedded).  The interaction: hmkdir's DMDIR create through the
 # mounted fs installs a probe user AND triggers writeusers — the
 # write-back materializes the absent keyfile (observable in /env).
 if(! $B/htest -e /env/svckeys){
-	if($B/hkeyfs -m /mnt/keys /env/svckeys){
-		if($B/hmkdir /mnt/keys/probeuser){
-			if($B/htest -e /env/svckeys) echo SVC-OK keyfs
+	svckeyfscons=p
+	if(bind /env/svckeyfscons /dev/cons){
+		if($B/hkeyfs -m /mnt/keys /env/svckeys){
+			if($B/hmkdir /mnt/keys/probeuser){
+				if($B/htest -e /env/svckeys) echo SVC-OK keyfs
+				if not echo SVC-FAIL keyfs
+			}
 			if not echo SVC-FAIL keyfs
 		}
 		if not echo SVC-FAIL keyfs
