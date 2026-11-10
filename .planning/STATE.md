@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 15
 current_phase_name: Userspace Tiers + Bootfs Payload (amd64)
 status: executing
-stopped_at: "Completed 15-03-PLAN.md (r9 services venue: gate green twice, 7 kernel fixes pinned at 3362cf7, tier-1 SKIP flips live, tier2.ledger committed)"
-last_updated: "2026-11-10T03:20:53.468Z"
+stopped_at: "Completed 15-05-PLAN.md (draw donor venue: four-marker gate green, A1/A2 confirmed, meminit module fix)"
+last_updated: "2026-11-10T05:28:28.811Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 15 execution started
-state_head: ede5ea8fe36360e68e5ca6c53a4b48cb1c34773c
+state_head: 6a648bd2b72fc39e32adcdce3b865df0af426dc3
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 24
-  completed_plans: 19
+  completed_plans: 20
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 15 (Userspace Tiers + Bootfs Payload (amd64)) — EXECUTING
-Plan: 4 of 9   # pointer corrected after 15-04 ran out of wave order (04 before 03): 15-01/02/04 summarized; 15-03 is the next unsummarized plan
+Plan: 5 of 9   # pointer corrected after 15-04 ran out of wave order (04 before 03): 15-01/02/04 summarized; 15-03 is the next unsummarized plan
 Status: Ready to execute
 Last activity: 2026-11-09 — Phase 15 execution started
 
@@ -74,6 +74,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 15 P02 | 179 min | 3 tasks | 10 files |
 | Phase 15 P04 | 26 min | 2 tasks | 9 files |
 | Phase 15 P03 | 120 min | 3 tasks | 10 files |
+| Phase 15 P05 | 123 min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -143,6 +144,9 @@ Recent decisions affecting current work:
 - [Phase 15]: [15-03] lib9p's postmountsrv needs the kernel's non-RFPROC rfork RFFDG (the in-place fd-group copy, donor sysproc.c:50-57): without it every srv-mounted daemon died mount:bad-fd — fixed at r9 e045dde; devmnt Twrite/Tcreate landed the same plan (the read-only policy is the SERVER's, paqfs still refuses; Tcreate transforms its fid so it rides a clone)
 - [Phase 15]: [15-03] The kernel heap is now 32 MiB (measured: the services venue exhausted the 4 MiB arena mid-sweep — exec staging + resident daemons + a ~16 KiB per-exit residue); the residue LEAK audit stays Phase 17's RFMEM-OOM backlog, and the oom handler now prints the failed layout + arena high-water
 - [Phase 15]: [15-03] The tier-1 ipconfig/factotum SKIPs are retired (flipped live in one commit with every gate expectation at 7a9ad4b70): the r9 venue now expects ZERO tier-1 skips; the r9 gate's post-pass uses the donor classify semantics for conditional SVC skips (per-subject OK-or-declared + the converse), and expect stage sequences are EMISSION-ordered (expect consumes the buffer to each match — srv-before-exportfs measured)
+- [Phase 15]: [15-05] A1+A2 confirmed on the k10draw venue: qemu's VBE DISPI ports (0x1CE/0x1CF) set 1024x768x32 under KVM (route 1 stands, the realmode fallback never needed) and -initrd registers as an mb1 module under -kernel (the -append -v verbose pass prints the mod evidence); A3 measured 20240113 bytes for the 36MB font tree — -m 512 holds
+- [Phase 15]: [15-05] k10 meminit fixed for reserved spans above the kernel image: the identity-window extension base is vmunmapped's own KZERO offset (the mmuphysaddr(vmunused) walk lies beyond the early 2MiB pages) and the window maps [vmstart, vmend) whole — load-bearing for every module-bearing k10 boot; the no-initrd path re-proven green
+- [Phase 15]: [15-05] This tree's draw wire is LITTLE-endian (draw.h's BG/BP macros flipped vs stock Plan 9) — raw-protocol exercisers use the header macros; the venue's input probes live in the C exerciser (alarm-bounded), never in rc console forms (they wedge the boot); /dev/kbin is eve-gated like mousein and feeds bytes-as-runes through kbdputc
 
 ### Pending Todos
 
@@ -165,6 +169,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-10T03:20:53.380Z
-Stopped at: Completed 15-03-PLAN.md (r9 services venue: gate green twice, 7 kernel fixes pinned at 3362cf7, tier-1 SKIP flips live, tier2.ledger committed)
+Last session: 2026-11-10T05:28:28.725Z
+Stopped at: Completed 15-05-PLAN.md (draw donor venue: four-marker gate green, A1/A2 confirmed, meminit module fix)
 Resume file: None
