@@ -58,7 +58,7 @@ struct MMap {
 int
 multiboot(u32int magic, u32int pmbi, int vflag)
 {
-	char *p;
+	char *p, *q;
 	int i, n;
 	Mbi *mbi;
 	Mod *mod;
@@ -90,8 +90,28 @@ multiboot(u32int magic, u32int pmbi, int vflag)
 			if(vflag)
 				print("mod %#ux %#ux <%s>\n",
 					mod->modstart, mod->modend, p);
-			else
+			else{
 				asmmodinit(mod->modstart, mod->modend, p);
+				/*
+				 * 15-05: also expose the module bytes as a
+				 * /boot file — the -initrd payload channel.
+				 * asmmodinit's reservation runs first and
+				 * stays untouched (the bytes stay reserved
+				 * AND become readable through devroot, the
+				 * same addbootfile the rootdir embed rides);
+				 * the in-guest paqfs mounts the result.  The
+				 * name is the module string's basename (qemu
+				 * -initrd passes the host path as given).
+				 */
+				if((q = strrchr(p, '/')) != nil)
+					q++;
+				else
+					q = p;
+				if(*q == 0)
+					q = "bootmod";
+				addbootfile(q, KADDR(mod->modstart),
+					mod->modend - mod->modstart);
+			}
 		}
 	}
 	if(mbi->flags & Fmmap){

@@ -409,10 +409,18 @@ meminit(void)
 	assert(m->pgszlg2[1] == 21);
 	assert(!((sys->vmunmapped|sys->vmend) & m->pgszmask[1]));
 
-	/* adjust sys->vm things and asmalloc to compensate for map to kzero */
-	if((pa = mmuphysaddr(sys->vmunused)) == ~0ull)
-		panic("meminit: mmuphysaddr(%#p)", sys->vmunused);
-	pa += sys->vmunmapped - sys->vmunused;
+	/*
+	 * The kernel identity map is contiguous from vmstart, so the
+	 * extension base is simply vmunmapped's own offset.  Deriving it
+	 * via mmuphysaddr(vmunused) + (vmunmapped-vmunused) is the same
+	 * arithmetic ONLY while the walk is honest — and it lies once a
+	 * reserved span sits beyond the early large pages: a multiboot
+	 * module (qemu -initrd lands right above the kernel image) makes
+	 * vmunused point into unmapped territory, the walk returns an
+	 * entry from the wrong level, and the fit loop below can never
+	 * satisfy its address (measured on the k10draw venue, 15-05).
+	 */
+	pa = sys->vmunmapped - sys->vmstart;
 
 	first = 1;
 	/* try with existing kernmem */
@@ -445,7 +453,18 @@ meminit(void)
 
 	DBG("meminit: mem %#P\n", mem);
 
-	/* map between vmunmapped and vmend to kzero */
+	/*
+	 * Map the whole kernel window to kzero.  The early boot pages map
+	 * only the loaded kernel image; the stock loop started at
+	 * vmunmapped on the belief that [vmstart, vmunmapped) was already
+	 * covered — anything reserved inside that span beyond the image
+	 * (an addbootfile'd -initrd module sits right above the kernel)
+	 * was left unmapped, and readers of those bytes fault.  Mapping
+	 * from vmstart rewrites the existing identity entries with the
+	 * same values and closes the gap.
+	 */
+	sys->vmunmapped = sys->vmstart;
+	pa = 0;
 	for(; sys->vmunmapped < sys->vmend; sys->vmunmapped += 2*MiB){
 		l = mmuwalk(sys->vmunmapped, 1, &pte, asmwalkalloc);
 		DBG("meminit: %#p l %d\n", sys->vmunmapped, l);

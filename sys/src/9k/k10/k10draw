@@ -20,7 +20,8 @@
 #             the 9k/386 vesa VGAdev's struct shape with DISPI for enable)
 #   rootdir — the venue embed set below (the draw smoke's minimal boot:
 #             rc/echo/cat/test/sleep/read/bind/paqfs + rcmain + the
-#             host-built mkdir + drawsmoke + k10draw.rc as /boot/boot)
+#             host-built drawsmoke + k10draw.rc as /boot/boot; the
+#             -initrd module carries everything else)
 #   lib     — k10f's libdraw family ahead of k10cpu's lib set (the kernel
 #             links the /amd64/lib archives 15-04's tier-0 closure built)
 # k10cpu/k10t1/k10f stay untouched (the frozen-config discipline).
@@ -113,7 +114,6 @@ rootdir
 	/amd64/bin/bind bind
 	/amd64/bin/paqfs paqfs
 	/rc/lib/rcmain rcmain
-	./.draw-stage/mkdir mkdir
 	./.draw-stage/drawsmoke drawsmoke
 	./root/k10draw.rc boot
 

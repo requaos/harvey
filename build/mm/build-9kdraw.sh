@@ -94,31 +94,23 @@ echo "== amd64 build-tree lock held: $HARVEY/.build/amd64-tree.lock"
 GREP=$(command -v /usr/bin/grep || command -v grep) || err "no host grep found"
 export GREP
 
-# --- staging (idempotent): the venue's host-built embed members -------
+# --- staging (idempotent): the venue's host-built embed member --------
 # .draw-stage is gitignored (the .tier1-stage rule); never committed.
 STAGE="$HARVEY/sys/src/9k/k10/.draw-stage"
 rm -rf "$STAGE"
 mkdir -p "$STAGE"
-# mkdir is not a tier member on x64 (the write-flow class) — the 15-02
-# hmkdir host-side build shape (6c with repo-root relative -I paths, 6l
-# with -L to the checkout's amd64/lib; the OBJECT and the BINARY get
-# distinct paths — 6l must not overwrite its own input)
-(	cd "$HARVEY" && \
-	"$NS_HBIN/6c" -FTVw -o "$STAGE/mkdir.6" -Isys/include -Iamd64/include sys/src/cmd/mkdir.c && \
-	"$NS_HBIN/6l" -o "$STAGE/mkdir" -L "$HARVEY/amd64/lib" "$STAGE/mkdir.6" && \
-	rm -f "$STAGE/mkdir.6"
-) || err "mkdir host-side build failed"
-# drawsmoke: the /dev/draw exerciser (plain libc + draw.h constants)
+# drawsmoke: the /dev/draw exerciser (plain libc + draw.h constants);
+# 6c with repo-root relative -I paths, 6l with -L to the checkout's
+# amd64/lib (the OBJECT and the BINARY get distinct paths — 6l must not
+# overwrite its own input)
 (	cd "$HARVEY" && \
 	"$NS_HBIN/6c" -FTVw -o "$STAGE/drawsmoke.6" -Isys/include -Iamd64/include build/x86_64/drawsmoke.c && \
 	"$NS_HBIN/6l" -o "$STAGE/drawsmoke" -L "$HARVEY/amd64/lib" "$STAGE/drawsmoke.6" && \
 	rm -f "$STAGE/drawsmoke.6"
 ) || err "drawsmoke host-side build failed"
-for m in mkdir drawsmoke; do
-	magic=$(od -An -tx1 -N4 "$STAGE/$m" | tr -d ' \n')
-	[ "$magic" = "00008a97" ] || err "$m: bad magic $magic (want 00008a97 — amd64 S_MAGIC)"
-done
-echo "== staged: mkdir + drawsmoke (magic-checked)"
+magic=$(od -An -tx1 -N4 "$STAGE/drawsmoke" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "drawsmoke: bad magic $magic (want 00008a97 — amd64 S_MAGIC)"
+echo "== staged: drawsmoke (magic-checked)"
 
 # --- the namespace build (nuke sandwich) --------------------------------
 export NS_HBIN
@@ -147,7 +139,7 @@ fi
 if [ "$fails" -eq 0 ]; then
 	N=$("$GREP" -c 'addbootfile("' k10draw.c)
 	echo "embedded root files: $N"
-	[ "$N" = 12 ] || { echo "error: embedded root file count $N != 12 (devroot.c's panic ceiling is 64)" >&2; fails=1; }
+	[ "$N" = 11 ] || { echo "error: embedded root file count $N != 11 (devroot.c's panic ceiling is 64)" >&2; fails=1; }
 fi
 # land the venue kernel in /amd64 (the nuke never touches /amd64)
 if [ "$fails" -eq 0 ]; then
@@ -243,14 +235,15 @@ rm -f "$CORE"
 
 # --- host-side product asserts ------------------------------------------
 [ -s "$HARVEY/amd64/9kdraw.elf" ] || err "amd64/9kdraw.elf missing/empty after the namespace build"
-"$GREP" -q '^embedded root files: 12' "$LOG" || err "the build log lacks 'embedded root files: 12'"
-# the nuke's proof: no MODIFIED/DELETED tracked file and no untracked
-# BUILD INTERMEDIATE survives (the parse-generated k10draw.c rides the
-# .gitignore k10*.c rule, .draw-stage its own).  Untracked files are
-# the plan's own new sources before the task commit (k10draw,
-# vgadispi.c, root/k10draw.rc) — they are ignored here and the commit
-# is the authority for them.
-_dirty=$(git -C "$HARVEY" status --porcelain -- sys/src/9k | "$GREP" -v '^??' || true)
+"$GREP" -q '^embedded root files: 11' "$LOG" || err "the build log lacks 'embedded root files: 11'"
+# the nuke's proof: no untracked BUILD INTERMEDIATE survives (the
+# parse-generated k10draw.c rides the .gitignore k10*.c rule,
+# .draw-stage its own — anything untracked-and-unignored under sys/src/9k
+# after the trailing nuke is a stray) and no tracked file is DELETED.
+# MODIFIED tracked sources are legitimate mid-task state (the script
+# runs during bring-up iteration, before the task commit) — the commit
+# is their authority.
+_dirty=$(git -C "$HARVEY" status --porcelain -- sys/src/9k | "$GREP" -v '^ M ' || true)
 if [ -n "$_dirty" ]; then
 	echo "error: sys/src/9k is not git-clean after the nuke sandwich:" >&2
 	echo "$_dirty" >&2
@@ -372,11 +365,14 @@ fi
 # the venue marker contract — every marker below must land on the
 # capture (presence-only, never interleaving order), with zero
 # panic/trap lines.  Task 1: DRAW-SMOKE-OK (the draw device end-to-end).
-MARKERS="DRAW-SMOKE-OK"
+# Task 2: FONT-CHANNEL-OK (the -initrd -> addbootfile -> paqfs channel
+# delivers the fonts; the `mod` boot print is the A2 evidence, asserted
+# separately below).
+MARKERS="DRAW-SMOKE-OK FONT-CHANNEL-OK"
 
 : > "$BOOTLOG"
 echo "== draw leg: mode $ACCEL (banner budget ${BUDGET}s, marker budget ${SMOKE_BUDGET}s)"
-echo "== launching: $QEMU -kernel $KERNEL -vga std -m $DRAW_MEM $ACCEL_ARGS -display none -no-reboot -serial file:$BOOTLOG"
+echo "== launching: $QEMU -kernel $KERNEL -initrd $PAQ -append -v -vga std -m $DRAW_MEM $ACCEL_ARGS -display none -no-reboot -serial file:$BOOTLOG"
 QEMU_PID=""
 cleanup() {
 	status=$?
@@ -384,9 +380,14 @@ cleanup() {
 	exit $status
 }
 trap cleanup EXIT
+# -initrd registers the paq as an mb1 module (multiboot.c's Fmods loop
+# exposes it through addbootfile; the in-guest paqfs mounts it — the A2
+# evidence is the boot print's `mod ...` line).  -append -v arms the
+# kernel's verbose multiboot pass (main.c's vflag re-walk AFTER fmtinit),
+# which prints the mod lines and the memory map on the capture.
 # SC2086: ACCEL_ARGS is intentionally word-split (two fixed args).
 # shellcheck disable=SC2086
-"$QEMU" -kernel "$KERNEL" -vga std -m "$DRAW_MEM" $ACCEL_ARGS -display none -no-reboot -serial "file:$BOOTLOG" &
+"$QEMU" -kernel "$KERNEL" -initrd "$PAQ" -append -v -vga std -m "$DRAW_MEM" $ACCEL_ARGS -display none -no-reboot -serial "file:$BOOTLOG" &
 QEMU_PID=$!
 
 # Phase A: deadline-wait for the banner
@@ -437,12 +438,14 @@ wait "$QEMU_PID" 2>/dev/null || true
 QEMU_PID=""
 sleep 2
 
-# classify: banner + every marker + zero panic/trap
+# classify: banner + every marker + the mod boot print (A2) + zero panic/trap
 RC=0
 "$GREP" -q 'Plan 9' "$BOOTLOG" || { echo "DRAW-GATE-FAIL: no banner"; RC=1; }
 for m in $MARKERS; do
 	"$GREP" -q "$m" "$BOOTLOG" || { echo "DRAW-GATE-FAIL: missing $m"; RC=1; }
 done
+NMODS=$("$GREP" -ci 'mod ' "$BOOTLOG" || true)
+[ "$NMODS" -gt 0 ] || { echo "DRAW-GATE-FAIL: no 'mod' boot print (A2: the -initrd did not register as an mb1 module)"; RC=1; }
 if "$GREP" -qiE 'panic|sys: trap' "$BOOTLOG"; then
 	echo "DRAW-GATE-FAIL: panic/trap lines in the capture"
 	RC=1

@@ -106,12 +106,20 @@ rootreset(void)
 	addrootdir("srv");
 	/* 15-02: the standard /rc mount point (rc sources /rc/lib/rcmain on
 	 * every invocation — srv(1) -e's exec helper hardcodes rc -c, so a
-	 * venue without /rc cannot run any srv -e service; measured on the
-	 * k10t1 donor: "can't open: '/rc'").  The services sweep binds the
-	 * embedded rcmain in through this dir (mntgen /rc + bind -b /boot
-	 * /rc/lib).
+	 * venue without /rc cannot run any srv -e service; measured on
+	 * the k10t1 donor: "can't open: '/rc'").  The services sweep binds
+	 * the embedded rcmain in through this dir (mntgen /rc + bind -b
+	 * /boot /rc/lib).
 	 */
 	addrootdir("rc");
+	/* 15-05: /lib and /tmp mount points for the draw venue — the
+	 * embedded root is read-only (mkdir is denied), and the -initrd
+	 * payload channel binds the paqfs font tree at /lib while mntgen
+	 * serves the writable /tmp scratch (the same named-mount-point
+	 * pattern as /rc above).
+	 */
+	addrootdir("lib");
+	addrootdir("tmp");
 }
 
 static Chan*

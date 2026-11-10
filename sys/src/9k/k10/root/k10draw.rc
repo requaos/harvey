@@ -31,6 +31,26 @@ bind -a '#m' /dev
 cat '#r/rtc' > /dev/time
 echo -n sys > '#c/hostowner'
 
+# the -initrd payload channel: qemu registered the paq as an mb1 module,
+# multiboot exposed it through addbootfile as /boot/bootfs-draw.paq (the
+# `mod ...` boot print on the capture is the A2 evidence), and the
+# tier-1-built paqfs mounts it OVER /mnt (the embedded root is read-only
+# — mkdir is denied — so the paq rides an existing devroot mount point).
+# The fonts (the WHOLE lib/font/bit tree, bake-time-copied) bind at /lib
+# and the GUI binaries union into /bin; mntgen (tier-2-built, reached
+# through the /bin bind) serves the writable /tmp scratch (the 15-06
+# trace fragments' home).
+paqfs -m /mnt /boot/bootfs-draw.paq
+bind /mnt/lib /lib
+bind -b /mnt/amd64/bin /bin
+mntgen /tmp
+
+# FONT-CHANNEL-OK: rio's and acme's default fonts are stat-able in-guest
+if(test -e /lib/font/bit/lucm/unicode.9.font && test -e /lib/font/bit/lucidasans/euro.8.font)
+	echo FONT-CHANNEL-OK
+if not
+	echo FONT-CHANNEL-FAIL
+
 # the VGA bring-up choreography (userspace-driven, devvga.c's verbs):
 # type dispi arms the DISPI VGAdev (vgadispi.c's enable — the mode-set
 # itself), linear maps the LFB through vgalinearpci (the soft-screen
