@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 15
 current_phase_name: Userspace Tiers + Bootfs Payload (amd64)
 status: executing
-stopped_at: "Completed 15-09-PLAN.md (libmemdraw pixel-path audit: drawtest+arctest root-caused as two class commits, stale targets cleaned, 15-06 re-join contract recorded)"
-last_updated: "2026-11-10T06:04:38.234Z"
+stopped_at: "Completed 15-06-PLAN.md (GUI syscall traces: rio/acme/sam replays with completion gates, raw+table evidence, the 15-09 re-join green)"
+last_updated: "2026-11-10T14:20:19.144Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 15 execution started
-state_head: 9ecac570b99fde8e907b33e05fc9a4d8d5b6afe0
+state_head: 87a831ffff4b8d6d450c5d7e20392cd65e5ccfce
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 24
-  completed_plans: 21
+  completed_plans: 22
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 15 (Userspace Tiers + Bootfs Payload (amd64)) — EXECUTING
-Plan: 6 of 9   # pointer corrected after 15-04 ran out of wave order (04 before 03): 15-01/02/04 summarized; 15-03 is the next unsummarized plan
+Plan: 7 of 9   # pointer corrected after 15-04 ran out of wave order (04 before 03): 15-01/02/04 summarized; 15-03 is the next unsummarized plan
 Status: Ready to execute
 Last activity: 2026-11-09 — Phase 15 execution started
 
@@ -76,6 +76,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 15 P03 | 120 min | 3 tasks | 10 files |
 | Phase 15 P05 | 123 min | 3 tasks | 10 files |
 | Phase 15 P09 | 11 min | 3 tasks | 5 files |
+| Phase 15 P06 | 146 min | 3 tasks | 18 files |
 
 ## Accumulated Context
 
@@ -150,6 +151,9 @@ Recent decisions affecting current work:
 - [Phase 15]: [15-05] This tree's draw wire is LITTLE-endian (draw.h's BG/BP macros flipped vs stock Plan 9) — raw-protocol exercisers use the header macros; the venue's input probes live in the C exerciser (alarm-bounded), never in rc console forms (they wedge the boot); /dev/kbin is eve-gated like mousein and feeds bytes-as-runes through kbdputc
 - [Phase 15]: [15-09] drawtest abort = two-sided compositing-arithmetic mismatch: the reference truncated while the byte-path calculators double-rounded (MUL+MUL, ~49% of random pixels off by 1); both sides now round-to-nearest ((s+127)/255 exactly — the MUL2 +128 shape), proven equal on every reachable coefficient pair
 - [Phase 15]: probe from the memory side: arctest wild write pinned by the fault address arithmetic (0x1c001374bc = 0x1b001374bc + 4GiB) — an unsigned 32-bit row-offset product zero-extending into 64-bit pointers in byteaddr; row offsets wrap in int now (the plan9port shape); RGB2K /1000 vs >>19 provably identical, untouched
+- [Phase 15]: [15-06] mousein writes are RELATIVE (mousetrack deltas, clamped) — replays home-clamp then move known absolute deltas; the trace launch is hang-at-exec (rc sets hang on itself, waitstop blocks until the image stops at its first instruction, nohang clears it for descendants) — the 06-07 spin window lost the race on KVM; and the venue needs /rc/lib/rcmain bound (rc sources one unconditionally — rio/acme/sam command children all died without it)
+- [Phase 15]: [15-06] 9k's /proc/N/syscall substrate completed: syscall.c's trace stops now format entry/return fragments (validaddr first, waserror-guarded) and syscallfmt.$O links in every k10 CONF; syscallfmt.c's first 9k compile fixed a one-byte heap overflow (fmtuserstring smalloc(n) then t[n]=0 — the arena-corruption panic) and an unterminated fmtrwdata buffer
+- [Phase 15]: [15-06] mntgen measured read-only on this tree (synthetic mount-point generator) — ramfs serves the writable /tmp; sam driven through its command window (the menu-New path and a post-B typed line both measured dead on this venue — samterm which/Hcurrent + the non-empty-dot cut-stall, deferred); arctest falls off main and Harvey's _main epilogue exits("main") so rc conditionals see failure — the rejoin gates on the loop's completion output
 
 ### Pending Todos
 
@@ -172,6 +176,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-10T06:04:38.146Z
-Stopped at: Completed 15-09-PLAN.md (libmemdraw pixel-path audit: drawtest+arctest root-caused as two class commits, stale targets cleaned, 15-06 re-join contract recorded)
+Last session: 2026-11-10T14:20:19.042Z
+Stopped at: Completed 15-06-PLAN.md (GUI syscall traces: rio/acme/sam replays with completion gates, raw+table evidence, the 15-09 re-join green)
 Resume file: None

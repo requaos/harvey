@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 50
+open_count: 52
 waived_count: 3
 fixed_count: 7
-total_count: 60
-last_updated: 2026-11-10T06:04:08.256Z
+total_count: 62
+last_updated: 2026-11-10T14:17:53.850Z
 ---
 
 # Broken Windows Ledger
@@ -75,6 +75,8 @@ last_updated: 2026-11-10T06:04:08.256Z
 | 59 | 14 | unmet-truth | .planning/phases/14-harvey-amd64-userspace-on-r9/14-06-SUMMARY.md |  | 14-06 open: two-proc scheduler corruption in r9 x86_64 (CURRENT_PROC := &SCHED_CONTEXT by a wild bss write at init's fexec fork; the q35shell gate red just past 'init: starting /bin/rc') — evidence + leading theory in 14-06-SUMMARY Known Issues; the fix is the one open item before 14-07 | fixed |  | 2026-11-09T01:27:39.799Z | 2026-11-09T05:13:38.890Z |
 | 60 | 14 | deviation | r9/flake.nix |  | 14-VERIFICATION gap fix: the boot-iso FOD re-staled AGAIN at the phase-close pin — the phase's own post-fe39d83 kernel commits (8a338a6/e5def72/e417660) changed kernel bytes after the 14-07 re-wire, and the 14-EVIDENCE regression row claimed a green never run at that rev. Re-wired at r9@4132e25 with the two-derivation proof (fresh-kernel clones byte-identical: file bd0281bb…, NAR 9706c34a…=sha256-lwbDSqYx…), nix build .#boot-iso + --rebuild green, pushed, harvey pin f6622b35f. STANDING RULE: any r9 kernel-byte commit re-stales the FOD — re-wire-then-pin at every close; never record the FOD green unrun at the pin | fixed |  | 2026-11-09T16:38:25.739Z | 2026-11-09T16:38:46.914Z |
 | 61 | 15 | todo | sys/src/libmemdraw/draw.c | 943 | rgba word-lane fast path (MUL0123+MUL0123, delta==4 channels e.g. r8g8b8a8) still double-rounds — same imprecision family as the fixed byte path; no reproducer in the default r8g8b8 drawtest run; plan9port CALC42 is the reference shape (15-09 scope boundary) | open |  | 2026-11-10T06:04:08.256Z |  |
+| 62 | 15 | deviation | sys/src/cmd/samterm |  | samterm input-state fragility around file exchanges (menu-New which/Hcurrent + non-empty-dot cut-stall) — rig works around it; a real fix owns samterm's io.c/main.c | open |  | 2026-11-10T14:17:53.759Z |  |
+| 63 | 15 | deviation | sys/src/libc/amd64/main9.s |  | fall-off-main exits("main") — a failure status to rc conditionals (arctest measured); rejoin gates on completion output instead | open |  | 2026-11-10T14:17:53.850Z |  |
 
 ````json
 [
@@ -855,6 +857,32 @@ last_updated: 2026-11-10T06:04:08.256Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-10T06:04:08.256Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 62,
+    "kind": "deviation",
+    "phase": "15",
+    "file": "sys/src/cmd/samterm",
+    "line": null,
+    "description": "samterm input-state fragility around file exchanges (menu-New which/Hcurrent + non-empty-dot cut-stall) — rig works around it; a real fix owns samterm's io.c/main.c",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-10T14:17:53.759Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 63,
+    "kind": "deviation",
+    "phase": "15",
+    "file": "sys/src/libc/amd64/main9.s",
+    "line": null,
+    "description": "fall-off-main exits(\"main\") — a failure status to rc conditionals (arctest measured); rejoin gates on completion output instead",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-10T14:17:53.850Z",
     "resolved_at": null,
     "milestone": "v2.1"
   }
