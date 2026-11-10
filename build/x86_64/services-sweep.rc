@@ -317,19 +317,18 @@ if not echo SVC-FAIL factotum
 # by path; measured: the no-input harness venue wedges there — the
 # zero-key+warning landing the plan projected lives one call lower,
 # inside readnvram itself).  The probe isolates the interaction the
-# namespace way: a one-line throwaway env file bound over /dev/cons
-# for the keyfs run — readln's fresh opens read the same fixed line
-# for the password AND its confirm (a chan's offset restarts at 0 per
-# open), passtokey derives the throwaway machine key, and the prompt's
-# own write merely rewrites the env file (harmless).  The bind stays
-# for the venue lifetime: nothing after this probe opens /dev/cons
-# fresh (the sweep's markers ride already-open fds; no unmount binary
-# is embedded).  The interaction: hmkdir's DMDIR create through the
-# mounted fs installs a probe user AND triggers writeusers — the
-# write-back materializes the absent keyfile (observable in /env).
+# namespace way: the READ-ONLY tier-1 sentinel bound over /dev/cons
+# for the keyfs run — readln's fresh opens read the same fixed first
+# line for the password AND its confirm (a chan's offset restarts at 0
+# per open; the prompt's own write to the 0555 file fails silently),
+# passtokey derives the throwaway machine key.  The bind stays for the
+# venue lifetime: nothing after this probe opens /dev/cons fresh (the
+# sweep's markers ride already-open fds; no unmount binary embedded).
+# The interaction: hmkdir's DMDIR create through the mounted fs
+# installs a probe user AND triggers writeusers — the write-back
+# materializes the absent keyfile (observable in /env).
 if(! $B/htest -e /env/svckeys){
-	svckeyfscons=p
-	if(bind /env/svckeyfscons /dev/cons){
+	if(bind /boot/sentinel.txt /dev/cons){
 		if($B/hkeyfs -m /mnt/keys /env/svckeys){
 			if($B/hmkdir /mnt/keys/probeuser){
 				if($B/htest -e /env/svckeys) echo SVC-OK keyfs
