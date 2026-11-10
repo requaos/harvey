@@ -112,6 +112,34 @@ magic=$(od -An -tx1 -N4 "$STAGE/drawsmoke" | tr -d ' \n')
 [ "$magic" = "00008a97" ] || err "drawsmoke: bad magic $magic (want 00008a97 — amd64 S_MAGIC)"
 echo "== staged: drawsmoke (magic-checked)"
 
+# tracesup: the born-traced step-loop supervisor (15-06 Task 1, the A5
+# rule) — build/aarch64/tracesup.c UNMODIFIED (arch-neutral Plan 9 C
+# built by 7c on aarch64; 6c builds it unchanged here — any delta would
+# be its own documented commit).  It rides the PAQ (not the kernel
+# embed): the trace sessions reach it through the /bin union.
+(	cd "$HARVEY" && \
+	"$NS_HBIN/6c" -FTVw -o "$STAGE/tracesup.6" -Isys/include -Iamd64/include build/aarch64/tracesup.c && \
+	"$NS_HBIN/6l" -o "$STAGE/tracesup" -L "$HARVEY/amd64/lib" "$STAGE/tracesup.6" && \
+	rm -f "$STAGE/tracesup.6"
+) || err "tracesup host-side build failed (A5: a 7c-ism port would be its own documented commit)"
+magic=$(od -An -tx1 -N4 "$STAGE/tracesup" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "tracesup: bad magic $magic (want 00008a97 — amd64 S_MAGIC)"
+echo "== staged: tracesup (magic-checked, A5: unmodified 7c source built by 6c)"
+
+# ramfs: the writable /tmp scratch (15-06 measured 15-05's `mntgen /tmp`
+# assumption dead — this tree's mntgen is a read-only synthetic
+# mount-point generator; tracesup's fragment creates were "create
+# prohibited").  Plain libc over libauth (sys/src/cmd/ramfs.c, the
+# classic single-file memory filesystem; mounts /tmp by default)
+(	cd "$HARVEY" && \
+	"$NS_HBIN/6c" -FTVw -o "$STAGE/ramfs.6" -Isys/include -Iamd64/include sys/src/cmd/ramfs.c && \
+	"$NS_HBIN/6l" -o "$STAGE/ramfs" -L "$HARVEY/amd64/lib" "$STAGE/ramfs.6" && \
+	rm -f "$STAGE/ramfs.6"
+) || err "ramfs host-side build failed"
+magic=$(od -An -tx1 -N4 "$STAGE/ramfs" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "ramfs: bad magic $magic (want 00008a97 — amd64 S_MAGIC)"
+echo "== staged: ramfs (magic-checked — the writable /tmp scratch)"
+
 # --- the namespace build (nuke sandwich) --------------------------------
 export NS_HBIN
 LOG="$HARVEY/.build/build-9kdraw.log"
@@ -151,6 +179,10 @@ mk nuke || fails=1
 exit "$fails"
 EOF
 
+if [ -n "${DRAW_SKIP_BUILD:-}" ]; then
+	[ -s "$HARVEY/amd64/9kdraw.elf" ] || err "DRAW_SKIP_BUILD=1 but amd64/9kdraw.elf missing — run the full build once"
+	echo "== DRAW_SKIP_BUILD=1: reusing $HARVEY/amd64/9kdraw.elf (no kernel rebuild)"
+else
 set +e
 if sudo -n true 2>/dev/null; then
 	[ -x /bin/rc ] || sudo cp "$PLAN9/bin/rc" /bin/rc
@@ -232,6 +264,7 @@ rm -f "$CORE"
 	tail -40 "$LOG" >&2
 	exit 1
 }
+fi
 
 # --- host-side product asserts ------------------------------------------
 [ -s "$HARVEY/amd64/9kdraw.elf" ] || err "amd64/9kdraw.elf missing/empty after the namespace build"
@@ -271,6 +304,19 @@ mkdir -p "$PSTAGE/lib/font" "$PSTAGE/amd64/bin"
 # duplicate)
 cp -R "$HARVEY/lib/font/bit" "$PSTAGE/lib/font/bit"
 
+# /mnt mount points the GUI stack requires — bind()/mount() need the
+# target to EXIST and the paq mounts AT /mnt (the paq root IS the /mnt
+# content), so every mount point rides the PAQ ROOT as a directory
+# (measured: rio died 'can't create file system server' without temp/;
+# rio's winshell mounts at /mnt/wsys, acme's fsys at /mnt/acme AND
+# /mnt/wsys — fsys.c:237,273-278).  The placeholder files force the
+# dirs into the paq (no empty-dir guarantee) and the MREPL binds hide
+# them anyway.
+mkdir -p "$PSTAGE/temp" "$PSTAGE/wsys" "$PSTAGE/acme"
+: > "$PSTAGE/temp/.placeholder"
+: > "$PSTAGE/wsys/.placeholder"
+: > "$PSTAGE/acme/.placeholder"
+
 # the GUI binary set — COMPUTED from the tier-3 data (the single-source
 # rule; never a second hardcoded list), with the install-path mappings
 # the tier driver itself uses (samterm -> bin/aux, the ip container ->
@@ -290,7 +336,10 @@ DRAW_RELS=$(
 	done
 )
 DRAW_RELS="$DRAW_RELS amd64/bin/plumber"
-DRAW_RELS="$DRAW_RELS amd64/bin/mntgen amd64/bin/paqfs"
+# ramfs is the writable /tmp scratch (the 15-06 correction — mntgen is
+# a read-only mount-point generator, see the ramfs staging block);
+# paqfs mounts the payload channel
+DRAW_RELS="$DRAW_RELS amd64/bin/paqfs"
 [ -n "$DRAW_RELS" ] || err "the paq member list is empty — the tier-3 data parse failed"
 _miss=""
 for rel in $DRAW_RELS; do
@@ -302,6 +351,156 @@ for rel in $DRAW_RELS; do
 	cp "$HARVEY/$rel" "$PSTAGE/$rel"
 done
 cp "$STAGE/drawsmoke" "$PSTAGE/amd64/bin/drawsmoke"
+cp "$STAGE/tracesup" "$PSTAGE/amd64/bin/tracesup"
+cp "$STAGE/ramfs" "$PSTAGE/amd64/bin/ramfs"
+
+# --- the 15-06 trace payload: the committed replay scripts (D-05's
+# measurement drivers — the scripted interaction set, in-guest kbin +
+# mousein vocabulary) + the session driver GENERATED here (rig
+# machinery: launch/arming/egress choreography around the committed
+# replays; k10draw.rc's trace-mode hook runs it when present)
+mkdir -p "$PSTAGE/lib" "$PSTAGE/rc/lib"
+cp "$HARVEY/rc/lib/rcmain" "$PSTAGE/rc/lib/rcmain"
+TRACE_REPLAYS=""
+for f in "$HARVEY"/build/x86_64/replay-*.rc; do
+	[ -f "$f" ] || continue
+	cp "$f" "$PSTAGE/lib/$(basename "$f")"
+	TRACE_REPLAYS="$TRACE_REPLAYS $(basename "$f")"
+done
+[ -n "$TRACE_REPLAYS" ] || err "no build/x86_64/replay-*.rc found — the trace payload needs the committed replay scripts"
+echo "== trace payload: replays staged:$TRACE_REPLAYS"
+
+# the session driver: which sessions run is THIS script's decision
+# (DRAW_TRACE_SESSIONS; the harness's verify greps presence-only
+# markers, so the full set rides one boot — sequential sessions, each
+# its own tracesup tree + egress).  Session order: rio (the
+# tracer-proven rig), acme, sam, then the 15-09 runtime re-join
+# (drawtest/arctest — Task 3).  "rejoin" is not a trace session: it
+# runs the two libmemdraw tests untraced on the live venue.
+cat > "$PSTAGE/lib/trace-session.rc" <<'SESSIONEOF'
+# trace-session.rc — the 15-06 trace-session driver (BAKED by
+# build/mm/build-9kdraw.sh, not a committed file: the committed
+# measurement drivers are /lib/replay-*.rc; this script only
+# choreographs launch, arming, egress around them).  Runs in a child
+# rc sourced from k10draw.rc AFTER the four-marker bring-up gate.
+#
+# rc dialect discipline (15-02, measured): `if not` and negated ifs
+# take SIMPLE command bodies only — every conditional below is a flat
+# ladder; while/for keep the proven braced-block shapes; ^ for
+# concatenation; no fd-dup redirects; no bare = in patterns.
+
+# the poll tick lists: each element is one 2s poll (rc has no break —
+# a bounded wait rides a FIXED tick list whose sleeps stop early once
+# the sentinel appears; the loop itself always runs to length, costing
+# only fast test forks)
+T60 = (x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x)
+T30 = (x x x x x x x x x x x x x x x x x x x x x x x x x x x x x x)
+
+# waitdone DIR TICKS — bounded poll for tracesup's _done sentinel (the
+# root exited AND the teardown drain completed)
+fn waitdone {
+	for (t in $2) {
+		if (! test -e $1/_done)
+			sleep 2
+	}
+}
+
+# killroot ROOT DIR — the teardown fallback (tracesup's own watchdog
+# shape: kill pends, the loop children end on Eprocdied, teardown
+# completes); flat nested guards, never a braced if-not
+fn killroot {
+	if (! test -e $2/_done)
+		if (test -e /proc/^$1^/ctl)
+			echo kill > /proc/^$1^/ctl
+}
+
+# trace-one NAME CMD REPLAY — one born-traced session:
+#   1. the launcher: `rc -c 'echo hang > /proc/$pid/ctl; exec CMD'` —
+#      a fresh rc knows its OWN $pid, sets hang on itself, then execs
+#      CMD; the exec'd image stops at its FIRST instruction (sysexec:
+#      `if(up->hang) up->procctl = Proc_stopme`).  This is the
+#      race-free replacement for 06-07's spin window: on KVM the
+#      spin-loop rc outran the arming `echo stop` (both fork+exec
+#      through the paq-served /bin) and the first 15-06 boot traced
+#      rio from mid-startup — exec, font loads and the mouse/kbd
+#      reader procs all pre-dated the arming.
+#   2. waitstop BLOCKS until that stop; nohang clears the flag so the
+#      program's own exec children (born traced) don't hang too
+#   3. tracesup arms the root (its loop writes startsyscall FIRST —
+#      the hang stop left no pending syscall fragment) and every
+#      born-traced descendant (the pending-fragment-first discipline
+#      is tracesup's own, unmodified)
+#   4. source the committed replay (the scripted interaction: mousein
+#      gestures + kbin typing + the completion marker command)
+#   5. bounded wait for the session end, kill fallback, then egress
+#      the per-pid fragment files framed on the console (the serial
+#      capture is the only wire)
+fn trace-one {
+	name = $1
+	cmd = $2
+	rep = $3
+	dir = /tmp/tr-^$name
+	rc -m /boot/rcmain -c 'echo hang > /proc/$pid/ctl; exec '^$"cmd &
+	root = $apid
+	# every ctl write is guarded by its own test: a failed REDIRECT
+	# raises an rc error that unwinds the whole script (measured), so an
+	# exec-failed launcher must never reach a bare redirect
+	if (test -e /proc/^$root^/ctl)
+		echo waitstop > /proc/^$root^/ctl
+	if (test -e /proc/^$root^/ctl)
+		echo nohang > /proc/^$root^/ctl
+	if (test -e /proc/^$root^/ctl)
+		tracesup $root $dir &
+	sleep 15
+	. $rep
+	waitdone $dir $T60
+	killroot $root $dir
+	waitdone $dir $T30
+	echo __GSD_EGRESS_BEGIN_^$name^__
+	if (test -d $dir) {
+		cd $dir
+		for (f in [0-9]*) {
+			echo __GSD_PID_^$f^__
+			cat $f
+		}
+		cd /
+	}
+	echo __GSD_EGRESS_END_^$name^__
+	echo TRACE-EGRESS-DONE-^$name
+}
+SESSIONEOF
+TRACE_SESSIONS="${DRAW_TRACE_SESSIONS:-rio}"
+for s in $TRACE_SESSIONS; do
+	case "$s" in
+	rio|acme|sam)
+		echo "trace-one $s $s /lib/replay-$s.rc" >> "$PSTAGE/lib/trace-session.rc"
+		;;
+	rejoin)
+		cat >> "$PSTAGE/lib/trace-session.rc" <<'REJOINEOF'
+
+# the 15-09 runtime re-join (DRAWTEST-OK / ARCTEST-OK — the recorded
+# contract): drawtest runs its full stochastic verification on the
+# default channels (r8g8b8 x3), arctest its timed memarc loop; a
+# failure is a 15-09 fix regression — root-cause again, never a skip.
+drawtest && echo DRAWTEST-OK
+arctest 1000 && echo ARCTEST-OK
+REJOINEOF
+		;;
+	*)
+		err "unknown trace session '$s' (rio|acme|sam|rejoin)"
+		;;
+	esac
+done
+cat >> "$PSTAGE/lib/trace-session.rc" <<'TAILEOF'
+
+echo TRACE-VENUE-DONE
+echo DRAW-VENUE-DONE
+TAILEOF
+echo "== trace payload: trace-session.rc baked (sessions:$TRACE_SESSIONS)"
+# the sidecar the trace harness reads (the single source for WHICH
+# sessions the payload carries — one name per line; "rejoin" = the
+# drawtest/arctest leg)
+printf '%s\n' $TRACE_SESSIONS > "$OUT/bootfs-draw.trace-sessions"
 
 # the bake manifest: every mandated path exists — PRINTED (the bake log
 # is the evidence; D-15's shape)
@@ -310,8 +509,13 @@ for p in lib/font/bit/lucm/unicode.9.font lib/font/bit/lucidasans/euro.8.font \
 	[ -s "$PSTAGE/$p" ] || err "paq manifest: $p missing/empty from staged tree"
 	echo "paq manifest: /$p staged"
 done
-for rel in $DRAW_RELS amd64/bin/drawsmoke; do
+for rel in $DRAW_RELS amd64/bin/drawsmoke amd64/bin/tracesup amd64/bin/ramfs lib/trace-session.rc rc/lib/rcmain; do
 	[ -s "$PSTAGE/$rel" ] || err "paq manifest: $rel missing/empty"
+	echo "paq manifest: /$rel staged"
+done
+for f in $TRACE_REPLAYS; do
+	[ -s "$PSTAGE/lib/$f" ] || err "paq manifest: lib/$f missing/empty"
+	echo "paq manifest: /lib/$f staged"
 done
 FONTN=$(find "$PSTAGE/lib/font/bit" -type f | wc -l | tr -d ' ')
 [ "$FONTN" -ge 4000 ] || err "font tree suspiciously small: $FONTN files (expect >= 4000; D-14 ships the whole tree)"
@@ -334,6 +538,10 @@ rm -rf "$PSTAGE"
 echo "== bake OK: $IMAGE ($sz bytes; header $magic trailer $trailer) — the A3 measurement"
 
 # --- the draw boot leg ----------------------------------------------------
+if [ -n "${DRAW_SKIP_BOOT:-}" ]; then
+	echo "== DRAW_SKIP_BOOT=1: boot leg skipped — sh build/mm/boot-9kdraw-trace.sh boots this payload"
+	exit 0
+fi
 KERNEL="${DRAW_KERNEL:-$HARVEY/amd64/9kdraw.elf}"
 PAQ="${DRAW_PAQ:-$OUT/bootfs-draw.paq}"
 BOOTLOG="${DRAW_LOG:-$HARVEY/.build/draw-serial.log}"
@@ -359,7 +567,11 @@ if [ -z "$BUDGET" ]; then
 fi
 SMOKE_BUDGET="${DRAW_SMOKE_BUDGET:-}"
 if [ -z "$SMOKE_BUDGET" ]; then
-	if [ "$ACCEL" = tcg ]; then SMOKE_BUDGET=900; else SMOKE_BUDGET=300; fi
+	# the venue paq now carries the 15-06 trace payload: DRAW-VENUE-DONE
+	# arrives only AFTER the full scripted-interaction trace session
+	# (each session's bounded end + egress), so the marker budget is the
+	# session-scale one, not the old bring-up one
+	if [ "$ACCEL" = tcg ]; then SMOKE_BUDGET=3600; else SMOKE_BUDGET=1800; fi
 fi
 
 # the venue marker contract — every marker below must land on the

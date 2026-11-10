@@ -1,0 +1,89 @@
+# replay-rio.rc — the committed rio scripted-interaction replay (15-06
+# Task 1, D-05: the deterministic in-guest input source — mousein mouse
+# gestures + kbin keyboard writes, never GUI-automation luck).
+#
+# Sourced by the baked /lib/trace-session.rc's trace-one AFTER tracesup
+# armed the rio tree and rio reached its event loop (the driver's
+# launch sleep).  The interaction set is the D-05 floor for rio — menu
+# New (the real menuhit gesture), a swept rc window, typed runes into
+# the window's rc, then menu Exit (rio exits on its own; the driver's
+# kill fallback covers a miss).  The completion marker is typed INTO
+# THE WINDOW: its rc executes `echo RIO-SCRIPT-DONE > '#c/cons'` — the
+# marker on the serial capture proves the event loop was reached AND
+# the whole scripted interaction completed (D-07: never a mere syscall
+# count).
+#
+# MOUSE GEOMETRY — /dev/mousein is RELATIVE (devmouse.c's Qmousein
+# handler feeds mousetrack(dx, dy): x = mouse.xy.x + dx, clamped to the
+# screen; measured on the first 15-06 boot — the replay that assumed
+# absolute positioning clicked a clamped-corner menu and no window was
+# ever created).  Two shapes make the script deterministic without
+# arithmetic (rc has none):
+#   - HOME: 'M -5000 -5000 0 0' clamps to the screen origin (0,0), so
+#     the NEXT 'M X Y 0 0' write reaches the known absolute (X,Y) no
+#     matter where a menu warp left the pointer (menuhit and rio's
+#     new()/sweep() moveto the cursor themselves — libdraw/menuhit.c:238,
+#     rio.c:970).  Homing is only ever done with buttons UP.
+#   - IN-PLACE CLICKS: 'M 0 0 B 0' presses/releases at the current
+#     position (menus open with the wanted item under the pointer —
+#     menuhit warps item 0 there and item selection moves by the item
+#     pitch).
+#
+# The venue's fixed screen is 1024x768.  rio's font is lucm/unicode.9
+# (height 17; menu item pitch = font->height+Vspacing = 19 — the Exit
+# item is 5*19 = 95px below the New item under the pointer).  The swept
+# window is (200,300)-(700,650) (sweep demands >=100x51).  Every
+# gesture is a discrete mousein write with sleeps between — presence,
+# never timing, is the gate.
+
+# 1. menu New: home to the background menu spot (512,40), press button
+#    3, release in place — menuhit parks item 0 (New) under the pointer
+#    at the press
+echo 'M -5000 -5000 0 0' > '#m/mousein'
+sleep 1
+echo 'M 512 40 0 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 4 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 0 0' > '#m/mousein'
+
+# 2. sweep the new window: sweep() waits for a press, so home to
+#    (200,300) (buttons still up — the wait loop only reads), press
+#    button 3, drag RELATIVELY to (700,650), release in place — the rc
+#    window is created (rio spawns /bin/rc -i inside it and warps the
+#    pointer into it)
+sleep 2
+echo 'M -5000 -5000 0 0' > '#m/mousein'
+sleep 1
+echo 'M 200 300 0 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 4 0' > '#m/mousein'
+sleep 1
+echo 'M 500 350 4 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 0 0' > '#m/mousein'
+
+# 3. type into the focused window: the new window is current, so the
+#    kbin runes reach its rc through rio's keyboard forwarding (kbin ->
+#    kbdputc -> rio's raw /dev/cons read -> the window's cons), and its
+#    rc runs it — RIO-SCRIPT-DONE lands on #c/cons -> the serial
+#    capture (rio buffers early keystrokes into the window, so typing
+#    races no startup step; the sleep only paces the serial wire)
+sleep 10
+echo 'echo RIO-SCRIPT-DONE > ''#c/cons''' > '#c/kbin'
+sleep 5
+
+# 4. menu Exit: home to the background menu spot, press button 3 (the
+#    menu opens with New under the pointer), drag DOWN five items (the
+#    19px pitch) to Exit, release — rio exits cleanly and the session
+#    ends on its own
+echo 'M -5000 -5000 0 0' > '#m/mousein'
+sleep 1
+echo 'M 512 40 0 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 4 0' > '#m/mousein'
+sleep 1
+echo 'M 0 95 4 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 0 0' > '#m/mousein'
+sleep 3

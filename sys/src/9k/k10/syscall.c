@@ -210,6 +210,7 @@ syscall(int scallnr, Ureg* ureg)
 	Ar0 ar0;
 	static Ar0 zar0;
 	void (*pt)(Proc*, int, vlong, vlong);
+	vlong startns, stopns;
 
 	if(!userureg(ureg))
 		panic("syscall: cs %#llux\n", ureg->cs);
@@ -225,8 +226,33 @@ syscall(int scallnr, Ureg* ureg)
 		pt(up, STrap, todget(nil), STrapSC|scallnr);
 
 	if(up->procctl == Proc_tracesyscall){
+		/*
+		 * Format the ENTRY fragment from the user-stack args (up->arg
+		 * is copied only further down) so /proc/N/syscall serves it at
+		 * the stop — the legacy pc/trap.c trace discipline: validate
+		 * the stack range FIRST (a wild sp would fault the kernel on
+		 * the fmt walk), then format under our own waserror guard —
+		 * the formatters validaddr user pointers, and an error raised
+		 * here would unwind with an empty error stack (this function
+		 * is called straight from asm).  On error the fragment is
+		 * simply nil — the syscall itself re-validates and reports
+		 * through its own error path.  The fragment is freed AFTER
+		 * the stop returns (the debugger's startsyscall resume has
+		 * re-armed tracing by then).
+		 */
+		if(!waserror()){
+			sp = ureg->sp;
+			if(sp < (USTKTOP-PGSZ) || sp > (USTKTOP-sizeof(up->arg)-BY2SE))
+				validaddr(UINT2PTR(sp), sizeof(up->arg)+BY2SE, 0);
+			syscallfmt(scallnr, (va_list)UINT2PTR(sp+BY2SE));
+			poperror();
+		}
 		up->procctl = Proc_stopme;
 		procctl(up);
+		if(up->syscalltrace)
+			free(up->syscalltrace);
+		up->syscalltrace = nil;
+		startns = todget(nil);
 	}
 
 	up->scallnr = scallnr;
@@ -280,10 +306,20 @@ syscall(int scallnr, Ureg* ureg)
 	ureg->ax = ar0.p;
 
 	if(up->procctl == Proc_tracesyscall){
+		/* the RETURN fragment carries the result, errstr and the
+		 * in/out timestamps; same waserror guard as the entry side */
+		stopns = todget(nil);
 		up->procctl = Proc_stopme;
+		if(!waserror()){
+			sysretfmt(scallnr, (va_list)UINT2PTR(sp+BY2SE), &ar0, startns, stopns);
+			poperror();
+		}
 		s = splhi();
 		procctl(up);
 		splx(s);
+		if(up->syscalltrace)
+			free(up->syscalltrace);
+		up->syscalltrace = nil;
 	}
 
 	up->insyscall = 0;

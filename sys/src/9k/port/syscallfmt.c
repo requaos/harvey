@@ -19,6 +19,8 @@ fmtrwdata(Fmt* f, char* a, int n, char* suffix)
 		fmtprint(f, "0x0%s", suffix);
 		return;
 	}
+	if(n < 0)				/* the length arg is user data */
+		n = 0;
 	a = validaddr(a, n, 0);
 	t = smalloc(n+1);
 	for(i = 0; i < n; i++){
@@ -27,6 +29,7 @@ fmtrwdata(Fmt* f, char* a, int n, char* suffix)
 		else
 			t[i] = '.';
 	}
+	t[n] = 0;
 
 	fmtprint(f, " %#p/\"%s\"%s", a, t, suffix);
 	free(t);
@@ -44,7 +47,7 @@ fmtuserstring(Fmt* f, char* a, char* suffix)
 	}
 	a = validaddr(a, 1, 0);
 	n = ((char*)vmemchr(a, 0, 0x7fffffff) - a) + 1;
-	t = smalloc(n);
+	t = smalloc(n+1);		/* n+1: the copy is n bytes + the NUL */
 	memmove(t, a, n);
 	t[n] = 0;
 	fmtprint(f, "%#p/\"%s\"%s", a, t, suffix);
@@ -113,7 +116,11 @@ syscallfmt(int syscallno, va_list list)
 		a = va_arg(list, char*);
 		fmtuserstring(&fmt, a, "");
 		argv = va_arg(list, char**);
-		validalign(PTR2UINT(argv), sizeof(char*));
+		/* the legacy tree's validalign() alignment precheck is absent
+		 * in 9k (never ported); the loop's validaddr below carries the
+		 * real validation — this file's first 9k compile (15-06: the
+		 * syscall-trace fragment formatters were dead code here until
+		 * syscall.c's trace stops grew their fmt calls) */
 		for(;;){
 			a = *(char**)validaddr(argv, sizeof(char**), 0);
 			if(a == nil)

@@ -37,13 +37,23 @@ echo -n sys > '#c/hostowner'
 # tier-1-built paqfs mounts it OVER /mnt (the embedded root is read-only
 # — mkdir is denied — so the paq rides an existing devroot mount point).
 # The fonts (the WHOLE lib/font/bit tree, bake-time-copied) bind at /lib
-# and the GUI binaries union into /bin; mntgen (tier-2-built, reached
-# through the /bin bind) serves the writable /tmp scratch (the 15-06
-# trace fragments' home).
+# and the GUI binaries union into /bin.  /rc carries the STANDARD
+# rcmain (staged in the paq): rc sources an rcmain UNCONDITIONALLY
+# (15-02's srv -e lesson, re-measured on this venue — rio's window
+# shell runs `rc -i`, acme's Execute and sam's !cmd run `rc -c`, and
+# every one of them died sourcing the default /rc/lib/rcmain before
+# this bind).  The writable /tmp scratch (the
+# 15-06 trace fragments' home) is ramfs (host-built, staged in the paq):
+# 15-05's `mntgen /tmp` was a wrong assumption measured dead in 15-06 —
+# this tree's mntgen is a READ-ONLY synthetic mount-point generator
+# (every walked name becomes a DMDIR|0555 entry; fsopen rejects every
+# non-OREAD open and there is no create), so tracesup's fragment files
+# were "create prohibited"; ramfs is the real in-memory filesystem.
 paqfs -m /mnt /boot/bootfs-draw.paq
 bind /mnt/lib /lib
+bind /mnt/rc /rc
 bind -b /mnt/amd64/bin /bin
-mntgen /tmp
+ramfs
 
 # FONT-CHANNEL-OK: rio's and acme's default fonts are stat-able in-guest
 if(test -e /lib/font/bit/lucm/unicode.9.font && test -e /lib/font/bit/lucidasans/euro.8.font)
@@ -74,10 +84,24 @@ bind -a '#i' /dev
 # the #m/mousein position readback (MOUSEIN-OK) — the probes live in
 # the exerciser (bounded waits in C; the rc console-interaction forms
 # are the 15-02 dialect's least reliable corner, and a wedged read
-# there wedges the whole boot — measured).
+# there wedges the whole boot — measured).  The four markers above are
+# the venue's bring-up gate and stay IN FRONT of every 15-06 trace
+# session: a capture without them never reaches the distiller.
 drawsmoke
 
-# the harness's phase-B completion signal; then init must never exit
-# (an exiting init panics the kernel — k10root.rc's idiom).
-echo DRAW-VENUE-DONE
+# the 15-06 trace mode: when the payload carries the trace-session
+# driver (build-9kdraw.sh stages it beside the committed replay
+# scripts), the scripted-interaction trace sessions run INSTEAD of the
+# idle done-marker — the driver emits TRACE-VENUE-DONE and its own
+# trailing DRAW-VENUE-DONE.  The plain venue paq (no trace-session.rc)
+# keeps the 15-05 flow untouched.  The session runs in a child rc (its
+# trailing exit never kills init), sourced from the boot flow, never
+# typed.
+if(test -f /lib/trace-session.rc)
+	rc -m /boot/rcmain -c '. /lib/trace-session.rc'
+if not
+	echo DRAW-VENUE-DONE
+
+# init must never exit (an exiting init panics the kernel —
+# k10root.rc's idiom).
 while(~ 1 1){ . -i '#d/0' }

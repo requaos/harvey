@@ -12,7 +12,12 @@ p=9
 <../mk/bootmkfile
 <../mk/portmkfile
 
-OBJ=$MACH $CONF.root.$O $DEVS $PORT
+# syscallfmt.$O rides every CONF's link (not the configs' frozen port
+# lists): syscall.c's Proc_tracesyscall stops call syscallfmt/sysretfmt
+# to serve /proc/N/syscall fragments — the 15-06 trace substrate, part
+# of the k10-wide syscall.c (the dir-section rule compiles it from
+# ../port/syscallfmt.c like every other port object)
+OBJ=$MACH $CONF.root.$O $DEVS $PORT syscallfmt.$O
 
 CFLAGS=-FVw
 
