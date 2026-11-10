@@ -15,7 +15,12 @@
 #     a runtime concern).  It rides as a BAKE-TIME copy from the
 #     repo's lib/font/bit (the adm/timezone precedent) — never a
 #     committed duplicate under root-tree/.
-#   - /usr/glenda/lib/profile — the committed root-tree skeleton file.
+#   - /usr/glenda/lib/profile — the committed root-tree skeleton file
+#     (the D-17 trimmed cpu-aware profile).
+#   - /lib/ndb/local — SUBSTITUTED at bake time from the committed
+#     token template root-tree/lib/ndb/local.template through the
+#     netaddr seam (D-16).  The manifest lists the substituted OUTPUT:
+#     a bake that fails to produce it fails here.
 #
 # Blocks — one assertion class per block:
 #
@@ -42,6 +47,7 @@
 [paths]
 lib/font/bit
 usr/glenda/lib/profile
+lib/ndb/local
 
 [fonts]
 # rio's default font (sys/src/cmd/rio/rio.c)

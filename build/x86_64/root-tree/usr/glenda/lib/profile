@@ -1,3 +1,46 @@
-# /usr/glenda/lib/profile for the r9 boot chain image —
-# deliberately near-empty: rcmain's profile-read path (flag l) has a
-# file to read, and nothing beyond it is needed on the shell path.
+# /usr/glenda/lib/profile — the D-17 trimmed cpu-aware profile (15-08),
+# staged in the committed root-tree skeleton (the DESK-03 payload's
+# profile half; trimmed from usr/glenda/lib/profile, the trim source
+# read verbatim):
+#   - the mail-filesystem start (source line 7) and the
+#     message-of-the-day calls (source lines 28 and 35 — the cpu AND
+#     con cases) dropped; this comment names neither command, so the
+#     gate's whole-file grep for them stays mechanically clean
+#   - the terminal case keeps the binds/tmp/font (lines 1-6, shared)
+#     but LOSES `exec rio -i riostart' — rio must provably NOT start at
+#     boot (the serial-console venue); its plumber + '#m/mousectl'
+#     writes are dropped with it: no devmouse or plumber substrate
+#     exists on the serial image and a failed redirect RAISES in rc
+#     (the 15-02 measured dialect) — a future draw-terminal venue
+#     re-derives its own mouse/plumbing bring-up
+#   - the cpu case stays INTACT verbatim (the /mnt/term binds, the
+#     latin1.8 font, exec rio) — Phase 19 consumes it unchanged
+bind -a $home/bin/rc /bin
+bind -a $home/bin/$cputype /bin
+bind -c tmp /tmp
+if(! syscall create /tmp/xxx 1 0666 >[2]/dev/null)
+	ramfs	# in case we're running off a cd
+font = /lib/font/bit/pelm/euro.9.font
+fn cd { builtin cd $* && awd }  # for acme
+switch($service){
+case terminal
+	prompt=('term% ' '	')
+	fn term%{ $* }
+case cpu
+	if (test -e /mnt/term/mnt/wsys) { # rio already running
+		bind -a /mnt/term/mnt/wsys /dev
+		if(test -w /dev/label)
+			echo -n $sysname > /dev/label
+	}
+	bind /mnt/term/dev/cons /dev/cons
+	bind /mnt/term/dev/consctl /dev/consctl
+	bind -a /mnt/term/dev /dev
+	prompt=('cpu% ' '	')
+	fn cpu%{ $* }
+	if (! test -e /mnt/term/mnt/wsys) {	# cpu call from drawterm
+		font=/lib/font/bit/pelm/latin1.8.font
+		exec rio
+	}
+case con
+	prompt=('cpu% ' '	')
+}

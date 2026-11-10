@@ -73,7 +73,16 @@
 #                                copy from the repo's lib/font/bit
 #                                (the adm/timezone rule above; never a
 #                                committed duplicate under root-tree/)
-#   /usr/glenda/lib/profile      committed skeleton
+#   /usr/glenda/lib/profile      committed skeleton — the D-17 trimmed
+#                                cpu-aware profile (terminal case
+#                                rio-free, cpu case intact; the shape
+#                                is asserted on the staged file)
+#   /lib/ndb/local               SUBSTITUTED at bake time from the
+#                                committed token template
+#                                root-tree/lib/ndb/local.template via
+#                                the netaddr seam (D-16: tokens only,
+#                                never a venue literal; zero leftover
+#                                tokens asserted)
 #   the manifest asserts          every listed path present + non-empty
 #                                in the staged tree, the app-named
 #                                fonts present, the count/size floors
@@ -603,10 +612,13 @@ echo "== PASS: baked $NET_IMAGE ($sz4 bytes; header $magic4 trailer $trailer4; K
 #    its staged tree AFTER the skeleton tar (D-13: an image that
 #    declares it inherits the payload by construction, and a later
 #    contract composes it without re-staging).  The function stages
-#    the bake-time members, then asserts the WHOLE manifest against
-#    the staged tree — the asserts are the only authority on payload
-#    completeness (T-15-19: a drifted or partial copy fails the bake
-#    HERE, never the boot later).
+#    the bake-time members (the font copy; /lib/ndb/local substituted
+#    from the committed token template through the netaddr seam —
+#    D-16), then asserts the WHOLE manifest against the staged tree
+#    plus the D-17 profile shape — the asserts are the only authority
+#    on payload completeness (T-15-19/T-15-20: a drifted or partial
+#    copy, a leaked literal or a leftover token fails the bake HERE,
+#    never the boot later).
 PAYLOAD_MANIFEST="$HARVEY/build/x86_64/bootfs-payload.txt"
 
 payload_block() {
@@ -636,6 +648,31 @@ stage_payload() {
 	_scount=$(find "$HARVEY/lib/font/bit" -type f | wc -l | tr -d ' ')
 	_fcount=$(find "$_ps/lib/font/bit" -type f | wc -l | tr -d ' ')
 	[ "$_fcount" -eq "$_scount" ] || err "payload: staged lib/font/bit carries $_fcount files, the source tree $_scount (a partial copy)"
+
+	# P2b. /lib/ndb/local from the committed token template (D-16):
+	#      the netaddr seam is SOURCED (rc-syntax key=value lines are
+	#      sh-compatible; a seam file that grows an rc-ism fails the
+	#      bake loudly right here) and the template's tokens are
+	#      substituted from its slirp-leg keys.  The template carries
+	#      TOKENS only — zero venue literals, so 10b's seam grep over
+	#      root-tree/lib stays clean by construction — and the
+	#      substituted output is asserted BOTH ways (T-15-20): the
+	#      seam's values present, zero leftover tokens.
+	_ndbt="$ROOT_TREE/lib/ndb/local.template"
+	[ -s "$_ndbt" ] || err "$_ndbt missing — the committed ndb token template (15-08, D-16)"
+	. "$ROOT_TREE/lib/netaddr.rc"
+	[ -n "${slirp_guestv4:-}" ] && [ -n "${slirp_maskv4:-}" ] && [ -n "${slirp_gwv4:-}" ] \
+		|| err "netaddr.rc lacks a slirp_guestv4/slirp_maskv4/slirp_gwv4 seam key (the ndb substitution source)"
+	mkdir -p "$_ps/lib/ndb"
+	sed -e "s/@GUESTV4@/$slirp_guestv4/g" -e "s/@MASKV4@/$slirp_maskv4/g" \
+		-e "s/@GWV4@/$slirp_gwv4/g" "$_ndbt" > "$_ps/lib/ndb/local"
+	if "$GREP" -q '@' "$_ps/lib/ndb/local"; then
+		err "payload: /lib/ndb/local carries an unsubstituted token (the template names a token the seam substitution does not know)"
+	fi
+	for _v in "$slirp_guestv4" "$slirp_maskv4" "$slirp_gwv4"; do
+		"$GREP" -qF "$_v" "$_ps/lib/ndb/local" || err "payload: /lib/ndb/local lacks the seam value $_v (a template token went missing)"
+	done
+	echo "payload manifest: /lib/ndb/local substituted from lib/ndb/local.template (the netaddr seam's slirp leg) [$_pl]"
 
 	# P3. [paths]: every listed path present + non-empty in the staged
 	#     tree (a directory entry is a tree entry — it must carry a
@@ -676,6 +713,24 @@ stage_payload() {
 	[ "$_fcount" -ge "$_ffloor" ] || err "payload manifest: /lib/font/bit carries $_fcount files, below the $_ffloor floor (D-14: the WHOLE tree ships)"
 	[ "$_fbytes" -ge "$_bfloor" ] || err "payload manifest: /lib/font/bit carries $_fbytes bytes, below the $_bfloor floor (D-14: the WHOLE tree ships)"
 	echo "payload manifest: /lib/font/bit $_fcount files $_fbytes bytes (floors: $_ffloor files, $_bfloor bytes) [$_pl]"
+
+	# P6. the D-17 profile shape, asserted on the STAGED file: the
+	#     terminal case carries NO rio line at all (rio must provably
+	#     not start at boot on the serial-console venue — this assert
+	#     is the proof), while the cpu case keeps its exec rio and its
+	#     latin1.8 font (Phase 19 consumes that case unchanged).  The
+	#     ranges anchor at line start so comment prose never opens one.
+	_prof="$_ps/usr/glenda/lib/profile"
+	"$GREP" -q '^case terminal' "$_prof" && "$GREP" -q '^case cpu' "$_prof" \
+		|| err "payload: the staged profile lacks its terminal/cpu cases (D-17: the trimmed cpu-aware profile)"
+	if awk '/^case terminal/,/^case cpu/' "$_prof" | "$GREP" -q 'rio'; then
+		err "payload: the staged profile's terminal case mentions rio (D-17: rio must NOT start at boot)"
+	fi
+	awk '/^case cpu/,0' "$_prof" | "$GREP" -q 'exec rio' \
+		|| err "payload: the staged profile's cpu case lost its exec rio (Phase 19 consumes it unchanged)"
+	awk '/^case cpu/,0' "$_prof" | "$GREP" -qF 'pelm/latin1.8.font' \
+		|| err "payload: the staged profile's cpu case lost its latin1.8 font (Phase 19 consumes it unchanged)"
+	echo "payload manifest: /usr/glenda/lib/profile shape ok — terminal case rio-free, cpu case intact [$_pl]"
 }
 
 # ------------------------------------------------------------------
@@ -719,7 +774,8 @@ stage_payload() {
 #         checkout's amd64/lib)
 #       - the DESK-03 payload (section P's stage_payload, 11e2): the
 #         WHOLE lib/font/bit tree as a bake-time copy + the skeleton's
-#         profile, asserted against build/x86_64/bootfs-payload.txt —
+#         D-17 profile + /lib/ndb/local substituted from the token
+#         template, asserted against build/x86_64/bootfs-payload.txt —
 #         this image is the payload-declaring contract (the image
 #         Phases 18-19 consume)
 #       - NO /boot/factotum (auth-stub-by-absence — hfactotum in
@@ -825,8 +881,9 @@ mkdir -p "$STAGE5"
 
 # 11e2. the DESK-03 payload declaration (15-08): the services image
 #       carries the desktop payload — the whole font tree copied at
-#       bake time + the manifest asserts over the staged tree (section
-#       P; the profile rode the skeleton tar above)
+#       bake time + /lib/ndb/local substituted from the token template
+#       + the manifest and profile-shape asserts over the staged tree
+#       (section P; the profile rode the skeleton tar above)
 stage_payload "$STAGE5" services
 
 # 11f. empty mount-point dirs + staging parents (the chain set + the

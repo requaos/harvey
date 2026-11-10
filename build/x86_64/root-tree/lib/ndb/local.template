@@ -1,0 +1,25 @@
+#
+# /lib/ndb/local — the network database TEMPLATE (15-08, D-16).
+#
+# SUBSTITUTED at bake time by build/x86_64/mkimage.sh's payload section
+# into the staged tree's /lib/ndb/local: the netaddr seam
+# (root-tree/lib/netaddr.rc, the 14-09 D-11 single seam) is sourced and
+# the tokens below are sedded from its slirp-leg keys —
+#   @GUESTV4@  <- slirp_guestv4   the guest's own address
+#   @MASKV4@   <- slirp_maskv4    the leg's mask
+#   @GWV4@     <- slirp_gwv4      the leg's gateway
+# The bake asserts the substituted file carries the seam's values and
+# ZERO leftover tokens; this template itself carries NO venue address
+# literal by construction (the bake's seam grep over root-tree/lib
+# stays clean — a literal here fails the bake).
+#
+# Content model: the baked host entry is the same ip=/dom=/sys= tuple
+# shape the 15-02 services probes measured cs answering from
+# (`!ipinfo dom=host attr').  The mask and gateway ride as their own
+# attribute tuples for the Phase-18 domain generator to compose into
+# ipnet= blocks (authdom/auth entries) when a plan owns that layer.
+#
+
+ip=@GUESTV4@ sys=harvey dom=harvey.local
+ipmask=@MASKV4@
+ipgw=@GWV4@
