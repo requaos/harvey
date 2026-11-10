@@ -4,6 +4,7 @@ TARG=4c
 OFILES=\
 	cgen.$O\
 	enam.$O\
+	lex.$O\
 	list.$O\
 	machcap.$O\
 	mul.$O\
@@ -28,12 +29,25 @@ BIN=/$objtype/bin
 enam.c:	4.out.h
 	rc mkenam
 
+# 15-07 (D-10, USPACE-09): the upstream rule was
+#	rfork; bind lex.c ../cc/lex.c; builtin cd ../cc; mk install; mk clean
+# — compiling 4c's lex INTO the cc archive through a namespace bind.
+# The rfork/bind pair cannot run on the Linux namespace venues
+# (plan9port rc: "rfork failed"; there is no bind), which left 4c
+# unable to build $LIB at all whenever ../cc/cc.a$O was absent (the
+# amd64 coverage sweep's first red row).  The portable equivalent:
+# link 4c's OWN lex.$O explicitly ahead of the archive — the archive's
+# lex member is never pulled once the explicit object defines its
+# symbols — compiled against ../cc's headers.  cc's `mk clean' is
+# dropped from the LIB recipe because lex.$O needs ../cc/y.tab.h to
+# survive the install; the leftover cc objects are ordinary build
+# residue.
 $LIB:
-	rfork
-	bind lex.c ../cc/lex.c	# hack
-	builtin cd ../cc		# for acme
+	cd ../cc
 	mk install
-	mk clean
+
+lex.$O:	lex.c $LIB
+	$CC $CFLAGS -I../cc lex.c
 
 %.$O: ../cc/%.c
 	$CC $CFLAGS ../cc/$stem.c
@@ -44,7 +58,12 @@ t:V:	$O.out
 	t.out
 
 # XXX
-clean:	cleanlib
+# 15-07: the clean override upstream dropped mkone's own object cleanup
+# (only the ../cc archive was removed), so stale *.[$OS] objects
+# survived between builds — the coverage sweep's per-dir fresh-build
+# discipline needs them gone.
+clean:V:	cleanlib
+	rm -f *.[$OS] [$OS].out y.tab.? y.debug y.output $TARG
 
 cleanlib:
 	rm -f ../cc/cc.a[$OS]
