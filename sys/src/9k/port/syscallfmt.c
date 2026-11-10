@@ -70,7 +70,14 @@ syscallfmt(int syscallno, va_list list)
 	fmtstrinit(&fmt);
 	fmtprint(&fmt, "%d %s ", up->pid, up->text);
 
-	if(syscallno > nsyscall)
+	/*
+	 * syscallno is the raw user-supplied number: the trace stop
+	 * formats it before syscall() has range-checked it.  Bound the
+	 * table access on both sides — nsyscall is nelem(systab), so the
+	 * last valid index is nsyscall-1, and a negative number would
+	 * index backwards out of the table.
+	 */
+	if(syscallno < 0 || syscallno >= nsyscall)
 		fmtprint(&fmt, " %d ", syscallno);
 	else
 		fmtprint(&fmt, "%s ", systab[syscallno].n);

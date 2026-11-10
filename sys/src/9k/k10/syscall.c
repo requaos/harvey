@@ -239,6 +239,12 @@ syscall(int scallnr, Ureg* ureg)
 		 * through its own error path.  The fragment is freed AFTER
 		 * the stop returns (the debugger's startsyscall resume has
 		 * re-armed tracing by then).
+		 *
+		 * scallnr is NOT yet range-checked here (that happens in the
+		 * main body below): nothing in this block may index systab
+		 * with it.  syscallfmt bounds its own table access and prints
+		 * an out-of-range number as a number, so a bogus call still
+		 * leaves a fragment for the tracer.
 		 */
 		if(!waserror()){
 			sp = ureg->sp;
