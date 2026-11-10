@@ -16,9 +16,13 @@ T1KEEPT=`{awk '/^cmd\/auth\/factotum:/{ sub(/^cmd\/auth\/factotum:/,""); sub(/[\
 # 15-01 (USPACE-07): the amd64 keep widens to the tier1+tier2 UNION in
 # ONE multi-file awk (defensive symmetry with the other filter sites —
 # factotum itself stays a tier-1 line, never moved into tier 2).
+# 15-04 (USPACE-08): widens again to tier1+tier2+tier3 in the same one
+# call (defensive symmetry held; fgui stays excluded — see the tier
+# data's named-exclusion record).
 TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt
 TIER2A=$HARVEY/build/x86_64/tiers/tier2-services.txt
-T1KEEPTA=`{awk '/^cmd\/auth\/factotum:/{ sub(/^cmd\/auth\/factotum:/,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A}
+TIER3A=$HARVEY/build/x86_64/tiers/tier3-gui.txt
+T1KEEPTA=`{awk '/^cmd\/auth\/factotum:/{ sub(/^cmd\/auth\/factotum:/,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A}
 
 TARG=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEPT) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEPTA) echo $i; if not echo $ALLTARG}
 

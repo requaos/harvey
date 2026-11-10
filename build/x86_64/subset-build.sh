@@ -26,6 +26,13 @@
 #     (mk <target>.clean / in-tree object rm before every build) so a
 #     stale object can never earn a marker — and a T2-ART sha256
 #     marker + 00008a97 magic check per harvested binary.
+#   - the tier-3 GUI allowlist (15-04, USPACE-08's compile half:
+#     build/x86_64/tiers/tier3-gui.txt) on the same uniform dispatch +
+#     per-entry fresh builds, T3-ART sha256 markers + magic checks.
+#     T3-ART is ARTIFACT evidence ONLY (D-07's boundary: the trace is
+#     the gate — execution evidence for the GUI tier is 15-06's traces
+#     alone; the compile-vs-execution distinction lives in the ledger's
+#     exec field, compile-only rows until that evidence lands).
 #
 # Artifacts install to the namespace's /amd64 (the checkout's amd64/ —
 # gitignored): /amd64/lib/*.a, /amd64/bin/*.  The k10t1 venue kernel
@@ -35,9 +42,9 @@
 # entries additionally harvest to build/x86_64/out/ (the chain image's
 # supply home, the 14-06 separation).
 #
-# Markers: T0-ART <lib> <sha256>, T1-ART <bin> <sha256>, TIER-BUILD-OK
-# (mk exit status is never trusted — 02-12; artifact asserts + markers
-# are the only gates).
+# Markers: T0-ART <lib> <sha256>, T1-ART <bin> <sha256>, T2-ART, T3-ART,
+# TIER-BUILD-OK (mk exit status is never trusted — 02-12; artifact
+# asserts + markers are the only gates).
 #
 # usage: sh build/x86_64/subset-build.sh   (repo root, inside the nix
 # devshell or the flake app wrapper)
@@ -398,6 +405,86 @@ while read -r line; do
 	esac
 done < "$TIER2"
 
+# tier-3 GUI (15-04, USPACE-08's compile half): the same uniform entry
+# dispatch + per-entry fresh builds as tier-2 (the 06-03 rule is
+# tier-wide).  T3-ART <bin> <sha256> per harvested binary, magic-checked
+# 00008a97.  D-07's boundary rides here explicitly: T3-ART is ARTIFACT
+# evidence only — compile green is never execution proof for the GUI
+# tier (that is 15-06's trace gate alone; libmemdraw's pixel-path audit
+# is 15-09's task, sequenced BEFORE the trace capture).
+TIER3="$HARVEY/build/x86_64/tiers/tier3-gui.txt"
+[ -f "$TIER3" ] || fail "tier3 data file missing: $TIER3"
+t3art() {
+	f="$1"
+	[ -s "$f" ] || fail "tier3: no artifact $f"
+	magic=$(od -An -tx1 -N4 "$f" | tr -d ' \n')
+	[ "$magic" = "00008a97" ] || fail "tier3 ${f##*/}: bad magic $magic (want 00008a97 — amd64 S_MAGIC)"
+	echo "T3-ART ${f##*/} $(sha256sum "$f" | cut -d' ' -f1)"
+}
+while read -r line; do
+	case "$line" in ''|'#'*) continue;; esac
+	entry="${line%%[ 	]*}"
+	case "$entry" in ''|'#'*) continue;; esac
+	echo "== tier3 entry: $entry"
+	case "$entry" in
+	cmd/*:*)
+		# container leaf (cmd/<container>:<target>): per-target clean,
+		# link-only in the container, driver cp harvest to
+		# /amd64/bin/<target>, then the droppings rm (the tier-2 shape).
+		dir="${entry%%:*}"
+		tgt="${entry##*:}"
+		(cd "/sys/src/$dir" && objtype=amd64 mk "$tgt.clean") || fail "tier3 clean $entry"
+		rm -f "/amd64/bin/$tgt"
+		(cd "/sys/src/$dir" && objtype=amd64 mk "6.$tgt") || fail "tier3 $entry"
+		cp "/sys/src/$dir/6.$tgt" "/amd64/bin/$tgt" || fail "tier3 harvest $tgt"
+		rm -f "/sys/src/$dir/6.$tgt" "/sys/src/$dir/$tgt.6"
+		t3art "/amd64/bin/$tgt"
+		;;
+	cmd/*)
+		if [ -d "/sys/src/$entry" ]; then
+			# dir entry: whole-dir clean (fresh objects), install, one
+			# marker per installed binary — located by mtime against a
+			# pre-install stamp (member mkfiles disagree about BIN:
+			# samterm installs to bin/AUX, page/rio/acme/plumb to bin
+			# root — never assume the rel-path mapping), then clean
+			# again (droppings; TARGETED, never blanket).
+			(cd "/sys/src/$entry" && objtype=amd64 mk clean) || fail "tier3 clean $entry"
+			stamp=$(mktemp)
+			(cd "/sys/src/$entry" && objtype=amd64 mk install) || { rm -f "$stamp"; fail "tier3 $entry"; }
+			found=0
+			for f in $(find /amd64/bin -type f -newer "$stamp" | sort); do
+				t3art "$f"
+				found=$((found+1))
+			done
+			rm -f "$stamp"
+			[ "$found" -ge 1 ] || fail "tier3 $entry: no artifacts installed under /amd64/bin"
+			(cd "/sys/src/$entry" && objtype=amd64 mk clean) || fail "tier3 droppings clean $entry"
+		else
+			# single-file command, cmd/<single> or nested
+			# cmd/<container>/<single>: the both-delete rule (in-tree
+			# 6.<name>/<name>.6 AND the installed copy) — then
+			# link-only + driver cp harvest (the 14-07 lesson,
+			# nested-container aware).
+			name="${entry#cmd/}"
+			base="${name##*/}"
+			if [ "$name" = "$base" ]; then
+				srcdir=/sys/src/cmd
+			else
+				srcdir="/sys/src/cmd/${name%/*}"
+			fi
+			rm -f "$srcdir/6.$base" "$srcdir/$base.6" "/amd64/bin/$name"
+			(cd "$srcdir" && objtype=amd64 mk "6.$base") || fail "tier3 $entry"
+			cp "$srcdir/6.$base" "/amd64/bin/$name" || fail "tier3 harvest $name"
+			rm -f "$srcdir/6.$base" "$srcdir/$base.6"
+			t3art "/amd64/bin/$name"
+		fi
+		;;
+	*)
+		fail "tier3 entry form not understood: $entry"
+		;;
+	esac
+done < "$TIER3"
+
 # dir-build droppings (the checkout IS the build tree): mkone clean
 # removes the *.$O/y.tab.* class; rc's x.tab.h is its one documented
 # gap; awk's generated grammar/table files (awkgram.c proctab.c) are
@@ -427,6 +514,8 @@ echo "-- ip:"
 ls /amd64/bin/ip
 echo "-- auth:"
 ls /amd64/bin/auth
+echo "-- aux:"
+ls /amd64/bin/aux
 
 echo "TIER-BUILD-OK"
 GUEST_EOF
@@ -523,7 +612,9 @@ fi
 # these pin the same artifacts through the checkout's own paths)
 T0_COUNT=$("$GREP" -c '^T0-ART ' "$LOG") || true
 T1_COUNT=$("$GREP" -c '^T1-ART ' "$LOG") || true
-echo "== markers: $T0_COUNT T0-ART, $T1_COUNT T1-ART (log: $LOG)"
+T2_COUNT=$("$GREP" -c '^T2-ART ' "$LOG") || true
+T3_COUNT=$("$GREP" -c '^T3-ART ' "$LOG") || true
+echo "== markers: $T0_COUNT T0-ART, $T1_COUNT T1-ART, $T2_COUNT T2-ART, $T3_COUNT T3-ART (log: $LOG)"
 for f in rc awk ls cat echo ps grep sed nm; do
 	[ -x "$HARVEY/amd64/bin/$f" ] || err "amd64/bin/$f missing after the tier build"
 	magic=$(od -An -tx1 -N4 "$HARVEY/amd64/bin/$f" | tr -d ' \n')
@@ -548,6 +639,10 @@ done
 [ -x "$HARVEY/amd64/bin/listen" ] || err "amd64/bin/listen missing after the tier build (the 15-01 tier-2 tracer)"
 magic=$(od -An -tx1 -N4 "$HARVEY/amd64/bin/listen" | tr -d ' \n')
 [ "$magic" = "00008a97" ] || err "amd64/bin/listen: bad magic $magic (want 00008a97)"
+# 15-04: the tier-3 tracer's host-side spot-check (the same pin class)
+[ -x "$HARVEY/amd64/bin/page" ] || err "amd64/bin/page missing after the tier build (the 15-04 tier-3 tracer)"
+magic=$(od -An -tx1 -N4 "$HARVEY/amd64/bin/page" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "amd64/bin/page: bad magic $magic (want 00008a97)"
 for f in boot init paqfs; do
 	[ -s "$HARVEY/build/x86_64/out/$f" ] || err "build/x86_64/out/$f missing after the tier build"
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/x86_64/out/$f" | tr -d ' \n')

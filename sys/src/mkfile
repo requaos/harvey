@@ -76,11 +76,17 @@ T1KEEP=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1}
 # in ONE multi-file awk (the tier-0 lib keep stays tier0-only — the
 # services tier names cmds, never libs; closure growth appends to
 # tier0-libs.txt itself).
+# 15-04 (USPACE-08): the cmd keep widens again to tier1+tier2+tier3 in
+# the SAME one multi-file call (the GUI dirs enter the default build
+# only as their tier gate passes; the lib keep stays tier0-only for the
+# same reason — the GUI tier's libdraw-family closure appends to
+# tier0-libs.txt itself, k10f's lib order).
 TIER0A=$HARVEY/build/x86_64/tiers/tier0-libs.txt
 TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt
 TIER2A=$HARVEY/build/x86_64/tiers/tier2-services.txt
+TIER3A=$HARVEY/build/x86_64/tiers/tier3-gui.txt
 T0KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER0A}
-T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A}
+T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A}
 
 LIBS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEPA) echo $i; if not echo $ALLLIBS}
 CMDS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLCMDS}

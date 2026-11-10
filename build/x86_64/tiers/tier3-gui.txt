@@ -1,0 +1,50 @@
+# tier3-gui.txt — 15-04 append-only amd64 GUI-tier allowlist (USPACE-08's
+# compile half; the execution half is 15-06's scripted-interaction traces
+# on the draw donor venue — D-07: the trace is the gate, and a T3-ART
+# marker is ARTIFACT evidence only, never execution evidence).
+#
+# Plain data, one entry per line, sys/src-relative.  Consumers: the
+# objtype-gated mk filters' amd64 arms (sys/src/mkfile CMDS/SUBSYS,
+# sys/src/cmd/mkfile TARG/DIRS, the container mkfiles cmd/ip, cmd/auth,
+# cmd/auth/factotum, and the aux leaf filter in cmd/aux — all six
+# reading the tier1+tier2+tier3 UNION in one multi-file awk through the
+# $HARVEY-absolute path), the tier driver build/x86_64/subset-build.sh's
+# tier-3 loop, and the 15-06 trace gates — every marker expectation is
+# COMPUTED from this file, never a second hardcoded list.
+#
+# APPEND-ONLY: growth is appending a line, after the entry's per-tier
+# gate passes.  Never reorder, edit, or delete existing lines.  A quiet
+# trim to reach T3 green is gate fraud, not a pass (D-12, the 14-08
+# discipline; D-10's no-skip-vocabulary applies to this tier exactly —
+# every compile failure is root-caused and fixed in-tree, one commit
+# per class, never a member quietly dropped to dodge it).
+#
+# Entry forms (the tier1 grammar verbatim):
+#   cmd/<single>           single-file command in cmd/ (cmd/stats)
+#   cmd/<dir>              whole dir recursed by the sweep (cmd/rio)
+#   cmd/<container>/<dir>  nested dir inside a container (cmd/ip/ipconfig)
+#   cmd/<dir>:<target>     the dir is kept in the sweep; the <target>
+#                          qualifier is consumed by the tier driver
+#                          (per-target fresh build, never whole-dir)
+#                          and by filter-equipped leaf mkfiles
+#
+# Keep-rule (uniform across all six filter mkfiles): a candidate survives
+# iff its name is the first path component after that mkfile's prefix in
+# some entry below — member (cmd/rio keeps rio), container
+# (cmd/ip/ipconfig keeps ip here and ipconfig in cmd/ip), and dir:target
+# (cmd/aux:listen keeps aux here and only listen in the aux leaf
+# filter).  `#` lines and trailing comments never match: the extraction
+# keeps only lines starting [a-z0-9] and cuts at the first whitespace.
+#
+# The GUI tier's library closure (libmemlayer, libmemdraw, libdraw,
+# libframe, libplumb — the libdraw family) lives in tier0-libs.txt (the
+# 15-04 appends, k10f's lib-section order): tier3-gui.txt names cmds
+# only, never libs, so the LIBS filter arm stays tier0-only.
+#
+# Tracer 2026-11-09 (15-04 Task 1): the ONE-entry slice proving
+# data -> six filters (the three-file union awk) -> namespace build
+# (with the libdraw family closed into tier-0) -> harvested binary ->
+# T3-ART sha256 marker end-to-end.  Task 2 appends the full USPACE-08
+# set (rio, acme, sam, samterm, plumb + the utility class) below with
+# per-entry provenance.
+cmd/page		# the lightest genuine GUI-stack member (mkone, LIB=libdraw.a; plumb/bio join by autolib — measured: no page source touches memdraw; the family's memdraw/memlayer halves are the kernel-side closure, tier-0 data)

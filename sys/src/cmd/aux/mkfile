@@ -49,7 +49,7 @@ ALLDIRS=mnihongo\
 
 # 15-01 (USPACE-07) tier allowlist filter, the aux LEAF (the
 # sys/src/cmd/auth/factotum T1KEEPT pattern re-keyed; the uniform
-# keep-rule comment lives in sys/src/mkfile): a cmd/aux:<target> tier2
+# keep-rule comment lives in sys/src/mkfile): a cmd/aux:<target> tier
 # entry keeps ONLY <target> in TARG here, and a cmd/aux/<dir> entry
 # keeps that dir in DIRS — a bare `cmd/aux` container line is
 # forbidden (Pitfall 3: it would sweep aux's 39-member TARG + 6 DIRS
@@ -57,9 +57,15 @@ ALLDIRS=mnihongo\
 # cmd/aux: entry).  Passthrough for every other objtype and under
 # COVERAGE_SWEEP=1 (the 15-07 coverage proof certifies the whole tree,
 # never the allowlist to itself).
-T2=$HARVEY/build/x86_64/tiers/tier2-services.txt
-T2KEEPTA=`{awk '/^cmd\/aux:/{ sub(/^cmd\/aux:/,""); sub(/[\/: 	].*$/,""); print }' $T2}
-T2KEEPDA=`{awk '/^cmd\/aux\//{ sub(/^cmd\/aux\//,""); sub(/[\/: 	].*$/,""); print }' $T2}
+# 15-04 (USPACE-08): the read set widens to tier1+tier2+tier3 in ONE
+# multi-file call (uniformity with the other five filter sites — the
+# ^cmd/aux anchors match no GUI entry; one file set everywhere is the
+# established pattern, so a future aux member can live in any tier).
+TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt
+TIER2A=$HARVEY/build/x86_64/tiers/tier2-services.txt
+TIER3A=$HARVEY/build/x86_64/tiers/tier3-gui.txt
+T2KEEPTA=`{awk '/^cmd\/aux:/{ sub(/^cmd\/aux:/,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A}
+T2KEEPDA=`{awk '/^cmd\/aux\//{ sub(/^cmd\/aux\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A}
 
 TARG=`{if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T2KEEPTA) echo $i; if not echo $ALLTARG}
 DIRS=`{if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T2KEEPDA) echo $i; if not echo $ALLDIRS}
