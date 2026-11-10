@@ -1,0 +1,102 @@
+# replay-acme.rc — the committed acme scripted-interaction replay (15-06
+# Task 2, D-05: type into a new window body, execute a command through
+# the real acme Execute gesture, quit — all via the in-guest input
+# files, never GUI-automation luck).
+#
+# Sourced by the baked /lib/trace-session.rc's trace-one AFTER tracesup
+# armed the acme tree and acme reached its event loop (the driver's
+# launch sleep).  The completion marker rides the Execute gesture: the
+# command text is TYPED into the new window's body via kbin, then
+# selected and executed with a button-2 sweep — acme runs it as
+# `rc -c 'echo ACME-SCRIPT-DONE > ''#c/cons'''`, so the marker on the
+# serial capture proves the event loop was reached AND the whole
+# scripted interaction completed (D-07: never a mere syscall count).
+#
+# MOUSE GEOMETRY — same discipline as replay-rio.rc: /dev/mousein is
+# RELATIVE (mousetrack deltas), so every gesture homes first ('M -5000
+# -5000 0 0' clamps to the screen origin) and then moves a known
+# absolute delta.  The venue's fixed screen is 1024x768; acme's default
+# font is lucidasans/euro.8 (height 15, acme.c's fontnames[0] —
+# FONT-CHANNEL-OK asserts it is staged).
+#
+# Layout at startup (verified on the venue screendump, 15-06 bring-up):
+# acme opens TWO equal columns; the LEFT one is empty (its tag is the
+# "New Cut Paste Snarf Sort Zerox Delcol " line), the right one shows
+# the / directory listing.  The vertical stack at the left column:
+#   row tag    y in [0,15)
+#   col tag    y in [16,31)
+#   the New window fills the rest of the left column: its tag occupies
+#   the next line, body text starts at the following line.
+#
+# The three interaction zones are chosen to be layout-robust:
+#   - the col-tag click sits at the RIGHT END of the tag line: a B2
+#     click there expands the WORD left of the end of text (the typed
+#     New), no font-metric knowledge needed (x=490 is far right of the
+#     38-char tag in the 512-wide column)
+#   - the body sweep runs the WHOLE first body line: press at the left
+#     edge, drag to the right edge on the same line — frcharofpt clamps
+#     to [0, end-of-line], so the full typed command is selected no
+#     matter its rendered width
+#   - the quit click is the same word-expansion trick on the row tag
+#     (type Exit, B2 click at the right end)
+
+# 1. new window: over the LEFT column tag's right end, type `New`
+#    (acme's point-to-type inserts at the tag's end), then a B2 click
+#    in place — the click lands beyond the end of the tag text, so the
+#    Execute word-expansion picks up the just-typed New (coladd on the
+#    column whose tag was clicked)
+echo 'M -5000 -5000 0 0' > '#m/mousein'
+sleep 1
+echo 'M 490 24 0 0' > '#m/mousein'
+sleep 2
+echo -n 'New' > '#c/kbin'
+sleep 2
+echo 'M 0 0 2 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 0 0' > '#m/mousein'
+
+# 2. type the marker command into the new window's BODY (the pointer
+#    over the body sends acme's keyboard there; the empty body's
+#    insertion point is its start, so the command is the first line)
+sleep 3
+echo 'M -5000 -5000 0 0' > '#m/mousein'
+sleep 1
+echo 'M 250 350 0 0' > '#m/mousein'
+sleep 1
+echo -n 'echo ACME-SCRIPT-DONE > ''#c/cons''' > '#c/kbin'
+sleep 2
+
+# 3. the Execute gesture: B2 SWEEP the whole first body line — press
+#    just INSIDE the first character (x=15; the body's left strip
+#    x<[~13] is the SCROLL BAR: the first boot's press at x=2 scrolled
+#    the body and warped the pointer instead of selecting — the mouse
+#    events on the serial capture pinned it), drag right on the same
+#    line, release; the swept text is the typed command, executed
+#    through acme's rc -c path — the command's children (rc, echo) are
+#    born traced
+echo 'M -5000 -5000 0 0' > '#m/mousein'
+sleep 1
+echo 'M 15 55 0 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 2 0' > '#m/mousein'
+sleep 1
+echo 'M 485 0 2 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 0 0' > '#m/mousein'
+sleep 5
+
+# 4. quit: over the ROW tag's right end (y in [0,15)), type `Exit`
+#    (appends at the tag's end after the builtin Exit word), then a B2
+#    click in place — the word-expansion at the end of text picks the
+#    typed Exit and acme exits (the body is a small unnamed file, so
+#    rowclean holds)
+echo 'M -5000 -5000 0 0' > '#m/mousein'
+sleep 1
+echo 'M 1000 7 0 0' > '#m/mousein'
+sleep 2
+echo -n 'Exit' > '#c/kbin'
+sleep 2
+echo 'M 0 0 2 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 0 0' > '#m/mousein'
+sleep 3

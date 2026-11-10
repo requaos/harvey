@@ -469,11 +469,20 @@ fn trace-one {
 	echo TRACE-EGRESS-DONE-^$name
 }
 SESSIONEOF
-TRACE_SESSIONS="${DRAW_TRACE_SESSIONS:-rio}"
+TRACE_SESSIONS="${DRAW_TRACE_SESSIONS:-rio acme sam}"
 for s in $TRACE_SESSIONS; do
 	case "$s" in
-	rio|acme|sam)
+	rio|acme)
 		echo "trace-one $s $s /lib/replay-$s.rc" >> "$PSTAGE/lib/trace-session.rc"
+		;;
+	sam)
+		# sam starts bare and loads its file with a mid-session B
+		# command (the argv load measured a startup-batch deadlock on
+		# this venue — the main loop stalls in alt with pending senders
+		# on the kbd and host channels; bare-sam startup + single-line
+		# commands round-trip cleanly, so the file rides the proven
+		# command path with generous pacing after the load exchange)
+		echo "trace-one sam sam /lib/replay-sam.rc" >> "$PSTAGE/lib/trace-session.rc"
 		;;
 	rejoin)
 		cat >> "$PSTAGE/lib/trace-session.rc" <<'REJOINEOF'

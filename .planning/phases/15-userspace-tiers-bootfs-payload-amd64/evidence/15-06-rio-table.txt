@@ -3,7 +3,7 @@
 # derivation path — re-running it over the raw reproduces this file)
 # venue: k10draw draw donor (amd64 9k kernel), scripted-interaction
 # replay via /dev/mousein + /dev/kbin, tracesup born-traced arming
-# run: commit=f1382b8d3 date=2026-11-10T13:06:51Z accel=kvm
+# run: commit=3680ad88f date=2026-11-10T13:51:33Z accel=kvm
 # row grammar: <syscall>\t<count>\t<args-shape (first sample)>
 #              B<TAB>syscall<TAB>count = per-binary aggregate
 #              P<TAB>syscall<TAB>count<TAB>path = distinct path args (digits->N)

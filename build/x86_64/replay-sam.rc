@@ -1,0 +1,88 @@
+# replay-sam.rc — the committed sam+samterm scripted-interaction replay
+# (15-06 Task 2, D-05: type, edit, write — the two-process pair driven
+# end-to-end through the in-guest input files).
+#
+# Sourced by the baked /lib/trace-session.rc's trace-one AFTER tracesup
+# armed the sam tree (sam forks samterm as its own child, so BOTH
+# processes plus the libdraw ioproc descendants are born traced — the
+# table covers both).  The completion marker rides sam's shell escape:
+# the `!echo ...` command is TYPED into samterm's command window via
+# kbin, travels the samterm->sam IPC, and sam runs it through /bin/rc
+# -c — SAM-SCRIPT-DONE on the serial capture proves both processes'
+# loops were reached AND the whole scripted interaction completed
+# (D-07).
+#
+# INPUT CHANNELS — the keyboard is the sam session's deterministic
+# floor: samterm is current on its command window (~~sam~~, the top
+# fifth of the screen) from startup, and every typed line is forwarded
+# to the sam host over the IPC pipe (flushtyping -> outcmd).  The
+# first boot drove the B3 menu-New + sweep path instead and measured
+# it dead on this venue: the menu's New left samterm's `which` unset
+# pending the host's Hcurrent, so the sweep's B3 press re-opened the
+# menu (the +1px menuhit warps on the capture pin it) and the typed
+# text fell through to the command window.  One B1 click low in the
+# command window keeps keyboard focus there without relying on any
+# layer state; /dev/mousein is RELATIVE (home-clamp then known deltas,
+# the replay-rio.rc discipline).
+#
+# The interaction set (D-05's floor for sam), one kbin line each —
+# every line is a SINGLE-LINE command (send -> host executes -> Hunlock
+# -> next line): the second boot measured the multi-line `a` insert
+# mode dead on this venue (samterm's kbd channel blocks on the
+# full-channel/`kbdblock` mask pending host Hunlocks that never arrive
+# mid-command — the ioproc's reads stop on the capture), while every
+# single-line command in both boots completed its full round trip:
+#   - TYPE text into the FILE: `a/text/` inserts the typed runes into
+#     the current file (through samterm's loop, over the IPC, into
+#     sam's buffer)
+#   - EDIT: `,s/replay/REPLAY/` substitutes in the file
+#   - WRITE: `w` writes /tmp/sam-replay.txt (the ramfs scratch; B
+#     loaded it, so the file is named and w is a plain write)
+#   - the marker shell escape, then `q` (sam exits; samterm follows)
+
+# 0. the file sam was STARTED with (the session driver seeds it before
+#    the launch): argv-loaded inside the startup handshake, so no
+#    mid-session B/load exchange (see the session-driver note)
+
+# 1. focus the command window: B1 click LOW inside it (below the text
+#    lines — the selection lands at the end of the command text, so
+#    typed commands append after the last output; a first click on a
+#    non-current layer only makes it current)
+echo 'M -5000 -5000 0 0' > '#m/mousein'
+sleep 1
+echo 'M 512 140 0 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 1 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 0 0' > '#m/mousein'
+sleep 2
+
+# 2. the command ladder: create the file entry, type into it, edit,
+#    write, mark, quit — each line a kbin write, samterm forwards on
+#    newline; generous sleeps after the load-bearing commands (the
+#    venue's samterm input machinery is pacing-sensitive right after a
+#    file exchange — measured across five bring-up boots)
+echo 'B /tmp/sam-replay.txt' > '#c/kbin'
+sleep 6
+# the B1 click resets the cmd window's dot to EMPTY: a command's reply
+# leaves a non-empty dot, and samterm's type() then cuts the selection
+# and returns WITHOUT consuming the pending runes (the observed stall
+# shape — the first typed line after a file command is never consumed)
+echo 'M -5000 -5000 0 0' > '#m/mousein'
+sleep 1
+echo 'M 512 148 0 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 1 0' > '#m/mousein'
+sleep 1
+echo 'M 0 0 0 0' > '#m/mousein'
+sleep 2
+echo 'a/hello from the 15-06 sam replay/' > '#c/kbin'
+sleep 4
+echo ',s/replay/REPLAY/' > '#c/kbin'
+sleep 4
+echo 'w' > '#c/kbin'
+sleep 4
+echo '!echo SAM-SCRIPT-DONE > ''#c/cons''' > '#c/kbin'
+sleep 3
+echo q > '#c/kbin'
+sleep 3
