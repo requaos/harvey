@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 15
 current_phase_name: Userspace Tiers + Bootfs Payload (amd64)
 status: executing
-stopped_at: "Completed 15-06-PLAN.md (GUI syscall traces: rio/acme/sam replays with completion gates, raw+table evidence, the 15-09 re-join green)"
-last_updated: "2026-11-10T14:20:19.144Z"
+stopped_at: Completed 15-07-PLAN.md (green DIRS-coverage proof + tier4 + gs render smoke; continuation of an interrupted executor)
+last_updated: "2026-11-10T18:09:12.553Z"
 last_activity: 2026-11-09
 last_activity_desc: Phase 15 execution started
-state_head: 87a831ffff4b8d6d450c5d7e20392cd65e5ccfce
+state_head: 149bbb7af8deb4fd9bf6ad7b6442f55677f1da11
 progress:
   total_phases: 3
   completed_phases: 2
   total_plans: 24
-  completed_plans: 22
+  completed_plans: 23
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 15 (Userspace Tiers + Bootfs Payload (amd64)) — EXECUTING
-Plan: 7 of 9   # pointer corrected after 15-04 ran out of wave order (04 before 03): 15-01/02/04 summarized; 15-03 is the next unsummarized plan
+Plan: 8 of 9   # pointer corrected after 15-04 ran out of wave order (04 before 03): 15-01/02/04 summarized; 15-03 is the next unsummarized plan
 Status: Ready to execute
 Last activity: 2026-11-09 — Phase 15 execution started
 
@@ -77,6 +77,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 15 P05 | 123 min | 3 tasks | 10 files |
 | Phase 15 P09 | 11 min | 3 tasks | 5 files |
 | Phase 15 P06 | 146 min | 3 tasks | 18 files |
+| Phase 15 P07 | ~50 min continuation (wall <=3h44m; interrupted mid-Task-2) | 3 tasks | 17 files |
 
 ## Accumulated Context
 
@@ -154,6 +155,9 @@ Recent decisions affecting current work:
 - [Phase 15]: [15-06] mousein writes are RELATIVE (mousetrack deltas, clamped) — replays home-clamp then move known absolute deltas; the trace launch is hang-at-exec (rc sets hang on itself, waitstop blocks until the image stops at its first instruction, nohang clears it for descendants) — the 06-07 spin window lost the race on KVM; and the venue needs /rc/lib/rcmain bound (rc sources one unconditionally — rio/acme/sam command children all died without it)
 - [Phase 15]: [15-06] 9k's /proc/N/syscall substrate completed: syscall.c's trace stops now format entry/return fragments (validaddr first, waserror-guarded) and syscallfmt.$O links in every k10 CONF; syscallfmt.c's first 9k compile fixed a one-byte heap overflow (fmtuserstring smalloc(n) then t[n]=0 — the arena-corruption panic) and an unterminated fmtrwdata buffer
 - [Phase 15]: [15-06] mntgen measured read-only on this tree (synthetic mount-point generator) — ramfs serves the writable /tmp; sam driven through its command window (the menu-New path and a post-B typed line both measured dead on this venue — samterm which/Hcurrent + the non-empty-dot cut-stall, deferred); arctest falls off main and Harvey's _main epilogue exits("main") so rc conditionals see failure — the rejoin gates on the loop's completion output
+- [Phase 15]: [15-07] The amd64 DIRS-coverage proof is green and full-set (702 rows, zero not-ok, 1353 VISIT/EXIT): 7 failures are re-derived upstream-disabled/dead-tool exclusions recorded as named tier4 '# exclude:' comments with measured digests (postscript's '# UNIX remnants' five, tcs/font, games/blabs) — the sweep never visits them and a stale exclusion fails the run; the aarch64 'x86-hardware-only' aux class is re-derived as amd64 MEMBERS; sys/src/cmd/games does not exist in this tree
+- [Phase 15]: [15-07] mkpaqfs silently DROPS any file past blocksize^2/4 (4 MiB at the 4096 default — warn, exit 0): the gs bake uses -b 16384 with an arithmetic fit assert and fails on any mkpaqfs diagnostic (every other bake script is unprotected — phase deferred item); Harvey's rc lexer ends a word at every bare '=' (single-quote =-bearing argv in guest scripts — plan9port's rc hides the class); and a second recipe for a target mkone already defines (clean:V:) is mk 'ambiguous recipes' — extend by prerequisite, never by recipe
+- [Phase 15]: [15-07] gs renders headless on the donor venue: the FILE device is ppmraw (gdevpbm is in this build's link set, gdevbit is not), its init chain needs the non-.ps config tables xlatmap + FAPIconfig beyond the *.ps library (measured-minimal staging; zero font payloads anywhere), and GS-BITS 43269 is the recorded bitmap size at -m 1024; fossil + venti are compile-gated only — runtime-unverifiable until r9 has a block device (virtio-blk, future milestone)
 
 ### Pending Todos
 
@@ -176,6 +180,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-10T14:20:19.042Z
-Stopped at: Completed 15-06-PLAN.md (GUI syscall traces: rio/acme/sam replays with completion gates, raw+table evidence, the 15-09 re-join green)
+Last session: 2026-11-10T18:09:12.466Z
+Stopped at: Completed 15-07-PLAN.md (green DIRS-coverage proof + tier4 + gs render smoke; continuation of an interrupted executor)
 Resume file: None

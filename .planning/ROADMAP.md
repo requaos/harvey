@@ -133,7 +133,7 @@ Plans:
   2. The GUI stack compiles for amd64 (libdraw family + rio + acme + sam + plumb) and donor-kernel syscall traces for rio/acme/sam are captured and committed — the measure-first input for any r9 kernel growth the desktop needs (USPACE-08)
   3. The long tail compiles for amd64: upas + lp + the remaining cmd dirs; fossil + venti are compile-gated and documented as runtime-unverifiable this milestone (no block device in r9); gs is included (USPACE-09)
   4. The bootfs payload is staged with manifest assertions: `/lib/font/bit/*`, a glenda-style lib/profile, and a `/lib/ndb/local` template are present in the baked image (DESK-03)
-**Plans**: 7/9 plans executed
+**Plans**: 8/9 plans executed
 Plans:
 **Wave 1**
 - [x] 15-01-PLAN.md — tier-2 services data + filters + driver (the anti-staleness decision lands) + aux leaf filter — T2-ART compile green (USPACE-07)
@@ -149,7 +149,7 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3)*
 - [x] 15-06-PLAN.md — the trace rig: tracesup + committed replays for rio/acme/sam, raw logs + distilled syscall tables, the drawtest/arctest re-join (USPACE-08, D-05/D-06/D-07)
-- [ ] 15-07-PLAN.md — long tail: the full DIRS-coverage proof re-keyed + fix classes + fossil/venti compile-gated + gs compile + the render smoke (USPACE-09, D-09/D-10/D-11)
+- [x] 15-07-PLAN.md — long tail: the full DIRS-coverage proof re-keyed + fix classes + fossil/venti compile-gated + gs compile + the render smoke (USPACE-09, D-09/D-10/D-11)
 
 **Wave 5** *(blocked on Wave 4)*
 - [ ] 15-08-PLAN.md — DESK-03 payload in the root-tree skeleton (manifest asserts, ndb template, D-17 profile, EARLY headroom check) + 15-EVIDENCE.md (DESK-03 + consolidation)
@@ -225,7 +225,7 @@ Plans:
 | 12. CPU Service + Drawterm + rio Desktop | v2.0 | - | Subsumed → Phase 19 | - |
 | 13. r9 x86_64 Platform Bring-Up | v2.1 | 6/6 | Complete    | 2026-11-07 |
 | 14. Harvey amd64 Userspace on r9 | v2.1 | 9/9 | Complete    | 2026-11-09 |
-| 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 7/9 | In Progress | - |
+| 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 8/9 | In Progress | - |
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | - | Not started | - |
 | 17. r9 Kernel Flush-Out | v2.1 | - | Not started | - |
 | 18. In-Guest p9sk1 Auth Domain | v2.1 | - | Not started | - |

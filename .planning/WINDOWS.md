@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 52
+open_count: 54
 waived_count: 3
 fixed_count: 7
-total_count: 62
-last_updated: 2026-11-10T14:17:53.850Z
+total_count: 64
+last_updated: 2026-11-10T18:10:52.208Z
 ---
 
 # Broken Windows Ledger
@@ -77,6 +77,8 @@ last_updated: 2026-11-10T14:17:53.850Z
 | 61 | 15 | todo | sys/src/libmemdraw/draw.c | 943 | rgba word-lane fast path (MUL0123+MUL0123, delta==4 channels e.g. r8g8b8a8) still double-rounds — same imprecision family as the fixed byte path; no reproducer in the default r8g8b8 drawtest run; plan9port CALC42 is the reference shape (15-09 scope boundary) | open |  | 2026-11-10T06:04:08.256Z |  |
 | 62 | 15 | deviation | sys/src/cmd/samterm |  | samterm input-state fragility around file exchanges (menu-New which/Hcurrent + non-empty-dot cut-stall) — rig works around it; a real fix owns samterm's io.c/main.c | open |  | 2026-11-10T14:17:53.759Z |  |
 | 63 | 15 | deviation | sys/src/libc/amd64/main9.s |  | fall-off-main exits("main") — a failure status to rc conditionals (arctest measured); rejoin gates on completion output instead | open |  | 2026-11-10T14:17:53.850Z |  |
+| 64 | 15 | deviation | sys/src/cmd/paqfs/mkpaqfs.c |  | mkpaqfs silently DROPS files past blocksize^2/4 (4 MiB at the 4096 default: warn, exit 0) — the 15-07 gs bake asserts the fit and fails on diagnostics; every other bake script rides the default unprotected | open |  | 2026-11-10T18:10:52.108Z |  |
+| 65 | 15 | deviation | sys/src/cmd/rc/plan9.c |  | rc Execute prints only the LAST path candidate's errstr, masking the real exec failure behind the trailing-dot candidate — guest sessions invoke by absolute path; a fix owns plan9.c | open |  | 2026-11-10T18:10:52.208Z |  |
 
 ````json
 [
@@ -883,6 +885,32 @@ last_updated: 2026-11-10T14:17:53.850Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-10T14:17:53.850Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 64,
+    "kind": "deviation",
+    "phase": "15",
+    "file": "sys/src/cmd/paqfs/mkpaqfs.c",
+    "line": null,
+    "description": "mkpaqfs silently DROPS files past blocksize^2/4 (4 MiB at the 4096 default: warn, exit 0) — the 15-07 gs bake asserts the fit and fails on diagnostics; every other bake script rides the default unprotected",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-10T18:10:52.108Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 65,
+    "kind": "deviation",
+    "phase": "15",
+    "file": "sys/src/cmd/rc/plan9.c",
+    "line": null,
+    "description": "rc Execute prints only the LAST path candidate's errstr, masking the real exec failure behind the trailing-dot candidate — guest sessions invoke by absolute path; a fix owns plan9.c",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-10T18:10:52.208Z",
     "resolved_at": null,
     "milestone": "v2.1"
   }

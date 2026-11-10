@@ -1,3 +1,36 @@
+# 15-07 Deferred Items
+
+Out-of-scope discoveries from the coverage sweep + gs render smoke
+(pre-existing behavior, measured live; both worked around in this
+plan's own artifacts — neither is this plan's surface to fix):
+
+- mkpaqfs silently DROPS any file larger than blocksize^2/4 bytes:
+  paqFile() warns ("file too big for blocksize") and returns nil, the
+  file vanishes from the image, and mkpaqfs still exits 0.  At the
+  4096 default blocksize the cap is 4 MiB — the 15.5 MB gs binary
+  disappeared from bootfs-gs.paq and the guest saw no /bin/gs
+  (measured on the gs smoke's third boot).  Every OTHER bake
+  (build-9kdraw.sh's bootfs-draw.paq, the trace rig, mkimage's
+  payloads) rides the default blocksize with no stderr check: a
+  payload member growing past 4 MiB vanishes with only a stderr line.
+  15-07's own harness asserts the fit and fails on any mkpaqfs
+  diagnostic; the general fix (make the drop fatal in
+  sys/src/cmd/paqfs/mkpaqfs.c, or assert sizes in the shared bake
+  helpers) owns a plan that touches the payload machinery.
+  status: open
+  **What:** sys/src/cmd/paqfs/mkpaqfs.c paqFile()/paqDir() warn-and-drop.
+
+- rc's Execute prints only the LAST path candidate's errstr when a
+  command is not found (sys/src/cmd/rc/plan9.c Execute: the loop
+  overwrites errstr per candidate), so `gs: './gs' file does not
+  exist` masked the real /bin/gs failure behind the trailing-dot
+  candidate.  Diagnosability wart (the first candidate's or the
+  matching candidate's error would say what actually failed); worked
+  around in-guest by absolute-path invocations.  A fix owns rc's
+  plan9.c.
+  status: open
+  **What:** sys/src/cmd/rc/plan9.c Execute errstr overwrite.
+
 # 15-06 Deferred Items
 
 Out-of-scope discoveries from the trace-rig bring-up (pre-existing
