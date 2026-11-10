@@ -1,0 +1,28 @@
+%!PS
+% gs-render.ps — the 15-07 render-smoke fixture (D-11): a few drawing
+% operators over plain geometry, nothing else.  Deliberately free of
+% every kind of typeface machinery — the FILE output device needs none
+% for this proof, and the licensing boundary keeps all such payloads
+% out of every staged image (DESK-03 bitmap sets only).  Rendered by
+% the donor venue harness as: gs -sDEVICE=ppmraw -sOutputFile=...
+<< /PageSize [120 120] >> setpagedevice
+0.5 setgray
+newpath
+20 20 moveto
+100 20 lineto
+100 100 lineto
+20 100 lineto
+closepath
+fill
+0 0 0 setrgbcolor
+2 setlinewidth
+newpath
+60 60 36 0 360 arc
+stroke
+0.75 setgray
+1 setlinewidth
+newpath
+20 104 moveto
+100 104 lineto
+stroke
+showpage
