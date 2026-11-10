@@ -282,11 +282,18 @@ jobs:
         # tail lands in the step summary (D-16's convention).
         run: |
           mkdir -p .build
-          nix develop -c sh build/x86_64/subset-build.sh 2>&1 | tee .build/tier2-run.log || {
-            rc=$?
-            { echo "## ❌ tier-2 compile failed (rc=$rc)"; echo '```'; tail -60 .build/subset-build-x64.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
-            exit $rc
-          }
+          # pipefail: the pipeline's status must be the driver's, not
+          # tee's, or the failure handler below never fires.  rc is
+          # captured with `|| rc=$?`: `if ! pipeline; then rc=$?` would
+          # see the ! operator's status (always 0) and exit 0, skipping
+          # the TIER-BUILD-OK gate below — a false green.
+          set -o pipefail
+          rc=0
+          nix develop -c sh build/x86_64/subset-build.sh 2>&1 | tee .build/tier2-run.log || rc=$?
+          if [ "$rc" -ne 0 ]; then
+            { echo "## ❌ tier-2 compile failed (rc=$rc)"; echo '```'; tail -60 .build/subset-build-x64.log 2>/dev/null || tail -60 .build/tier2-run.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit "$rc"
+          fi
           grep -q TIER-BUILD-OK .build/subset-build-x64.log
           n=$(awk 'NF && $1 !~ /^#/ {c++} END{print c+0}' build/x86_64/tiers/tier2-services.txt)
           m=$(grep -c '^T2-ART' .build/subset-build-x64.log || true)
