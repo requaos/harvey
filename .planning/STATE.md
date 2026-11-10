@@ -4,13 +4,13 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 15
 status: completed
-stopped_at: Phase 15 complete — all phases complete
-last_updated: "2026-11-10T21:18:25.357Z"
+stopped_at: Phase 16 context gathered
+last_updated: "2026-11-10T23:21:27.236Z"
 last_activity: 2026-11-10
 last_activity_desc: Phase 15 complete
-state_head: 74b399e0fecc12eaa447ee4c6804e5ef63079a2d
+state_head: 6e57feb6911a1c24c2092933b14b0526bcbbf1f1
 progress:
-  total_phases: 3
+  total_phases: 4
   completed_phases: 2
   total_plans: 24
   completed_plans: 24
@@ -184,6 +184,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-10T19:38:45.889Z
-Stopped at: Phase 15 complete — all phases complete
-Resume file: None
+Last session: 2026-11-10T23:21:27.075Z
+Stopped at: Phase 16 context gathered
+Resume file: .planning/phases/16-host-net-modes-networking-exit-gate/16-CONTEXT.md
