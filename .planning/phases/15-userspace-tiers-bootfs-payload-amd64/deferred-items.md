@@ -1,3 +1,29 @@
+# 15-REVIEW Deferred Items
+
+From the phase 15 code review (15-REVIEW.md WR-07; recorded next to
+the MUL0123 lane-path deferral the 15-09 summary already carries):
+
+- libmemdraw's MUL2 (draw.c) is exactly (s+127)/255 for coefficient
+  sums s <= 255*255 — the whole reachable range for convex (no-alpha /
+  premultiplied) composites, which covers every channel configuration
+  the venue rig runs (r8g8b8-family).  With an alpha-bearing source
+  the pair is non-convex (M = 255-round(sa*m/255) leaves m+M > 255
+  whenever sa*m <= 127), s reaches 130050, and on 253 values in
+  (65025, 130050] the shift-form macro differs from the ideal — and
+  from drawtest's exact-division reference — by 1 LSB (first at
+  s=65663: 257 vs 258, i.e. 1 vs 2 after byte truncation).  Byte-path
+  drawtest runs with alpha or mixed channels (e.g. `r8g8b8a8
+  r8g8b8`) can therefore still abort on those values.  The 15-09
+  summary's "any channel arguments the rig passes are equally covered
+  on the byte path" claim is thereby scoped to the convex regime the
+  rig exercises; the residue is now documented at both sites (draw.c's
+  MUL2 comment and drawtest.c's reference comment).
+  status: open
+  **What:** MUL2 vs round-to-nearest diverges by 1 LSB on 253 values
+  above s=65025 (non-convex alpha pairs only); whichever plan next
+  touches libmemdraw's byte path should adopt a clamped two-term
+  shape whose identity holds to 130050.
+
 # 15-08 Deferred Items
 
 Out-of-scope discoveries from the DESK-03 payload staging (measured

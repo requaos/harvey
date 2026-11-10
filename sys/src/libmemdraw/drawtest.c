@@ -997,6 +997,15 @@ DBG print("dst %x %x %x %x src %x %x %x %x m %x = ", dr,dg,db,da, sr,sg,sb,sa, m
 		 * approximations do; truncating division here disagrees with
 		 * them on about half of all pixel values, and the comparison
 		 * aborts on the first one it meets.
+		 *
+		 * MUL2 matches this exact division only for coefficient sums
+		 * up to 255*255 — the convex (no-alpha / premultiplied)
+		 * regime every r8g8b8-family configuration here stays in.
+		 * Non-convex alpha pairs reach 2*255*255, where MUL2 is 1 LSB
+		 * off this reference on 253 values (see draw.c's MUL2 comment
+		 * and the phase 15 deferred items); alpha or mixed-channel
+		 * runs can abort there until the clamped two-term shape is
+		 * adopted.
 		 */
 		dr = (sr*m + dr*M + 127)/255;
 		dg = (sg*m + dg*M + 127)/255;

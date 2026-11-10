@@ -31,6 +31,17 @@ static int	tablesbuilt;
  * nearest compositing value.  Summing two MULs instead rounds each
  * product separately, which differs from that value on about half of
  * all inputs — the divergence drawtest's reference comparison caught.
+ *
+ * Scope of the identity: (t+(t>>8))>>8 is exact only for t <= 65535,
+ * i.e. s <= 255*255.  That is the whole reachable range just for
+ * convex coefficient pairs — no-alpha / premultiplied composites, where
+ * m+M == 255.  An alpha-bearing source makes the pair non-convex
+ * (M = 255-round(sa*m/255) leaves m+M > 255 when sa*m <= 127) and s
+ * reaches 2*255*255; there MUL2 differs from (s+127)/255 by 1 LSB on
+ * 253 values in (65025, 130050] (first at s=65663), a difference that
+ * survives byte truncation.  The byte-path residue is recorded as a
+ * deferred item next to the MUL0123 lane-path deferral; the rig's
+ * channels (r8g8b8-family) never leave the convex regime.
  */
 #define MUL2(u, v, x, y, t)	(t = (u)*(v)+(x)*(y)+128, (t+(t>>8))>>8)
 
