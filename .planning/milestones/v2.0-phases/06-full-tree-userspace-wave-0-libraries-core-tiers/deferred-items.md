@@ -71,7 +71,7 @@ current task's changes (executor scope boundary — logged, not fixed).
 
 - libmemdraw drawtest + arctest fault on aarch64 (Pitfall-3 class) —
   Phase-10 per-dir checklist
-  status: open
+  status: resolved
   **Found during:** 06-05 Task 2 (the tier-0 wave's D-06 lib test runs
   on the 9front donor)
   **What:** the in-tree tests compiled and ran but FAULT on aarch64:
@@ -84,19 +84,31 @@ current task's changes (executor scope boundary — logged, not fixed).
   evidence/06-05-libtest-donor.log.  Filed per the phase's no-drive-by
   rule (Pitfall-3 classes are Phase-10 audit work, not sweep drive-bys);
   both tests rejoin the standing sweep when the lib is fixed.
-  **Status:** open — Phase 10's libmemdraw pixel-path LP64/struct-punning
-  audit owns this.
+  **Status:** resolved — plan 15-09 (2026-11-10) root-caused both as
+  arch-independent C bugs and fixed in-tree as two class commits:
+  drawtest = compositing-arithmetic mismatch (the test's reference
+  truncated while the library rounded, and the byte-path calculators
+  double-rounded — both sides now round-to-nearest, the
+  9front/plan9port-converged shape; `506ca9605`); arctest =
+  zero-extension fossil in byteaddr (an unsigned 32-bit row-offset
+  product for negative rows zero-extends into 64-bit pointers, landing
+  exactly +2^32 out — the measured fault addr is base+4GiB; row offsets
+  now wrap in int, `e8df41c7d`).  Runtime re-join on the draw venue
+  (DRAWTEST-OK / ARCTEST-OK) is 15-06 Task 3's stage.
 
 - stale mkfile test targets reference absent sources (liboventi,
   libmemdraw)
-  status: open
+  status: resolved
   **Found during:** 06-05 Task 2 (lib test-binary discovery)
   **What:** liboventi's `$O.vttest` + `test:` targets reference a
   `vttest.c` that does not exist; libmemdraw's `$O.test` references a
   `test.c` that does not exist (only drawtest.c/arctest.c are real).
   Harmless unless the targets are invoked.
-  **Status:** open — Phase 10 decides: remove the targets or restore the
-  sources.
+  **Status:** resolved — plan 15-09 (2026-11-10) removed the stale
+  entries (plus libmemdraw's same-class `$O.drawtime` over a nonexistent
+  drawtime.c) while keeping the real `$O.drawtest`/`$O.arctest` targets
+  verbatim (`9ecac570b`); liboventi builds green from the cleaned
+  mkfile.
 
 - libdynld dynld.c:128 "useless or misleading comparison: ULONG < 0"
   (7c note)
