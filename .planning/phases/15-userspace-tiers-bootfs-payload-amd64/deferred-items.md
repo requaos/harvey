@@ -1,3 +1,65 @@
+# 15-08 Deferred Items
+
+Out-of-scope discoveries from the DESK-03 payload staging (measured
+live this plan; worked around in-plan — the fixes own later plans):
+
+- The tier-1 witness manifest is TREE-HISTORY-SENSITIVE for the three
+  tier-1 directory entries that carry yacc grammars (cmd/rc syn.y,
+  cmd/grep grep.y, cmd/awk awkgram.y).  Measured sequence (15-08):
+  the tree matched the 14-08-era pinned digests before the plan's
+  first tier build; that FIRST build produced different bytes for
+  exactly rc/grep/awk; every subsequent tier build (4+ runs, two
+  consecutive-driver-runs compared) reproduced the ORIGINAL digests
+  byte-for-byte.  A yacc root-single (cmd/units) never drifted, so
+  the class is dir-entry yacc builds, not yacc generally.  Mechanism
+  undetermined (candidates: stale generated y.tab.* state left by a
+  prior build route such as the 15-07 coverage sweep's mk-all, or
+  archive/regeneration order inside the first per-entry fresh build
+  after such a route).  Consequence: any /amd64 writer between a
+  donor build and the next mkimage reds the witness (mkimage 9a), and
+  the remediation ORDER matters — run the tier driver to convergence
+  FIRST, then re-pin via build/mm/build-9k10t1.sh (15-08 initially
+  re-pinned from the one-off bytes and the next gate run re-reded —
+  the working order is driver-then-pin).
+  status: open
+  **What:** the tier driver's first run after a foreign build route
+  produces different bytes for cmd/{rc,grep,awk}; root cause open.
+
+- build/x86_64/tier1.ledger still carries its two 14-08-era
+  `exec=SKIP:r9x64-…` rows (ipconfig no-devrandom, factotum
+  no-auth-era) although 15-03 flipped both subjects live in the same
+  commit as every gate expectation — the r9 tier-1 gate has expected
+  38 T1-OK / zero SKIP since, and every 15-08 re-run shows 38.  The
+  ledger is a stale RECORD, not a gate claim, but it contradicts the
+  live gate; a fix owns the ledger's format (add the flip rows /
+  annotate) rather than a quiet edit.
+  status: open
+  **What:** build/x86_64/tier1.ledger rows for cmd/ip/ipconfig and
+  cmd/auth/factotum:factotum predate the 15-03 flips.
+
+- The expect gates' panic fast-fail (`expect_before -re {panic|…}` in
+  build/x86_64/services-r9.expect and siblings) kills qemu the
+  instant the word "panic" appears on the wire — before the panic's
+  message and location finish printing, so the retained capture never
+  contains the kernel's own diagnosis text (15-08's stash-clamp panic
+  arrived as a bare `panicked at`; the "grow the stash" message had
+  to be read out of the r9 source).  Letting the line drain (a short
+  post-match expect before cleanup) would put the kernel's text on
+  the wire.  Gate-side diagnosability improvement; owns whichever
+  plan next touches the expect drivers.
+  status: open
+  **What:** the fast-fail arm truncates panic messages mid-line.
+
+- mkimage's per-file cap assert (11r, 15-08) covers the SERVICES bake
+  only; the marker/chain/tier/net bakes in mkimage.sh and
+  build/mm/build-9kdraw.sh's bootfs-draw.paq still ride the mkpaqfs
+  default blocksize with no fit assert — the standing 15-07 hazard
+  item below remains open for those bakes (their current members all
+  fit; fonts max 46089 bytes, binaries under the cap).
+  status: open
+  **What:** the other four mkimage contracts + build-9kdraw.sh lack
+  the cap assert (15-07's item, narrowed by 15-08 to these).
+
 # 15-07 Deferred Items
 
 Out-of-scope discoveries from the coverage sweep + gs render smoke
