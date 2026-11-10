@@ -5,35 +5,35 @@ titles: json
 findings:
   - id: CR-01
     severity: critical
-    disposition: open
+    disposition: fixed
     title: "Unvalidated syscall number indexes `systab` out of bounds in the newly-wired trace path (kernel OOB read → panic / kernel-memory leak)"
   - id: WR-01
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`startns` read uninitialized when the return-side trace arm happens mid-syscall"
   - id: WR-02
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "`-initrd` module basename overflows the fixed-size `Dirtab.name` in `addbootfile`"
   - id: WR-03
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "drawsmoke's pixel-readback assert does not accept \"either canonical byte order\" and false-passes palindromic garbage"
   - id: WR-04
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "GS-RENDER-OK ignores gs's exit status — a partial render passes the D-11 smoke"
   - id: WR-05
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "Venue harnesses overwrite the committed phase evidence on failing runs"
   - id: WR-06
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "tier-2 CI leg's failure path is dead — `cmd | tee || handler` without pipefail"
   - id: WR-07
     severity: warning
-    disposition: open
+    disposition: fixed
     title: "The MUL2 round-to-nearest identity only holds for `s <= 65025`; the \"byte path equally covered\" claim overstates"
   - id: IN-01
     severity: info
@@ -63,23 +63,23 @@ findings:
     severity: info
     disposition: open
     title: "services-r9.expect degrades to a 900s stage timeout instead of the documented post-pass classification"
-open: 15
+open: 7
 total: 15
-recorded: 2026-11-10T20:25:27.098Z
+recorded: 2026-11-10T20:59:32.547Z
 ---
 
 # Phase 15: Code Review Disposition
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | open | - |
-| WR-01 | warning | open | - |
-| WR-02 | warning | open | - |
-| WR-03 | warning | open | - |
-| WR-04 | warning | open | - |
-| WR-05 | warning | open | - |
-| WR-06 | warning | open | - |
-| WR-07 | warning | open | - |
+| CR-01 | critical | fixed | 15-REVIEW-FIX.md |
+| WR-01 | warning | fixed | 15-REVIEW-FIX.md |
+| WR-02 | warning | fixed | 15-REVIEW-FIX.md |
+| WR-03 | warning | fixed | 15-REVIEW-FIX.md |
+| WR-04 | warning | fixed | 15-REVIEW-FIX.md |
+| WR-05 | warning | fixed | 15-REVIEW-FIX.md |
+| WR-06 | warning | fixed | 15-REVIEW-FIX.md |
+| WR-07 | warning | fixed | 15-REVIEW-FIX.md |
 | IN-01 | info | open | - |
 | IN-02 | info | open | - |
 | IN-03 | info | open | - |
