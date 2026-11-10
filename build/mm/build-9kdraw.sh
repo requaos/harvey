@@ -367,8 +367,9 @@ fi
 # panic/trap lines.  Task 1: DRAW-SMOKE-OK (the draw device end-to-end).
 # Task 2: FONT-CHANNEL-OK (the -initrd -> addbootfile -> paqfs channel
 # delivers the fonts; the `mod` boot print is the A2 evidence, asserted
-# separately below).
-MARKERS="DRAW-SMOKE-OK FONT-CHANNEL-OK"
+# separately below).  Task 3: KBIN-OK + MOUSEIN-OK (the eve-gated
+# synthetic-input surface — the complete four-marker bring-up gate).
+MARKERS="DRAW-SMOKE-OK FONT-CHANNEL-OK KBIN-OK MOUSEIN-OK"
 
 : > "$BOOTLOG"
 echo "== draw leg: mode $ACCEL (banner budget ${BUDGET}s, marker budget ${SMOKE_BUDGET}s)"

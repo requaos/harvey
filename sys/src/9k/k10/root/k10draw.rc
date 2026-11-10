@@ -68,8 +68,13 @@ echo drawinit > '#v/vgactl'
 # on the first venue boot).  Union bind, initdraw's own MAFTER shape.
 bind -a '#i' /dev
 
-# the /dev/draw exerciser: /dev/draw/new opens, a fill image allocates,
-# a rectangle paints, pixels read back — prints DRAW-SMOKE-OK.
+# the /dev/draw exerciser + the synthetic-input probes: /dev/draw/new
+# opens, a fill image allocates, a rectangle paints, pixels read back
+# (DRAW-SMOKE-OK); then the eve-gated #c/kbin round trip (KBIN-OK) and
+# the #m/mousein position readback (MOUSEIN-OK) — the probes live in
+# the exerciser (bounded waits in C; the rc console-interaction forms
+# are the 15-02 dialect's least reliable corner, and a wedged read
+# there wedges the whole boot — measured).
 drawsmoke
 
 # the harness's phase-B completion signal; then init must never exit

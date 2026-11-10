@@ -674,6 +674,7 @@ enum{
 	Quser,
 	Qzero,
 	Qconfig,
+	Qkbin,
 };
 
 enum
@@ -706,6 +707,7 @@ static Dirtab consdir[]={
 	"user",		{Quser},	0,		0666,
 	"zero",		{Qzero},	0,		0444,
 	"config",	{Qconfig},	0,		0444,
+	"kbin",	{Qkbin},	0,	0220,
 };
 
 int
@@ -776,6 +778,14 @@ consopen(Chan *c, int omode)
 	switch((ulong)c->qid.path){
 	case Qconsctl:
 		incref(&kbd.ctl);
+		break;
+
+	case Qkbin:
+		/* synthetic keyboard injection is hostowner-only — the
+		 * mousein discipline (devmouse.c): an ungated kbin lets
+		 * any user type into any session */
+		if(!iseve())
+			error(Eperm);
 		break;
 
 	case Qkprint:
@@ -1094,6 +1104,19 @@ conswrite(Chan *c, void *va, long n, vlong off)
 			if(a = strchr(a, ' '))
 				a++;
 		}
+		break;
+
+	case Qkbin:
+		/*
+		 * Synthetic keyboard: feed each written byte as a rune
+		 * through the same staged path the i8042 interrupt uses
+		 * (kbd.c's kbdputc — encode into kbd.istage, drained to
+		 * kbdq by the clock), so /dev/cons readers see them as
+		 * typed input.  The open-time eve gate above is the
+		 * security domain.
+		 */
+		for(i = 0; i < n; i++)
+			kbdputc(kbdq, (uchar)a[i]);
 		break;
 
 	case Qtime:

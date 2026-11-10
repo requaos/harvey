@@ -43,6 +43,89 @@ fail(char *why)
 }
 
 /*
+ * bounded single read: alarm-gated (atnotify catches the note so the
+ * default terminate action never fires); returns -1 on timeout.
+ */
+static int
+alarmed(void *v, char *s)
+{
+	USED(v);
+	return strncmp(s, "alarm", 5) == 0;
+}
+
+static int
+bread(int fd, char *buf, int len, int ms)
+{
+	int n;
+
+	atnotify(alarmed, 1);
+	alarm(ms);
+	n = read(fd, buf, len);
+	alarm(0);
+	atnotify(alarmed, 0);
+	if(n < 0)
+		werrstr("timed out");
+	return n;
+}
+
+/*
+ * the synthetic-input probes (the 15-06 replay bootstrap, OQ-2):
+ * #c/kbin writes must reach a #c/cons reader through the standard
+ * cooked kbd path behind the eve-gate (the hostowner was set before
+ * this process ran), and #m/mousein must drive mousetrack far enough
+ * for a #m/mouse readback to carry the position.
+ */
+static void
+kbinput(void)
+{
+	char line[128];
+	int kfd, cfd, n;
+
+	kfd = open("/dev/kbin", OWRITE);
+	if(kfd < 0)
+		fail("open /dev/kbin (eve-gate)");
+	cfd = open("/dev/cons", OREAD);
+	if(cfd < 0)
+		fail("open /dev/cons for the kbin probe");
+	if(write(kfd, "KBINPROBE\n", 10) != 10)
+		fail("write /dev/kbin");
+	n = bread(cfd, line, sizeof line - 1, 6000);
+	if(n < 0)
+		fail("kbin round trip");
+	line[n] = 0;
+	if(strncmp(line, "KBINPROBE", 9) != 0)
+		fail("kbin readback mismatch");
+	print("KBIN-OK\n");
+	close(kfd);
+	close(cfd);
+}
+
+static void
+mouseinput(void)
+{
+	char line[128];
+	int mfd, ifd, n;
+
+	ifd = open("/dev/mousein", OWRITE);
+	if(ifd < 0)
+		fail("open /dev/mousein (eve-gate)");
+	if(write(ifd, "M 512 384 0 0\n", 14) != 14)
+		fail("write /dev/mousein");
+	mfd = open("/dev/mouse", OREAD);
+	if(mfd < 0)
+		fail("open /dev/mouse for the mousein probe");
+	n = bread(mfd, line, sizeof line - 1, 6000);
+	if(n < 0)
+		fail("mousein round trip");
+	line[n] = 0;
+	if(strstr(line, "512") == nil || strstr(line, "384") == nil)
+		fail("mouse readback mismatch");
+	print("MOUSEIN-OK\n");
+	close(mfd);
+	close(ifd);
+}
+
+/*
  * info fields are %11d space-padded groups of 12: [0] client id,
  * [2] chan, [4..7] the image rectangle.
  */
@@ -166,5 +249,7 @@ main(int, char *[])
 	}
 
 	print("DRAW-SMOKE-OK\n");
+	kbinput();
+	mouseinput();
 	exits(nil);
 }
