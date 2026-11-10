@@ -410,7 +410,11 @@ classify_log() {
 # truth — the aarch64 r9 gate's rule, carried; catches a stale baked
 # sweep diverging from the committed one).
 compute_r9_skip() {
-	"$GREP" -oE '(^|[[:space:]])echo T1-SKIP [A-Za-z0-9.-]+' "$HARVEY/build/x86_64/tier1-sweep.rc" \
+	# `|| true` — this driver runs `set -eu` and grep exits 1 on ZERO
+	# matches; the 15-03 SKIP-flip emptied the x64 sweep's SKIP block
+	# (ipconfig + factotum run live), and the empty set is the CORRECT
+	# computed expectation, not a driver death.
+	{ "$GREP" -oE '(^|[[:space:]])echo T1-SKIP [A-Za-z0-9.-]+' "$HARVEY/build/x86_64/tier1-sweep.rc" || true; } \
 		| awk '{print $NF}' | sort -u
 }
 

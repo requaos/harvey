@@ -23,11 +23,12 @@
 # tier1-cmds.txt, anchored to the k10t1-proven 35-command embed set):
 # the read-only checks run on the r9-x64 venue; the write-flow /
 # build-chain / toolchain classes are NOT in this phase's amd64 tier
-# data (Phase 15 appends them onto this machinery — the driver-only
-# ipconfig/factotum container members take their named T1-SKIP lines
-# here: the 06-07 measured r9-era gaps carried to x86_64 — no
-# /dev/random for ipconfig's startup, factotum's devproc
-# protect/noswap verbs + devsrv mount; Phase 17/18 close them).
+# data (Phase 15 appends them onto this machinery).  The container
+# members ipconfig + factotum run LIVE since 15-03 (their aarch64-era
+# T1-SKIP reasons were stale for x64 — r9's devcons serves /dev/random
+# and the 15-03 kernel fixes carry factotum's startup verbs + mount);
+# the checks and the gates' computed expectations flipped in ONE
+# commit (Pitfall 4).
 # NO libtest block on amd64 venues (the 06-09 9k-venue discipline:
 # the amd64 libtest build machinery is out of scope — never an
 # unearned T1-OK).
@@ -292,16 +293,43 @@ nmout=`{$B/hnm $D/nm-input.6}
 if(~ $"nmout *main*) echo T1-OK nm
 if not echo T1-FAIL nm
 
-# --- the donor-guarded tier-data members (this venue's declared gaps,
-#     named T1-SKIPs — USPACE-04 transparency: never an unearned
-#     T1-OK, never a silent drop).  ipconfig opens /dev/random at
-#     startup (r9 has no devrandom this era); factotum's startup needs
-#     the devproc protect/noswap ctl verbs + a devsrv-service mount
-#     (r9's sys_mount is pipe-9P-only this era; the image's auth
-#     stub-by-absence already means no factotum service).  Phase 17/18
-#     close the gaps; the checks move in then. ---
-echo T1-SKIP ipconfig
-echo T1-SKIP factotum
+# --- the container members, LIVE since 15-03 (the SKIP era ended when
+#     the fixes landed at r9 3362cf7): ipconfig opens /dev/random at
+#     startup and r9's port devcons SERVES it on x86_64 (the 14-09
+#     measured venue fact — the aarch64-era 'no devrandom' SKIP reason
+#     was stale for x64); factotum's startup needs the devproc
+#     private/noswap ctl verbs (recorded since the 15-03 fix — the
+#     donor's retired/flag semantics) and its postmountsrv mount rides
+#     the non-RFPROC RFFDG fix.  The flip landed in the SAME commit as
+#     the gate's computed expectations (Pitfall 4). ---
+# ipconfig: usage-level (network-less guest) — the usage text on a bad
+# flag is the execution proof (the aarch64 donor-guard's shape; -Z
+# names no real flag)
+ipcout=`{$B/hipconfig -Z >[2=1]}
+if(~ $"ipcout *ipconfig*) echo T1-OK ipconfig
+if not echo T1-FAIL ipconfig
+
+# factotum: START + ANSWER (the 15-02 services semantics, minimal
+# tier-1 form — hfactotum -s posts its srv + mounts MBEFORE at /mnt;
+# the ANSWER is the masked ctl readback after a key write).  The
+# backgrounded spawn + bounded settle loop is the aarch64 donor-guard's
+# shape (never a silent hang under TCG).
+$B/hfactotum -s t1facto &
+factctl=0
+for(i in 1 2 3 4 5 6 7 8 9 10){
+	if($B/htest -e /mnt/factotum/ctl) factctl=1
+	if(~ $factctl 0) $B/hsleep 1
+}
+if(~ $factctl 1){
+	if($B/hecho 'key proto=pass service=t1 user=probe !password=t1-only-test' > /mnt/factotum/ctl){
+		fkout=`{$B/hcat /mnt/factotum/ctl}
+		# no bare '=' in the pattern (the rc lexer discipline)
+		if(~ $"fkout *proto*pass*) echo T1-OK factotum
+		if not echo T1-FAIL factotum
+	}
+	if not echo T1-FAIL factotum
+}
+if not echo T1-FAIL factotum
 
 echo T1-DONE
 exit

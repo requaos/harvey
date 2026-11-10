@@ -154,7 +154,11 @@ TIER_PAQ="$HARVEY/build/x86_64/out/bootfs-tier.paq"
 #     donor-guarded legs emit T1-SKIP on r9) plus the mandatory float
 #     canary.  The SKIP set is extracted VERBATIM from the committed
 #     tier1-sweep.rc's SKIP lines (the file is the source of truth). ---
-T1_SKIP=$("$GREP" -oE '(^|[[:space:]])echo T1-SKIP [A-Za-z0-9.-]+' "$HARVEY/build/x86_64/tier1-sweep.rc" \
+# NOTE: `|| true` — the app wrapper runs `set -o pipefail`, and grep
+# exits 1 on ZERO matches: the 15-03 SKIP-flip emptied the sweep's SKIP
+# block (ipconfig + factotum run live), and the bare pipeline killed
+# the driver silently between the bake and the expectations print.
+T1_SKIP=$({ "$GREP" -oE '(^|[[:space:]])echo T1-SKIP [A-Za-z0-9.-]+' "$HARVEY/build/x86_64/tier1-sweep.rc" || true; } \
 	| awk '{print $NF}' | sort -u | tr '\n' ' ')
 T1_OK_ALL=$(
 	awk 'NF && $1 !~ /^#/ { print $1 }' "$HARVEY/build/x86_64/tiers/tier1-cmds.txt" |

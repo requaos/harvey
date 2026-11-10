@@ -171,7 +171,10 @@ for e in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv cmd/aux:listen cmd/auth/authsrv
 	"$GREP" -q "^${e}[[:space:]#]" "$SVC_T2" || err "svc expectation: tier-2 data lacks the probe-subject entry $e"
 done
 "$GREP" -q "^cmd/auth/factotum:factotum[[:space:]#]" "$SVC_T1D" || err "svc expectation: tier-1 data lacks cmd/auth/factotum:factotum (factotum rides its tier-1 line)"
-SVC_SKIP=$("$GREP" -oE '(^|[[:space:]])echo SVC-SKIP [A-Za-z0-9.-]+' "$HARVEY/build/x86_64/services-sweep.rc" \
+# NOTE: `|| true` — the app wrapper runs `set -o pipefail` and grep
+# exits 1 on ZERO matches (a sweep with no declared conditional SKIPs
+# must compute an EMPTY set, not kill the driver).
+SVC_SKIP=$({ "$GREP" -oE '(^|[[:space:]])echo SVC-SKIP [A-Za-z0-9.-]+' "$HARVEY/build/x86_64/services-sweep.rc" || true; } \
 	| awk '{print $NF}' | sort -u | tr '\n' ' ')
 SVC_OK_ALL="mntgen cs dns exportfs srv listen factotum keyfs authsrv"
 SVC_OK=""

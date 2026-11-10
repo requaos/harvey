@@ -152,12 +152,18 @@ stage version   {version\.\.\.}
 #    bring-up — SVC-LOOPBACK-UP on the green arm; a failed #I bind
 #    degrades to the named skip-why line and the post-pass/classify
 #    reds on the missing probes), then the per-subject verdicts.
+#    EMISSION ORDER IS LOAD-BEARING for the stage SEQUENCE: expect
+#    consumes the buffer up to each match, so a stage whose marker
+#    already streamed by an EARLIER stage's match would wait for a
+#    second emission that never comes — the srv/exportfs pair is the
+#    measured case (the sweep echoes SVC-OK srv then SVC-OK exportfs
+#    from one if-arm; the first tracer run stalled exactly there).
 stage mntgen-verdict  {SVC-(OK|FAIL) mntgen}
 stage net-bringup     {SVC-LOOPBACK-UP|SVC-LOOPBACK-NOT-UP|SVC-SKIP-WHY no-netdev}
 stage cs-verdict      {SVC-CSOBS|SVC-FAIL cs}
 stage dns-verdict     {SVC-(OK|FAIL) dns}
-stage exportfs-verdict {SVC-(OK|FAIL) exportfs}
 stage srv-verdict     {SVC-(OK|FAIL) srv}
+stage exportfs-verdict {SVC-(OK|FAIL) exportfs}
 stage listen-verdict  {SVC-(OK|FAIL) listen}
 stage factotum-verdict {SVC-(OK|FAIL) factotum}
 stage keyfs-verdict   {SVC-(OK|FAIL) keyfs}
