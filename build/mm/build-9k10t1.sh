@@ -171,7 +171,7 @@ magic=$(od -An -tx1 -N4 "$STAGE/hsvctcpecho" | tr -d ' \n')
 # (tier-2), and hmkdir — the keyfs probe's DMDIR-create client, built
 # host-side link-only the same way (mkdir is not a tier member on x64 —
 # the write-flow class — so the venue builds its one embed copy here)
-svc_copy amd64/bin/factotum hfactotum
+svc_copy amd64/bin/auth/factotum hfactotum
 svc_copy amd64/bin/auth/keyfs hkeyfs
 (	cd "$HARVEY" && \
 	"$NS_HBIN/6c" -FTVw -o "$STAGE/mkdir" -Isys/include -Iamd64/include sys/src/cmd/mkdir.c && \
