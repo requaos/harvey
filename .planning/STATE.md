@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 16
 current_phase_name: Host Net Modes + Networking Exit Gate
 status: executing
-stopped_at: Completed 16-04-PLAN.md (pin advance + boot app net surface)
-last_updated: "2026-11-11T13:20:40.318Z"
+stopped_at: "Completed 16-05-PLAN.md (NETIP-08 soak machinery: host echo peer + soak app + expect driver)"
+last_updated: "2026-11-11T13:54:56.430Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 16 execution started
-state_head: 116fd7f2f4de36b1ad8513baedbd7ca8ccc3ed7d
+state_head: c787fafea7ca07aa419fd2a638ae322c722e0f6d
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 28
+  completed_plans: 29
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 16 (Host Net Modes + Networking Exit Gate) — EXECUTING
-Plan: 5 of 8
+Plan: 6 of 8
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 16 execution started
 
@@ -84,6 +84,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 16 P02 | 8min | 2 tasks | 3 files |
 | Phase 16 P03 | 9 min | 2 tasks | 2 files |
 | Phase 16 P04 | 14 min | 3 tasks | 4 files |
+| Phase 16 P05 | 20 min | 2 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -177,6 +178,9 @@ Recent decisions affecting current work:
 - [Phase 16]: 16-03: the doctor carries zero address literals — the tap subnet/ports interpolate seam-derived values into remediations (the seam is the single address source host-side too), probe output prints on detail lines only (T-16-05), and the app gate is its OWN linux optionalAttrs with the frozen kernel-x64/iso-builder list untouched (Pitfall 6, diff-asserted)
 - [Phase 16]: 16-04: the boot app's net surface landed — --net=<mode> (the = form only) over R9_NET over the slirp default; unknown-mode and cross-venue requests are parse-time usage errors naming the valid set, and the tap leg doctor-gates FIRST (D-03) with remediation blocks inline — never a silent downgrade, never a fall-through to qemu
 - [Phase 16]: 16-04: no netdev literal survives in boot-r9-x64.sh — the qemu netdev+device argv is the pinned r9 emitter's output (D-04 hostfwd pair as TOML data through R9_NETDEV_EMITTER), and the x64 apps hasAttr gate carries netdev-args only from the pin-advance commit set onward (Pitfall 6); pin advanced af52fee -> d1c4849 lock-only, hosted-CI observation PENDING FIRST PUSH
+- [Phase 16]: [16-05] The soak app's slirp refusal sits at parse time BEFORE the doctor preflight — the doctor aborts wrong-allow hosts (this one today), so a doctor-first order would make the refusal unreachable exactly where it matters; the doctor still gates before any bake/boot/listener
+- [Phase 16]: [16-05] Driver self-test pattern: a fake marker-stream qemu proves an expect driver end-to-end without the venue (argv split, stage order, post-passes) — it caught expect's -timeout-before-braced-block silent no-match (fixed by setting the global timeout var, the sibling gates' mechanism); an 8-count negative control proves the tcpblast: done count has teeth
+- [Phase 16]: [16-05] Host-tool findings for 16-08's run loop: this host's coreutils head emits NOTHING when timeout-killed mid-count (client harnesses must read exact byte counts), and spawned ptys stay canonical for children that don't set raw mode themselves (real qemu does)
 
 ### Pending Todos
 
@@ -199,6 +203,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-11T13:20:39.773Z
-Stopped at: Completed 16-04-PLAN.md (pin advance + boot app net surface)
+Last session: 2026-11-11T13:54:55.905Z
+Stopped at: Completed 16-05-PLAN.md (NETIP-08 soak machinery: host echo peer + soak app + expect driver)
 Resume file: None
