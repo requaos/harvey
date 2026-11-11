@@ -239,6 +239,26 @@
             export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
+          # 16-03 (HNET-05/D-14): the net-doctor — the READ-ONLY
+          # host-state checker (diagnose + print, never fixes): one
+          # implementation consumed two ways (its own app here, and
+          # the 16-04 boot script's tap leg via R9_NET_DOCTOR, D-03).
+          # Consumes NO r9 attrs (host-only checks: qemu on PATH,
+          # ip/ss link+addr+port state, sysctl, the netfilter read,
+          # the setuid wrapper, the ACL file) — so its app gate below
+          # is its OWN linux optionalAttrs, deliberately NOT riding
+          # the frozen kernel-x64/iso-builder gate list (research
+          # Pitfall 6: that list must not widen).  Empty extraHeader:
+          # nothing to export — the doctor takes no env contract
+          # beyond HARVEY (optional, seam lookup in tap mode).
+          # runtimeInputs mirror the checks: qemu (qemu-present),
+          # iproute2 (ip/ss), iptables (iptables-save), procps
+          # (sysctl); coreutils/gnugrep/gnused are the text plumbing
+          # (stat, grep, sed).  No unixtools needed — nothing
+          # doctor-side diverges beyond what these provide.
+          netDoctorPkg = mkScriptApp pkgs "harvey-net-doctor" ./nix/net-doctor.sh ""
+            [ pkgs.bash pkgs.qemu pkgs.iproute2 pkgs.iptables pkgs.procps
+              pkgs.coreutils pkgs.gnugrep pkgs.gnused ];
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -270,6 +290,14 @@
           boot-r9-tier1-x64 = mkApp tier1R9X64Pkg;
           boot-r9-net-smoke-x64 = mkApp netSmokeR9X64Pkg;
           boot-r9-services-x64 = mkApp servicesR9X64Pkg;
+        }
+        # 16-03 (HNET-05/D-14): the doctor app — linux-only in its OWN
+        # optionalAttrs gate (the checks are linux's; darwin's vmnet
+        # leg is HNET-04 documented-manual).  It consumes no r9 attrs,
+        # so it must NOT ride (or widen) the frozen kernel-x64/
+        # iso-builder gate above — research Pitfall 6.
+        // nixpkgs.lib.optionalAttrs isLinux {
+          net-doctor = mkApp netDoctorPkg;
         });
 
       devShells = forAllSystems (system:
