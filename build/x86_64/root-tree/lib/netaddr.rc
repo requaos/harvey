@@ -18,8 +18,11 @@
 #
 # The x64 re-key carries the v4 keys the Phase-14 gates consume.  The
 # aarch64 seam's v6 keys (slirp_guestv6/gwv6, fec0::) are NOT carried:
-# no x64 gate this phase speaks v6 — they join with Phase 16's NETIP
-# legs (the tap venue), re-keyed from the aarch64 probe findings.
+# the Phase-16 trivially-free clause (D-09) was evaluated at 16-02 and
+# v6 is NOT free to verify — no v6 key joins this phase; v6 stays
+# deferred to the phase that first needs it, re-keyed from the
+# aarch64 probe findings THEN.  (Verdict recorded here so the old
+# join-with-Phase-16 anticipation cannot be re-read as a promise.)
 
 # --- loopback leg (the netip-loopback/tcp fixtures: ping 127.0.0.1,
 #     udp echo, tcp/7 echo — all NIC-free, synchronous in the sender's
@@ -37,6 +40,21 @@ lo_guestv4=127.0.0.1
 slirp_guestv4=10.0.2.15
 slirp_maskv4=255.255.255.0
 slirp_gwv4=10.0.2.2
+
+# --- tap leg (16-02, D-06/D-08/D-09 — the netip-tap fixture: static
+#     ipconfig + the ARP L2-truth assert + the NETIP-08 soak legs) ---
+# The NAT'd private bridge br0 (D-08, libvirt-default style): the host
+# owns the bridge's .1, masqueraded out the default route, NO
+# LAN-to-bridge inbound; the subnet is collision-free with the slirp
+# leg's /24 and the host LAN (the primary host's existing br0 adopted
+# as the committed value — 16's OQ-1).  THIS is THE L2-truth venue:
+# unlike slirp there is no proxy answering ARP for the gateway — the
+# host's real ARP reply is the evidence NETIP-08 exists for (every
+# slirp-green capture stays labeled NOT-L2-truth, both directions of
+# the venue-honesty rule).
+tap_guestv4=192.168.122.15
+tap_maskv4=255.255.255.0
+tap_gwv4=192.168.122.1
 
 # tcpblast host-echo port (the aarch64 soak dialled slirp_gwv4:blastport
 # with the sweep owning the host-side echo listener; the x64 gate bakes

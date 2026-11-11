@@ -1,0 +1,234 @@
+#!/bin/rc
+# netip-tap.rc — the NETIP-08 tap-leg truth fixture (16-02, D-06/D-09):
+# the netip-static skeleton re-venued onto the seam's tap_ leg.  The
+# REAL baked ipconfig (unmodified — the tier build's cmd/ip/ipconfig)
+# configures the seam's static IPv4 on the ether leg (bind ether →
+# add → the -g default route, all through the devip /net tree), the
+# sweep asserts /net/ipselftab and /net/iproute word-wise, pings the
+# bridge gateway, and asserts /net/arp's gateway entry post-ping — on
+# THIS venue the entry is the REAL host's ARP answer over the bridge,
+# not a net proxy's (the L2 proof this venue exists for; the slirp
+# fixtures' proxy answer is exactly what their NOT-L2-TRUTH label
+# disclaims).  Then the NETIP-08 soak legs (the aarch64 netip-soak.rc
+# shapes): the baseline tcpblast against the host echo peer, the N-way
+# burst backgrounded behind a bare wait, and the /net/tcp/stats
+# InSegs/OutSegs reconciliation.
+#
+# Sourced by the 16-05 soak gate's expect driver (`rc /lib/netip-tap.rc
+# [rounds] [burstn]' typed at the % prompt — the sourced-not-typed
+# discipline, net-sweep.rc's precedent), never typed line-by-line.
+# The venue boots --net=tap (the D-08 NAT'd bridge br0 — the host owns
+# the bridge's .1, masqueraded out the default route, no
+# LAN-to-bridge inbound) with the gate's host echo peer listening at
+# $blastport.
+#
+# Addresses come from /lib/netaddr.rc (the D-11 seam) — the tap_ leg.
+# NO venue address literal outside that seam (the bake's mechanical
+# grep enforces it for BOTH venue prefixes, slirp and tap).
+#
+# ipconfig does the whole static flow ITSELF — the gate's point is the
+# real binary's fidelity over /net.  The fixture NEVER pre-binds: a
+# pre-bind would fail ipconfig's own bind with "interface already
+# bound" (the era's per-medium singleton rule).
+#
+# Every failed step prints `netip: FAIL <stage>' to stderr and exits
+# non-nil (rc's || idiom per command; backquote capture for the reads).
+# Success legs print their ok markers; the run ends with NETIP-DONE.
+#
+# argv contract: optional $1 = baseline rounds (1-5 digits, default 64
+# — the committed TCG-sane scale; the tap leg's KVM-scaled count is
+# 16-05 gate data), optional $2 = burst count (1-2 digits, default 8 —
+# the D-11b N-way burst).
+
+# the argv validation (netip-soak.rc's switch shapes, adapted to two
+# argv — a non-numeric count must fail loudly, never wedge a loop).
+switch($#*){
+case 0 1 2
+case *
+	echo 'usage: netip-tap.rc [rounds] [burstn]' >[1=2]
+	exit usage
+}
+rounds=64
+burstn=8
+if (~ $#* 1)
+	rounds=$1
+if (~ $#* 2){
+	rounds=$1
+	burstn=$2
+}
+switch($rounds){
+case [0-9]
+case [0-9][0-9]
+case [0-9][0-9][0-9]
+case [0-9][0-9][0-9][0-9]
+case [0-9][0-9][0-9][0-9][0-9]
+case *
+	echo 'netip-tap.rc: rounds must be 1-5 digits' >[1=2]
+	exit usage
+}
+switch($burstn){
+case [0-9]
+case [0-9][0-9]
+case *
+	echo 'netip-tap.rc: burstn must be 1-2 digits' >[1=2]
+	exit usage
+}
+
+# the D-11 seam (test -e first: a failed source is uncatchable)
+test -e /lib/netaddr.rc || {
+	echo netip: FAIL seam >[1=2]
+	exit seam
+}
+. /lib/netaddr.rc
+
+# attach the #I device tree at /net
+bind -a '#I' /net || {
+	echo netip: FAIL bind >[1=2]
+	exit bind
+}
+
+# the static configuration leg: the REAL ipconfig in static mode (its
+# argv shape per the usage: type dev [verb] [laddr [mask]]) with the
+# seam's tap values + the -g default route.
+ip/ipconfig -g $tap_gwv4 ether /net/ether0 add $tap_guestv4 $tap_maskv4 || {
+	echo netip: FAIL ipconfig >[1=2]
+	exit ipconfig
+}
+
+# assertion 1: /net/ipselftab lists the guest address (word-wise exact
+# match — the rc ~ dialect lesson: a plain literal word compare).
+selftab=`{cat /net/ipselftab} || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+found=0
+for(w in $selftab){
+	if(~ $w $tap_guestv4)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL selftab >[1=2]
+	exit selftab
+}
+
+# assertion 2: /net/iproute shows the default route via the gateway —
+# the default target word and the gateway word (the route's nexthop)
+# both appear (the add 0 0 <gw> wrote them).
+routes=`{cat /net/iproute} || {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+foundgw=0
+founddef=0
+for(w in $routes){
+	if(~ $w $tap_gwv4)
+		foundgw=1
+	if(~ $w 0.0.0.0)
+		founddef=1
+}
+~ $foundgw 1 || {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+~ $founddef 1 || {
+	echo netip: FAIL iproute >[1=2]
+	exit iproute
+}
+echo netip: static ok
+
+# assertion 3: ping the bridge gateway — replies arrive over the real
+# bridged ether leg (ping exits non-nil on any lost message; its own
+# -n count bounds the leg, its internal alarm bounds each wait).
+ip/ping -n 3 $tap_gwv4 || {
+	echo netip: FAIL ping >[1=2]
+	exit ping
+}
+
+# assertion 4 — THE L2-TRUTH ASSERT: /net/arp lists the gateway entry
+# post-ping, and on this venue the entry is the REAL host's ARP answer
+# over the bridge, not a net proxy's — the D-09 proof this venue
+# exists for.
+arpview=`{cat /net/arp} || {
+	echo netip: FAIL arpview >[1=2]
+	exit arpview
+}
+found=0
+for(w in $arpview){
+	if(~ $w $tap_gwv4)
+		found=1
+}
+~ $found 1 || {
+	echo netip: FAIL arpview >[1=2]
+	exit arpview
+}
+echo netip: arp view ok
+
+# the venue label rides the gate log itself — the INVERSE of the slirp
+# fixtures' NOT-L2-TRUTH disclaimer: this capture IS the L2-truth
+# evidence (the asserted venue honesty, both directions).
+echo netip: L2-TRUTH tap venue
+
+# the baseline soak leg: tcpblast dials the bridge gateway's blastport
+# (the 16-05 host echo peer listens there) for $rounds bidirectional
+# round-trips — the payload exits non-nil on any short/failed/mismatched
+# round; its own markers ride stdout.
+tcpblast $tap_gwv4 $blastport $rounds || {
+	echo netip: FAIL blast >[1=2]
+	exit blast
+}
+
+# the burst leg (D-11b): $burstn tcpblast instances (512 rounds each)
+# launched with & in the while loop (the services-sweep background
+# idiom), the counter via dc's backquote shape; the bare wait blocks
+# until every child exits.  Per-child statuses are NOT collectible
+# after a bare wait (rc(1) — $status carries only the last foreground
+# command): the 16-05 expect post-pass owns the marker-COUNT assert
+# ($burstn `tcpblast: done' occurrences), never rc-side collection and
+# never interleaving order.
+i=0
+while(! ~ $i $burstn){
+	tcpblast $tap_gwv4 $blastport 512 &
+	i=`{echo $i 1 + p | dc}
+}
+wait
+echo netsoak: burst wait returned
+
+# the guest-counters leg: cat /net/tcp/stats so the harness reconciles
+# (the cat PRINTS to the console, never a backquote capture — the
+# harness reads the serial log), and assert both directions non-zero
+# here too (the stats-honesty discipline — a zeros-forever stats file
+# is a contract violation).
+cat /net/tcp/stats || {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+insegs=`{cat /net/tcp/stats | sed -n 's/^InSegs: //p'} || {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+outsegs=`{cat /net/tcp/stats | sed -n 's/^OutSegs: //p'} || {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+~ $#insegs 1 || {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+~ $#outsegs 1 || {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+if (~ $insegs '' 0) {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+if (~ $outsegs '' 0) {
+	echo netip: FAIL stats >[1=2]
+	exit stats
+}
+echo netip: soak stats ok
+
+echo netip: soak ok
+
+echo netip: NETIP-DONE
+exit ''
