@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 16
 current_phase_name: Host Net Modes + Networking Exit Gate
 status: executing
-stopped_at: "Completed 16-06-PLAN.md (HNET-01 CI half: emitter-argv gate re-key + hostfwd observation + net-smoke-x64 job)"
-last_updated: "2026-11-11T14:15:13.255Z"
+stopped_at: "Completed 16-08-PLAN.md (NETIP-08 verdict: green-twice on tap + the stage-budget fix; phase 16 plan 8/8 done)"
+last_updated: "2026-11-11T20:18:24.431Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 16 execution started
-state_head: 4bac097840396435692b0e59b7f3c5b6c96a2193
+state_head: c2b78b7bf3e3916e4a0979a6e2984673aca1c956
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 30
+  completed_plans: 31
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 16 (Host Net Modes + Networking Exit Gate) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 16 execution started
 
@@ -86,6 +86,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 16 P04 | 14 min | 3 tasks | 4 files |
 | Phase 16 P05 | 20 min | 2 tasks | 4 files |
 | Phase 16 P06 | 15 min | 2 tasks | 6 files |
+| Phase 16 P08 | 274 min (diagnosis-heavy: 3 wedges root-caused, 6 full gate runs) | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -183,6 +184,8 @@ Recent decisions affecting current work:
 - [Phase 16]: [16-05] Driver self-test pattern: a fake marker-stream qemu proves an expect driver end-to-end without the venue (argv split, stage order, post-passes) — it caught expect's -timeout-before-braced-block silent no-match (fixed by setting the global timeout var, the sibling gates' mechanism); an 8-count negative control proves the tcpblast: done count has teeth
 - [Phase 16]: [16-05] Host-tool findings for 16-08's run loop: this host's coreutils head emits NOTHING when timeout-killed mid-count (client harnesses must read exact byte counts), and spawned ptys stay canonical for children that don't set raw mode themselves (real qemu does)
 - [Phase 16]: 16-06: the composed net gate's qemu spawn rides the emitter's slirp argv (R9_NETDEV_ARGV split in the driver — zero netdev literals; venue FIXED slirp per D-02, the D-04 hostfwd pair flows from the pinned TOML, D-05) and observes both loopback hostfwd listeners host-side mid-boot (ss -tln stages); iproute2 joined the app's runtimeInputs for the driver's exec ss; net-smoke-x64 joins r9-shell.yml at R9_ACCEL=tcg with pinned actions — hosted observation PENDING FIRST PUSH
+- [Phase 16]: 16-08: the soak first-run failures were the GATE's — the carried 600s per-stage budget cannot span the KVM-paced baseline (~810s at 2.5 rounds/s); the driver's own timeout kill masqueraded as a kernel wedge (torn serial, unacked finals, dead timers); fixed with a burst-wait-only soak_stage_timeout 2700 (stage gained an optional per-call override); r9 exonerated by debugcon instrumented autopsy and left byte-identical at d1c4849 (no pin advance, FOD clauses vacuous)
+- [Phase 16]: 16-08: the intermittent burst-leg guest triple fault (1 failure in 5 full runs, observer-healed — both debugcon-instrumented runs green) is recorded OPEN (deferred-items + WINDOWS #66) with the stress-loop recommendation (rounds=1/burstn=8, uninstrumented pinned kernel, -d int exception-cascade capture); no blind fix — the fix-everything doctrine's root-cause bar cannot be met without reproduction
 
 ### Pending Todos
 
@@ -205,6 +208,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-11T14:15:12.702Z
-Stopped at: Completed 16-06-PLAN.md (HNET-01 CI half: emitter-argv gate re-key + hostfwd observation + net-smoke-x64 job)
+Last session: 2026-11-11T20:18:23.799Z
+Stopped at: Completed 16-08-PLAN.md (NETIP-08 verdict: green-twice on tap + the stage-budget fix; phase 16 plan 8/8 done)
 Resume file: None

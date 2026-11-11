@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 54
+open_count: 55
 waived_count: 3
 fixed_count: 7
-total_count: 64
-last_updated: 2026-11-10T18:10:52.208Z
+total_count: 65
+last_updated: 2026-11-11T20:04:55.434Z
 ---
 
 # Broken Windows Ledger
@@ -79,6 +79,7 @@ last_updated: 2026-11-10T18:10:52.208Z
 | 63 | 15 | deviation | sys/src/libc/amd64/main9.s |  | fall-off-main exits("main") — a failure status to rc conditionals (arctest measured); rejoin gates on completion output instead | open |  | 2026-11-10T14:17:53.850Z |  |
 | 64 | 15 | deviation | sys/src/cmd/paqfs/mkpaqfs.c |  | mkpaqfs silently DROPS files past blocksize^2/4 (4 MiB at the 4096 default: warn, exit 0) — the 15-07 gs bake asserts the fit and fails on diagnostics; every other bake script rides the default unprotected | open |  | 2026-11-10T18:10:52.108Z |  |
 | 65 | 15 | deviation | sys/src/cmd/rc/plan9.c |  | rc Execute prints only the LAST path candidate's errstr, masking the real exec failure behind the trailing-dot candidate — guest sessions invoke by absolute path; a fix owns plan9.c | open |  | 2026-11-10T18:10:52.208Z |  |
+| 66 | 16 | deviation | .planning/phases/16-host-net-modes-networking-exit-gate/deferred-items.md |  | 16-08: intermittent r9 x86_64 guest triple fault under the soak burst leg (8-way multi-waiter devip load; 1 failure in 5 runs, observer-healed; root cause open — recorded with the diagnostic toolkit + stress-loop shape in the phase deferred-items) | open |  | 2026-11-11T20:04:55.434Z |  |
 
 ````json
 [
@@ -911,6 +912,19 @@ last_updated: 2026-11-10T18:10:52.208Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-10T18:10:52.208Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 66,
+    "kind": "deviation",
+    "phase": "16",
+    "file": ".planning/phases/16-host-net-modes-networking-exit-gate/deferred-items.md",
+    "line": null,
+    "description": "16-08: intermittent r9 x86_64 guest triple fault under the soak burst leg (8-way multi-waiter devip load; 1 failure in 5 runs, observer-healed; root cause open — recorded with the diagnostic toolkit + stress-loop shape in the phase deferred-items)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-11T20:04:55.434Z",
     "resolved_at": null,
     "milestone": "v2.1"
   }

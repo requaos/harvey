@@ -39,7 +39,7 @@
 
 ### r9 TCP/IP Path — exit gate (NETIP — continuing)
 
-- [ ] **NETIP-08**: Networking exit gate: sustained bidirectional TCP flow + load soak on the **tap leg** on x86_64 (slirp forgives L2 bugs — ping on slirp is not a gate)
+- [x] **NETIP-08**: Networking exit gate: sustained bidirectional TCP flow + load soak on the **tap leg** on x86_64 (slirp forgives L2 bugs — ping on slirp is not a gate)
 
 ### Host Networking (HNET — continuing)
 
@@ -139,7 +139,7 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | HNET-03 | Phase 16 | Pending |
 | HNET-04 | Phase 16 | Pending |
 | HNET-05 | Phase 16 | Complete |
-| NETIP-08 | Phase 16 | Pending |
+| NETIP-08 | Phase 16 | Complete |
 | FLUSH-01 | Phase 17 | Pending |
 | FLUSH-02 | Phase 17 | Pending |
 | FLUSH-03 | Phase 17 | Pending |
