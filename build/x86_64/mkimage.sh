@@ -52,14 +52,17 @@
 #                                ipconfig + its 14-09 net section)
 #   /amd64/bin/{tcpecho,tcpblast,netblast}
 #                                the 6c C-helper re-keys (out/ supply)
-#   /amd64/bin/{grep,sed,dd,wc,sha1sum,test,bind}
+#   /amd64/bin/{grep,sed,dd,wc,sha1sum,test,bind,dc}
 #                                the fixtures' utility set (test/bind
-#                                are NOT rc builtins)
+#                                are NOT rc builtins; dc is 16-02's
+#                                tap-fixture burst counter)
 #   /lib/netaddr.rc              the D-11 addressing seam (the ONLY
 #                                place a venue address may live —
-#                                asserted at bake time)
-#   /lib/netip-{loopback,static,dhcp,tcp}.rc
-#                                the in-guest net fixtures
+#                                asserted at bake time, both venue
+#                                prefixes since 16-02)
+#   /lib/netip-{loopback,static,dhcp,tcp,tap}.rc
+#                                the in-guest net fixtures (netip-tap.rc
+#                                is 16-02's NETIP-08 tap leg)
 #   NO /boot/factotum            auth stub = absence (same rule)
 #
 # Payload contract (15-08, DESK-03 — the desktop payload Phases 18-19
@@ -487,9 +490,11 @@ echo "== PASS: baked $TIER_IMAGE ($sz3 bytes; ${_nh} h* binaries; header $magic3
 #     (/amd64/bin/ip/, the tier build + its 14-09 net section), the
 #     three 6c C helpers from out/ (tcpecho/tcpblast/netblast), and
 #     the gate-utility set the fixtures' bodies exec (grep sed dd wc
-#     sha1sum test bind — /bin/test and /bin/bind are NOT rc builtins)
-#     — PLUS the /lib fixtures (netaddr.rc the D-11 seam + the four
-#     netip-*.rc sweeps, riding the committed skeleton).
+#     sha1sum test bind dc — /bin/test and /bin/bind are NOT rc
+#     builtins; dc is 16-02's netip-tap.rc burst counter)
+#     — PLUS the /lib fixtures (netaddr.rc the D-11 seam + the five
+#     netip-*.rc sweeps — netip-tap.rc joins with 16-02's tap leg —
+#     riding the committed skeleton).
 NET_IMAGE="$OUT/bootfs-net.paq"
 
 # 10a. inputs (the tier build + its net section are the producers —
@@ -497,25 +502,30 @@ NET_IMAGE="$OUT/bootfs-net.paq"
 for p in ip/ipconfig ip/ping ip/udpecho; do
 	[ -s "$BIN/$p" ] || err "$BIN/$p missing — run sh build/x86_64/subset-build.sh first (the 14-09 net section)"
 done
-for f in grep sed dd wc sha1sum test bind paqfs rc ls cat echo ps; do
-	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first (the net gate's utility set)"
+for f in grep sed dd wc sha1sum test bind dc paqfs rc ls cat echo ps; do
+	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first (the net gate's utility set; dc is 16-02's tap-fixture burst counter)"
 done
 [ -s "$HARVEY/amd64/init" ] || err "amd64/init missing — run sh build/x86_64/subset-build.sh first (stage/init)"
 [ -s "$CHAIN_OUT/boot" ] || err "$CHAIN_OUT/boot missing — run sh build/x86_64/subset-build.sh first (9k/boot)"
 for f in netblast tcpblast tcpecho; do
 	[ -s "$CHAIN_OUT/$f" ] || err "$CHAIN_OUT/$f missing — run sh build/x86_64/subset-build.sh first (the 14-09 net helpers)"
 done
-for f in netaddr.rc netip-loopback.rc netip-static.rc netip-dhcp.rc netip-tcp.rc; do
-	[ -f "$ROOT_TREE/lib/$f" ] || err "$ROOT_TREE/lib/$f missing — the committed net fixture (14-09)"
+for f in netaddr.rc netip-loopback.rc netip-static.rc netip-dhcp.rc netip-tcp.rc netip-tap.rc; do
+	[ -f "$ROOT_TREE/lib/$f" ] || err "$ROOT_TREE/lib/$f missing — the committed net fixture (14-09; netip-tap.rc is 16-02's tap leg)"
 done
 
 # 10b. the D-11 single-seam discipline, asserted at bake time (T-14-17
-#      carried mechanically): NO venue address literal may live in any
-#      root-tree fixture EXCEPT netaddr.rc — the grep scopes to the
-#      fixtures directory and excludes the seam by name.  A stray
-#      10.0.2.x elsewhere re-couples the gates to one venue and reds
-#      the bake here, never the eye later.
+#      carried mechanically; extended to the tap subnet by 16-02,
+#      D-06): NO venue address literal may live in any root-tree
+#      fixture EXCEPT netaddr.rc — one grep per venue prefix (slirp,
+#      tap), both scoped to the fixtures directory and excluding the
+#      seam by name, one err per stray class.  A stray elsewhere
+#      re-couples the gates to one venue and reds the bake here, never
+#      the eye later (the 15-07 comment-prose lesson: prose counts
+#      too).
 _stray=$("$GREP" -rn '10\.0\.2\.' "$ROOT_TREE/lib/" 2>/dev/null | "$GREP" -v 'netaddr\.rc' || true)
+[ -z "$_stray" ] || err "venue address literal outside netaddr.rc (the D-11 seam violated): $_stray"
+_stray=$("$GREP" -rn '192\.168\.122\.' "$ROOT_TREE/lib/" 2>/dev/null | "$GREP" -v 'netaddr\.rc' || true)
 [ -z "$_stray" ] || err "venue address literal outside netaddr.rc (the D-11 seam violated): $_stray"
 
 STAGE4="$TMPD/root-net"
@@ -554,7 +564,7 @@ done
 for f in tcpecho tcpblast netblast; do
 	cp "$CHAIN_OUT/$f" "$STAGE4/amd64/bin/$f"
 done
-for f in grep sed dd wc sha1sum test bind; do
+for f in grep sed dd wc sha1sum test bind dc; do
 	cp "$BIN/$f" "$STAGE4/amd64/bin/$f"
 done
 
@@ -570,10 +580,11 @@ for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	amd64/bin/ip/ipconfig amd64/bin/ip/ping amd64/bin/ip/udpecho \
 	amd64/bin/tcpecho amd64/bin/tcpblast amd64/bin/netblast \
 	amd64/bin/grep amd64/bin/sed amd64/bin/dd amd64/bin/wc \
-	amd64/bin/sha1sum amd64/bin/test amd64/bin/bind \
+	amd64/bin/sha1sum amd64/bin/test amd64/bin/bind amd64/bin/dc \
 	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
 	usr/glenda/lib/profile lib/netaddr.rc lib/netip-loopback.rc \
-	lib/netip-static.rc lib/netip-dhcp.rc lib/netip-tcp.rc; do
+	lib/netip-static.rc lib/netip-dhcp.rc lib/netip-tcp.rc \
+	lib/netip-tap.rc; do
 	[ -f "$STAGE4/$p" ] || err "net manifest: $p missing from staged tree"
 	echo "net manifest: /$p staged"
 done
