@@ -269,6 +269,48 @@
           netDoctorPkg = mkScriptApp pkgs "harvey-net-doctor" ./nix/net-doctor.sh ""
             [ pkgs.bash pkgs.qemu pkgs.iproute2 pkgs.iptables pkgs.procps
               pkgs.coreutils pkgs.gnugrep pkgs.gnused ];
+          # 16-05 (D-12): the committed host echo peer — the NETIP-08
+          # soak's far end.  A host-cc build of nix/host-echo.c (the
+          # harness-package precedent: committed repo source, stdenv
+          # build, no fetched binaries — T-16-SC), CONCURRENT where the
+          # in-guest tcpecho is sequential (a poll loop; 8 held-open
+          # tcpblast connections are the burst leg).  Consumed as the
+          # soak app's own child via HOST_ECHO_X64 — never a daemon;
+          # it dies with the gate.
+          hostEchoX64Pkg = pkgs.stdenv.mkDerivation {
+            pname = "host-echo";
+            version = "16.05";
+            dontUnpack = true;
+            buildPhase = ''
+              cc -O2 -Wall -o host-echo ${./nix/host-echo.c}
+            '';
+            installPhase = ''
+              install -Dm755 host-echo $out/bin/host-echo
+            '';
+          };
+          # 16-05 (D-13, NETIP-08's machinery half): the tap-leg soak
+          # gate — the net-smoke pipeline re-keyed onto the tap venue:
+          # --net/R9_NET parse with the SLIRP REFUSAL (slirp evidence
+          # not accepted, before any bake or boot) → the 16-03 doctor
+          # preflight (tap, ONE implementation) → the seam parse
+          # (tap_gwv4/blastport) → the emitter's tap argv with the
+          # retained pcap capture (R9_NETDEV_ARGV for the driver to
+          # split) → the committed host echo peer as the app's own
+          # child → tier build → net bake → iso-builder compose →
+          # build/x86_64/netsoak-r9.expect driving
+          # `rc /lib/netip-tap.rc 2048 8' (baseline + 8-way burst +
+          # ARP L2-truth + the counting post-pass + wedge-loud
+          # timeouts).  The RUNS (green-twice, the kernel-fix loop,
+          # the evidence/r9-SHA close-out) are 16-08's.
+          netSoakR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-net-soak-x64" ./nix/soak-r9-net-x64.sh ''
+            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
+            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
+            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
+            export R9_NET_DOCTOR="${netDoctorPkg}/bin/harvey-net-doctor"
+            export HOST_ECHO_X64="${hostEchoX64Pkg}/bin/host-echo"
+            export HARVEY_NETADDR_SEAM="${./build/x86_64/root-tree/lib/netaddr.rc}"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.procps ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -306,6 +348,10 @@
           boot-r9-tier1-x64 = mkApp tier1R9X64Pkg;
           boot-r9-net-smoke-x64 = mkApp netSmokeR9X64Pkg;
           boot-r9-services-x64 = mkApp servicesR9X64Pkg;
+          # 16-05 (D-13): the NETIP-08 tap-leg soak — no new gate here;
+          # the app rides the EXISTING x64 block (its attrs: kernel-x64,
+          # iso-builder, netdev-args — the last moved in by 16-04).
+          boot-r9-net-soak-x64 = mkApp netSoakR9X64Pkg;
         }
         # 16-03 (HNET-05/D-14): the doctor app — linux-only in its OWN
         # optionalAttrs gate (the checks are linux's; darwin's vmnet
