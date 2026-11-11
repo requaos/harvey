@@ -166,10 +166,10 @@ Plans:
   3. The linux tap/bridge leg (qemu-bridge-helper + br0) is documented per-distro and tested on the primary host — the guest is reachable at L2 from the host, providing the L2-truth venue (HNET-03); the darwin socket_vmnet leg is documented as opt-in documented-manual (HNET-04)
   4. A doctor-style checker diagnoses privileged host setup and prints the exact sudo/bridge/firewall remediation commands (HNET-05)
   5. The networking exit gate is green on x86_64: sustained bidirectional TCP flow + load soak on the tap leg — slirp evidence explicitly not accepted (it forgives L2 bugs) (NETIP-08)
-**Plans**: 8 plans
+**Plans**: 1/8 plans executed
 Plans:
 **Wave 1**
-- [ ] 16-01-PLAN.md — r9: [qemu.netdev] mode tables (slirp/tap/vmnet + default, D-04 hostfwd data) + the ONE netdev_args builder + the exported r9-netdev-args emitter package
+- [x] 16-01-PLAN.md — r9: [qemu.netdev] mode tables (slirp/tap/vmnet + default, D-04 hostfwd data) + the ONE netdev_args builder + the exported r9-netdev-args emitter package
 - [ ] 16-02-PLAN.md — Harvey: netaddr tap_ seam keys + the netip-tap.rc L2-truth fixture (ARP assert, burst leg) + the bake seam-assert extension, teeth-proven
 - [ ] 16-03-PLAN.md — Harvey: the net-doctor app (read-only per-mode checks, exact NixOS-first remediation, WARN class for root-gated reads)
 
@@ -244,7 +244,7 @@ Plans:
 | 13. r9 x86_64 Platform Bring-Up | v2.1 | 6/6 | Complete    | 2026-11-07 |
 | 14. Harvey amd64 Userspace on r9 | v2.1 | 9/9 | Complete    | 2026-11-09 |
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 9/9 | Complete    | 2026-11-10 |
-| 16. Host Net Modes + Networking Exit Gate | v2.1 | - | Not started | - |
+| 16. Host Net Modes + Networking Exit Gate | v2.1 | 1/8 | In Progress | - |
 | 17. r9 Kernel Flush-Out | v2.1 | - | Not started | - |
 | 18. In-Guest p9sk1 Auth Domain | v2.1 | - | Not started | - |
 | 19. CPU Service + Drawterm + rio Desktop | v2.1 | - | Not started | - |

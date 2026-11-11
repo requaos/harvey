@@ -76,12 +76,12 @@
     {
       "number": "15",
       "name": "Userspace Tiers + Bootfs Payload (amd64)",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "16",
       "name": "Host Net Modes + Networking Exit Gate",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "17",
@@ -102,7 +102,7 @@
   "next": {
     "command": "/gsd-progress --next",
     "label": "Advance to the next step",
-    "reason": "Phase 15 (10 of 19 roadmap phases complete) · executing"
+    "reason": "Phase 16 (11 of 19 roadmap phases complete) · executing"
   },
-  "updated_at": "2026-11-10T19:38:44.662Z"
+  "updated_at": "2026-11-11T12:18:29.399Z"
 }

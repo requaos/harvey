@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 16
 current_phase_name: Host Net Modes + Networking Exit Gate
-status: completed
-stopped_at: Phase 16 context gathered
-last_updated: "2026-11-11T01:13:07.005Z"
-last_activity: 2026-11-10
-last_activity_desc: Phase 15 complete
-state_head: 78a53d077a59a469d7e73dc1993c8f751035b588
+status: executing
+stopped_at: Completed 16-01-PLAN.md (r9 emitter pushed at d1c4849 — 16-04 pins it)
+last_updated: "2026-11-11T12:18:59.125Z"
+last_activity: 2026-11-11
+last_activity_desc: Phase 16 execution started
+state_head: fa10f57f3b11dbe0362764863fb5cdce17885e1c
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 24
+  completed_plans: 25
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
-**Current focus:** Phase 15 — Userspace Tiers + Bootfs Payload (amd64)
+**Current focus:** Phase 16 — Host Net Modes + Networking Exit Gate
 
 ## Current Position
 
-Phase: 16 (Host Net Modes + Networking Exit Gate) — READY TO EXECUTE
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-11-10 — Phase 15 complete
+Phase: 16 (Host Net Modes + Networking Exit Gate) — EXECUTING
+Plan: 2 of 8
+Status: Ready to execute
+Last activity: 2026-11-11 — Phase 16 execution started
 
 Progress: [█████░░░░░░░░░░░░░░░] 29% (v2.1: 2/7 phases — 13-14 complete, 15-19 next)
 
@@ -80,6 +80,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 15 P06 | 146 min | 3 tasks | 18 files |
 | Phase 15 P07 | ~50 min continuation (wall <=3h44m; interrupted mid-Task-2) | 3 tasks | 17 files |
 | Phase 15 P08 | 77 min | 3 tasks | 13 files |
+| Phase 16 P01 | 21 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -163,6 +164,9 @@ Recent decisions affecting current work:
 - [Phase 15]: [15-08] The DESK-03 payload is a DECLARE-by-invocation mkimage section (stage_payload + the committed bootfs-payload.txt manifest: [paths]/[fonts]/[floors] consumed by name) and the SERVICES contract declares it — the whole lib/font/bit tree as a bake-time copy with a staged==source count check, /lib/ndb/local sed-substituted from the token template through the netaddr seam (both-direction asserts), and the D-17 profile shape asserted on the staged file (terminal case rio-free, cpu case intact); every assert class is proven by a doctored-input negative control
 - [Phase 15]: [15-08] r9's boot-module stash is now 64 MiB (was 8): the font-carrying services paq is ~26.5MB and the 8 MiB clamp panicked the stash-length reconciliation at the EARLY check's first boot — venue -m was never the limit (a fixed .bss cap); fixed under D-01 at r9 236d5a7 with the FOD re-wired at af52fee (pin eba6b07e2); A3's <=15MB font-deflate guess is falsified (~18.8MB measured); every r9 gate re-greened at the new pin (services/tier-1/net-smoke/smoke)
 - [Phase 15]: [15-08] The tier witness is tree-history-sensitive for the yacc-grammar directory entries (rc/grep/awk): this plan's first tier build produced different bytes for exactly those three once (the tree had matched the pinned digests before it), then every later build reproduced the pinned digests byte-for-byte — measured, cause undetermined — re-pin order is tier-driver-THEN-build-9k10t1.sh (root cause open, phase deferred item); and the expect gates' panic fast-fail truncates the kernel's panic text mid-line (deferred item)
+- [Phase 16]: 16-01: ONE netdev argv builder (config::netdev_args + testable netdev_args_checked core) in a new xtask lib target serves both front-ends — the in-process apply_netdev and the exported r9-netdev-args bin; the Netdev TOML shape is default=slirp + slirp/tap/vmnet sub-tables with the D-04 hostfwd remap (host 5670 -> guest 567, loopback-bound) and the NixOS tap helper path as data; PUSHED at r9 d1c4849dfa1d769240630c29b9b03b88d5819558 (the 16-04 pin target)
+- [Phase 16]: 16-01: xtask needs default-run = xtask once a second bin exists — cargo's xtask custom-subcommand protocol (and kernel-x64's flake buildPhase) breaks on bin ambiguity otherwise; and nix flake builds see only git-TRACKED files, so new sources must be staged before nix build verifies them
+- [Phase 16]: 16-01: the five committed q35 TOMLs are machine-checked by a lib test (include_str! parse, default=slirp + all three sub-tables each) — the must-haves truth enforced at test time; the parallel-boot constraint lands with the hostfwd data (two simultaneous q35 boots collide on 127.0.0.1:17010/5670)
 
 ### Pending Todos
 
@@ -185,6 +189,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-10T23:21:27.075Z
-Stopped at: Phase 16 context gathered
-Resume file: .planning/phases/16-host-net-modes-networking-exit-gate/16-CONTEXT.md
+Last session: 2026-11-11T12:18:59.013Z
+Stopped at: Completed 16-01-PLAN.md (r9 emitter pushed at d1c4849 — 16-04 pins it)
+Resume file: None
