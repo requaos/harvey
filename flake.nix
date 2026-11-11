@@ -230,12 +230,15 @@
           # once as R9_NETDEV_ARGV, and the expect driver splits the
           # tokens (the D-04 hostfwd pair included) and observes both
           # loopback listeners host-side (its hostfwd-* stages; hence
-          # iproute2 below — the driver's `exec ss').
+          # iproute2 below — the driver's `exec ss').  procps is the
+          # EXIT trap's pkill survivor sweep — the same always-listed
+          # dep the soak app carries: `2>/dev/null || true' must mask
+          # a failed sweep, never a missing binary.
           netSmokeR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-net-smoke-x64" ./nix/smoke-r9-net-x64.sh ''
             export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
             export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
             export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.iproute2 ]
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.iproute2 pkgs.procps ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
           # 15-03 (USPACE-07's r9 leg): the SERVICES gate — the SAME
           # pipeline as boot-r9-tier1-x64 but the bake carries the
