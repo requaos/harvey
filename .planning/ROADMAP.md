@@ -166,7 +166,7 @@ Plans:
   3. The linux tap/bridge leg (qemu-bridge-helper + br0) is documented per-distro and tested on the primary host — the guest is reachable at L2 from the host, providing the L2-truth venue (HNET-03); the darwin socket_vmnet leg is documented as opt-in documented-manual (HNET-04)
   4. A doctor-style checker diagnoses privileged host setup and prints the exact sudo/bridge/firewall remediation commands (HNET-05)
   5. The networking exit gate is green on x86_64: sustained bidirectional TCP flow + load soak on the tap leg — slirp evidence explicitly not accepted (it forgives L2 bugs) (NETIP-08)
-**Plans**: 3/8 plans executed
+**Plans**: 4/8 plans executed
 Plans:
 **Wave 1**
 - [x] 16-01-PLAN.md — r9: [qemu.netdev] mode tables (slirp/tap/vmnet + default, D-04 hostfwd data) + the ONE netdev_args builder + the exported r9-netdev-args emitter package
@@ -174,7 +174,7 @@ Plans:
 - [x] 16-03-PLAN.md — Harvey: the net-doctor app (read-only per-mode checks, exact NixOS-first remediation, WARN class for root-gated reads)
 
 **Wave 2** *(blocked on Wave 1 completion)*
-- [ ] 16-04-PLAN.md — Harvey: r9 pin advance (own commit) + the --net/R9_NET surface on boot-r9-x64 + emitter substitution + doctor-inline tap failure + the hermetic slirp boot proof
+- [x] 16-04-PLAN.md — Harvey: r9 pin advance (own commit) + the --net/R9_NET surface on boot-r9-x64 + emitter substitution + doctor-inline tap failure + the hermetic slirp boot proof
 
 **Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 16-05-PLAN.md — NETIP-08 machinery: the tap soak gate app (doctor preflight, slirp refusal, host echo peer, baseline+8-way burst+ARP counting post-passes)
@@ -244,7 +244,7 @@ Plans:
 | 13. r9 x86_64 Platform Bring-Up | v2.1 | 6/6 | Complete    | 2026-11-07 |
 | 14. Harvey amd64 Userspace on r9 | v2.1 | 9/9 | Complete    | 2026-11-09 |
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 9/9 | Complete    | 2026-11-10 |
-| 16. Host Net Modes + Networking Exit Gate | v2.1 | 3/8 | In Progress | - |
+| 16. Host Net Modes + Networking Exit Gate | v2.1 | 4/8 | In Progress | - |
 | 17. r9 Kernel Flush-Out | v2.1 | - | Not started | - |
 | 18. In-Guest p9sk1 Auth Domain | v2.1 | - | Not started | - |
 | 19. CPU Service + Drawterm + rio Desktop | v2.1 | - | Not started | - |
