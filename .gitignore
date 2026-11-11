@@ -144,6 +144,10 @@ __pycache__/
 /build/x86_64/smoke-r9.log
 /build/x86_64/smoke-r9-run1.log
 /build/x86_64/smoke-r9-run2.log
+# 16-08: the tap-leg soak gate's capture (a transient; the green-twice
+# evidence runs retain theirs under the phase evidence dir — the soak
+# script's header already documents it as gitignored; this makes it true)
+/build/x86_64/netsoak-r9.log
 
 # 14-08: the x64 tier sweep's committed fixtures — the nm-input.7
 # discipline (the aarch64 venue's baked object is tracked): nm-input.6
