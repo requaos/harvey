@@ -64,3 +64,26 @@ jobs:
         uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
       - name: composed net smoke (boot-r9-net-smoke)
         run: nix run .#boot-r9-net-smoke
+
+  # 16-06 (HNET-01): the x64 composed net gate's hosted leg — the
+  # re-keyed gate consumes the emitter's slirp argv (the D-04 hostfwd
+  # pair as pinned TOML data, ONE emission path) and observes both
+  # loopback listeners host-side while the guest runs.  The venue is
+  # FIXED slirp (D-02): zero-privilege and hermetic — exactly what a
+  # hosted runner can prove.  The tap/soak legs NEVER run here:
+  # unprivileged hosted runners cannot create taps or attach bridges
+  # (setuid helper + root config) — primary-host-only by construction
+  # (D-13): a hard boundary, not a skipped assert.  Hosted runners are
+  # KVM-less: R9_ACCEL=tcg selects TCG explicitly (the Phase-13
+  # no-silent-downgrade discipline) at the TCG-scale timeout.
+  # Supply chain (the 06-08 rule): checkout pinned to v4's API-resolved
+  # commit — 11d5960a326750d5838078e36cf38b85af677262 — and the
+  # nix-installer rides the header's pinned SHA; no other external
+  # steps, tokens, or secrets (permissions stay contents: read).
+  net-smoke-x64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90 # TCG scale; the smoke's own per-stage 600s timeouts localize failures
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 — API-resolved 2026-11-06 (the 06-08 rule)
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # pinned SHA (header rule)
+      - run: env R9_ACCEL=tcg nix run .#boot-r9-net-smoke-x64
