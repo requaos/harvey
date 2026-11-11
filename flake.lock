@@ -38,11 +38,11 @@
         "rust-overlay": "rust-overlay"
       },
       "locked": {
-        "lastModified": 1794399316,
-        "narHash": "sha256-wSr+fH5X62fNIH2SkU5FL2vzzV4oWLZD9faw8K7SEmk=",
+        "lastModified": 1794432729,
+        "narHash": "sha256-+MiwPpexI9oReJho3oQ3soN6wDB4Gs3jk1pc9nokGO4=",
         "owner": "requaos",
         "repo": "r9",
-        "rev": "d1c4849dfa1d769240630c29b9b03b88d5819558",
+        "rev": "208ceba775577cbae194f5a47dab61930abee743",
         "type": "github"
       },
       "original": {
