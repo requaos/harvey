@@ -13,7 +13,10 @@
 #
 # The pipeline, each step loud on failure:
 #
-#   1. userland build — build/x86_64/subset-build.sh (the tier driver:
+#   1. userland build — build/x86_64/stage-build.sh FIRST (mkimage's
+#      input producer: the leg-1 marker pair + the boot chain — the
+#      clean-checkout rule, 16-06's hosted-run discovery) then
+#      build/x86_64/subset-build.sh (the tier driver:
 #      tier-0 libs + tier-1 set + the tier-2 services set + the boot
 #      chain, into /amd64 + out/; it holds the phase build-tree lock
 #      .build/amd64-tree.lock itself — the 15-01 coupling contract vs
@@ -142,6 +145,8 @@ export KERNDATE
 if [ "${R9_SKIP_BUILD:-0}" = "1" ]; then
 	echo "== R9_SKIP_BUILD=1 — skipping the userland build (iteration hatch; not the gate)"
 else
+	echo "== step 1/4a: stage the mkimage inputs (build/x86_64/stage-build.sh — the leg-1 marker pair smoke-out/{init,smokesleep} + the boot chain; mkimage's named producer, absent on a clean checkout: the 16-06 hosted-run discovery)"
+	sh "$HARVEY/build/x86_64/stage-build.sh" || err "stage build failed"
 	echo "== step 1/4: amd64 tier build (build/x86_64/subset-build.sh — holds the phase build-tree lock itself)"
 	sh "$HARVEY/build/x86_64/subset-build.sh" || err "tier build failed"
 fi

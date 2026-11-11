@@ -39,7 +39,10 @@
 #       torn down by the EXIT trap (dies with the gate; the r9 xtask
 #       HostEcho lifecycle precedent, D-12; no daemon, no systemd).
 #       The doctor's blastport-free check ran first (0c).
-#   1. userland build — build/x86_64/subset-build.sh (the tier driver
+#   1. userland build — build/x86_64/stage-build.sh FIRST (mkimage's
+#       input producer: the leg-1 marker pair + the boot chain — the
+#       clean-checkout rule, 16-06's hosted-run discovery) then
+#       build/x86_64/subset-build.sh (the tier driver
 #       incl. the 14-09 net section).  Skip with R9_SKIP_BUILD=1 for
 #       iteration — an escape hatch, NEVER the default; the GATE runs
 #       the default.
@@ -311,6 +314,8 @@ export KERNDATE
 if [ "${R9_SKIP_BUILD:-0}" = "1" ]; then
 	echo "== R9_SKIP_BUILD=1 — skipping the userland build (iteration hatch; not the gate)"
 else
+	echo "== step 1/4a: stage the mkimage inputs (build/x86_64/stage-build.sh — the leg-1 marker pair smoke-out/{init,smokesleep} + the boot chain; mkimage's named producer, absent on a clean checkout: the 16-06 hosted-run discovery)"
+	sh "$HARVEY/build/x86_64/stage-build.sh" || err "stage build failed"
 	echo "== step 1/4: amd64 tier + net build (build/x86_64/subset-build.sh)"
 	sh "$HARVEY/build/x86_64/subset-build.sh" || err "tier build failed"
 fi

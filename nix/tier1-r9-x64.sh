@@ -10,7 +10,10 @@
 #
 # The pipeline, each step loud on failure:
 #
-#   1. userland build — build/x86_64/subset-build.sh, the tier driver
+#   1. userland build — build/x86_64/stage-build.sh FIRST (mkimage's
+#      input producer: the leg-1 marker pair + the boot chain — the
+#      clean-checkout rule, 16-06's hosted-run discovery) then
+#      build/x86_64/subset-build.sh, the tier driver
 #      (objtype=amd64: the tier-0 libs + the tier-1 set + the boot
 #      chain, into /amd64 + out/).  Linux-native only (unshare; no
 #      lima leg on x64).  Skip with R9_SKIP_BUILD=1 for iteration — an
@@ -136,6 +139,8 @@ export KERNDATE
 if [ "${R9_SKIP_BUILD:-0}" = "1" ]; then
 	echo "== R9_SKIP_BUILD=1 — skipping the userland build (iteration hatch; not the gate)"
 else
+	echo "== step 1/4a: stage the mkimage inputs (build/x86_64/stage-build.sh — the leg-1 marker pair smoke-out/{init,smokesleep} + the boot chain; mkimage's named producer, absent on a clean checkout: the 16-06 hosted-run discovery)"
+	sh "$HARVEY/build/x86_64/stage-build.sh" || err "stage build failed"
 	echo "== step 1/4: amd64 tier build (build/x86_64/subset-build.sh)"
 	sh "$HARVEY/build/x86_64/subset-build.sh" || err "tier build failed"
 fi
