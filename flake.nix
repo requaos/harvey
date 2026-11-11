@@ -165,6 +165,16 @@
           bootR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-x64" ./nix/boot-r9-x64.sh ''
             export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
             export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
+            # 16-04 (HNET-02/D-05): the netdev argv emitter — the boot
+            # script's --net/R9_NET modes resolve to THIS bin's output
+            # (the D-04 hostfwd remap and the NixOS tap helper path are
+            # pinned r9 TOML data).  The attr first exists at the 16-04
+            # pin advance — hence "netdev-args" in the gate list below.
+            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
+            # 16-04 (D-03): the tap leg's doctor gate — 16-03's
+            # read-only checker, ONE implementation consumed two ways
+            # (its own app + this path).
+            export R9_NET_DOCTOR="${netDoctorPkg}/bin/harvey-net-doctor"
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
           # 14-07 (XEXEC-03's gate): the composed smoke — the SAME
@@ -277,14 +287,20 @@
           boot-r9-net-smoke = mkApp netSmokeR9Pkg;
           boot-r9-tier1 = mkApp tier1R9Pkg;
         }
-        # 14-07: the x64 compose apps live ONLY where r9 exports BOTH
-        # kernel-x64 and iso-builder (its own gates: the kernel on every
-        # linux host, the BIOS ISO machinery — grub's i386-pc modules —
-        # on x86_64-linux only).  The hasAttr discipline re-keyed to the
+        # 14-07: the x64 compose apps live ONLY where r9 exports the
+        # attrs they consume (its own gates: the kernel on every linux
+        # host, the BIOS ISO machinery — grub's i386-pc modules — on
+        # x86_64-linux only).  The hasAttr discipline re-keyed to the
         # attrs actually consumed, so evaluation stays lazy everywhere
         # else and widens automatically if r9 ever widens its exports.
+        # 16-04 (research Pitfall 6): the list gained "netdev-args" in
+        # the same commit set as the pin advance that carries the
+        # export — boot-r9-x64's R9_NETDEV_EMITTER consumes it.  NEVER
+        # widen this list ahead of a pin advance (every x64 app would
+        # vanish against older r9 pins), and a future re-pin must not
+        # silently drop the attr.
         // nixpkgs.lib.optionalAttrs
-          (builtins.all (a: builtins.hasAttr a r9.packages.${system}) [ "kernel-x64" "iso-builder" ]) {
+          (builtins.all (a: builtins.hasAttr a r9.packages.${system}) [ "kernel-x64" "iso-builder" "netdev-args" ]) {
           boot-r9-x64 = mkApp bootR9X64Pkg;
           boot-r9-smoke-x64 = mkApp smokeR9X64Pkg;
           boot-r9-tier1-x64 = mkApp tier1R9X64Pkg;
