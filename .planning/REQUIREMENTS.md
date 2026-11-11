@@ -45,8 +45,8 @@
 
 - [x] **HNET-01**: slirp+hostfwd hermetic default: hostfwd bound to 127.0.0.1 for BOTH tcp/17010 and tcp/567; zero privilege; CI-able
 - [x] **HNET-02**: `--net=slirp|tap|vmnet` explicit mode selection on the boot app (no silent auto-downgrade); netdev stanza single-sourced as data in r9's x86_64 platform TOML, consumed by Harvey's flake
-- [ ] **HNET-03**: linux tap/bridge leg (qemu-bridge-helper + br0) documented per-distro and tested on the primary host — the L2-truth leg
-- [ ] **HNET-04**: darwin socket_vmnet leg documented as opt-in documented-manual (builtin vmnet is entitlement-walled on nixpkgs qemu)
+- [x] **HNET-03**: linux tap/bridge leg (qemu-bridge-helper + br0) documented per-distro and tested on the primary host — the L2-truth leg
+- [x] **HNET-04**: darwin socket_vmnet leg documented as opt-in documented-manual (builtin vmnet is entitlement-walled on nixpkgs qemu)
 - [x] **HNET-05**: doctor-style checker diagnosing privileged host setup, printing exact sudo/bridge/firewall remediation
 
 ### In-Guest Auth Domain (AUTH — continuing)
@@ -136,8 +136,8 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | DESK-03 | Phase 15 | Complete |
 | HNET-01 | Phase 16 | Complete |
 | HNET-02 | Phase 16 | Complete |
-| HNET-03 | Phase 16 | Pending |
-| HNET-04 | Phase 16 | Pending |
+| HNET-03 | Phase 16 | Complete |
+| HNET-04 | Phase 16 | Complete |
 | HNET-05 | Phase 16 | Complete |
 | NETIP-08 | Phase 16 | Complete |
 | FLUSH-01 | Phase 17 | Pending |
