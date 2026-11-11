@@ -59,7 +59,11 @@ export HARVEY
 HARVEY_LINUX_BIN="${HARVEY_LINUX_BIN:-$HARVEY/.build/hostbin-linux-x86_64/bin}"
 export HARVEY_LINUX_BIN
 if [ ! -x "$HARVEY_LINUX_BIN/6c" ] || [ ! -x "$HARVEY_LINUX_BIN/ar" ]; then
-	err "host toolchain missing ($HARVEY_LINUX_BIN/6c) — run 'nix run .#setup && nix run .#toolchain' first (the flake apps; amd64 leg of BUILDTOOLCHAIN)"
+	# 16-16 (clean-checkout rule, the hosted-run discovery): self-bootstrap
+	# instead of erroring — subset-build.sh's own ensure idiom, so a clean
+	# venue (hosted CI; a fresh clone) stages without a manual pre-step.
+	echo "== host toolchain missing — bootstrapping (nix run .#setup && nix run .#toolchain)"
+	(cd "$HARVEY" && nix run .#setup && nix run .#toolchain) || err "host toolchain bootstrap failed"
 fi
 
 # the devshell-env vars the guest script's mk invocations expect (the
