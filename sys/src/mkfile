@@ -93,7 +93,19 @@ TIER4A=$HARVEY/build/x86_64/tiers/tier4-tail.txt
 T0KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER0A}
 T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A $TIER4A}
 
-LIBS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEPA) echo $i; if not echo $ALLLIBS}
+# 15-16 append: the amd64 plain-build arm also emits the ape lib
+# substrate the pcc tier4 members link against (bzip2, compress, eqn,
+# grap, lp, pic, spin, troff — ape/stdio.h's pragma lib demands
+# /$objtype/lib/ape/libap.a, bsd.h libbsd.a, utf.h libutf.a; pcc's own
+# implicit link adds libap alone, pcc.c:193).  Measured-minimal: the
+# three subdirs only, NOT wholesale ape/lib — the 9/draw/fmt/... dirs
+# carry venue-fragile generator machinery the sweep's root namespace
+# owned.  The D-09 sweep venue built ape unfiltered so this gap only
+# surfaced on the clean-checkout plain build (tier-9k/poolpanic/harvey
+# CI: pcc "cannot open /amd64/lib/ape/libap.a").  The tier vocabulary is
+# cmd/-anchored and cannot express this namespace, so the substrate
+# rides here, before the tier-kept libs' consumers link.
+LIBS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) @{for(i in $ALLLIBS) if(~ $i $T0KEEPA) echo $i; echo ape/lib/ap ape/lib/bsd ape/lib/utf}; if not echo $ALLLIBS}
 CMDS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLCMDS}
 SUBSYS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLSUBSYS}
 
