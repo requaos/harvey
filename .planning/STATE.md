@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 16
 current_phase_name: Host Net Modes + Networking Exit Gate
 status: executing
-stopped_at: Completed 16-01-PLAN.md (r9 emitter pushed at d1c4849 — 16-04 pins it)
-last_updated: "2026-11-11T12:18:59.125Z"
+stopped_at: Completed 16-02-PLAN.md (tap seam + netip-tap fixture + bake assert landed)
+last_updated: "2026-11-11T12:37:59.348Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 16 execution started
-state_head: fa10f57f3b11dbe0362764863fb5cdce17885e1c
+state_head: d28134991deca49afcc9ba7c6494a29f7a388b56
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 25
+  completed_plans: 26
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 16 (Host Net Modes + Networking Exit Gate) — EXECUTING
-Plan: 2 of 8
+Plan: 3 of 8
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 16 execution started
 
@@ -81,6 +81,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 15 P07 | ~50 min continuation (wall <=3h44m; interrupted mid-Task-2) | 3 tasks | 17 files |
 | Phase 15 P08 | 77 min | 3 tasks | 13 files |
 | Phase 16 P01 | 21 min | 3 tasks | 13 files |
+| Phase 16 P02 | 8min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -167,6 +168,9 @@ Recent decisions affecting current work:
 - [Phase 16]: 16-01: ONE netdev argv builder (config::netdev_args + testable netdev_args_checked core) in a new xtask lib target serves both front-ends — the in-process apply_netdev and the exported r9-netdev-args bin; the Netdev TOML shape is default=slirp + slirp/tap/vmnet sub-tables with the D-04 hostfwd remap (host 5670 -> guest 567, loopback-bound) and the NixOS tap helper path as data; PUSHED at r9 d1c4849dfa1d769240630c29b9b03b88d5819558 (the 16-04 pin target)
 - [Phase 16]: 16-01: xtask needs default-run = xtask once a second bin exists — cargo's xtask custom-subcommand protocol (and kernel-x64's flake buildPhase) breaks on bin ambiguity otherwise; and nix flake builds see only git-TRACKED files, so new sources must be staged before nix build verifies them
 - [Phase 16]: 16-01: the five committed q35 TOMLs are machine-checked by a lib test (include_str! parse, default=slirp + all three sub-tables each) — the must-haves truth enforced at test time; the parallel-boot constraint lands with the hostfwd data (two simultaneous q35 boots collide on 127.0.0.1:17010/5670)
+- [Phase 16]: 16-02: OQ-1 adopted — the host's existing br0 192.168.122.0/24 is the committed tap seam (host .1, guest .15; collision-free with slirp and the LAN); OQ-4 verdict recorded in the seam: v6 is NOT free to verify and stays deferred (no v6 key this phase)
+- [Phase 16]: 16-02: the burst leg's marker-COUNT assert belongs to the host-side expect post-pass — rc cannot collect per-child statuses after a bare wait; the fixture prints netsoak: burst wait returned and 16-05 counts tcpblast: done occurrences
+- [Phase 16]: 16-02: dc rides the net image (Rule 3 additive extension) — the mandated dc backquote burst counter needs the tier-1-built binary in the guest; the bake's seam assert now covers BOTH venue prefixes, teeth-proven by a doctored-input negative control
 
 ### Pending Todos
 
@@ -189,6 +193,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-11T12:18:59.013Z
-Stopped at: Completed 16-01-PLAN.md (r9 emitter pushed at d1c4849 — 16-04 pins it)
+Last session: 2026-11-11T12:37:58.778Z
+Stopped at: Completed 16-02-PLAN.md (tap seam + netip-tap fixture + bake assert landed)
 Resume file: None
