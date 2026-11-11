@@ -19,7 +19,7 @@ repo (`git ls-files` non-empty) — no gitignored mirrors.
 | `../r9/x86_64/lib/config_q35*.toml` ×5 (MOD) | config (data) | — | `../r9/x86_64/lib/config_q35shell.toml` :42-45 | exact |
 | `../r9/flake.nix` (MOD) | build/package | build | `../r9/flake.nix` kernel-x64 :312-330 + optionalAttrs gates :369-373 | exact |
 | `nix/boot-r9-x64.sh` (MOD) | launcher script | request-response | itself — R9_ACCEL case :95-107, netdev line :162-167 | exact |
-| `nix/net-soak-r9-x64.sh` (NEW) | gate script | batch pipeline | `nix/smoke-r9-net-x64.sh` (whole file) | exact |
+| `nix/soak-r9-net-x64.sh` (NEW) | gate script | batch pipeline | `nix/smoke-r9-net-x64.sh` (whole file) | exact |
 | `nix/net-doctor.sh` (NEW) | diagnostic script | request-response (probe+report) | `nix/boot-r9-x64.sh` contract checks :76-93 (fail-loud `err`) | partial |
 | `nix/host-echo.c` (NEW, home planner choice) | host daemon binary | request-response (concurrent echo) | `../r9/xtask/src/main.rs` `HostEcho` :799-866 + `build/x86_64/tcpecho.c` | exact (two-source) |
 | `flake.nix` (MOD) | build/package | build | itself — `netSmokeR9X64Pkg` :216-220, hasAttr gate :266-273 | exact |
@@ -221,7 +221,7 @@ set -- qemu-system-x86_64 \
 Also keep: the argv echo before launch (:171-172, "captured gate logs are
 self-describing") — the emitter's substituted argv should print the same way.
 
-### Harvey: `nix/net-soak-r9-x64.sh` (NEW — D-13 soak app body)
+### Harvey: `nix/soak-r9-net-x64.sh` (NEW — D-13 soak app body)
 
 **Analog:** `nix/smoke-r9-net-x64.sh` stage-for-stage. Copy the whole pipeline
 skeleton and re-key: header comment block (purpose + env contract + hygiene

@@ -569,24 +569,30 @@ echo netsoak: burst wait returned
 | A6 | NixOS `networking.nat`/`networking.bridges` options render the intended nftables/iptables shape on this host's config style (options verified against wiki, not applied) | Code Examples (NixOS) | Low — the tested-on-primary-host leg of D-10 is exactly where this gets proven |
 | A7 | The colmena-managed host accepts the documented environment.etc/security.wrappers additions unchanged (the wrapper + bridge.conf already exist via the libvirt-era setup — the exact colmena source of the existing wrapper was not located) | Pitfall 2, NixOS example | Low-Medium — docs may need a "wrapper already present via virtualisation.libvirtd" note |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All four resolved at planning (2026-11-10); each resolution names the plan tasks that adopted it.
 
 1. **Bridge subnet + seam values: adopt the host's existing br0/192.168.122.1/24 or define a fresh one?**
    - What we know: br0 exists at 192.168.122.1/24, empty, collision-free with 10.0.2.0/24 (slirp) and 192.168.86.0/24 (the host LAN); libvirt's conventional range means it's a well-understood private subnet.
    - What's unclear: whether the colmena config commits it (A2) and whether the planner prefers a project-distinct range.
    - Recommendation: adopt 192.168.122.0/24 (the D-08 "libvirt-default style" decision text names it; the host already carries it) — tap_guestv4=192.168.122.15, tap_maskv4=255.255.255.0, tap_gwv4=192.168.122.1 as seam values, with the doctor + docs pinning .1 as the host.
+   - Resolution: RESOLVED — adopted 192.168.122.0/24 with host .1 / guest .15 as the tap_ seam values (16-02 Task 1); consumed by the 16-03 doctor's bridge-addr check and the 16-05 soak peer's bind.
 2. **Which app carries the HNET-01 CI leg, and does the slirp-default boot get a smoke variant?**
    - What we know: no x64 composed gate runs in hosted CI today (zero grep hits for the x64 app names across .github/workflows); r9-shell.yml is the slirp-net CI home so far (aarch64 legs, R9_ACCEL=tcg implied by hosted-runner shape, 90m timeout precedent).
    - What's unclear: whether HNET-01's CI proof is a new x64 net-smoke CI job (running the existing boot-r9-net-smoke-x64 once its venue rides the emitter+hostfwd data) or a new minimal slirp-default leg.
    - Recommendation: a new job in r9-shell.yml running the x64 composed net gate with R9_ACCEL=tcg, asserting the hostfwd ports bind (the gate app exports them); tap/soak legs stay primary-host-only (impossible unprivileged).
+   - Resolution: RESOLVED — the existing x64 composed net gate rides the emitter argv + hostfwd listener asserts (16-06 Task 1) and a new r9-shell.yml job net-smoke-x64 runs it at R9_ACCEL=tcg (16-06 Task 2); tap/soak legs stay primary-host-only.
 3. **Does the doctor gate its exit code on root-gated findings (masquerade)?**
    - What we know: masquerade-rule reads need root; nft is not on PATH (iptables is).
    - What's unclear: D-14's "Exit 0/1 = CI-able preflight" — which findings are fatal vs WARN when unprivileged.
    - Recommendation: slirp checks all unprivileged-fatal; tap checks fatal except masquerade (WARN + exact sudo command) unless the doctor runs under sudo — make it explicit in the plan so the CI preflight semantics are deterministic.
+   - Resolution: RESOLVED — exit 0 iff zero FAILs; every slirp check fatal, every tap check fatal EXCEPT the root-gated masquerade read which degrades to a loud WARN with the exact sudo command (16-03 Task 1).
 4. **v6 on tap: trivially free or not?**
    - What we know: the seam anticipates v6 keys; no x64 gate speaks v6; NETIP-08 doesn't require it.
    - What's unclear: whether a v6 ping/echo over tap costs anything kernel-side.
    - Recommendation: leave to the plan's discretion clause (researcher-verified-free-only); do not let it grow.
+   - Resolution: RESOLVED — evaluated NOT free to verify; v6 keys stay deferred to the phase that first needs them, and the seam's stale v6 note is re-keyed to record that verdict (16-02 Task 1). No v6 leg this phase.
 
 ## Environment Availability
 

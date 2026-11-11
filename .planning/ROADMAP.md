@@ -166,14 +166,15 @@ Plans:
   3. The linux tap/bridge leg (qemu-bridge-helper + br0) is documented per-distro and tested on the primary host — the guest is reachable at L2 from the host, providing the L2-truth venue (HNET-03); the darwin socket_vmnet leg is documented as opt-in documented-manual (HNET-04)
   4. A doctor-style checker diagnoses privileged host setup and prints the exact sudo/bridge/firewall remediation commands (HNET-05)
   5. The networking exit gate is green on x86_64: sustained bidirectional TCP flow + load soak on the tap leg — slirp evidence explicitly not accepted (it forgives L2 bugs) (NETIP-08)
-**Plans**: 7 plans
+**Plans**: 8 plans
 Plans:
 - [ ] 16-01-PLAN.md — r9: [qemu.netdev] mode tables (slirp/tap/vmnet + default, D-04 hostfwd data) + the ONE netdev_args builder + the exported r9-netdev-args emitter package
 - [ ] 16-02-PLAN.md — Harvey: netaddr tap_ seam keys + the netip-tap.rc L2-truth fixture (ARP assert, burst leg) + the bake seam-assert extension, teeth-proven
 - [ ] 16-03-PLAN.md — Harvey: the net-doctor app (read-only per-mode checks, exact NixOS-first remediation, WARN class for root-gated reads)
 - [ ] 16-04-PLAN.md — Harvey: r9 pin advance (own commit) + the --net/R9_NET surface on boot-r9-x64 + emitter substitution + doctor-inline tap failure + the hermetic slirp boot proof
-- [ ] 16-05-PLAN.md — NETIP-08: the tap soak gate app (doctor preflight, slirp refusal, host echo peer, baseline+8-way burst+ARP, green twice, kernel-fix headroom)
+- [ ] 16-05-PLAN.md — NETIP-08 machinery: the tap soak gate app (doctor preflight, slirp refusal, host echo peer, baseline+8-way burst+ARP counting post-passes)
 - [ ] 16-06-PLAN.md — HNET-01 CI leg: the net gate rides the emitter argv + hostfwd listener asserts + the r9-shell.yml net-smoke-x64 job
+- [ ] 16-08-PLAN.md — NETIP-08 runs: the tap soak green twice + the in-phase kernel-fix loop (push-before-pin, FOD re-wire) + evidence/r9-SHA consolidation
 - [ ] 16-07-PLAN.md — per-distro docs (NixOS tested, generic-Linux + darwin manual) + 16-EVIDENCE.md consolidation
 
 ### Phase 17: r9 Kernel Flush-Out
