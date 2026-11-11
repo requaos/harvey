@@ -22,7 +22,8 @@
 #      builds the ISO from the kernel + the chain bake, then:
 #        qemu-system-x86_64 -M q35 -accel kvm -cpu host -smp 1 -m 1024M
 #          -cdrom <composed ISO>
-#          -netdev user,id=n0 -device virtio-net-pci-non-transitional,netdev=n0
+#          <the emitter's netdev+device argv for NET_MODE — the
+#           R9_NETDEV_EMITTER's output, D-05: no netdev literal here>
 #          -nographic
 #      NO DTB patch, NO qemu loader-device flag anywhere — the aarch64 delivery
 #      is deliberately not carried: GRUB delivers bootfs as an mb2
@@ -34,6 +35,15 @@
 # R9_ACCEL (kvm default) — never a silent downgrade.  A kvm request on
 # a KVM-less host FAILS LOUDLY naming R9_ACCEL=tcg as the explicit
 # fallback; TCG selects -cpu qemu64 (the hosted-runner shape).
+#
+# Net discipline (Phase 16, D-01): the net mode comes ONLY from
+# --net=<mode> over R9_NET over the slirp default — never a silent
+# downgrade.  An unknown mode is a usage error listing slirp|tap|vmnet;
+# a cross-venue request (--net=vmnet on linux, --net=tap on darwin) is
+# rejected at parse naming the venue's valid modes; the tap leg refuses
+# to launch unless the net-doctor's tap checks pass first (D-03 — the
+# doctor's per-issue remediations print inline in the failure, never
+# auto-applied).
 #
 # Env contract:
 #   R9_KERNEL_X64_PKG  REQUIRED — the r9 kernel-x64 package's store
@@ -47,10 +57,25 @@
 #                     flake input's packages.iso-builder); the flake
 #                     app exports it.  The composed ISO's bytes come
 #                     from r9's ONE implementation, un-forked (D-05).
+#   R9_NETDEV_EMITTER REQUIRED — r9's netdev-args emitter bin (the
+#                     flake input's packages.netdev-args); the flake
+#                     app exports it.  The qemu netdev+device argv
+#                     tokens come ONLY from its output for the
+#                     selected mode (D-05: the D-04 hostfwd remap and
+#                     the NixOS tap helper path are pinned TOML data,
+#                     never script text — no netdev literal here).
+#   R9_NET_DOCTOR     REQUIRED for --net=tap — the harvey-net-doctor
+#                     app path (16-03/D-14, read-only); the tap leg
+#                     runs it FIRST and aborts on any FAIL with the
+#                     per-issue remediation blocks inline (D-03).
 #   R9_ACCEL          kvm (default) | tcg — no auto, no silent
 #                     downgrade (see above).
 #   R9_CPU            override the cpu model (default: host under kvm,
 #                     qemu64 under tcg).
+#   R9_NET            default net mode when no --net flag:
+#                     slirp|tap|vmnet (default slirp).  The flag wins
+#                     over the env (the R9_ACCEL machine-contract
+#                     precedent); venue-validated at parse.
 #   R9_SKIP_BUILD     =1 skips step 1 (iteration hatch; see above).
 #   KERNDATE          pinned-build timestamp override; derived from
 #                     the HARVEY checkout's git log otherwise.
@@ -63,7 +88,7 @@
 # binutils on linux (the namespace build's transport).  Standalone use
 # needs the same tools on PATH.
 #
-# usage: nix run .#boot-r9-x64   (from the repo root)
+# usage: nix run .#boot-r9-x64 [-- --net=slirp|tap|vmnet]   (from the repo root; default slirp)
 
 set -e
 
@@ -106,10 +131,80 @@ case "$R9_ACCEL" in
 	*) err "R9_ACCEL=$R9_ACCEL: want kvm|tcg" ;;
 esac
 
+# --- step 0c: net mode selection (--net flag > R9_NET > slirp) ---------
+
+# the venue names the valid modes (D-01): linux's legs are slirp+tap,
+# darwin's are slirp+vmnet (the manual leg, HNET-04) — a cross-venue
+# request is a usage error HERE, never an obscure failure inside qemu
+case "$(uname -s)" in
+	Linux)	VENUE=linux ;;
+	Darwin)	VENUE=darwin ;;
+	*) err "uname $(uname -s): unsupported venue for --net (want linux|darwin)" ;;
+esac
+
+# the script's ONLY argument surface: --net=<mode>, the = form alone
+# (--net tap is NOT accepted — one accepted form, no ambiguity)
+NET_FLAG=
+for ARG in "$@"; do
+	case "$ARG" in
+	--net=*)
+		[ -z "$NET_FLAG" ] || err "duplicate --net ('$ARG' after '$NET_FLAG') — one net mode per boot"
+		NET_FLAG="$ARG"
+		;;
+	*) err "unknown argument '$ARG' — the accepted form is --net=<mode> (usage: nix run .#boot-r9-x64 -- --net=slirp|tap|vmnet)" ;;
+	esac
+done
+
+if [ -n "$NET_FLAG" ]; then
+	NET_MODE="${NET_FLAG#--net=}"
+else
+	NET_MODE="${R9_NET:-slirp}"
+fi
+
+case "$NET_MODE" in
+	slirp)	;;
+	tap)
+		[ "$VENUE" = linux ] || err "--net=tap on $VENUE: cross-venue (tap is the linux leg; $VENUE's valid net modes: slirp vmnet)"
+		;;
+	vmnet)
+		[ "$VENUE" = darwin ] || err "--net=vmnet on $VENUE: cross-venue (vmnet is darwin's manual leg, HNET-04; $VENUE's valid net modes: slirp tap)"
+		;;
+	*) err "--net/R9_NET=$NET_MODE: want slirp|tap|vmnet (the valid net modes)" ;;
+esac
+
+# the netdev argv comes ONLY from r9's emitter (D-05) — the contract
+# check mirrors R9_ISO_BUILDER's -f/-x shape
+[ -n "${R9_NETDEV_EMITTER:-}" ] || err "R9_NETDEV_EMITTER unset — run via the flake app (nix run .#boot-r9-x64), which exports r9's netdev-args emitter path (a pin predating the 16-04 advance lacks the export)"
+[ -f "$R9_NETDEV_EMITTER" ] && [ -x "$R9_NETDEV_EMITTER" ] \
+	|| err "R9_NETDEV_EMITTER $R9_NETDEV_EMITTER: not an executable file (want <pkg>/bin/r9-netdev-args)"
+
+# the tap leg gates on the doctor FIRST (D-03): read-only checks, the
+# per-issue remediation blocks printed inline on failure — never
+# auto-fixed, never a fall-through to qemu
+if [ "$NET_MODE" = tap ]; then
+	[ -n "${R9_NET_DOCTOR:-}" ] || err "R9_NET_DOCTOR unset — run via the flake app (nix run .#boot-r9-x64), which exports the harvey-net-doctor path (the tap leg's D-03 gate)"
+	[ -f "$R9_NET_DOCTOR" ] && [ -x "$R9_NET_DOCTOR" ] \
+		|| err "R9_NET_DOCTOR $R9_NET_DOCTOR: not an executable file (want <pkg>/bin/harvey-net-doctor)"
+	DOCTOR_RC=0
+	# shellcheck disable=SC2312  # the captured rc is the point: FAIL => print + abort
+	DOCTOR_OUT=$(HARVEY="$HARVEY" "$R9_NET_DOCTOR" --mode tap) || DOCTOR_RC=$?
+	if [ "$DOCTOR_RC" -ne 0 ]; then
+		printf '%s\n' "$DOCTOR_OUT" >&2
+		err "tap prereqs unmet — the doctor's findings + per-issue remediation blocks are above; full report: nix run .#net-doctor -- --mode tap (the doctor is read-only: the human applies the remediations, then retries — no silent downgrade, ever)"
+	fi
+	printf '%s\n' "$DOCTOR_OUT"
+fi
+
+# shellcheck disable=SC2312  # the rc rides the ||: an emitter failure is a named contract error (its stderr passed through above)
+NETDEV_ARGV=$("$R9_NETDEV_EMITTER" --mode "$NET_MODE") \
+	|| err "the netdev emitter failed for mode $NET_MODE (its diagnostics are above; the argv comes only from the pinned r9 TOML — D-05)"
+[ -n "$NETDEV_ARGV" ] || err "the netdev emitter printed no netdev argv for mode $NET_MODE"
+
 echo "== r9 kernel package: $R9_KERNEL_X64_PKG"
 echo "   kernel:     $R9_KERNEL"
 echo "   iso-builder: $R9_ISO_BUILDER"
-echo "   shape:      q35 accel=$R9_ACCEL cpu=$R9_CPU"
+echo "   netdev emitter: $R9_NETDEV_EMITTER"
+echo "   shape:      q35 accel=$R9_ACCEL cpu=$R9_CPU net=$NET_MODE"
 
 # --- provenance (KERNDATE; the boot-r9.sh discipline) ------------------
 # Pinned build timestamp; override with KERNDATE=<epoch>.  Derived
@@ -159,11 +254,14 @@ ISO="$TMPD/boot.iso"
 # D-10 carried: the standard boot speaks Ethernet — the always-on NIC
 # rides every composed boot (the aarch64 argv re-keyed to -cdrom; the
 # nic-bind post-pass of the smoke gate asserts the driver's bind line).
+# 16-04 (D-05): the netdev+device tokens are the emitter's output for
+# NET_MODE, word-split unquoted — the emitter prints space-separated
+# tokens containing no spaces; NO netdev literal lives in this script.
+# shellcheck disable=SC2086  # the word-split IS the argv
 set -- qemu-system-x86_64 \
 	-M q35 -cpu "$R9_CPU" -smp 1 -m 1024M -accel "$R9_ACCEL" \
 	-cdrom "$ISO" \
-	-netdev user,id=n0 \
-	-device virtio-net-pci-non-transitional,netdev=n0 \
+	$NETDEV_ARGV \
 	-nographic
 
 # always print the assembled argv so captured gate logs are
