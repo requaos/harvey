@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 16
 current_phase_name: Host Net Modes + Networking Exit Gate
 status: executing
-stopped_at: Completed 16-02-PLAN.md (tap seam + netip-tap fixture + bake assert landed)
-last_updated: "2026-11-11T12:37:59.348Z"
+stopped_at: Completed 16-03-PLAN.md (net-doctor + flake app landed)
+last_updated: "2026-11-11T12:58:29.267Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 16 execution started
-state_head: d28134991deca49afcc9ba7c6494a29f7a388b56
+state_head: 3d6565fff4125ea4446743d067f478225a36004c
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 26
+  completed_plans: 27
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 16 (Host Net Modes + Networking Exit Gate) — EXECUTING
-Plan: 3 of 8
+Plan: 4 of 8
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 16 execution started
 
@@ -82,6 +82,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 15 P08 | 77 min | 3 tasks | 13 files |
 | Phase 16 P01 | 21 min | 3 tasks | 13 files |
 | Phase 16 P02 | 8min | 2 tasks | 3 files |
+| Phase 16 P03 | 9 min | 2 tasks | 2 files |
 
 ## Accumulated Context
 
@@ -171,6 +172,8 @@ Recent decisions affecting current work:
 - [Phase 16]: 16-02: OQ-1 adopted — the host's existing br0 192.168.122.0/24 is the committed tap seam (host .1, guest .15; collision-free with slirp and the LAN); OQ-4 verdict recorded in the seam: v6 is NOT free to verify and stays deferred (no v6 key this phase)
 - [Phase 16]: 16-02: the burst leg's marker-COUNT assert belongs to the host-side expect post-pass — rc cannot collect per-child statuses after a bare wait; the fixture prints netsoak: burst wait returned and 16-05 counts tcpblast: done occurrences
 - [Phase 16]: 16-02: dc rides the net image (Rule 3 additive extension) — the mandated dc backquote burst counter needs the tier-1-built binary in the guest; the bake's seam assert now covers BOTH venue prefixes, teeth-proven by a doctored-input negative control
+- [Phase 16]: 16-03: OQ-3 landed as committed exit semantics — the doctor exits 0 iff zero FAILs; WARN-class findings never gate the exit, and the root-gated masquerade read degrades to a loud WARN carrying the exact sudo commands (iptables-save/nft) with the seam-derived subnet
+- [Phase 16]: 16-03: the doctor carries zero address literals — the tap subnet/ports interpolate seam-derived values into remediations (the seam is the single address source host-side too), probe output prints on detail lines only (T-16-05), and the app gate is its OWN linux optionalAttrs with the frozen kernel-x64/iso-builder list untouched (Pitfall 6, diff-asserted)
 
 ### Pending Todos
 
@@ -193,6 +196,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-11T12:37:58.778Z
-Stopped at: Completed 16-02-PLAN.md (tap seam + netip-tap fixture + bake assert landed)
+Last session: 2026-11-11T12:58:28.671Z
+Stopped at: Completed 16-03-PLAN.md (net-doctor + flake app landed)
 Resume file: None
