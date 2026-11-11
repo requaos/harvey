@@ -89,9 +89,24 @@
 # the capture tail); exit 2 on a contract violation (missing env).
 
 set stage_timeout 600                ;# per stage, TCG-sized (carried)
+set soak_stage_timeout 2700          ;# 16-08: the SOAK legs' stage budget
+					     ;# — burst-wait spans the whole
+					     ;# baseline (2048 rounds ≈ 800s at
+					     ;# the measured KVM pace) + the
+					     ;# 8x512 burst (≈ 800s more); the
+					     ;# carried 600s killed every
+					     ;# first-run MID-BASELINE (the
+					     ;# 16-08 root cause: the kill's
+					     ;# truncations — torn serial
+					     ;# lines, unacked final
+					     ;# segments — masqueraded as a
+					     ;# kernel wedge; the
+					     ;# instrumented autopsy
+					     ;# (debugcon) proved the guest
+					     ;# healthy at kill time)
 set overall_budget 3600              ;# whole-sequence wall clock; a
-				     ;# stall IS the finding — the
-				     ;# budget fails it loud
+					     ;# stall IS the finding — the
+					     ;# budget fails it loud
 match_max 65536
 
 # --- gate data (single-source-as-data, D-11) ----------------------------
@@ -199,20 +214,27 @@ proc bail {msg} {
 # whole-sequence budget holds within one stage's precision — the
 # no-pacing wedge posture (a stall IS the finding, and it fails loud
 # with the tail).
-proc stage {name re} {
+proc stage {name re {tmo 0}} {
     global expect_out deadline stage_timeout timeout
     set remaining [expr {$deadline - [clock seconds]}]
     if {$remaining <= 0} {
         bail "OVERALL budget (${::overall_budget}s) exhausted before stage: $name — a stall is the finding; the tail names where"
     }
+    # 16-08: an optional per-call timeout override — the soak legs
+    # (burst-wait) span the whole tiered blast and carry
+    # soak_stage_timeout; every other stage keeps the tight carried
+    # default (a stall stays loud everywhere).
     set tm $stage_timeout
+    if {$tmo > $stage_timeout} {
+        set tm $tmo
+    }
     if {$remaining < $tm} {
         set tm $remaining
     }
     set timeout $tm
     expect {
         -re $re { puts stderr "netsoak-r9-x64: stage ok — $name" }
-        timeout { bail "TIMEOUT at stage: $name (per-stage ${::stage_timeout}s, overall budget ${::overall_budget}s) — the tail names where the wire went quiet" }
+        timeout { bail "TIMEOUT at stage: $name (per-stage ${tm}s, overall budget ${::overall_budget}s) — the tail names where the wire went quiet" }
         eof { bail "qemu exited (EOF) at stage: $name" }
     }
 }
@@ -252,7 +274,7 @@ send "rc /lib/netip-tap.rc $baseline_rounds $burst_count\r"
 stage soak-static   {netip: static ok}
 stage soak-arp      {netip: arp view ok}
 stage soak-venue    {netip: L2-TRUTH tap venue}
-stage burst-wait    {netsoak: burst wait returned}
+stage burst-wait    {netsoak: burst wait returned} $soak_stage_timeout
 stage soak-stats    {netip: soak stats ok}
 stage soak-ok       {netip: soak ok}
 stage soak-done     {netip: NETIP-DONE}
