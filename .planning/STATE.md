@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 16
 current_phase_name: Host Net Modes + Networking Exit Gate
 status: executing
-stopped_at: "Completed 16-05-PLAN.md (NETIP-08 soak machinery: host echo peer + soak app + expect driver)"
-last_updated: "2026-11-11T13:54:56.430Z"
+stopped_at: "Completed 16-06-PLAN.md (HNET-01 CI half: emitter-argv gate re-key + hostfwd observation + net-smoke-x64 job)"
+last_updated: "2026-11-11T14:15:13.255Z"
 last_activity: 2026-11-11
 last_activity_desc: Phase 16 execution started
-state_head: c787fafea7ca07aa419fd2a638ae322c722e0f6d
+state_head: 4bac097840396435692b0e59b7f3c5b6c96a2193
 progress:
   total_phases: 4
   completed_phases: 2
   total_plans: 32
-  completed_plans: 29
+  completed_plans: 30
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 16 (Host Net Modes + Networking Exit Gate) — EXECUTING
-Plan: 6 of 8
+Plan: 7 of 8
 Status: Ready to execute
 Last activity: 2026-11-11 — Phase 16 execution started
 
@@ -85,6 +85,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 16 P03 | 9 min | 2 tasks | 2 files |
 | Phase 16 P04 | 14 min | 3 tasks | 4 files |
 | Phase 16 P05 | 20 min | 2 tasks | 4 files |
+| Phase 16 P06 | 15 min | 2 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -181,6 +182,7 @@ Recent decisions affecting current work:
 - [Phase 16]: [16-05] The soak app's slirp refusal sits at parse time BEFORE the doctor preflight — the doctor aborts wrong-allow hosts (this one today), so a doctor-first order would make the refusal unreachable exactly where it matters; the doctor still gates before any bake/boot/listener
 - [Phase 16]: [16-05] Driver self-test pattern: a fake marker-stream qemu proves an expect driver end-to-end without the venue (argv split, stage order, post-passes) — it caught expect's -timeout-before-braced-block silent no-match (fixed by setting the global timeout var, the sibling gates' mechanism); an 8-count negative control proves the tcpblast: done count has teeth
 - [Phase 16]: [16-05] Host-tool findings for 16-08's run loop: this host's coreutils head emits NOTHING when timeout-killed mid-count (client harnesses must read exact byte counts), and spawned ptys stay canonical for children that don't set raw mode themselves (real qemu does)
+- [Phase 16]: 16-06: the composed net gate's qemu spawn rides the emitter's slirp argv (R9_NETDEV_ARGV split in the driver — zero netdev literals; venue FIXED slirp per D-02, the D-04 hostfwd pair flows from the pinned TOML, D-05) and observes both loopback hostfwd listeners host-side mid-boot (ss -tln stages); iproute2 joined the app's runtimeInputs for the driver's exec ss; net-smoke-x64 joins r9-shell.yml at R9_ACCEL=tcg with pinned actions — hosted observation PENDING FIRST PUSH
 
 ### Pending Todos
 
@@ -203,6 +205,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-11T13:54:55.905Z
-Stopped at: Completed 16-05-PLAN.md (NETIP-08 soak machinery: host echo peer + soak app + expect driver)
+Last session: 2026-11-11T14:15:12.702Z
+Stopped at: Completed 16-06-PLAN.md (HNET-01 CI half: emitter-argv gate re-key + hostfwd observation + net-smoke-x64 job)
 Resume file: None
