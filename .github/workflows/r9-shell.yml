@@ -32,7 +32,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 90 # TCG scale; the smoke's own per-stage 600s timeouts localize failures
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 — API-resolved 2026-11-06 (the 06-08 rule)
       - name: install nix
         # pinned SHA (see header): the supply-chain rule
         uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
@@ -52,8 +52,9 @@ jobs:
   # API-resolved commit — 11d5960a326750d5838078e36cf38b85af677262,
   # resolved via the GitHub API 2026-11-06 (repos/actions/checkout
   # refs/tags/v4 == commits?sha=v4) — and the nix-installer rides the
-  # header's pinned SHA.  The boot-smoke job's `@v4` tag predates this
-  # rule and stays as-is (not this plan's file region to churn).
+      # header's pinned SHA.  The boot-smoke job's checkout rides the
+      # same resolved SHA (the phase-16 review closed its floating-`@v4`
+      # deviation).
   net-smoke:
     runs-on: ubuntu-latest
     timeout-minutes: 90 # TCG scale; the smoke's own per-stage 600s timeouts localize failures
