@@ -8,7 +8,8 @@
 # as an mb2 tag-3 module off the same ISO; the caller is
 # nix/smoke-r9-net-x64.sh = the flake app boot-r9-net-smoke-x64):
 #
-#   chain boot (banner → paqfs... → version... → %  prompt) →
+#   chain boot (banner → the host-side hostfwd listener observations
+#   → paqfs... → version... → %  prompt) →
 #   `. /lib/netaddr.rc' (the D-11 seam sourced into the interactive
 #   shell so the typed legs take the seam's values) →
 #   `rc /lib/netip-static.rc' (the baked fixture: the REAL unmodified
@@ -84,8 +85,9 @@
 # Ether's unbinds are orphan-free by construction (the header's hazard
 # analysis above).
 #
-# THE VENUE LABEL (Pitfall 10): this smoke runs on qemu -netdev user
-# (slirp) — hermetic, unprivileged, CI-able, and explicitly NOT L2
+# THE VENUE LABEL (Pitfall 10): this smoke runs on the slirp user
+# network (the emitter's argv) — hermetic, unprivileged, CI-able, and
+# explicitly NOT L2
 # truth.  The static + dhcp fixtures print `netip: NOT-L2-TRUTH slirp
 # venue' into the capture and this gate ASSERTS those labels (stage
 # presences), so the evidence can never be re-read as tap-venue proof;
@@ -133,6 +135,15 @@
 #                /boot/bootfs.paq)
 #   R9_SMOKE_LOG REQUIRED — the serial capture (fresh per run; both
 #                gate runs retain theirs as evidence)
+#   R9_NETDEV_ARGV REQUIRED — the emitter's slirp argv as ONE
+#                space-separated line (the caller's capture of
+#                `r9-netdev-args --mode slirp'); the spawn block below
+#                splits it into the netdev+device tokens — NO netdev
+#                literal lives in this file (16-06, D-05's front-end
+#                widening: the gate's venue stays FIXED slirp per
+#                D-02, but the stanza now flows from the same pinned
+#                TOML data the boot app consumes, the D-04 hostfwd
+#                pair included)
 #   R9_MACHINE/R9_CPU/R9_ACCEL — the caller-selected q35 shape
 #                (defaults q35/host/kvm; TCG selects qemu64)
 #   R9_RUN_TAG   the per-run unique tag in qemu's argv (-name); the
@@ -150,7 +161,7 @@ match_max 65536
 # progress; the stage lines name it on stderr.
 
 # --- required env (loud, before any spawn) -------------------------------
-foreach v {R9_ISO R9_SMOKE_LOG} {
+foreach v {R9_ISO R9_SMOKE_LOG R9_NETDEV_ARGV} {
     if {![info exists env($v)]} {
         puts stderr "smoke-r9-net-x64: \$$v unset — run via the flake app (nix run .#boot-r9-net-smoke-x64)"
         exit 2
@@ -166,16 +177,33 @@ exec rm -f $env(R9_SMOKE_LOG)
 
 # --- spawn qemu: the composed ISO on -cdrom (the q35 shape the caller
 #     selected — kvm/host by default, tcg/qemu64 explicitly; the
-#     netdev stanza is the always-on slirp NIC, token-for-token the
-#     aarch64 gate's — NO hostfwd this phase) ----------------------------
+#     netdev+device tokens are the SPLIT R9_NETDEV_ARGV — the
+#     emitter's slirp argv with the D-04 hostfwd pair: the venue stays
+#     FIXED slirp (D-02) but the stanza now flows from the same pinned
+#     TOML data the boot app consumes, ONE emission path — 16-06) ----
 set R9_MACHINE [expr {[info exists env(R9_MACHINE)] ? $env(R9_MACHINE) : "q35"}]
 set R9_CPU [expr {[info exists env(R9_CPU)] ? $env(R9_CPU) : "host"}]
 set R9_ACCEL [expr {[info exists env(R9_ACCEL)] ? $env(R9_ACCEL) : "kvm"}]
+
+# split the emitter's one-line argv into spawn tokens (whitespace
+# split, empty tokens dropped; the emitter prints space-separated
+# tokens containing no spaces — its committed contract; the 16-05
+# soak driver's mechanism)
+set netdev_argv {}
+foreach tok [split $env(R9_NETDEV_ARGV)] {
+    if {$tok ne ""} {
+        lappend netdev_argv $tok
+    }
+}
+if {[llength $netdev_argv] == 0} {
+    puts stderr "smoke-r9-net-x64: R9_NETDEV_ARGV is empty — the caller's emitter capture failed (the slirp argv is required)"
+    exit 2
+}
+
 spawn $QEMU -M $R9_MACHINE -cpu $R9_CPU -smp 1 -m 1024M \
     -accel $R9_ACCEL \
     -cdrom $env(R9_ISO) \
-    -netdev user,id=n0 \
-    -device virtio-net-pci-non-transitional,netdev=n0 \
+    {*}$netdev_argv \
     -nographic \
     -name $run_tag
 set spawn_pid [exp_pid]
@@ -205,6 +233,40 @@ proc stage {name re} {
     }
 }
 
+# --- the hostfwd listener observations (16-06, HNET-01) ------------------
+# The spawn's slirp argv carries the D-04 hostfwd pair, and qemu binds
+# both loopback listeners EAGERLY at netdev init — a failed bind aborts
+# qemu itself (the backstop).  These stages make the POSITIVE
+# observation explicit: read the HOST's listening table (exec ss -tln,
+# netstat fallback — a host-side exec, never the guest's pty) while
+# the booted guest runs and assert each loopback entry present; the
+# stage-ok lines are the evidence.  LOOPBACK ONLY: nothing here
+# asserts — or reaches toward — a non-loopback address (the runner's
+# listeners are job-internal).  exec does not touch the spawn's pty:
+# the boot output accumulates in expect's buffer and the next stage
+# consumes it.  The port token is anchored with a trailing
+# whitespace-or-EOL so 5670 can never match a longer port like 56702.
+proc host_listeners {} {
+    if {![catch {exec ss -tln} out]} { return $out }
+    if {![catch {exec netstat -tln} out]} { return $out }
+    return ""
+}
+proc hostfwd_stage {port} {
+    set listeners [host_listeners]
+    if {$listeners eq ""} {
+        puts stderr "smoke-r9-net-x64: FAILED at stage: hostfwd-$port-listening — no host listening-table tool produced output (ss/netstat both missing?)"
+        cleanup
+        exit 1
+    }
+    if {![regexp "127\\.0\\.0\\.1:${port}( |\$)" $listeners]} {
+        puts stderr "smoke-r9-net-x64: FAILED at stage: hostfwd-$port-listening — no 127.0.0.1:$port loopback entry in the host listening table (the slirp hostfwd bind is missing); table follows:"
+        puts stderr $listeners
+        cleanup
+        exit 1
+    }
+    puts stderr "smoke-r9-net-x64: stage ok — hostfwd-$port-listening (127.0.0.1:$port present in the host listening table)"
+}
+
 # fast-fail on kernel panic markers anywhere in the boot (the aarch64
 # gate's PANIC_RE rule; the real-chain "syscall 10 unimplemented" notes
 # are NOT panics — the 14-06 gate's documented exemption class) — and
@@ -231,6 +293,14 @@ expect_before {
 #    9P version handshake → the % prompt (the composed smoke's stage
 #    vocabulary — the net gate boots the SAME chain, then types)
 stage banner    {r9 from the Internet}
+
+# 1b. the hostfwd listener observations, host-side while the guest
+#     boots (the emitter's slirp argv carries the D-04 pair; the
+#     procs' header has the reasoning — positive evidence, loopback
+#     only, qemu's eager-bind abort is the backstop)
+hostfwd_stage 17010
+hostfwd_stage 5670
+
 stage paqfs     {paqfs\.\.\.}
 stage version   {version\.\.\.}
 stage prompt    {% }
@@ -429,6 +499,6 @@ if {![string match "*#l0: virtio: 1000Mbps: *" $whole]} {
 }
 puts stderr "smoke-r9-net-x64: stage ok — nic-bind (#l0: virtio: 1000Mbps: bind line present in the capture)"
 
-puts stderr "smoke-r9-net-x64: ALL STAGES PASS — chain boot, ipconfig static (NOT-L2-TRUTH labeled), duplicate-binding rejected visibly, ipconfig dhcp (NOT-L2-TRUTH labeled), loopback ping + udp echo, no-address rejected loudly, tcp/7 echo inline, completion marker, pid-warning-absent, nic-bind"
+puts stderr "smoke-r9-net-x64: ALL STAGES PASS — chain boot, hostfwd loopback listeners observed host-side (emitter argv), ipconfig static (NOT-L2-TRUTH labeled), duplicate-binding rejected visibly, ipconfig dhcp (NOT-L2-TRUTH labeled), loopback ping + udp echo, no-address rejected loudly, tcp/7 echo inline, completion marker, pid-warning-absent, nic-bind"
 cleanup
 exit 0

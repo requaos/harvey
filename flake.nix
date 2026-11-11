@@ -223,10 +223,19 @@
           # both captures retained is XEXEC-05's proof.  The aarch64
           # netSmokeR9Pkg stays byte-untouched (frozen at the v2.0
           # pin); smokeR9X64Pkg's shape verbatim.
+          # 16-06 (HNET-01/D-02/D-05): the gate re-keys its qemu spawn
+          # onto the emitter's slirp argv — this app exports
+          # R9_NETDEV_EMITTER (the 16-04 boot app's idiom; the attr
+          # rides the pin-advanced gate list), the script captures it
+          # once as R9_NETDEV_ARGV, and the expect driver splits the
+          # tokens (the D-04 hostfwd pair included) and observes both
+          # loopback listeners host-side (its hostfwd-* stages; hence
+          # iproute2 below — the driver's `exec ss').
           netSmokeR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-net-smoke-x64" ./nix/smoke-r9-net-x64.sh ''
             export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
             export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
+            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.iproute2 ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
           # 15-03 (USPACE-07's r9 leg): the SERVICES gate — the SAME
           # pipeline as boot-r9-tier1-x64 but the bake carries the

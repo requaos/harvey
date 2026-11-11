@@ -12,6 +12,16 @@
 # no-address rejection, the tcp/7 echo leg — and exits 0/1 for CI.
 # smoke-r9-x64's own behavior is untouched.
 #
+# VENUE + NETDEV (16-06, HNET-01/D-02/D-05): the gate's venue stays
+# FIXED slirp — hermetic, unprivileged, CI-able (the tap/soak legs are
+# the soak app's, primary-host-only by construction).  But the qemu
+# netdev+device argv now flows from the SAME pinned TOML data the boot
+# app consumes — the emitter's output captured once below and exported
+# as R9_NETDEV_ARGV for the expect driver to split, ONE emission path
+# everywhere — with the D-04 hostfwd pair included; the driver's
+# hostfwd-* stages observe both loopback listeners on the HOST while
+# the guest runs (qemu binds them eagerly at netdev init).
+#
 # The pipeline, each step loud on failure:
 #
 #   1. userland build — build/x86_64/subset-build.sh, the tier driver
@@ -45,6 +55,13 @@
 #                      inputs.r9.packages.<system>.kernel-x64.
 #   R9_ISO_BUILDER    REQUIRED — r9's exported iso-builder BINARY (the
 #                      flake app exports <pkg>/bin/r9-iso-builder).
+#   R9_NETDEV_EMITTER REQUIRED — r9's netdev-args emitter bin (the
+#                      flake input's packages.netdev-args); the flake
+#                      app exports it.  This gate's slirp netdev+device
+#                      argv comes ONLY from its output (D-05: the D-04
+#                      hostfwd pair is pinned TOML data, never script
+#                      text), captured once and exported to the driver
+#                      as R9_NETDEV_ARGV.
 #   R9_SKIP_BUILD     =1 skips step 1 (iteration hatch; see above).
 #   R9_NET_LOG        default $HARVEY/build/x86_64/smoke-r9-net.log (a
 #                      gitignored transient — a passing copy lands in
@@ -103,6 +120,12 @@ fi
 [ -f "$R9_ISO_BUILDER" ] && [ -x "$R9_ISO_BUILDER" ] \
 	|| err "R9_ISO_BUILDER $R9_ISO_BUILDER: not an executable file (want <pkg>/bin/r9-iso-builder — a directory here means the app exported the package root, or the pin predates r9's iso-builder export)"
 
+# the netdev argv source — the emitter contract check mirrors
+# R9_ISO_BUILDER's -f/-x shape (the 16-04 boot app's idiom)
+[ -n "${R9_NETDEV_EMITTER:-}" ] || err "R9_NETDEV_EMITTER unset — run via the flake app (nix run .#boot-r9-net-smoke-x64), which exports r9's netdev-args emitter path (a pin predating the 16-04 advance lacks the export)"
+[ -f "$R9_NETDEV_EMITTER" ] && [ -x "$R9_NETDEV_EMITTER" ] \
+	|| err "R9_NETDEV_EMITTER $R9_NETDEV_EMITTER: not an executable file (want <pkg>/bin/r9-netdev-args)"
+
 # --- step 0b: accel selection (no silent downgrade) --------------------
 
 R9_ACCEL="${R9_ACCEL:-kvm}"
@@ -117,10 +140,27 @@ case "$R9_ACCEL" in
 	*) err "R9_ACCEL=$R9_ACCEL: want kvm|tcg" ;;
 esac
 
+# --- step 0c: the netdev argv — the emitter's slirp tokens (16-06) -------
+#
+# The venue stays FIXED slirp (D-02 — the header's VENUE + NETDEV
+# note); the argv flows from the same pinned TOML data the boot app
+# consumes, the D-04 hostfwd pair included.  Resolved ONCE here, before
+# any build spend, so an emitter failure is a named contract error —
+# and exported as R9_NETDEV_ARGV for the expect driver to split (the
+# 16-05 soak driver's mechanism).
+
+# shellcheck disable=SC2312  # the rc rides the ||: an emitter failure is a named contract error (its stderr passed through above)
+NETDEV_ARGV=$("$R9_NETDEV_EMITTER" --mode slirp) \
+	|| err "the netdev emitter failed for mode slirp (its diagnostics are above; the argv comes only from the pinned r9 TOML — D-05)"
+[ -n "$NETDEV_ARGV" ] || err "the netdev emitter printed no netdev argv for mode slirp"
+export R9_NETDEV_ARGV="$NETDEV_ARGV"
+
 echo "== r9 kernel package: $R9_KERNEL_X64_PKG"
-echo "   kernel:      $R9_KERNEL"
-echo "   iso-builder: $R9_ISO_BUILDER"
-echo "   shape:       q35 accel=$R9_ACCEL cpu=$R9_CPU"
+echo "   kernel:        $R9_KERNEL"
+echo "   iso-builder:   $R9_ISO_BUILDER"
+echo "   netdev emitter: $R9_NETDEV_EMITTER"
+echo "   netdev argv (slirp): $NETDEV_ARGV"
+echo "   shape:         q35 accel=$R9_ACCEL cpu=$R9_CPU"
 
 # --- provenance (KERNDATE; the boot-r9-x64.sh discipline) --------------
 
