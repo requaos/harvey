@@ -1,0 +1,41 @@
+#!/bin/rc
+# churn-cats.rc — the 17-02 composed churn leg's fixture (D-06 tier
+# (b)): /bin/cat x 1400 real mounted-binary fork+exec iterations at
+# WINDOWS #44's repro shape, driven by rc from the interactive prompt
+# (the expect gate types ONE line: `rc /lib/churn-cats.rc').  The
+# control flow is the 16-02 fixture discipline: rc's || idiom per
+# command (braced bodies after || and while(! ~ ...) are the proven
+# shapes — the if(! cmd){} form is the parse-error class), a dc
+# backquote counter (test is not a builtin; seq does not exist), flat
+# status ladders.  cat's output goes to /dev/null (devcons's own
+# QID_NULL — the churn is the exec, not bytes on serial).
+#
+# Markers (the `churn:' composed-tier family, distinct from the
+# kernel's `churngate:'):
+#   churn: BEFORE            the loop starts (the expect driver bounds
+#                            the heap-marker window from here)
+#   churn: AFTER             the loop completed
+#   churn: CATS-DONE 1400    the exact-count terminal
+#   churn: FAIL <what>       any precondition or loop failure
+N=1400
+
+test -x /bin/dc || {
+	echo churn: FAIL no-dc
+	exit no-dc
+}
+test -x /bin/cat || {
+	echo churn: FAIL no-cat
+	exit no-cat
+}
+
+echo churn: BEFORE
+i=0
+while(! ~ $i $N){
+	cat /lib/churn-cats.rc >/dev/null || {
+		echo churn: FAIL cat-at-$i
+		exit cat
+	}
+	i=`{echo $i 1+p | dc}
+}
+echo churn: AFTER
+echo churn: CATS-DONE $N
