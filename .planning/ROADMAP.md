@@ -48,7 +48,7 @@ Full detail: `.planning/milestones/v2.0-ROADMAP.md`
 - [x] **Phase 13: r9 x86_64 Platform Bring-Up** - *(cross-repo: `../r9`)* q35/pc platform layer — DTB-free boot protocol, APIC/HPET interrupts, PCI/ECAM discovery, virtio-net + devether — KVM-native acceptance gates by default (completed 2026-11-07)
 - [x] **Phase 14: Harvey amd64 Userspace on r9** - amd64 Ureg/TrapFrame ABI contract, exec through the real syscall path, boot→init→rc to the `% ` prompt, tier machinery + `/net` gates re-keyed to `objtype=amd64` (completed 2026-11-09)
 - [x] **Phase 15: Userspace Tiers + Bootfs Payload (amd64)** - services/GUI/long-tail tiers on the k10t1 venue then r9-x86_64; rio/acme/sam donor syscall traces; desktop payload staged in bootfs (completed 2026-11-10)
-- [ ] **Phase 16: Host Net Modes + Networking Exit Gate** - hermetic slirp+hostfwd default, explicit `--net=slirp|tap|vmnet`, linux tap/bridge L2-truth leg + doctor checker; the NETIP-08 tap-leg soak gate
+- [x] **Phase 16: Host Net Modes + Networking Exit Gate** - hermetic slirp+hostfwd default, explicit `--net=slirp|tap|vmnet`, linux tap/bridge L2-truth leg + doctor checker; the NETIP-08 tap-leg soak gate (completed 2026-11-12)
 - [ ] **Phase 17: r9 Kernel Flush-Out** - *(cross-repo: `../r9`)* the open Phase-7/8 CR/WR backlog + known kernel windows closed under real userspace load, every fix landing with a pin
 - [ ] **Phase 18: In-Guest p9sk1 Auth Domain** - hash-paired bake-time domain generator, `/dev/random` from x86_64 entropy + devcap `#¤`, keyfs/authsrv on tcp/567, loopback probe green before any drawterm
 - [ ] **Phase 19: CPU Service + Drawterm + rio Desktop** - `cpu -R` end-to-end, flake drawterm, rio in-session only, full-chain smoke + clean-checkout proof on linux-x86_64
@@ -166,7 +166,7 @@ Plans:
   3. The linux tap/bridge leg (qemu-bridge-helper + br0) is documented per-distro and tested on the primary host — the guest is reachable at L2 from the host, providing the L2-truth venue (HNET-03); the darwin socket_vmnet leg is documented as opt-in documented-manual (HNET-04)
   4. A doctor-style checker diagnoses privileged host setup and prints the exact sudo/bridge/firewall remediation commands (HNET-05)
   5. The networking exit gate is green on x86_64: sustained bidirectional TCP flow + load soak on the tap leg — slirp evidence explicitly not accepted (it forgives L2 bugs) (NETIP-08)
-**Plans**: 8/8 plans executed
+**Plans**: 8/8 plans complete
 Plans:
 **Wave 1**
 - [x] 16-01-PLAN.md — r9: [qemu.netdev] mode tables (slirp/tap/vmnet + default, D-04 hostfwd data) + the ONE netdev_args builder + the exported r9-netdev-args emitter package
@@ -244,7 +244,7 @@ Plans:
 | 13. r9 x86_64 Platform Bring-Up | v2.1 | 6/6 | Complete    | 2026-11-07 |
 | 14. Harvey amd64 Userspace on r9 | v2.1 | 9/9 | Complete    | 2026-11-09 |
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 9/9 | Complete    | 2026-11-10 |
-| 16. Host Net Modes + Networking Exit Gate | v2.1 | 8/8 | In Progress | - |
+| 16. Host Net Modes + Networking Exit Gate | v2.1 | 8/8 | Complete    | 2026-11-12 |
 | 17. r9 Kernel Flush-Out | v2.1 | - | Not started | - |
 | 18. In-Guest p9sk1 Auth Domain | v2.1 | - | Not started | - |
 | 19. CPU Service + Drawterm + rio Desktop | v2.1 | - | Not started | - |

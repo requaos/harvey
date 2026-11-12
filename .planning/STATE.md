@@ -3,13 +3,12 @@ gsd_state_version: "1.0"
 milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 16
-current_phase_name: Host Net Modes + Networking Exit Gate
-status: verifying
-stopped_at: Completed 16-07-PLAN.md (net-modes README + 16-EVIDENCE.md; phase 16 all 8 plans done)
-last_updated: "2026-11-11T20:45:25.482Z"
-last_activity: 2026-11-11
-last_activity_desc: Phase 16 execution started
-state_head: 0f252fb6f965f0310a6300dfddcf9d8f4e310a1f
+status: completed
+stopped_at: Phase 16 complete — all phases complete
+last_updated: "2026-11-12T13:29:39.376Z"
+last_activity: 2026-11-12
+last_activity_desc: Phase 16 complete
+state_head: 6c80bfa64a5ab00e9f6ee1a7144f2eb678a7b80b
 progress:
   total_phases: 4
   completed_phases: 2
@@ -28,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 16 (Host Net Modes + Networking Exit Gate) — EXECUTING
-Plan: 8 of 8
-Status: Phase complete — ready for verification
-Last activity: 2026-11-11 — Phase 16 execution started
+Phase: 16
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-11-12 — Phase 16 complete
 
 Progress: [█████░░░░░░░░░░░░░░░] 29% (v2.1: 2/7 phases — 13-14 complete, 15-19 next)
 
@@ -48,6 +47,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | 13 | 6 | - | - |
 | 14 | 9 | - | - |
 | 15 | 9 | - | - |
+| 16 | 8 | - | - |
 
 **Recent Trend:** n/a (milestone start)
 **Per-Plan Metrics:**
@@ -213,5 +213,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-11T20:45:24.881Z
-Stopped at: Completed 16-07-PLAN.md (net-modes README + 16-EVIDENCE.md; phase 16 all 8 plans done)
+Stopped at: Phase 16 complete — all phases complete
 Resume file: None

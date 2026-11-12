@@ -1,9 +1,9 @@
 ---
-status: testing
+status: passed
 phase: 16-host-net-modes-networking-exit-gate
 source: [16-VERIFICATION.md]
 started: 2026-11-11T15:30:00Z
-updated: 2026-11-11T15:30:00Z
+updated: 2026-11-12T00:00:00Z
 ---
 
 ## Current Test
@@ -11,28 +11,23 @@ updated: 2026-11-11T15:30:00Z
 number: 1
 name: Hosted-CI observation of the pushed phase (net-smoke-x64 green on ubuntu-latest/TCG + pin-advance observation at 208ceba)
 expected: |
-  Push the 16 local commits on harvey master, then watch the GitHub Actions run:
-  - the `net-smoke-x64` job (r9-shell.yml) runs green on ubuntu-latest at TCG
-    (R9_ACCEL=tcg per OQ-2) — HNET-01's "green in hosted CI" leg;
-  - the pin-advance CI observation at r9 208ceba (the WR-02 fix pin) completes
-    the PENDING FIRST PUSH item carried from 16-04/16-06.
-  No checkout-local command can execute a hosted-runner leg; the local halves
-  are fully proven (job authored, actionlint-clean, SHA-pinned, app green twice
-  with retained captures at evidence/16-06-netsmoke-a/b.log).
-awaiting: user response
+  Push harvey master, then observe on GitHub Actions:
+  - the `net-smoke-x64` job (r9-shell.yml) green on ubuntu-latest at TCG;
+  - the pin-advance CI observation at r9 208ceba.
+awaiting: (none — satisfied)
 
 ## Tests
 
 ### 1. Hosted-CI observation of the pushed phase
-expected: Push harvey master (16 commits ahead) and observe the `net-smoke-x64` CI job green on hosted TCG, plus the pin-advance observation at r9 208ceba.
-result: [pending]
+expected: Push harvey master and observe the `net-smoke-x64` CI job green on hosted TCG, plus the pin-advance observation at r9 208ceba.
+result: pass — run 43121894436 (r9-shell, pushed master, 2026-11-11T23:42:41Z) completed success with net-smoke-x64 green; boot-smoke + net-smoke green in the same run; three further green runs since; the run's commit carries the phase-16 surface byte-identical to HEAD (verified via gh by the re-run verifier, 16-VERIFICATION.md fingerprint v4:sha256:7282...963).
 
 ## Summary
 
 total: 1
-passed: 0
+passed: 1
 issues: 0
-pending: 1
+pending: 0
 skipped: 0
 blocked: 0
 
