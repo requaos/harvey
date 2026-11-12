@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: r9 Kernel Flush-Out
-status: completed
-stopped_at: Phase 17 context gathered
-last_updated: "2026-11-12T16:20:55.128Z"
+status: executing
+stopped_at: Completed 17-01-PLAN.md
+last_updated: "2026-11-12T17:33:10.207Z"
 last_activity: 2026-11-12
-last_activity_desc: Phase 16 complete
-state_head: ef03abe08e8b04e52c3aab18387b552f7349eee5
+last_activity_desc: Phase 17 execution started
+state_head: 8cca46672a5e98665a5e8504d2e2e375d61155cc
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 39
-  completed_plans: 32
+  completed_plans: 33
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-09)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
-**Current focus:** Phase 16 — Host Net Modes + Networking Exit Gate
+**Current focus:** Phase 17 — r9 Kernel Flush-Out
 
 ## Current Position
 
-Phase: 17 (r9 Kernel Flush-Out) — READY TO EXECUTE
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-11-12 — Phase 16 complete
+Phase: 17 (r9 Kernel Flush-Out) — EXECUTING
+Plan: 2 of 7
+Status: Ready to execute
+Last activity: 2026-11-12 — Phase 17 execution started
 
 Progress: [█████░░░░░░░░░░░░░░░] 29% (v2.1: 2/7 phases — 13-14 complete, 15-19 next)
 
@@ -89,6 +89,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 16 P06 | 15 min | 2 tasks | 6 files |
 | Phase 16 P08 | 274 min (diagnosis-heavy: 3 wedges root-caused, 6 full gate runs) | 2 tasks | 6 files |
 | Phase 16 P07 | 19 min | 2 tasks | 2 files |
+| Phase 17 P01 | 38 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -191,6 +192,9 @@ Recent decisions affecting current work:
 - [Phase 16]: 16-07: build/x86_64/README.md EXTENDS the Phase-13 companion in place (the drift-notes home already existed) with the Phase-16 net-modes sections — NixOS TESTED leading with the two live-probed divergences, generic-Linux/darwin/real-LAN each explicitly not-tested
 - [Phase 16]: 16-07: the trustedInterfaces firewall opening is documented as mandatory tap-remediation checklist material with the measured 4x-SYN/zero-SYN-ACK evidence — the 16-08 deferred item's ask (the doctor's WARN-class read cannot surface it)
 - [Phase 16]: 16-07: 16-EVIDENCE.md separates retained captures (7 on-disk files, existence-checked) from records living in SUMMARYs; every indexed artifact names its r9 SHA (all rode d1c4849); A3 masquerade + A4 vmnet spelling honestly open
+- [Phase 17]: [17-01] D-02 audit verdict: x86_64 carries the aarch64 WR-03 family verbatim at the four anchors, but four x86_64-LOCAL OOM paths leaked (pml4_map_user walk intermediates, map_user_page leaf, rfork copy arm, new_user_proc tuple prefix) — ported as one class commit r9 3e8bcec, FOD re-wired 476605d, pin advanced lock-only
+- [Phase 17]: [17-01] CR-03's Phase-8 requires-human-verification host half DISCHARGED: four deterministic x86_64 sem pins (r9 f9088d0, sem_ filter 5/5, battery 64/64); the in-kernel contention leg rides 17-02's churn profile; WR-03's half rides 17-02's tiered leak gates (not closed)
+- [Phase 17]: [17-01] The closure pipeline is proven on the CR-01 exemplar: port battery -> composed x64 gate -> 08-ledger Source re-cite -> FLUSHOUT row; 13 x86_64-keyed re-cites landed (baseline 0) and 17-FLUSHOUT.md seeded with all 30 rows — the index VERIFICATION walks
 
 ### Pending Todos
 
@@ -213,6 +217,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-12T14:07:22.076Z
-Stopped at: Phase 17 context gathered
-Resume file: .planning/phases/17-r9-kernel-flush-out/17-CONTEXT.md
+Last session: 2026-11-12T17:33:09.518Z
+Stopped at: Completed 17-01-PLAN.md
+Resume file: None
