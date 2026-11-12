@@ -42,7 +42,7 @@ OUT="$HARVEY/build/x86_64/smoke-out"
 # semacquire/semrelease contender) — staged beside init/smokesleep in
 # the MARKER image (the additive rule; /amd64/init's meaning is
 # untouched).
-STAGE_SRCS="smokesleep churnmark churnsem"
+STAGE_SRCS="smokesleep churnmark churnsem churncats"
 
 err() { echo "error: $*" >&2; exit 1; }
 
@@ -98,7 +98,7 @@ set -e
 
 fail() { echo "STAGE-BUILD-FAIL: $1" >&2; exit 1; }
 
-STAGE_SRCS="smokesleep churnmark churnsem"
+STAGE_SRCS="smokesleep churnmark churnsem churncats"
 STAGE="$HARVEY/build/x86_64/smoke-out"
 
 echo "== stage build provenance (Harvey's vendored toolchain):"

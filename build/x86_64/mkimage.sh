@@ -1076,11 +1076,18 @@ echo "== PASS: baked $SVC_IMAGE ($sz5 bytes; ${_nh} h* binaries; header $magic5 
 CHURN_IMAGE="$OUT/bootfs-churn.paq"
 
 # 12a. inputs (the chain set from 8's checks still holds; the churn
-#      additions named loudly)
+#      additions named loudly).  churncats: the C churn driver staged
+#      from smoke-out (the rc-fixture variant measured rc's own
+#      userland pool corrupting past ~428 iterations — the C driver
+#      keeps the load on the kernel's exec path; churn-cats.rc stays
+#      staged as the cat input + the recorded rc-fixture shape).
 for f in test dc; do
 	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first (the churn fixture's counter idiom)"
 done
-[ -f "$ROOT_TREE/lib/churn-cats.rc" ] || err "$ROOT_TREE/lib/churn-cats.rc missing (the committed churn fixture)"
+[ -s "$STAGE_SRC/churncats" ] || err "$STAGE_SRC/churncats missing — run sh build/x86_64/stage-build.sh first (the C churn driver)"
+"$GREP" -q "churn: CATS-DONE" "$STAGE_SRC/churncats" \
+	|| err "smoke-out/churncats does not carry its marker string (re-run sh build/x86_64/stage-build.sh)"
+[ -f "$ROOT_TREE/lib/churn-cats.rc" ] || err "$ROOT_TREE/lib/churn-cats.rc missing (the committed churn fixture / cat input)"
 
 STAGE6="$TMPD/root-churn"
 mkdir -p "$STAGE6"
@@ -1095,6 +1102,7 @@ mkdir -p "$STAGE6/root" "$STAGE6/env" "$STAGE6/proc" "$STAGE6/dev" "$STAGE6/srv"
 	"$STAGE6/rc/lib" "$STAGE6/rc/bin" "$STAGE6/adm/timezone"
 cp "$CHAIN_OUT/boot" "$STAGE6/boot/boot"
 cp "$BIN/paqfs" "$STAGE6/boot/paqfs"
+cp "$STAGE_SRC/churncats" "$STAGE6/amd64/bin/churncats"
 cp "$HARVEY/amd64/init" "$STAGE6/amd64/init"
 for f in rc ls cat echo ps test dc; do
 	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first (the churn bake)"
@@ -1107,7 +1115,7 @@ cp "$HARVEY/adm/timezone/local" "$STAGE6/adm/timezone/local"
 #      fixture (the staging manifest, printed as evidence)
 for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
-	amd64/bin/test amd64/bin/dc \
+	amd64/bin/test amd64/bin/dc amd64/bin/churncats \
 	rc/lib/rcmain lib/churn-cats.rc adm/timezone/local \
 	lib/namespace usr/glenda/lib/profile; do
 	[ -f "$STAGE6/$p" ] || err "churn manifest: $p missing from staged tree"
@@ -1134,4 +1142,4 @@ sz6=$(wc -c < "$CHURN_IMAGE" | tr -d ' ')
 trailer6=$(od -An -tx1 -j $((sz6 - 28)) -N 4 "$CHURN_IMAGE" | tr -d ' \n')
 [ "$trailer6" = "6b46e688" ] || err "$CHURN_IMAGE: bad trailer magic $trailer6 (want 6b46e688)"
 
-echo "== PASS: baked $CHURN_IMAGE ($sz6 bytes; chain + test/dc + /lib/churn-cats.rc; header $magic6 trailer $trailer6; KERNDATE $KERNDATE)"
+echo "== PASS: baked $CHURN_IMAGE ($sz6 bytes; chain + test/dc + churncats + /lib/churn-cats.rc; header $magic6 trailer $trailer6; KERNDATE $KERNDATE)"

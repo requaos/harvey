@@ -12,8 +12,10 @@
 # DIRECTLY:
 #
 #   chain boot (banner → paqfs... → version... → %  prompt) →
-#   ONE typed line: `rc /lib/churn-cats.rc' (the sourced fixture
-#   discipline — the netip-tap.rc precedent) →
+#   ONE typed line: `/bin/churncats' (the staged C churn driver — the
+#   tcpblast lineage; the rc-fixture variant measured rc's own
+#   userland pool corrupting past ~428 iterations, a finding recorded
+#   with this plan) →
 #   OUTPUT-ONLY stages in the fixture's emission order: churn: BEFORE
 #   → churn: AFTER → churn: CATS-DONE 1400 → the % prompt again (the
 #   fixture's rc exited) →
@@ -190,14 +192,14 @@ stage paqfs     {paqfs\.\.\.}
 stage version   {version\.\.\.}
 stage prompt    {% }
 
-# 2. THE TYPED FIXTURE LAUNCH — one short line.  Everything after is
-#    OUTPUT-ONLY staging: the typed echo carries none of the fixture
-#    markers, so each stages single-occurrence in the fixture's print
-#    order.  Between BEFORE and AFTER the serial streams ~2 exits per
-#    iteration (the cat exec + the dc counter's exec) with their
+# 2. THE TYPED DRIVER LAUNCH — one short line.  Everything after is
+#    OUTPUT-ONLY staging: the typed echo carries none of the driver's
+#    markers, so each stages single-occurrence in the driver's print
+#    order.  Between BEFORE and AFTER the serial streams one exit pair
+#    per iteration (the churncats fork + the exec'd cat) with their
 #    per-exit heap markers — consumed past, never staged, never
 #    ordered (the window post-pass owns them).
-send "rc /lib/churn-cats.rc\r"
+send "/bin/churncats\r"
 stage before    {churn: BEFORE}
 stage after     {churn: AFTER} $stage_timeout
 stage catsdone  {churn: CATS-DONE 1400}
@@ -250,7 +252,7 @@ puts stderr "churn-r9-x64: post-pass ok — zero churn: FAIL occurrences"
 #     per-EXIT delta is the honest unit).
 set before_idx [string first "churn: BEFORE" $whole]
 set after_idx [string first "churn: AFTER" $whole]
-if {$before_idx < 0 || $after_idx < 0 || {$after_idx <= $before_idx}} {
+if {$before_idx < 0 || $after_idx < 0 || $after_idx <= $before_idx} {
     bail "heap-window anchors absent or reversed (BEFORE at $before_idx, AFTER at $after_idx)"
 }
 set window_end [string first "\n" $whole $after_idx]
