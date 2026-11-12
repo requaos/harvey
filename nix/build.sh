@@ -112,7 +112,10 @@ done
 # the wrapper itself is now created mkfile-side, surviving mk clean and
 # every venue).  Ubuntu carries /bin/cp natively; NixOS hosts need it
 # staged (cp is not a hostbin tool, so the host's own cp lands there).
-"$SUDO" cp "$(command -v cp)" /bin/cp
+# (existence-guarded: on usrmerge hosts /bin is a symlink into /usr/bin —
+# `cp /usr/bin/cp /bin/cp` becomes copy-onto-self and cp exits 1, killing
+# the build under set -e.  The staging's whole contract is "it exists".)
+[ -x /bin/cp ] || "$SUDO" cp "$(command -v cp)" /bin/cp
 
 # capture the build status explicitly: without this, a failed namespace
 # build was masked by the preflight-arm tail below (its `|| exit 0`
