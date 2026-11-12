@@ -22,7 +22,7 @@ Reconciled against `08-REVIEW-FIX.md` (iteration 1, scope critical_warning): 12 
 
 | Finding | Severity | Disposition | Source |
 |---------|----------|-------------|--------|
-| CR-01 | critical | fixed | 08-REVIEW-FIX.md — socket lingers in the core's linger list until State::Closed (r9 bd4db36 + pin 7300113) |
+| CR-01 | critical | fixed | 08-REVIEW-FIX.md — socket lingers in the core's linger list until State::Closed (r9 bd4db36 + pin 7300113); x86_64 re-proof (17-01, D-01/D-13): host pin `devip_tests::tcp_conv_close_lingers_the_socket_until_closed` (cargo test -p port --lib, 101/101 this session) + composed gate boot-r9-net-smoke-x64 (exit 0, all stages pass) — the shared port fix proven live on x86_64 |
 | CR-02 | critical | fixed | 08-REVIEW-FIX.md — oversize/unaddressable sends error immediately (r9 904af8f + pin b9d3977) |
 | CR-03 | critical | fixed | 08-REVIEW-FIX.md — register→check→block per iteration (r9 75970f0 + pin b48e809); requires human verification |
 | CR-04 | critical | fixed | 08-REVIEW-FIX.md — v4-mcast/limited-bcast adds absorb record-only (r9 ac6370c + pin 2017360) |
