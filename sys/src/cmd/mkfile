@@ -113,8 +113,15 @@ all:V:	$PROGS dirs
 
 %.install:V: $BIN/%
 
+# 15-16 (venue portability): the host cp may be a multi-call coreutils
+# that dispatches on argv[0] — a plain binary copy named e.g. o._cp dies
+# "coreutils: unknown program 'o._cp'" (silent exit-1 that starves every
+# install).  Stage a wrapper that invokes it under the name it answers
+# to; on plain-cp hosts (Ubuntu CI) the wrapper is a transparent shim.
 $cpuobjtype._cp:	/bin/cp
-	cp $prereq $target
+	{echo '#!/usr/bin/env bash'
+	 echo 'exec -a cp /bin/cp "$@"'} > $target
+	chmod +x $target
 
 %.safeinstall:	$O.% $cpuobjtype._cp
 	test -e $BIN/$stem && mv $BIN/$stem $BIN/_$stem
@@ -148,7 +155,7 @@ cleanfiles:V:
 	rm -f [$OS].$stem $stem.[$OS]
 
 install:V:
-	test -e $cpuobjtype._cp || cp /bin/cp $cpuobjtype._cp
+	test -e $cpuobjtype._cp || mk $MKFLAGS $cpuobjtype._cp
 	mk $MKFLAGS $TARG.install
 	mk $MKFLAGS directories
 
@@ -157,7 +164,7 @@ installall:V:
 		mk $MKFLAGS install
 
 %.installall:	%.c
-	test -e $cpuobjtype._cp || cp /bin/cp $cpuobjtype._cp
+	test -e $cpuobjtype._cp || mk $MKFLAGS $cpuobjtype._cp
 	for (objtype in $CPUS) {
 		rfork e
 		mk $stem.install &

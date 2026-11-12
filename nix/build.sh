@@ -107,29 +107,12 @@ SUDO=${SUDO:-/usr/bin/sudo}
 for t in 6a 6c 6l 8a 8c 8l ls; do
   [ -x "$HARVEY_LINUX_BIN/$t" ] && "$SUDO" cp "$HARVEY_LINUX_BIN/$t" "/bin/$t"
 done
-# /bin/cp: sys/src/cmd/mkfile's install layer stages `cp /bin/cp o._cp`
-# (its $cpuobjtype._cp rule, mkfile:116) and then performs every install
-# THROUGH o._cp.  Two venue traps, both NixOS-host discoveries (Ubuntu
-# carries a plain /bin/cp natively): /bin/cp must exist, AND the host cp
-# may be a multi-call coreutils that dispatches on argv[0] — a binary
-# copy named o._cp dies "coreutils: unknown program 'o._cp'" (silent
-# exit-1 that starves every mkmany-family install: venti, vac, troff...).
-# So: stage the real binary at /bin/cp (correct name, dispatches fine),
-# and pre-stage o._cp as an exec -a wrapper forcing argv[0]=cp — the
-# mkfile's `test -e o._cp ||` then skips its own binary copy.
+# /bin/cp must EXIST for the install layer (cmd/mkfile's $cpuobjtype._cp
+# wrapper execs /bin/cp — see that mkfile for the argv[0]-dispatch story;
+# the wrapper itself is now created mkfile-side, surviving mk clean and
+# every venue).  Ubuntu carries /bin/cp natively; NixOS hosts need it
+# staged (cp is not a hostbin tool, so the host's own cp lands there).
 "$SUDO" cp "$(command -v cp)" /bin/cp
-_OCP_TMP=$(mktemp "${TMPDIR:-/tmp}/harvey-o-cp.XXXXXX")
-cat > "$_OCP_TMP" <<'OCP_EOF'
-#!/usr/bin/env bash
-# staged by nix/build.sh — the host cp may be argv[0]-dispatching
-# multi-call coreutils; invoke it under the name it dispatches on.
-exec -a cp /bin/cp "$@"
-OCP_EOF
-# a prior sudo venue run may have left o._cp root-owned: install via $SUDO
-"$SUDO" cp "$_OCP_TMP" "$HARVEY/sys/src/cmd/o._cp"
-rm -f "$_OCP_TMP"
-"$SUDO" chown 0:0 "$HARVEY/sys/src/cmd/o._cp"
-"$SUDO" chmod 555 "$HARVEY/sys/src/cmd/o._cp"
 
 # capture the build status explicitly: without this, a failed namespace
 # build was masked by the preflight-arm tail below (its `|| exit 0`
