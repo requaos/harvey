@@ -9,7 +9,7 @@ Row notes (where the later plans land):
 - **08-CR-07** → 17-07's root-cause + fix + stress-pin work item; folds WINDOWS **#47/#50/#66** into it per D-09 (one root-cause pass; the fold verdict is execution output).
 - **08-WR-03** → CLOSED by 17-02: the tiered leak gates ran green twice at both tiers (the gates also root-caused the remaining per-exit drain — WINDOWS #44, fixed in-phase).
 - **08-CR-03's** in-kernel contention leg LANDED in 17-02's churn profile (39 RFMEM generations green twice).
-- **07-WR-01..06** → 17-04's Phase-7 hardening class-sweep (cap-walk loud aborts, WaitSet sizing, used-id liveness).
+- **07-WR-01..04** → 17-04's Phase-7 hardening class-sweep (cap-walk loud aborts). **07-WR-05/07-WR-06** → CLOSED by 17-03 (WaitSet sizing to the live table, used-id slot liveness — the two self-contained classes that did not need the q35 cap-walk audit).
 - **07-WR-07/07-WR-08** → dispositioned-in-17-04 (frozen/superseded, the 3-part D-15 rationale).
 - **#18/#45** → 17's namec work (D-10: #18 fixed in-phase; #45 union-create). **#44** → 17-02's leak gates (the arena-drain row). **#46/#49/#65** → the D-11 rc fix-class commit. **#47/#50/#66** → the CR-07 fold (17-07).
 
@@ -32,8 +32,8 @@ Row notes (where the later plans land):
 | 07-WR-02 | pending | pending | pending | 07-REVIEW-DISPOSITION.md WR-02 |
 | 07-WR-03 | pending | pending | pending | 07-REVIEW-DISPOSITION.md WR-03 |
 | 07-WR-04 | pending | pending | pending | 07-REVIEW-DISPOSITION.md WR-04 |
-| 07-WR-05 | pending | pending | pending | 07-REVIEW-DISPOSITION.md WR-05 |
-| 07-WR-06 | pending | pending | pending | 07-REVIEW-DISPOSITION.md WR-06 |
+| 07-WR-05 | fixed — the three WaitSet copies + the twelve take buffers resized by ONE port-level MAX_WAITERS=512 const (the live proc-table value on both arches; zero 'u64; 16]' literals remain, baseline 18) + the loud full arm (count+report, the soverflows shape — never a silent drop, never a panic) | the nine pure-struct waitset capacity pins at the three homes (netif_waitset_/stack_waitset_/conv_waitset_ — 512-retained, 513th-loud incl. the dropped() observable, idempotence guards; cargo test -p port --lib -- waitset = 9/9, battery 112/112) + boot-r9-smoke-x64 and boot-r9-net-smoke-x64 (exit 0, ALL STAGES PASS) at the new pin | r9 aea604c (RED pins) + r9 2bc52a7 (fix) + r9 658001b (FOD re-wire, two-derivation proof); Harvey flake.lock pin b02408cad (lock-only) | 07-REVIEW-DISPOSITION.md WR-05 |
+| 07-WR-06 | fixed — next_used rejects a used-ring id whose slot is not posted BEFORE the recovery clear ("virtio: used-ring id for an unposted slot (device fault)" — the loud-reject family, never a panic; V5 posture) | used_drain_rejects_unposted_slot_ids beside the existing out-of-range/odd-id negatives (cargo test -p port --lib -- used_ = 4/4) + boot-r9-net-smoke-x64 (exit 0 — the virtio-net RX retire ran the check live under real device completions) | r9 3bd8625 (RED pin) + r9 abe72e7 (fix) + r9 658001b (FOD re-wire); Harvey flake.lock pin b02408cad (lock-only) | 07-REVIEW-DISPOSITION.md WR-06 |
 | 07-WR-07 | dispositioned-in-17-04 | pending | pending | 07-REVIEW-DISPOSITION.md WR-07 |
 | 07-WR-08 | dispositioned-in-17-04 | pending | pending | 07-REVIEW-DISPOSITION.md WR-08 |
 | #18 | pending | pending | pending | WINDOWS.md #18 |
