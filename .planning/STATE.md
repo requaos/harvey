@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: r9 Kernel Flush-Out
 status: executing
-stopped_at: Completed 17-01-PLAN.md
-last_updated: "2026-11-12T17:33:10.207Z"
+stopped_at: Completed 17-02-PLAN.md
+last_updated: "2026-11-12T21:26:25.291Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 17 execution started
-state_head: 8cca46672a5e98665a5e8504d2e2e375d61155cc
+state_head: e829c0263b5c38735fb62e26b780bd1a4a99228b
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 39
-  completed_plans: 33
+  completed_plans: 34
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 17 (r9 Kernel Flush-Out) — EXECUTING
-Plan: 2 of 7
+Plan: 3 of 7
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 17 execution started
 
@@ -90,6 +90,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 16 P08 | 274 min (diagnosis-heavy: 3 wedges root-caused, 6 full gate runs) | 2 tasks | 6 files |
 | Phase 16 P07 | 19 min | 2 tasks | 2 files |
 | Phase 17 P01 | 38 min | 3 tasks | 5 files |
+| Phase 17 P02 | 224 min | 3 tasks | 26 files |
 
 ## Accumulated Context
 
@@ -195,6 +196,9 @@ Recent decisions affecting current work:
 - [Phase 17]: [17-01] D-02 audit verdict: x86_64 carries the aarch64 WR-03 family verbatim at the four anchors, but four x86_64-LOCAL OOM paths leaked (pml4_map_user walk intermediates, map_user_page leaf, rfork copy arm, new_user_proc tuple prefix) — ported as one class commit r9 3e8bcec, FOD re-wired 476605d, pin advanced lock-only
 - [Phase 17]: [17-01] CR-03's Phase-8 requires-human-verification host half DISCHARGED: four deterministic x86_64 sem pins (r9 f9088d0, sem_ filter 5/5, battery 64/64); the in-kernel contention leg rides 17-02's churn profile; WR-03's half rides 17-02's tiered leak gates (not closed)
 - [Phase 17]: [17-01] The closure pipeline is proven on the CR-01 exemplar: port battery -> composed x64 gate -> 08-ledger Source re-cite -> FLUSHOUT row; 13 x86_64-keyed re-cites landed (baseline 0) and 17-FLUSHOUT.md seeded with all 30 rows — the index VERIFICATION walks
+- [Phase 17]: [17-02] WINDOWS #44 closed at a MEASURED root cause, not the plan's suspect: exit_tail's diverging tail never dropped its transients (the ~8 KiB fd-group Arc per exit) + the never-reaped husk's retained group handles — 16 KiB/exec drain fixed at r9 c4f2f2c/72edbba (60 bytes/exec post-fix); ByteBacking::Mnt never implicated
+- [Phase 17]: [17-02] The composed venue's bounded-memory mechanism: the PREFERRED arm — kernel-x64 re-pointed at a new q35churnshell config (q35shell verbatim + the churn dev key; q35shell.toml byte-stable) carrying the per-exit heap marker; the composed gate bounds its window from the kernel's own emitted numbers
+- [Phase 17]: [17-02] The contention leg found its own bug: rfmem_brk_set's lone-member arm (the post-sibling-exit state) mapped nothing — the survivor's first malloc fault-killed it; fixed r9 72edbba. New deferred finding: rc's userland pool corrupts under ~428+ backquote iterations (17-03's rows)
 
 ### Pending Todos
 
@@ -217,6 +221,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-12T17:33:09.518Z
-Stopped at: Completed 17-01-PLAN.md
+Last session: 2026-11-12T21:26:24.515Z
+Stopped at: Completed 17-02-PLAN.md
 Resume file: None
