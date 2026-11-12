@@ -505,19 +505,25 @@ Note both wake entries drain ALL waiters (`take`) and the hook walks a 512-slot 
 | A6 | #49 (rc argv underflow) is reproducible on the KVM/TCG linux venue | rc rows | Medium: the historical fires were HVF-timing-only (darwin); the fix may have to land on invariant-audit grounds with sweep re-green as the pin — record as a 3-part-adjacent note if unreproducible |
 | A7 | `cargo test -p port` (full, non---lib) remains green alongside `--lib` 101 | Environment | Low: the lib battery is the pin home; the full battery adds doc tests |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All four resolved at planning (2026-11-12); each resolution names the plan task that adopted it. OQ-1 is resolved as adopted-by-task only — the investigation mandate is planned; the causal answer itself is execution output per locked D-03, never answered at plan time.
 
 1. **CR-07 root cause — which candidate?**
    - What we know: three recorded candidates (the multi-pid wake hook path; a woken waiter's re-probe driving BOTH cores (`drive_stack` iterates `[lb, eth]` — verified at stack.rs:479-480) and consuming the ARP reply before the ping reader re-probes; IRQ-context BusyCell contention). #66's x86_64 form is a triple fault with NO trap dump (IDT delivery itself failed) preceded by an empty-status exit cascade.
    - What's unclear: which candidate is causal; whether #47 (aarch64 wedge), #50 (devpipe DataAbort), and #66 (x64 triple fault) are one class or two (D-09 allows a row to fall out as a different class).
    - Recommendation: root-cause under the memory-side-probe doctrine with the #66 toolkit (16 deferred-items records the debugcon instrumentation set + the recommended `rounds=1/burstn=8` + `-d int,guest_errors` stress loop); planner sequences it early enough that the stress pin can gate the fix (D-03), with wave ordering per the dependency map (discretion).
+   - Resolution (RESOLVED as adopted-by-task): the root-cause mandate is adopted by 17-07 Task 1 — the stress instrument (reduced #66-shape loop with -d int,guest_errors capture) plus memory-side-probe-only investigation, delivering 17-CR07-ROOTCAUSE.md with the mechanism, candidate verdicts, and the #47/#50/#66 fold verdict; the fix + deterministic pin ride 17-07 Task 2, the N=10 stress pin Task 3. Which candidate is causal is execution output per locked D-03 — deliberately not answered at plan time.
 2. **What is "bounded memory" for the D-06 assertion?**
    - What we know: cursor only grows (recycled via quick/misc lists); the slope is the signal; residue ~16 KiB/exit was measured at 15-03; arena 32 MiB.
    - What's unclear: the acceptable slope per 1000 execs after a genuine fix (some table-growth is legitimate — Moribund husks are never reaped: proc.rs:103-108 comment "Slots are never REAPED this era").
    - Recommendation: the r9-side churn profile asserts a per-exec delta ceiling derived from a first measured-green baseline; document the number in the profile's comment. Moribund-husk accumulation is a KNOWN era shape — do not chase it as a leak (it's bounded by MAX_PROCS × husk size).
+   - Resolution (RESOLVED): the r9-side churn profile asserts a per-exec cursor-delta ceiling derived from a first measured-green baseline, the number and its derivation documented in the driver comment; Moribund-husk accumulation excluded as a known bounded era shape — adopted by 17-02 Task 1 (churngate.rs + its slope-logic pins).
 3. **Does the 12-finding re-proof need new arch-keyed boot pins, or do existing host pins + x64 gates satisfy D-13's Source cell?**
    - Recommendation: host test names + the existing x64 gate names (both are "pins that can fail"); only CR-03 wants a NEW deterministic x86_64-keyed interleaving test (D-07) since the aarch64 `sem_tests` module has 4 pins the x86_64 side compresses into 1.
+   - Resolution (RESOLVED): existing host pin names + the existing x64 gate family satisfy D-13's Source cell ("host test name or boot profile"); only CR-03 gains NEW deterministic x86_64-keyed pins (the four sem_ tests) — adopted by 17-01 Tasks 1-3 (the 12 re-cites; CR-03's new pins land in Task 2). The flagged assumption stands: if VERIFICATION demands arch-keyed boot pins per finding, that reopens as gap-closure work.
 4. **IN rows in the two ledgers stay open — confirm VERIFICATION accepts that** (D-12 says untouched rows stay; the phase's FLUSHOUT table simply omits them).
+   - Resolution (RESOLVED): the IN rows stay open per D-12 and the FLUSHOUT table omits them — adopted by 17-01 Task 3 (the 30-row seed omits IN rows by construction) and 17-04 Task 3 (the 07 ledger closes with only the IN rows open, open count <= 5); VERIFICATION walks FLUSHOUT (D-16), which never sees an IN row.
 
 ## Environment Availability
 
