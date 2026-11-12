@@ -97,8 +97,14 @@ SUDO=${SUDO:-/usr/bin/sudo}
 "$SUDO" cp "$HARVEY/build/bind" /bin/bind
 "$SUDO" cp "$PLAN9/bin/rc" /bin/rc
 # pcc also execs the compilers/linkers by absolute /bin path (pcc.c:
-# doexec(smprint("/bin/%s", ot->cc)) etc.)
-for t in 6a 6c 6l 8a 8c 8l; do
+# doexec(smprint("/bin/%s", ot->cc)) etc.).  ls rides the same staging:
+# 9k/mk/parse's mkrules() walks the config's dir section with an absolute
+# `/bin/ls *.[cs]` (parse:487) — without it the per-source rules
+# (kbd.$O: ../386/kbd.c &c) are silently never emitted and the kernel
+# link dies "no recipe to make kbd.6" (the NixOS-host discovery; Ubuntu
+# carries a /bin/ls natively).  hostbin's plan9 ls is shape-identical
+# here: one name per line for explicit args, which is all mkrules reads.
+for t in 6a 6c 6l 8a 8c 8l ls; do
   [ -x "$HARVEY_LINUX_BIN/$t" ] && "$SUDO" cp "$HARVEY_LINUX_BIN/$t" "/bin/$t"
 done
 
