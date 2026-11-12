@@ -138,8 +138,11 @@ if [ ! -x "$MKPAQFS" ]; then
 fi
 [ -x "$MKPAQFS" ] || err "$MKPAQFS missing after mkpaqfs-host.sh"
 
-# inputs (stage-build.sh is the producer — named loudly when absent)
-for f in init smokesleep; do
+# inputs (stage-build.sh is the producer — named loudly when absent).
+# 17-02 adds the churn pair (churnmark/churnsem — the exec-loop payload
+# and CR-03's RFMEM sem contender) to the MARKER image, staged beside
+# init/smokesleep; the additive rule (existing manifests untouched).
+for f in init smokesleep churnmark churnsem; do
 	[ -s "$STAGE_SRC/$f" ] || err "$STAGE_SRC/$f missing — run sh build/x86_64/stage-build.sh first"
 done
 # 14-06: the chain inputs (stage-build.sh's boot-chain section — out/ is
@@ -190,12 +193,16 @@ mkdir -p "$STAGE/root" "$STAGE/env" "$STAGE/proc" "$STAGE/dev" "$STAGE/srv" \
 # aarch64 note, carried).
 
 # 3. the marker binaries (deterministic staging order: the loop is the
-#    fixed list; init is the leg-1 entry, smokesleep its source name)
+#    fixed list; init is the leg-1 entry, smokesleep its source name).
+#    17-02 stages the churn pair beside them (the additive rule): the
+#    q35churn profile's kernel-side driver walks these by name.
 cp "$STAGE_SRC/init" "$STAGE/amd64/init"
 cp "$STAGE_SRC/smokesleep" "$STAGE/amd64/smokesleep"
+cp "$STAGE_SRC/churnmark" "$STAGE/amd64/churnmark"
+cp "$STAGE_SRC/churnsem" "$STAGE/amd64/churnsem"
 
 # 4. pre-bake manifest: every mandated path exists
-for p in amd64/init amd64/smokesleep; do
+for p in amd64/init amd64/smokesleep amd64/churnmark amd64/churnsem; do
 	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
 done
 for p in root env proc dev srv fd bin tmp mnt net; do
@@ -210,6 +217,14 @@ done
 	|| err "amd64/init is not the smokesleep marker (re-run sh build/x86_64/stage-build.sh)"
 "$GREP" -q "init: starting /bin/rc" "$STAGE/amd64/init" \
 	&& err "amd64/init is the REAL init (leg 1 stages the marker — re-run sh build/x86_64/stage-build.sh)"
+
+# 4a1. churn-pair identity (17-02): each churn binary is itself (the
+#      rodata-grep class — churnmark prints its ready line from ring 3,
+#      churnsem prints the generation marker the gate counts)
+"$GREP" -q "churnmark: ready" "$STAGE/amd64/churnmark" \
+	|| err "amd64/churnmark does not carry its marker string (re-run sh build/x86_64/stage-build.sh)"
+"$GREP" -q "churngate: semgen" "$STAGE/amd64/churnsem" \
+	|| err "amd64/churnsem does not carry its generation marker (re-run sh build/x86_64/stage-build.sh)"
 
 # 4b. /boot/factotum ABSENCE (auth-stub-by-absence, D-02 carried: auth
 #     is Phase 18; its mere presence flips authentication() live)

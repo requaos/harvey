@@ -35,8 +35,14 @@ OUT="$HARVEY/build/x86_64/smoke-out"
 
 # The C sources this script stages: NAME.c -> smoke-out/NAME (6c/6l).
 # The marker set this era is the one marker binary (D-09's thin path);
-# it is staged as init too (the rule above).
-STAGE_SRCS="smokesleep"
+# it is staged as init too (the rule above).  17-02 adds the churn
+# pair: churnmark (the exec-loop payload — minimum work per copy, the
+# smokesleep lineage without its ~300ms note-interruption park, which a
+# 1400-deep loop cannot afford) and churnsem (CR-03's RFMEM
+# semacquire/semrelease contender) — staged beside init/smokesleep in
+# the MARKER image (the additive rule; /amd64/init's meaning is
+# untouched).
+STAGE_SRCS="smokesleep churnmark churnsem"
 
 err() { echo "error: $*" >&2; exit 1; }
 
@@ -92,7 +98,7 @@ set -e
 
 fail() { echo "STAGE-BUILD-FAIL: $1" >&2; exit 1; }
 
-STAGE_SRCS="smokesleep"
+STAGE_SRCS="smokesleep churnmark churnsem"
 STAGE="$HARVEY/build/x86_64/smoke-out"
 
 echo "== stage build provenance (Harvey's vendored toolchain):"
