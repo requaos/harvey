@@ -195,7 +195,28 @@ Plans:
   2. The RFMEM OOM-path page leaks (the 6 WR findings) are closed with refcount proofs — leak-repro gates demonstrate bounded memory under fork/exec churn (FLUSH-02)
   3. The Phase-7 WR hardening gaps are closed: cap-walk loud-abort holes, WaitSet-16-vs-MAX_PROCS-64 sizing, used-id slot-liveness (FLUSH-03)
   4. The known kernel windows are closed or gated — fork+exec arena drain (WINDOWS #44), namec union-create miss (WINDOWS #45) — every flush-out fix lands with a pin (FLUSH-04)
-**Plans**: TBD
+**Plans**: 7 plans
+Plans:
+**Wave 1**
+- [ ] 17-01-PLAN.md — the verification wave: the closure pipeline tracer (CR-01 exemplar), the D-02 OOM-audit completion (exec.rs remainder), CR-03's deterministic sem pins, the 12 already-fixed 08-ledger re-cites, 17-FLUSHOUT.md seeded (FLUSH-01, FLUSH-02; D-01/D-02/D-13/D-16)
+
+**Wave 2** *(blocked on Wave 1 — the gates prove the completed audit, D-02)*
+- [ ] 17-02-PLAN.md — the D-06 tiered leak gates: the r9-side q35churn boot profile (heap_stats slope + CR-03's contention leg) + the Harvey composed /bin/cat churn leg, both green twice, teeth-proven — #44 closed or fixed in-phase (FLUSH-02, FLUSH-04)
+
+**Wave 3** *(blocked on Wave 2 — one pin-advancing plan per wave, flake.lock serializes kernel-byte passes)*
+- [ ] 17-03-PLAN.md — WR-05 WaitSet resize to the real 512 table + the loud full arm, WR-06 used-ring unposted-slot liveness — pure-struct pins, two class commits, own-commit pin advance (FLUSH-03)
+
+**Wave 4** *(blocked on Wave 3)*
+- [ ] 17-04-PLAN.md — the cap-walk loud-abort quartet (WR-01..04: shared Caps::parse + the q35 extent/minimum/BAR holes) as ONE class commit + the full x64 battery re-run, WR-07/08 3-part dispositions — the 07 ledger's WR sweep completes (FLUSH-03)
+
+**Wave 5** *(blocked on Wave 4)*
+- [ ] 17-05-PLAN.md — namec pass: #45 union-create fix (walk_one's union consult + pin) + #18 verify-and-close (the four pg.lock sites + contention evidence) (FLUSH-04, D-10)
+
+**Wave 6** *(blocked on Wave 5)*
+- [ ] 17-06-PLAN.md — the three rc rows (#46/#49/#65) as one Harvey fix-class commit, sweep-proven — no pin mechanics (FLUSH-04, D-11)
+
+**Wave 7** *(blocked on Wave 6 — the stress pin rides the final kernel + userspace state)*
+- [ ] 17-07-PLAN.md — CR-07 root-caused (memory-side probes, #66 toolkit) + fixed + deterministic/stress pins (N=10), #47/#50/#66 fold-closed, 17-FLUSHOUT.md completed row-by-row (FLUSH-01 CR-07, FLUSH-04; D-03/D-09/D-16)
 
 ### Phase 18: In-Guest p9sk1 Auth Domain
 **Goal**: The x86_64 guest is a self-contained p9sk1 auth domain — one bake-time generator produces the machine key, `/adm/keys`, nvram-substitute, and ndb entries as a hash-paired unit so all four p9sk1 configs agree by construction; keyfs + authsrv serve it over loopback `/net`; the in-guest probe proves the handshake before any drawterm is ever attempted. **Work spans both repos (r9 `/dev/random` + devcap; Harvey bake machinery + image).**
