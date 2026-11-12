@@ -107,6 +107,14 @@ SUDO=${SUDO:-/usr/bin/sudo}
 for t in 6a 6c 6l 8a 8c 8l ls; do
   [ -x "$HARVEY_LINUX_BIN/$t" ] && "$SUDO" cp "$HARVEY_LINUX_BIN/$t" "/bin/$t"
 done
+# /bin/cp: sys/src/cmd/mkfile's install layer stages `cp /bin/cp o._cp`
+# (its $cpuobjtype._cp rule, mkfile:116) — without /bin/cp the WHOLE
+# install.directories leg dies (no mkmany-family dir installs: venti, vac,
+# troff, aux... land as built binaries but never reach /amd64/bin, and the
+# kernel embeds then fail on them — the NixOS-host discovery; Ubuntu
+# carries /bin/cp natively).  cp is not a hostbin tool, so the host's own
+# cp is staged (GNU cp from the devshell PATH; same shape on both venues).
+"$SUDO" cp "$(command -v cp)" /bin/cp
 
 # capture the build status explicitly: without this, a failed namespace
 # build was masked by the preflight-arm tail below (its `|| exit 0`
