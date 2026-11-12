@@ -104,8 +104,11 @@ T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER
 # surfaced on the clean-checkout plain build (tier-9k/poolpanic/harvey
 # CI: pcc "cannot open /amd64/lib/ape/libap.a").  The tier vocabulary is
 # cmd/-anchored and cannot express this namespace, so the substrate
-# rides here, before the tier-kept libs' consumers link.
-LIBS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) @{for(i in $ALLLIBS) if(~ $i $T0KEEPA) echo $i; echo ape/lib/ap ape/lib/bsd ape/lib/utf}; if not echo $ALLLIBS}
+# rides here.  SHAPE RULE (driven): the append must stay brace-free —
+# mk's backquote scanner closes the `{...} at the first bare inner '}'
+# (it does not parse @{...} groups), so the ape dirs ride the for-list
+# with their own '~ ape/lib/*' arm instead.
+LIBS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS ape/lib/ap ape/lib/bsd ape/lib/utf) if(~ $i $T0KEEPA || ~ $i ape/lib/*) echo $i; if not echo $ALLLIBS}
 CMDS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLCMDS}
 SUBSYS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLSUBSYS}
 
