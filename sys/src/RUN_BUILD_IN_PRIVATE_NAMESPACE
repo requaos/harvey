@@ -1,4 +1,7 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# (env-shebang: NixOS hosts carry no /bin/bash — venue portability;
+# normally invoked via `bash RUN_BUILD_IN_PRIVATE_NAMESPACE` from
+# nix/build.sh, which does not consult this line)
 export > exports.$$
 # what a mess.
 export > buildnamespace

@@ -29,7 +29,8 @@ if [ -n "$_HOSTNM" ]; then
 else
   export PATH="$HARVEY_LINUX_BIN:$PATH:/rc/bin:."
 fi
-trap '/bin/rm -rf "$_NM_SHIMDIR"' EXIT
+# (bare rm, on PATH — /bin/rm does not exist on NixOS hosts)
+trap 'rm -rf "$_NM_SHIMDIR"' EXIT
 export USER="${USER:-root}"
 export objtype=amd64
 export cputype=unix
