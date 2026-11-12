@@ -323,6 +323,21 @@
             export HARVEY_NETADDR_SEAM="${./build/x86_64/root-tree/lib/netaddr.rc}"
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.procps ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
+          # 17-02 (D-06 tier (b)): the composed churn gate — the
+          # smoke pipeline re-keyed onto the NET-FREE churn venue: no
+          # doctor, no emitter, no peer; tier build → the CHURN bake
+          # (mkimage section 12: chain + test/dc + /lib/churn-cats.rc)
+          # → iso-builder compose → build/x86_64/churn-r9.expect
+          # driving `rc /lib/churn-cats.rc' (/bin/cat x 1400 fork+exec
+          # at the #44 repro shape) with the exact-count contract +
+          # zero FAIL + the bounded-memory window (the per-exit
+          # churngate heap markers the q35churnshell kernel carries —
+          # the pinned kernel-x64 since this plan's r9-side re-point).
+          churnR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-churn-x64" ./nix/churn-r9-x64.sh ''
+            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
+            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.procps ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -364,6 +379,10 @@
           # the app rides the EXISTING x64 block (its attrs: kernel-x64,
           # iso-builder, netdev-args — the last moved in by 16-04).
           boot-r9-net-soak-x64 = mkApp netSoakR9X64Pkg;
+          # 17-02 (D-06 tier (b)): the composed churn gate — rides the
+          # same x64 block (its attrs: kernel-x64, iso-builder; the
+          # venue is net-free, no emitter).
+          boot-r9-churn-x64 = mkApp churnR9X64Pkg;
         }
         # 16-03 (HNET-05/D-14): the doctor app — linux-only in its OWN
         # optionalAttrs gate (the checks are linux's; darwin's vmnet

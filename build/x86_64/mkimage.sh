@@ -1060,3 +1060,78 @@ trailer5=$(od -An -tx1 -j $((sz5 - 28)) -N 4 "$SVC_IMAGE" | tr -d ' \n')
 [ "$trailer5" = "6b46e688" ] || err "$SVC_IMAGE: bad trailer magic $trailer5 (want 6b46e688)"
 
 echo "== PASS: baked $SVC_IMAGE ($sz5 bytes; ${_nh} h* binaries; header $magic5 trailer $trailer5; KERNDATE $KERNDATE)"
+
+# ------------------------------------------------------------------
+# 12. the CHURN bake (17-02, FLUSH-02's D-06 tier (b)): the chain
+#     tree (8's manifest — boot(8)→init→rc boots the venue to the
+#     interactive prompt) PLUS test + dc (the 14-09 net bake's utility
+#     supply: the rc fixture's counter idiom needs dc backquote and
+#     test is not a builtin) — /lib/churn-cats.rc rides the committed
+#     skeleton (the netip-*.rc precedent: root-tree/lib is the shared
+#     fixture home).  The composed churn gate (boot-r9-churn-x64)
+#     types `rc /lib/churn-cats.rc' at the % prompt and bounds the
+#     /bin/cat x 1400 fork+exec churn window's per-exit heap-marker
+#     delta — the #44 real-load tier.  Existing sections untouched
+#     (Pitfall 7); this one is purely additive.
+CHURN_IMAGE="$OUT/bootfs-churn.paq"
+
+# 12a. inputs (the chain set from 8's checks still holds; the churn
+#      additions named loudly)
+for f in test dc; do
+	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first (the churn fixture's counter idiom)"
+done
+[ -f "$ROOT_TREE/lib/churn-cats.rc" ] || err "$ROOT_TREE/lib/churn-cats.rc missing (the committed churn fixture)"
+
+STAGE6="$TMPD/root-churn"
+mkdir -p "$STAGE6"
+
+# 12b. the committed skeleton (the fixture rides it) + the chain
+#      staging shape (9c/9d's construction: skeleton, mount-point
+#      dirs, the chain binaries from THIS build's products)
+(cd "$ROOT_TREE" && tar -cf - .) | (cd "$STAGE6" && tar -xf -)
+mkdir -p "$STAGE6/root" "$STAGE6/env" "$STAGE6/proc" "$STAGE6/dev" "$STAGE6/srv" \
+	"$STAGE6/fd" "$STAGE6/bin" "$STAGE6/tmp" "$STAGE6/mnt" \
+	"$STAGE6/net" "$STAGE6/boot" "$STAGE6/amd64/bin" \
+	"$STAGE6/rc/lib" "$STAGE6/rc/bin" "$STAGE6/adm/timezone"
+cp "$CHAIN_OUT/boot" "$STAGE6/boot/boot"
+cp "$BIN/paqfs" "$STAGE6/boot/paqfs"
+cp "$HARVEY/amd64/init" "$STAGE6/amd64/init"
+for f in rc ls cat echo ps test dc; do
+	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first (the churn bake)"
+	cp "$BIN/$f" "$STAGE6/amd64/bin/$f"
+done
+cp "$HARVEY/rc/lib/rcmain" "$STAGE6/rc/lib/rcmain"
+cp "$HARVEY/adm/timezone/local" "$STAGE6/adm/timezone/local"
+
+# 12c. pre-bake manifest: the chain set + the churn additions + the
+#      fixture (the staging manifest, printed as evidence)
+for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
+	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
+	amd64/bin/test amd64/bin/dc \
+	rc/lib/rcmain lib/churn-cats.rc adm/timezone/local \
+	lib/namespace usr/glenda/lib/profile; do
+	[ -f "$STAGE6/$p" ] || err "churn manifest: $p missing from staged tree"
+done
+for p in root env proc dev srv fd bin tmp mnt net; do
+	[ -d "$STAGE6/$p" ] || err "churn manifest: mount-point dir /$p missing"
+done
+[ ! -e "$STAGE6/boot/factotum" ] || err "churn manifest: /boot/factotum present — auth-stub-by-absence violated"
+cmp -s "$HARVEY/rc/lib/rcmain" "$STAGE6/rc/lib/rcmain" || err "staged rcmain diverges from rc/lib/rcmain (churn)"
+
+# 12d. determinism + bake (the chain bake's rule; the per-file cap
+#      assert rides too — the 15-07 measured hazard)
+_maxf6=$(find "$STAGE6" -type f -printf '%s\n' | sort -n | tail -1)
+[ "$_maxf6" -le 4194304 ] || err "churn bake: a staged file of $_maxf6 bytes exceeds mkpaqfs's 4194304-byte per-file cap"
+find "$STAGE6" -exec touch -h -d "@$KERNDATE" {} +
+rm -f "$CHURN_IMAGE"
+KERNDATE="$KERNDATE" "$MKPAQFS" -o "$CHURN_IMAGE" "$STAGE6" || err "mkpaqfs failed (churn)"
+[ -s "$CHURN_IMAGE" ] || err "$CHURN_IMAGE missing/empty after mkpaqfs"
+
+# 12e. the byte-format contract (same header/trailer magic checks)
+magic6=$(od -An -tx1 -N4 "$CHURN_IMAGE" | tr -d ' \n')
+[ "$magic6" = "529ab12b" ] || err "$CHURN_IMAGE: bad header magic $magic6 (want 529ab12b)"
+sz6=$(wc -c < "$CHURN_IMAGE" | tr -d ' ')
+trailer6=$(od -An -tx1 -j $((sz6 - 28)) -N 4 "$CHURN_IMAGE" | tr -d ' \n')
+[ "$trailer6" = "6b46e688" ] || err "$CHURN_IMAGE: bad trailer magic $trailer6 (want 6b46e688)"
+
+echo "== PASS: baked $CHURN_IMAGE ($sz6 bytes; chain + test/dc + /lib/churn-cats.rc; header $magic6 trailer $trailer6; KERNDATE $KERNDATE)"
