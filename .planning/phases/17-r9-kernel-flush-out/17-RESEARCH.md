@@ -101,7 +101,7 @@ The genuinely new engineering is concentrated in four places: **CR-07** (never f
 | Phase-7 hardening trio (FLUSH-03) | r9 `port/src/{netif,virtio}.rs` (shared) | r9 `x86_64/src/platform/q35/pci.rs` (bind-time extent checks) | WaitSet ×2 + used-id retire live in port; the third WaitSet copy is devip/conv.rs; cap-walk bind-time rejects are q35-side consumers of port's parsed caps |
 | devip CR-01..06 re-pins (FLUSH-01) | r9 `port/src/devip_tests.rs` (host) | Harvey x64 net gates (live in-kernel) | The pins are port-crate host tests (verified passing); the boot gates re-prove under real sockets/IRQs |
 | #44 arena drain (FLUSH-04) | r9 exec staging (`ByteBacking::Mnt`) | Harvey composed churn gate (D-06b) | Kernel-level proof r9-side; real-load proof Harvey-side per 14-D-06 split |
-| #45 union-create + #18 pgrp lock | r9 `port/src/namec.rs` | r9 `x86_64/src/syscall.rs` (pgrp lock sites) | Both are shared namec/pgrp machinery; x86_64 syscall.rs holds the 4 remaining `pg.lock` sites to audit |
+| #45 union-create + #18 pgrp lock | r9 `port/src/namec.rs` | r9 `x86_64/src/syscall.rs` (pgrp lock sites) | Both are shared namec/pgrp machinery; x86_64 syscall.rs holds the 4 remaining pgrp-lock sites to audit (three `pg.lock` spellings + one `pgrp.lock` at :1159) |
 | rc rows #46/#49/#65 (D-11) | Harvey `sys/src/cmd/rc/` (userspace) | Harvey boot gates (proof) | Pure Harvey-repo C fixes; no r9 pin mechanics; proof is rc-driven sweeps re-greening |
 | Ledger closure (D-13/14/16) | Harvey `.planning/` ledgers | 17-FLUSHOUT.md (phase dir) | The ledgers are the per-backlog truth; FLUSHOUT is the phase index |
 | FOD re-wire + pin advance | Harvey `flake.lock` + r9 flake FOD | r9 `origin/main` (push-before-pin) | The two-repo composition: every kernel-byte commit re-stales the FOD hash |
@@ -129,7 +129,7 @@ No external packages are installed by this phase (Rust core/alloc only in r9; Ha
 |-------|----------|-------------|
 | `--target` override battery | `cargo test -p x86_64 --bins --target x86_64-unknown-linux-gnu` | REQUIRED on linux — 60 pass live; plain `--bins` fails with 1330 E0463 errors (per-package-target `default-target = "x86_64-unknown-none"` has no std) [VERIFIED: live run + ../r9/x86_64/Cargo.toml:1-7] |
 | oom high-water print | `../r9/x86_64/src/runtime.rs:24-31` — `panic!("oom: {layout:?} arena used {used:#x} of {total:#x}")` | the churn gate's failure observability |
-| r9 hosted CI | `../r9/.github/workflows/xtask.yml:19` runs only `cargo xtask check --verbose` [VERIFIED] | host tests NOT yet in CI — the discretion item "CI placement of the new host tests" lands here |
+| r9 hosted CI | `../r9/.github/workflows/xtask.yml` — lint job (check :19 + clippy :20), `tests` job running `cargo xtask test --verbose` (:28 — TestStep runs both host batteries per xtask main.rs:2834-2853), three per-arch build jobs, a TCG boot-test job [VERIFIED: live read] | host tests ARE in CI (the tests job rides every push) — the discretion item "CI placement of the new host tests" is already discharged by the existing tests job; new pins ride it with no workflow edit |
 
 ## Package Legitimacy Audit
 
@@ -159,7 +159,8 @@ No external packages are installed by this phase (Rust core/alloc only in r9; Ha
         |
         v
   Ledger closure (D-13/14/15): rows hand-edited in-place; WINDOWS JSON
-  status=resolved + reason="r9 <sha> + <pin>"; 3-part dispositions
+  status=fixed (the native closure token; D-14's 'resolved' maps onto it)
+  + reason="r9 <sha> + <pin>"; 3-part dispositions
         |
         v
   17-FLUSHOUT.md (D-16): one row per finding -> action -> pin -> commit -> ledger refs
@@ -191,7 +192,7 @@ No external packages are installed by this phase (Rust core/alloc only in r9; Ha
 | P7 WR-08 DTB trigger flags | aarch64 gic files | frozen | 3-part disposition |
 | #44 arena drain | `x86_64/src/exec.rs` staging (`ByteBacking::Mnt { file: Arc<Vec<u8>> }`, exec.rs/proc.rs quotes below) | open (residue measured ~16 KiB/exit at 15-03) | D-06 both tiers: r9 churn profile (smokesleep + heap_stats bound) + Harvey /bin/cat ×~1400 composed leg |
 | #45 union-create | `port/src/namec.rs:312-318` walk_one | open (quote below) | host test if namec machinery reachable (devroot_rawimg/devenv test precedent) else boot-gate rc `>` write |
-| #18 pgrp lock across walks | `port/src/namec.rs:130-212` | **APPEARS ALREADY FIXED** (per-consult snapshot, quote below) | audit the 4 remaining `pg.lock` sites (`x86_64/src/syscall.rs:527,599,716,1159`) + contention boot gate (rc pipelines) |
+| #18 pgrp lock across walks | `port/src/namec.rs:130-212` | **APPEARS ALREADY FIXED** (per-consult snapshot, quote below) | audit the 4 remaining pgrp-lock sites (`x86_64/src/syscall.rs:527,599,716` as `pg.lock` + `:1159` as `proc.pgrp.lock`) + contention boot gate (rc pipelines) |
 | #46 rc redirect corner | `sys/src/cmd/rc/simple.c:77-92` doredir + `plan9.c` Dup | open | rc-driven sweeps re-green + cheap targeted fixture |
 | #49 rc argv underflow | `sys/src/cmd/rc/exec.c:41-60` + `havefork.c:136` (06-07 fix orbit) | open (HVF-timing-exposed; CI venue is TCG/KVM) | boot-gate sweeps; repro needs the fast-fork backquote-in-loop shape |
 | #50 devpipe early-boot DataAbort | `port/src/devpipe.rs` read loop (register-under-lock + drop + block — verified shape) | folded with CR-07 (D-09) | rides CR-07's disposition |
@@ -238,7 +239,7 @@ The devip block loops use the same shape: `t.table_mut(...)[id].waiters.register
 
 - 08 ledger row: `| CR-01 | critical | fixed | 08-REVIEW-FIX.md — socket lingers... (r9 bd4db36 + pin 7300113) |` → hand-edit Disposition/Source to cite the x86_64 pin [VERIFIED: 08-REVIEW-DISPOSITION.md:25].
 - 07 ledger is YAML-frontmatter titles + table; 13 rows `open` [VERIFIED: 07-REVIEW-DISPOSITION.md:62-84].
-- WINDOWS JSON row fields: `"status": "open", "reason": "", "resolved_at": null` → `resolved` + `reason` + `resolved_at` [VERIFIED: .planning/WINDOWS.md:646-662 (row #44 shape)].
+- WINDOWS JSON row fields: `"status": "open", "reason": "", "resolved_at": null` → `"status": "fixed"` + `reason` + `resolved_at` — the ledger's native closure token at HEAD is `fixed` (live count: 7 fixed / 55 open / 3 waived / 0 `resolved`; every prior closure reads `fixed`, e.g. WINDOWS.md:184, 262, 639, 743, 808), so D-14's literal token `resolved` maps onto the native `fixed` (the field names `reason`/`resolved_at` are unchanged) [VERIFIED: live grep + .planning/WINDOWS.md:639-644 (a closed row's shape) and :646-662 (row #44 open shape)].
 
 ### Anti-Patterns to Avoid
 
@@ -405,7 +406,7 @@ Also verified: the rfork failure pivot (`x86_64/src/proc.rs:2274-2286`: Moribund
 /// deadlocks the moment any 9P server proc sharing this pgrp (a fork()
 /// child without RFNAMEG) takes the lock while serving.
 ```
-Implemented at :206-212 (`let guard = pg.lock(&node); guard.chain_snapshot(&c.path)` then lock-free walks). Remaining audit: the four `pg.lock` sites in `x86_64/src/syscall.rs` (:527, :599, :716, :1159) [VERIFIED: grep].
+Implemented at :206-212 (`let guard = pg.lock(&node); guard.chain_snapshot(&c.path)` then lock-free walks). Remaining audit: the four pgrp-lock sites in `x86_64/src/syscall.rs` (:527, :599, :716 are `pg.lock`; :1159 is `proc.pgrp.lock` — `grep -nE '(pg|pgrp)\.lock'` counts 4 at HEAD; a bare `pg\.lock` grep finds only 3) [VERIFIED: grep].
 
 ### #45's site — walk_one is union-blind
 ```rust
@@ -498,7 +499,7 @@ Note both wake entries drain ALL waiters (`take`) and the hook walks a 512-slot 
 |---|-------|---------|---------------|
 | A1 | The WR-03 fix family carry-over is COMPLETE on x86_64 beyond the four verified anchors — i.e. the remaining `exec.rs` install_image OOM releases and any alloc site I did not enumerate are also clean | FLUSH-02 / D-02 map | Low: D-02's executor audit + D-06 gates catch any miss; the audit is a locked task regardless |
 | A2 | The existing port host pins (101) are an acceptable x86_64 re-proof for the 12 shared-code findings, with the x64 net-gate family as the in-kernel leg | FLUSH-01 map | Medium: if VERIFICATION demands arch-keyed boot pins per finding, more boot profiles are needed — planner should confirm the bar with the D-13 Source-cell shape (host test name suffices per the CONTEXT wording "host test name or boot profile") |
-| A3 | #18 is genuinely fixed (not just commented) — the 4 syscall.rs `pg.lock` sites also follow snapshot-then-drop | FLUSH-04 map | Low: the audit is cheap and the row disposition shape covers either outcome |
+| A3 | #18 is genuinely fixed (not just commented) — the 4 syscall.rs pgrp-lock sites also follow snapshot-then-drop | FLUSH-04 map | Low: the audit is cheap and the row disposition shape covers either outcome |
 | A4 | smoltcp 0.14 semantics quoted in the 08 review (BufferFull permanence, check_ip_addrs panic, socket_set remove behavior) still hold for the pinned smoltcp version | CR-02/04 context | Low: fixes already landed and pinned; nothing this phase changes rides on re-deriving them [CITED: 08-REVIEW.md, verified against crate source at review time] |
 | A5 | namec/Chan machinery is host-test-reachable for a #45 pin (devroot_rawimg_test/devenv_test precedent extends to walk_one's union consult) | Pin map #45 | Low: fallback is the boot-gate rc `>` write (the original repro shape) |
 | A6 | #49 (rc argv underflow) is reproducible on the KVM/TCG linux venue | rc rows | Medium: the historical fires were HVF-timing-only (darwin); the fix may have to land on invariant-audit grounds with sweep re-green as the pin — record as a 3-part-adjacent note if unreproducible |
