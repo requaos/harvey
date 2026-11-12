@@ -5,11 +5,11 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: r9 Kernel Flush-Out
 status: executing
-stopped_at: Completed 17-02-PLAN.md
-last_updated: "2026-11-12T21:26:25.291Z"
+stopped_at: Completed 17-03-PLAN.md
+last_updated: "2026-11-12T22:11:04.189Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 17 execution started
-state_head: e829c0263b5c38735fb62e26b780bd1a4a99228b
+state_head: a9b538bd96292f494fffc040e5a84ebec00b558b
 progress:
   total_phases: 5
   completed_phases: 2
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 17 (r9 Kernel Flush-Out) — EXECUTING
-Plan: 3 of 7
+Plan: 4 of 7
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 17 execution started
 
@@ -91,6 +91,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 16 P07 | 19 min | 2 tasks | 2 files |
 | Phase 17 P01 | 38 min | 3 tasks | 5 files |
 | Phase 17 P02 | 224 min | 3 tasks | 26 files |
+| Phase 17 P03 | 18 min | 3 tasks | 15 files |
 
 ## Accumulated Context
 
@@ -199,6 +200,7 @@ Recent decisions affecting current work:
 - [Phase 17]: [17-02] WINDOWS #44 closed at a MEASURED root cause, not the plan's suspect: exit_tail's diverging tail never dropped its transients (the ~8 KiB fd-group Arc per exit) + the never-reaped husk's retained group handles — 16 KiB/exec drain fixed at r9 c4f2f2c/72edbba (60 bytes/exec post-fix); ByteBacking::Mnt never implicated
 - [Phase 17]: [17-02] The composed venue's bounded-memory mechanism: the PREFERRED arm — kernel-x64 re-pointed at a new q35churnshell config (q35shell verbatim + the churn dev key; q35shell.toml byte-stable) carrying the per-exit heap marker; the composed gate bounds its window from the kernel's own emitted numbers
 - [Phase 17]: [17-02] The contention leg found its own bug: rfmem_brk_set's lone-member arm (the post-sibling-exit state) mapped nothing — the survivor's first malloc fault-killed it; fixed r9 72edbba. New deferred finding: rc's userland pool corrupts under ~428+ backquote iterations (17-03's rows)
+- [Phase 17]: [17-03] WR-05/WR-06 closed push-before-pin: one port-level MAX_WAITERS=512 const (the live table, both arches) resized all three WaitSet copies + twelve take buffers with a count+report full arm; next_used gained the unposted-slot liveness reject — 9 waitset pins + 1 used-drain negative RED-proven, r9 aea604c..658001b, FOD re-wired (NAR sha256-0KGcgz, three-way agreement), pin b02408cad lock-only, smoke+net gates ALL STAGES PASS, 07 ledger at 11 open
 
 ### Pending Todos
 
@@ -221,6 +223,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-12T21:26:24.515Z
-Stopped at: Completed 17-02-PLAN.md
+Last session: 2026-11-12T22:11:03.529Z
+Stopped at: Completed 17-03-PLAN.md
 Resume file: None
