@@ -4,16 +4,16 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: r9 Kernel Flush-Out
-status: verifying
+status: executing
 stopped_at: "Completed 17-07-PLAN.md (halted: the CR-07 cure refuted at the fix pin — the row open-enriched, FLUSHOUT complete, all other gates green)"
-last_updated: "2026-11-13T06:39:42.938Z"
+last_updated: "2026-11-13T13:56:59.563Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 17 execution started
-state_head: fdd7626c871c821b16f2299444b3727c23292c45
+state_head: c2edfa405bf2feb6ceea5a57111835364ffea8da
 progress:
   total_phases: 5
   completed_phases: 2
-  total_plans: 39
+  total_plans: 40
   completed_plans: 39
 ---
 
@@ -28,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 17 (r9 Kernel Flush-Out) — EXECUTING
+Phase: 17 (r9 Kernel Flush-Out) — READY TO EXECUTE
 Plan: 7 of 7
-Status: Phase complete — ready for verification
+Status: Ready to execute
 Last activity: 2026-11-12 — Phase 17 execution started
 
 Progress: [█████░░░░░░░░░░░░░░░] 29% (v2.1: 2/7 phases — 13-14 complete, 15-19 next)
