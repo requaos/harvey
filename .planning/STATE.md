@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: r9 Kernel Flush-Out
-status: executing
-stopped_at: "Completed 17-07-PLAN.md (halted: the CR-07 cure refuted at the fix pin — the row open-enriched, FLUSHOUT complete, all other gates green)"
-last_updated: "2026-11-13T13:56:59.563Z"
-last_activity: 2026-11-12
+status: verifying
+stopped_at: "Completed 17-08-PLAN.md (phase 17 complete: the CR-07/#66 terminus ratified — FLUSH-01/FLUSH-04 closed)"
+last_updated: "2026-11-13T15:05:29.802Z"
+last_activity: 2026-11-13
 last_activity_desc: Phase 17 execution started
-state_head: c2edfa405bf2feb6ceea5a57111835364ffea8da
+state_head: dbd357e3e5e86f0388e803557b85522e797b6bea
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 40
-  completed_plans: 39
+  completed_plans: 40
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 ## Current Position
 
-Phase: 17 (r9 Kernel Flush-Out) — READY TO EXECUTE
-Plan: 7 of 7
-Status: Ready to execute
-Last activity: 2026-11-12 — Phase 17 execution started
+Phase: 17 (r9 Kernel Flush-Out) — EXECUTING
+Plan: 8 of 8
+Status: Phase complete — ready for verification
+Last activity: 2026-11-13 — Phase 17 execution started
 
 Progress: [█████░░░░░░░░░░░░░░░] 29% (v2.1: 2/7 phases — 13-14 complete, 15-19 next)
 
@@ -97,6 +97,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 17 P05 | 97 min | 3 tasks | 12 files |
 | Phase 17 P17-06 | 41 min | 3 tasks | 5 files |
 | Phase 17 P07 | 3h 44min (halted at the refuted cure; wall ~4h with unattended loops) | 3 tasks | 23 files |
+| Phase 17 P08 | 48 min wall across two executor sessions (Task 1 series 14:17-14:35Z; continuation 14:46-15:05Z) | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -221,6 +222,7 @@ Recent decisions affecting current work:
 - [Phase 17]: 17-07: the D-09 fold verdict is a SPLIT — #66 is the CR-07 class (reproduced live 3x, stays OPEN); #47 the wedge form closed-by-discipline; #50 a different class waived frozen (17-CR07-ROOTCAUSE.md is the record)
 - [Phase 17]: 17-07: the cure evidence FAILED — the stress series at the fix pin (r9 8f3ff11) refuted the deregister fix as the cure (fired at run 3, 25s, the byte-consistent signature); the fix stands as hardening (4 pins, gates green) but #66/CR-07 stay open with the enriched record and the committed reproduction instrument (fires the class at will in ~25s)
 - [Phase 17]: 17-07: the 30/30 narrowing matrix localizes the class to the FULL 8-way concurrent bulk transfer (launch storm alone and <=4-way full-depth never fire); the KVM capture ceiling is an empirical platform fact (-d int blind at death, cpu_reset post-state, userspace-APIC refused, TCG-tap wedges at ping)
+- [Phase 17]: [17-08] The CR-07/#66 terminus RATIFIED: ratify-disposition + FLUSH-04 yes (Neil Skinner, 2026-11-13T14:42:08Z) — WINDOWS #66 waived with the 3-part D-15 rationale + resolved_at, the 08-ledger CR-07 row deferred with the same rationale + the ratification cite, FLUSHOUT's cells/verdict/lineage ratified, the VERIFICATION overrides block recorded with the rest of the file hash-intact, REQUIREMENTS FLUSH-01/FLUSH-04 checked + Complete; the waiver is of the CURE this era (class live ~8%/run, reopener + instrument stand); the TCG x slirp avenue completed NO-FIRE-IN-SERIES (N=10 serialized, weak-negative semantics stated in the record itself) — The verifier's single blocking gap (CR-07/#66 neither closed nor explicitly dispositioned) closes via the goal's own disposition arm: the evidence — live reproduction 3x, the refuted strongest-candidate fix, the 30/30 narrowing matrix, the empirically established KVM capture ceiling completed by section 8's TCG x slirp avenue, and the committed reproduction instrument — supports a waiver only a maintainer could grant, and it was granted with who/when recorded verbatim. The class stays live (~8%/run under the full 8-way concurrent bulk transfer) with the venue-conditional reopener intact; records-only, r9 untouched at 8f3ff11 == origin/main.
 
 ### Pending Todos
 
@@ -244,6 +246,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-13T06:39:42.288Z
-Stopped at: Completed 17-07-PLAN.md (halted: the CR-07 cure refuted at the fix pin — the row open-enriched, FLUSHOUT complete, all other gates green)
+Last session: 2026-11-13T15:05:29.049Z
+Stopped at: Completed 17-08-PLAN.md (phase 17 complete: the CR-07/#66 terminus ratified — FLUSH-01/FLUSH-04 closed)
 Resume file: None

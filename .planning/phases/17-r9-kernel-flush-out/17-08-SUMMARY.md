@@ -152,3 +152,7 @@ None - plan executed exactly as written. (Commit-shape note: Task 3 landed as tw
 ---
 *Phase: 17-r9-kernel-flush-out*
 *Completed: 2026-11-13*
+
+## Self-Check: PASSED
+
+All claimed files exist on disk and all four plan commits (e20ecccea, 0eed1d432, af7a00610, dbd357e3e) are ancestors of HEAD; all eleven Task 3 gates re-verified green at close.
