@@ -49,13 +49,13 @@ Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reprod
 - ✓ r9 honors RFMEM: donor dupseg semantics (Data/Bss shared under RFMEM, Stack always fresh) incl. shared-segment GROWTH via RFMEM families + the brk_ family arm, refcount-gated frees — plus the SEMACQUIRE/SEMRELEASE semaphore pair — Phase 8 (08-04 blocking checkpoint, user decision A after Harvey-fidelity verification: ip/ping.c:572's rfork(RFPROC|RFMEM|RFFDG) is Harvey-native; ping + udp echo gates green)
 - ✓ r9 x86_64 platform bring-up on qemu q35 with KVM-native acceptance gates — Phase 13 (X64-01..05, 37/37 verified; boot→ticks→echo→Ethernet all KVM-native, TCG fallback documented; `13-EVIDENCE.md`)
 - ✓ **Core value on x86_64**: Harvey amd64 binaries exec on r9 through the frozen 184-byte 9k-verbatim Ureg ABI (two-layer enforced: const asserts + cross-repo ureg-check with negative control, `amd64/ABI.md`), the boot chain reaches the interactive `% ` prompt via one command (`nix run .#boot-r9-x64`; XEXEC-03 smoke green ×2 on byte-identical composed ISOs), the tier machinery runs keyed to `objtype=amd64` with the same 38-binary `/amd64/bin` set executing on BOTH kernels (k10t1 + r9, identical 36-marker T1-OK sets), and `/net` gates green (static + DHCP + loopback tcp/udp echo through real binaries, `nix run .#boot-r9-net-smoke-x64` ×2, zero kernel fixes needed) — Phase 14 (XEXEC-01..05, 6/6 verified; `14-EVIDENCE.md`; r9 pinned `4132e25`)
+- ✓ r9 kernel flush-out: the open Phase-7/8 review backlog (CR classes, RFMEM/OOM leaks, WR hardening gaps) plus the known kernel windows closed with tests or explicitly dispositioned with rationale under real userspace load, every fix landing with a pin — Phase 17 (FLUSH-01..04, 8/8 plans, `17-VERIFICATION.md` 6/6; CR-07/WINDOWS #66 closed via the goal's explicit-disposition arm: maintainer-ratified waiver, Neil Skinner 2026-11-13, reopener conditions + committed reproduction instrument intact; `17-CR07-ROOTCAUSE.md`, `17-FLUSHOUT.md`)
 
 ### Active
 
 Milestone v2.1 headline scope (decomposed into REQ-IDs in REQUIREMENTS.md; v2.0's delivered Phases 6–8 are recorded in Validated below):
 
-- [ ] r9 kernel flush-out: the open review backlog (Phases 7–8 CR/WR findings) closed under real userspace load — substantially advanced (11 latent r9 kernel defects root-caused and fixed across Phases 13–14; 7 Phase-14 review findings still open in 14-REVIEW-DISPOSITION.md)
-- [ ] Inherited v2.0 payoff on x86_64: host net modes, services/GUI tiers + bootfs payload, in-guest p9sk1 auth, cpu + drawterm + rio — next milestone
+- [ ] Inherited v2.0 payoff on x86_64: host net modes, services/GUI tiers + bootfs payload (delivered Phases 15–16), in-guest p9sk1 auth (Phase 18), cpu + drawterm + rio (Phase 19) — phases 18–19 remain
 
 Carried over from v1.0:
 
@@ -102,6 +102,7 @@ Carried over from v1.0:
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Nix flake for devshell + build apps | Reproducible toolchain across darwin/linux without Docker-on-EOL-Ubuntu | ✓ Good |
+| CR-07/WINDOWS #66 closed by maintainer-ratified explicit disposition, not cure (Phase 17 terminus, 2026-11-13) | The ~8%/run 8-way-transfer triple-fault class is live but venue-blocked: KVM capture ceiling + TCG×slirp avenue both exhausted (N=10 NO-FIRE-IN-SERIES), strongest-candidate fix refuted at the fix pin; the goal's letter accepts "explicitly dispositioned with rationale" — waived with 3-part D-15 rationale (Neil Skinner, 2026-11-13T14:42:08Z), reopener conditions + `boot-r9-stress-x64` instrument committed | ✓ Waived-with-reopener (FLUSH-01 closed via disposition arm; reopens on a context-reaching venue or non-healing instrumentation) |
 | Vendor 9-cc `iar` subset in-repo (`sys/src/cmd/unix/9cc/`) | External dep kept failing on aarch64 hosts (C23/glibc collisions); in-repo code we control | ✓ Good |
 | VM build rsyncs to guest-local disk | virtiofs subdirectory bind-mounts silently return empty trees — namespace build cannot run on the shared mount | ✓ Good |
 | Per-OS/arch host bin dirs (`.build/hostbin-<os>-aarch64`) | Host and guest builds share the checkout; binaries must not clobber each other | ✓ Good |
@@ -176,4 +177,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-09 after Phase 14 (Harvey amd64 Userspace on r9 complete — XEXEC-01..05 verified 6/6; v2.1 phases 13-14 of 13-19 done, 15-19 remain)*
+*Last updated: 2026-11-13 after Phase 17 (r9 Kernel Flush-Out complete — FLUSH-01..04 verified 6/6, CR-07/#66 maintainer-ratified disposition; v2.1 phases 13-17 of 13-19 done, 18-19 remain)*

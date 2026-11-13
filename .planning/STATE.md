@@ -4,11 +4,11 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 status: completed
-stopped_at: Phase 17 complete — all phases complete
-last_updated: "2026-11-13T15:27:37.708Z"
+stopped_at: "Phase 17 complete — ready to plan Phase 18 (ROADMAP: phases 18-19 remain)"
+last_updated: "2026-11-13T15:29:50.554Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 17 complete
-state_head: 35703c5947d6485f00669ebbb8eb31bbbc914dbe
+state_head: 6da6c0303b2f476963b246e26ab5a9e2345b4d0b
 progress:
   total_phases: 5
   completed_phases: 2
@@ -20,19 +20,19 @@ progress:
 
 ## Project Reference
 
-See: .planning/PROJECT.md (updated 2026-11-09)
+See: .planning/PROJECT.md (updated 2026-11-13)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
-**Current focus:** Phase 17 — r9 Kernel Flush-Out
+**Current focus:** Phase 18 — In-Guest p9sk1 Auth Domain
 
 ## Current Position
 
-Phase: 17
+Phase: 18
 Plan: Not started
-Status: All phases complete
+Status: Ready to plan
 Last activity: 2026-11-13 — Phase 17 complete
 
-Progress: [█████░░░░░░░░░░░░░░░] 29% (v2.1: 2/7 phases — 13-14 complete, 15-19 next)
+Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 complete, 18-19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phases 18-19)
 
 ## Performance Metrics
 
@@ -106,6 +106,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 Decisions are logged in PROJECT.md Key Decisions table.
 Recent decisions affecting current work:
 
+- [Phase 17 terminus 2026-11-13]: CR-07/WINDOWS #66 closed via the goal's explicit-disposition arm — maintainer-ratified waiver (ratify-disposition, FLUSH-04: yes, Neil Skinner 2026-11-13T14:42:08Z); reopener: a context-reaching venue or non-healing instrumentation; the reproduction instrument stays committed
 - [v2.1 re-scope 2026-11-06]: Pivot target aarch64 → x86_64; v2.0 subsumed (6-8 delivered, 9-12 inherited re-keyed); aarch64 frozen at the v2.0 pin
 - [v2.1 re-scope 2026-11-06]: Three-track end state — Harvey-on-9k standalone ∥ Harvey-on-r9 (v2.1 proving ground) → r9 as complete Rust port of Harvey (future milestone)
 - [Phase 13]: GRUB 2.14 mb2 ELF64 loader honors the AT() p_paddr bias for higher-half entries (0xffffffff80200000 boots at phys 0x200000) — no low-entry trampoline needed; kernel.ld unchanged (13-01, RESEARCH A2 confirmed empirically)
@@ -233,7 +234,7 @@ None yet.
 - aarch64 is FROZEN at the v2.0 pin — all v2.1 work keys to x86_64; do not "fix" aarch64 paths in passing
 - raspi3b-on-qemu-11.1.2 boot defect — accepted (pre-existing, A/B-proven not-a-regression); tracked in PROJECT.md Active
 - 14-06 RESOLVED (cycle 4, r9@8aa9ba2): the "scheduler corruption" was sched_loop's diverging trap_return resume arm leaving SCHED_CONTEXT stale against a stack slot the intervening scheduler iterations reused — wild execution explains every prior symptom (the "lying panic" with merged cold-block locations, the H2-class garbage parent, the apparent paqfs death: it never died, it was readied and never resumed); the devpipe/qreopen suspicion was run live and ELIMINATED (pid-keyed rings: no EOF/err/reopen in the whole run); q35shell green twice consecutively, full regression battery green at r9@8aa9ba2
-- CR-07/WINDOWS #66 OPEN after 17-07: the 8-way-transfer triple fault — reproducible at will (boot-r9-stress-x64, ~25s, ~8%/run); cure unfound (the deregister fix refuted by the series); reopener conditions in 17-CR07-ROOTCAUSE section 7
+- CR-07/WINDOWS #66 DISPOSITIONED (waived) at the 17-08 terminus: the 8-way-transfer triple-fault class stays live ~8%/run but the cure is venue-blocked — KVM capture ceiling + TCG×slirp avenue (N=10, NO-FIRE-IN-SERIES) both exhausted, strongest-candidate fix refuted at the fix pin; maintainer-ratified waiver (Neil Skinner, 2026-11-13T14:42:08Z) with 3-part D-15 rationale; reopener conditions + the committed boot-r9-stress-x64 instrument in 17-CR07-ROOTCAUSE sections 8-9
 
 ## Deferred Items
 
@@ -246,6 +247,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-13T15:05:29.049Z
-Stopped at: Phase 17 complete — all phases complete
+Last session: 2026-11-13T15:29:49.785Z
+Stopped at: Phase 17 complete — ready to plan Phase 18 (ROADMAP: phases 18-19 remain)
 Resume file: None
