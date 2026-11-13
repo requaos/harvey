@@ -338,6 +338,27 @@
             export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.procps ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
+          # 17-07 (D-03, the CR-07 centerpiece's instrument): the
+          # reduced-stress gate — the soak pipeline re-keyed onto the
+          # 16-08 deferred record's REDUCED shape (rounds=1/burstn=8,
+          # burst depth 512 — the #66 window at the top of every run)
+          # with the #66 toolkit's capture: qemu runs with
+          # `-d int,guest_errors -D <per-run-file>' (pure host-side
+          # logging, no guest-visible byte change).  Venue: tap
+          # preferred (doctor-gated, #66's own) with the
+          # RACE-STRESS-labeled slirp fallback (never an L2-truth
+          # claim — the fixture's on-wire venue label is an asserted
+          # stage).  Additive to the soak app's semantics (Pitfall 7:
+          # existing gates untouched).
+          stressR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-stress-x64" ./nix/stress-r9-net-x64.sh ''
+            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
+            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
+            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
+            export R9_NET_DOCTOR="${netDoctorPkg}/bin/harvey-net-doctor"
+            export HOST_ECHO_X64="${hostEchoX64Pkg}/bin/host-echo"
+            export HARVEY_NETADDR_SEAM="${./build/x86_64/root-tree/lib/netaddr.rc}"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.procps ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -383,6 +404,10 @@
           # same x64 block (its attrs: kernel-x64, iso-builder; the
           # venue is net-free, no emitter).
           boot-r9-churn-x64 = mkApp churnR9X64Pkg;
+          # 17-07 (D-03): the CR-07 reduced-stress gate — rides the
+          # same x64 block (its attrs: kernel-x64, iso-builder,
+          # netdev-args; the doctor + peer are Harvey-side).
+          boot-r9-stress-x64 = mkApp stressR9X64Pkg;
         }
         # 16-03 (HNET-05/D-14): the doctor app — linux-only in its OWN
         # optionalAttrs gate (the checks are linux's; darwin's vmnet

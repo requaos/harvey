@@ -1,0 +1,227 @@
+#!/bin/rc
+# netstress.rc — the CR-07 reduced-stress fixture (17-07, D-03): the
+# netip-tap.rc soak legs re-keyed onto the 16-08 deferred record's
+# reduced shape (rounds=1/burstn=8 — the class fired 1-in-5 under the
+# phase-16 full soak, ~2 burst rounds in; this fixture exists to make
+# that window cheap to hammer).  VENUE-AWARE (the 17-07 venue rule):
+# tap is the preferred venue (#66's own, doctor-gated upstream); the
+# slirp arm is the explicitly-labeled RACE-STRESS fallback — it NEVER
+# claims L2 truth (the venue-honesty rule both directions: the label
+# below says so on the wire, and the driver asserts it).
+#
+# Sourced by the 17-07 stress gate's expect driver (`rc
+# /lib/netstress.rc <venue> [rounds] [burstn] [burstrounds]' typed at
+# the % prompt — the sourced-not-typed discipline), never typed
+# line-by-line.  The venue argument picks the seam leg (tap_ or
+# slirp_); addresses come from /lib/netaddr.rc (the D-11 seam) — NO
+# venue address literal outside that seam (the bake's mechanical
+# grep, both venue prefixes).
+#
+# Legs: static ipconfig (the real binary) → the venue label (the
+# venue-honesty marker) → the baseline tcpblast → the N-way burst
+# backgrounded behind a bare wait (the #66 multi-waiter load — the
+# 8 concurrent tcpblasts are 8 blocked devip readers on one RX IRQ
+# path) → the /net/tcp/stats reconciliation → STRESS-DONE.  The ARP
+# L2-truth assert is TAP-ONLY (slirp's proxy answer is exactly what
+# the RACE-STRESS label disclaims).
+#
+# Every failed step prints `netstress: FAIL <stage>' to stderr and
+# exits non-nil; success legs print their ok markers; the run ends
+# with `netstress: STRESS-DONE'.
+#
+# argv contract: $1 = venue (tap|slirp), optional $2 = baseline
+# rounds (1-5 digits, default 1 — the reduced shape), $3 = burst
+# count (1-2 digits, default 8), $4 = burst rounds (1-5 digits,
+# default 512 — the committed burst depth, the #66 shape).
+
+switch($#*){
+case 1 2 3 4
+case *
+	echo 'usage: netstress.rc <tap|slirp> [rounds] [burstn] [burstrounds]' >[1=2]
+	exit usage
+}
+venue=$1
+rounds=1
+burstn=8
+burstrounds=512
+if (~ $#* 2)
+	rounds=$2
+if (~ $#* 3){
+	rounds=$2
+	burstn=$3
+}
+if (~ $#* 4){
+	rounds=$2
+	burstn=$3
+	burstrounds=$4
+}
+switch($venue){
+case tap slirp
+case *
+	echo 'netstress.rc: venue must be tap or slirp' >[1=2]
+	exit usage
+}
+switch($rounds){
+case [0-9]
+case [0-9][0-9]
+case [0-9][0-9][0-9]
+case [0-9][0-9][0-9][0-9]
+case [0-9][0-9][0-9][0-9][0-9]
+case *
+	echo 'netstress.rc: rounds must be 1-5 digits' >[1=2]
+	exit usage
+}
+switch($burstn){
+case [0-9]
+case [0-9][0-9]
+case *
+	echo 'netstress.rc: burstn must be 1-2 digits' >[1=2]
+	exit usage
+}
+switch($burstrounds){
+case [0-9]
+case [0-9][0-9]
+case [0-9][0-9][0-9]
+case [0-9][0-9][0-9][0-9]
+case [0-9][0-9][0-9][0-9][0-9]
+case *
+	echo 'netstress.rc: burstrounds must be 1-5 digits' >[1=2]
+	exit usage
+}
+
+# the D-11 seam (test -e first: a failed source is uncatchable)
+test -e /lib/netaddr.rc || {
+	echo netstress: FAIL seam >[1=2]
+	exit seam
+}
+. /lib/netaddr.rc
+
+# the venue leg pick (one place, no literal outside the seam)
+if (~ $venue tap){
+	gw=$tap_gwv4
+	guest=$tap_guestv4
+	mask=$tap_maskv4
+}
+if (~ $venue slirp){
+	gw=$slirp_gwv4
+	guest=$slirp_guestv4
+	mask=$slirp_maskv4
+}
+
+# attach the #I device tree at /net
+bind -a '#I' /net || {
+	echo netstress: FAIL bind >[1=2]
+	exit bind
+}
+
+# the static configuration leg: the REAL ipconfig (unmodified, the
+# tier build's own binary) with the seam's venue values + the -g
+# default route — the identical leg netip-tap.rc runs, so the stress
+# boots through the same devip surface #66 fired under.
+ip/ipconfig -g $gw ether /net/ether0 add $guest $mask || {
+	echo netstress: FAIL ipconfig >[1=2]
+	exit ipconfig
+}
+echo netstress: static ok
+
+# the venue label — the venue-honesty marker, ON the wire (the tap
+# arm never claims more than L2-truth BY VENUE; the slirp arm is the
+# RACE-STRESS fallback label, never an L2-truth claim).  The driver
+# stages the venue-appropriate form.  The echo text is bare ASCII
+# words only — parens are rc grouping tokens and a hash starts a
+# comment, so neither can ride an unquoted marker line (the 15-02
+# rc-dialect lessons, applied).
+if (~ $venue tap)
+	echo netstress: venue tap L2-truth
+if (~ $venue slirp)
+	echo netstress: RACE-STRESS slirp venue not L2-truth
+
+# tap-only: the ARP L2-truth assert (netip-tap.rc's own leg — the
+# host's real ARP answer).  Slirp's proxy answer is what the label
+# above disclaims; the leg is skipped there by design.
+if (~ $venue tap){
+	ip/ping -n 3 $gw || {
+		echo netstress: FAIL ping >[1=2]
+		exit ping
+	}
+	arpview=`{cat /net/arp} || {
+		echo netstress: FAIL arpview >[1=2]
+		exit arpview
+	}
+	found=0
+	for(w in $arpview){
+		if(~ $w $gw)
+			found=1
+	}
+	~ $found 1 || {
+		echo netstress: FAIL arpview >[1=2]
+		exit arpview
+	}
+	echo netstress: arp view ok
+}
+if (~ $venue slirp){
+	# the bounded pre-burst sanity ping (the slirp host alias answers
+	# ICMP; no ARP assert — the venue label above carries the honesty)
+	ip/ping -n 3 $gw || {
+		echo netstress: FAIL ping >[1=2]
+		exit ping
+	}
+}
+
+# the baseline soak leg (reduced: rounds=1 in the committed stress
+# shape — the baseline exists to put ONE tcpblast's markers on the
+# wire before the burst; the class lives in the burst window).
+tcpblast $gw $blastport $rounds || {
+	echo netstress: FAIL blast >[1=2]
+	exit blast
+}
+
+# the burst leg (D-11b, netip-tap.rc's own shape VERBATIM): $burstn
+# tcpblast instances launched with & in the while loop, the counter
+# via dc's backquote shape — the launch churn (8 dc execs racing 8
+# tcpblast connects) is part of the #66 window and is kept
+# identical.  The bare wait blocks until every child exits; per-child
+# statuses are NOT collectible after a bare wait (rc(1)) — the
+# driver's post-pass owns the marker-COUNT assert, never rc-side
+# collection and never interleaving order.
+i=0
+while(! ~ $i $burstn){
+	tcpblast $gw $blastport $burstrounds &
+	i=`{echo $i 1 + p | dc}
+}
+wait
+echo netstress: burst wait returned
+
+# the guest-counters leg (netip-tap.rc's own reconciliation, verbatim
+# shape): cat /net/tcp/stats for the harness + the non-zero assert
+# both directions.
+cat /net/tcp/stats || {
+	echo netstress: FAIL stats >[1=2]
+	exit stats
+}
+insegs=`{cat /net/tcp/stats | sed -n 's/^InSegs: //p'} || {
+	echo netstress: FAIL stats >[1=2]
+	exit stats
+}
+outsegs=`{cat /net/tcp/stats | sed -n 's/^OutSegs: //p'} || {
+	echo netstress: FAIL stats >[1=2]
+	exit stats
+}
+~ $#insegs 1 || {
+	echo netstress: FAIL stats >[1=2]
+	exit stats
+}
+~ $#outsegs 1 || {
+	echo netstress: FAIL stats >[1=2]
+	exit stats
+}
+if (~ $insegs '' 0) {
+	echo netstress: FAIL stats >[1=2]
+	exit stats
+}
+if (~ $outsegs '' 0) {
+	echo netstress: FAIL stats >[1=2]
+	exit stats
+}
+echo netstress: stats ok
+echo netstress: STRESS-DONE
