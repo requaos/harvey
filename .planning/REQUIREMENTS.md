@@ -26,10 +26,10 @@
 
 ### r9 Kernel Flush-Out (FLUSH)
 
-- [ ] **FLUSH-01**: Phase-8 review CR classes closed with tests (or explicitly dispositioned with rationale): conv_close FIN-drop, permanent-send-error wedge, semacquire wakeup loss, ipifc multicast panic, unbind stale-handle aliasing, tcp_gc aliasing, multi-waiter RX-wake
+- [x] **FLUSH-01**: Phase-8 review CR classes closed with tests (or explicitly dispositioned with rationale): conv_close FIN-drop, permanent-send-error wedge, semacquire wakeup loss, ipifc multicast panic, unbind stale-handle aliasing, tcp_gc aliasing, multi-waiter RX-wake
 - [x] **FLUSH-02**: RFMEM OOM-path page leaks (the 6 WR findings) closed with refcount proofs
 - [x] **FLUSH-03**: Phase-7 WR hardening gaps closed: cap-walk loud-abort holes, WaitSet-16-vs-MAX_PROCS-64 sizing, used-id slot-liveness
-- [ ] **FLUSH-04**: known kernel windows closed or gated: fork+exec arena drain (WINDOWS #44), namec union-create miss (WINDOWS #45) — every flush-out fix lands with a pin (host test or boot-test gate) per the established discipline
+- [x] **FLUSH-04**: known kernel windows closed or gated: fork+exec arena drain (WINDOWS #44), namec union-create miss (WINDOWS #45) — every flush-out fix lands with a pin (host test or boot-test gate) per the established discipline
 
 ### Userspace Tiers on amd64 (USPACE — continuing v2.0 numbering, re-keyed)
 
@@ -140,10 +140,10 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | HNET-04 | Phase 16 | Complete |
 | HNET-05 | Phase 16 | Complete |
 | NETIP-08 | Phase 16 | Complete |
-| FLUSH-01 | Phase 17 | Pending |
+| FLUSH-01 | Phase 17 | Complete |
 | FLUSH-02 | Phase 17 | Complete |
 | FLUSH-03 | Phase 17 | Complete |
-| FLUSH-04 | Phase 17 | Pending |
+| FLUSH-04 | Phase 17 | Complete |
 | AUTH-01 | Phase 18 | Pending |
 | AUTH-02 | Phase 18 | Pending |
 | AUTH-03 | Phase 18 | Pending |

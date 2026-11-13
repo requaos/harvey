@@ -925,10 +925,10 @@ last_updated: 2026-11-13T02:43:07.000Z
     "file": ".planning/phases/16-host-net-modes-networking-exit-gate/deferred-items.md",
     "line": null,
     "description": "16-08: intermittent r9 x86_64 guest triple fault under the soak burst leg (8-way multi-waiter devip load; 1 failure in 5 runs, observer-healed; root cause open — recorded with the diagnostic toolkit + stress-loop shape in the phase deferred-items) 17-07 ENRICHED (17-CR07-ROOTCAUSE.md; the row stays OPEN): the class reproduced LIVE 3x on the uninstrumented pinned kernel (2 pre-fix at r9 59d28fa + 1 post-fix at r9 8f3ff11 — the deregister fix REFUTED as the cure by the stress series at the fix pin), always ~25s in the burst window, CPU reset with NO kernel trap dump (silent shutdown, triple-fault class); the load-narrowing matrix (30/30 green) localizes the class to the FULL 8-way concurrent bulk transfer (the launch storm alone and <=4-way full-depth never fire); the recorded candidates C1/C2/C3 exonerated structurally; the KVM capture ceiling established empirically (-d int blind at death, cpu_reset post-state only, userspace-APIC refused, TCG-tap wedges at ping). Reopener: a venue that reaches the faulting context host-side or non-healing instrumentation; the committed boot-r9-stress-x64 instrument fires the class at will in ~25s",
-    "status": "open",
-    "reason": "",
+    "status": "waived",
+    "reason": "17-08 maintainer disposition (3-part D-15, ratified at the 17-08 checkpoint by Neil Skinner 2026-11-13T14:42:08Z): WHERE the full 8-way concurrent bulk-transfer exception-delivery window (17-CR07-ROOTCAUSE section 4 — transient corruption of exception-delivery state, silent-reset class). WHY not fixed: the cure is venue-blocked — the KVM capture ceiling is an established platform fact (section 2, completed by section 8's TCG x slirp avenue) and the strongest-candidate fix (r9 d4a5d38) was refuted as the cure by the N=25 series at the fix pin; the class stays live (~8%/run under the committed instrument). Reopener: a host-side venue that reaches the faulting context, or instrumentation that does not heal the window — boot-r9-stress-x64 fires the class at will in ~25s.",
     "recorded_at": "2026-11-11T20:04:55.434Z",
-    "resolved_at": null,
+    "resolved_at": "2026-11-13T14:42:08Z",
     "milestone": "v2.1"
   },
   {
