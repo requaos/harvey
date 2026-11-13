@@ -54,3 +54,23 @@ The plan's N=10 assumed the observed 1-in-5 class rate (P(10 greens | unfixed) �
 - **#50 (aarch64 early-boot devpipe DataAbort, 1-in-6 HVF, never TCG) = a DIFFERENT CLASS — SPLIT OUT with its own 3-part disposition.** Its terrain (devpipe's user-buffer copy + the cold-syscall-buffer residence machinery, an EL1 translation fault) is not the RX-wake terrain; nothing in this reproduction touches it (the stress fixture's pipes are the launcher's own backquotes, healthy in every capture). WHERE: the aarch64 devpipe read path + `ensure_user_resident` (frozen at the v2.0 pin); WHY not fixed: the aarch64 freeze policy + the fire being HVF-timing-only (never TCG, 1-in-6, unreproducible on the linux KVM/TCG venue); REOPENER: aarch64 reactivation, or a live early-boot pipe-read fault on any active venue.
 
 The fold disposition (D-09's letter): one root-cause pass; #66 closes with the CR-07 work item; #47 and #50 each carry their own 3-part disposition in this record — all three rows move out of `open` (Task 3 executes the ledger edits).
+
+## 7. THE POST-FIX VERDICT (Task 3's series — the record's final word, 2026-11-13)
+
+**The deregister fix is REFUTED as the cure.** The N=25 series at the final pin (r9 8f3ff11 — the fix + its FOD re-wire) **FAILED AT RUN 3**: two greens, then the class fired at 25 s with the byte-consistent signature (the empty-status exit cascade → `tcpblast: round 0 ok` → the SeaBIOS reset chain; serial retained as `evidence/17-07-cr07-fix-pin-fire.serial.log`). The fix stands as correct hardening (a real defect — the stale-registration channel — closed, pinned 4× deterministic, all gates green), but the stress series is the arbiter per D-03's own letter, and it rules: **CR-07's reset class is NOT cured.** A third fire, now at the fix pin, brings the reproduction total to 3 live captures (2 pre-fix, 1 post-fix).
+
+**The load-narrowing matrix (the node-repair round, 30/30 green — `evidence/17-07-cr07-narrowing-matrix.log`):** the class was decomposed on the two load axes at the SAME pin:
+
+| Shape | Runs | Result |
+|-------|------|--------|
+| burstn=8, burstrounds=1 (the full launch storm: 8 connects + dc fork/exec/exit churn + handshakes, NO sustained transfer) | 5 | ALL GREEN |
+| burstn=4, burstrounds=1 | 5 | ALL GREEN |
+| burstn=2, burstrounds=1 | 5 | ALL GREEN |
+| burstn=4, burstrounds=512 (half concurrency, full depth) | 5 | ALL GREEN |
+| burstn=2, burstrounds=512 | 5 | ALL GREEN |
+| burstn=1, burstrounds=512 | 5 | ALL GREEN |
+| burstn=8, burstrounds=512 (the committed shape) | 23+3+2 | 3 FIRES (~8-10%) |
+
+**Localization:** neither the launch storm alone NOR the sustained transfer at ≤4-way concurrency fires the class; it requires the FULL 8-way concurrent bulk transfer. This is consistent with a per-event race whose fire probability scales with the event-rate × exposure-time product (the 8-way transfer is the highest-density interleaving of RX-IRQ wake → schedule → devip drive → TX post → tick preempt the kernel sees anywhere), not with any single-ingredient defect the matrix could isolate. The recorded candidates C1/C2/C3 remain exonerated; the §4 strongest candidate (N1, the stale herd) is now ALSO refuted as the cure by the series; the mechanism family (silent corruption of exception-delivery state under the 8-way transfer's interleaving) stands, with the corrupting writer still behind the KVM capture ceiling (§2).
+
+**Honest close-out (the plan's own rules applied to its own centerpiece):** D-03/T-17-14 prohibit declaring CR-07 fixed on evidence that does not hold — the series is exactly that evidence. WINDOWS **#66 STAYS OPEN**, its record enriched by this investigation (4 total fires, the window characterization, the narrowed load fingerprint, the refuted fix, the capture ceiling); it cannot honestly read `fixed` (the cure is unproven) nor `waived` (a live ~8% crash class is not a waiver). The 08 ledger's CR-07 row stays `skipped` for the same reason — its Source cell now carries this record as the enriched backbone. **#47 and #50 close per §6** (their dispositions are independent of the cure: the discipline families and the frozen-class split). The reopener condition for #66: any future plan that can either (a) reach the faulting context host-side (a venue where `-d int` sees the cascade — e.g. a TCG-reachable L2 path for the tap fixture, or a qemu with KVM userspace-APIC support), or (b) localize further by instrumentation that does not heal the window (the 16-08 observer-effect record is the bar), re-opens the hunt from THIS record's shoulders — the reproduction instrument (boot-r9-stress-x64 + the R9_STRESS_* shape hatches) is committed and fires the class at will in ~25 s.

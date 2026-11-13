@@ -691,10 +691,10 @@ last_updated: 2026-11-13T02:43:07.000Z
     "file": "r9:port/src/devip/stack.rs",
     "line": null,
     "description": "08-09: the RX-IRQ wake with MULTIPLE registered devip waiters wedges/panics — the first NIC-RX wake with >1 blocked net proc never reaches the ping reader (measured: the composed net smoke's static leg wedged the guest fully idle on BOTH gicv2+tcg and gicv3+hvf with udpecho+tcpecho blocked in loopback reads; an earlier form panicked at the same stage; the static-alone boot with the identical spawn shape PASSES, and every xtask virtip mode runs =1 waiter). Root cause unpinned. BLOCKER-CLASS for Phase 9's tap venue + Phase 12's cpu service (aan over real net = many blocked net procs); the composed smoke sidesteps by stage order (ether legs first, single-waiter per exchange). Recorded in the phase's deferred-items.md",
-    "status": "open",
-    "reason": "",
+    "status": "fixed",
+    "reason": "17-07 fold verdict (17-CR07-ROOTCAUSE section 6, D-09 SPLIT): the WEDGE form — closed-by-discipline, independent of the #66 reset class. The fix families it anticipated landed and pinned after the Phase-8 record: re-probe-after-drive in every devip block loop (the Phase-8 gate-caught wakeup-loss class) + CR-03 register-per-iteration loop (r9 75970f0 + x86_64 sem pins f9088d0). The exact #47 shape (multiple readers blocked across loopback+ether, a NIC wake, the composed static leg) is GREEN on x86_64 at every pin since 14-09 (boot-r9-net-smoke-x64 multi-reader echo legs, exit 0 at pin 8f3ff11). Reopener: a multi-waiter WEDGE (idle guest, no reset) on any venue.",
     "recorded_at": "2026-11-06T06:30:00.000Z",
-    "resolved_at": null,
+    "resolved_at": "2026-11-13T06:40:00.000Z",
     "milestone": "v2.0"
   },
   {
@@ -730,10 +730,10 @@ last_updated: 2026-11-13T02:43:07.000Z
     "file": "r9:port/src/devpipe.rs",
     "line": null,
     "description": "08-09: intermittent early-boot EL1 DataAbort (translation fault level 3) in devpipe::read (devpipe.rs:282, the user-buffer copy) at FAR 0x4e428 — fired once during the composed smoke's HVF leg in the boot chain right after 'version...' (the boot(8) fauth leg), 1/~6 HVF runs, never on TCG; the same tree re-ran green end-to-end. The cold-syscall-buffer residence machinery (05-06's ensure_user_resident) is the suspect area — an intermittent miss in the early-boot pipe read path. Recorded in the phase's deferred-items.md",
-    "status": "open",
-    "reason": "",
+    "status": "waived",
+    "reason": "17-07 fold verdict (17-CR07-ROOTCAUSE section 6, D-09 SPLIT): a DIFFERENT CLASS, split out with its own 3-part disposition. WHERE: the aarch64 devpipe read path + the cold-syscall-buffer residence machinery (ensure_user_resident), frozen at the v2.0 pin. WHY not fixed: the aarch64 freeze policy (v2.1 keys to x86_64) + the fire being HVF-timing-only (1-in-6, never TCG, unreproducible on the linux KVM/TCG venue). Reopener: aarch64 reactivation, or a live early-boot pipe-read fault on any active venue.",
     "recorded_at": "2026-11-06T06:30:00.000Z",
-    "resolved_at": null,
+    "resolved_at": "2026-11-13T06:40:00.000Z",
     "milestone": "v2.0"
   },
   {
@@ -924,7 +924,7 @@ last_updated: 2026-11-13T02:43:07.000Z
     "phase": "16",
     "file": ".planning/phases/16-host-net-modes-networking-exit-gate/deferred-items.md",
     "line": null,
-    "description": "16-08: intermittent r9 x86_64 guest triple fault under the soak burst leg (8-way multi-waiter devip load; 1 failure in 5 runs, observer-healed; root cause open — recorded with the diagnostic toolkit + stress-loop shape in the phase deferred-items)",
+    "description": "16-08: intermittent r9 x86_64 guest triple fault under the soak burst leg (8-way multi-waiter devip load; 1 failure in 5 runs, observer-healed; root cause open — recorded with the diagnostic toolkit + stress-loop shape in the phase deferred-items) 17-07 ENRICHED (17-CR07-ROOTCAUSE.md; the row stays OPEN): the class reproduced LIVE 3x on the uninstrumented pinned kernel (2 pre-fix at r9 59d28fa + 1 post-fix at r9 8f3ff11 — the deregister fix REFUTED as the cure by the stress series at the fix pin), always ~25s in the burst window, CPU reset with NO kernel trap dump (silent shutdown, triple-fault class); the load-narrowing matrix (30/30 green) localizes the class to the FULL 8-way concurrent bulk transfer (the launch storm alone and <=4-way full-depth never fire); the recorded candidates C1/C2/C3 exonerated structurally; the KVM capture ceiling established empirically (-d int blind at death, cpu_reset post-state only, userspace-APIC refused, TCG-tap wedges at ping). Reopener: a venue that reaches the faulting context host-side or non-healing instrumentation; the committed boot-r9-stress-x64 instrument fires the class at will in ~25s",
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-11T20:04:55.434Z",

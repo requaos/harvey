@@ -117,9 +117,14 @@ match_max 65536
 # the uninstrumented pinned kernel; the burst depth stays the
 # committed 512 (the #66 shape — the exposure window is the burst
 # launch + first rounds, where the class historically fired).
-set baseline_rounds 1
-set burst_count 8
-set burst_rounds 512
+# R9_STRESS_ROUNDS/BURSTN/BURSTROUNDS are the DIAGNOSIS hatches
+# (17-07 Task 3's load-narrowing matrix: the launch storm isolated
+# from the sustained transfer, the burst width stepped down) —
+# env-overridable, defaulting to the committed shape above; the GATE
+# runs the defaults.
+set baseline_rounds [expr {[info exists env(R9_STRESS_ROUNDS)] ? $env(R9_STRESS_ROUNDS) : 1}]
+set burst_count [expr {[info exists env(R9_STRESS_BURSTN)] ? $env(R9_STRESS_BURSTN) : 8}]
+set burst_rounds [expr {[info exists env(R9_STRESS_BURSTROUNDS)] ? $env(R9_STRESS_BURSTROUNDS) : 512}]
 
 # --- required env (loud, before any spawn) -------------------------------
 foreach v {R9_ISO R9_STRESS_LOG R9_NETDEV_ARGV} {
