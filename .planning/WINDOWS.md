@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 54
+open_count: 55
 waived_count: 3
 fixed_count: 10
-total_count: 67
-last_updated: 2026-11-13T01:47:22.000Z
+total_count: 68
+last_updated: 2026-11-13T01:59:58.328Z
 ---
 
 # Broken Windows Ledger
@@ -82,6 +82,7 @@ last_updated: 2026-11-13T01:47:22.000Z
 | 66 | 16 | deviation | .planning/phases/16-host-net-modes-networking-exit-gate/deferred-items.md |  | 16-08: intermittent r9 x86_64 guest triple fault under the soak burst leg (8-way multi-waiter devip load; 1 failure in 5 runs, observer-healed; root cause open — recorded with the diagnostic toolkit + stress-loop shape in the phase deferred-items) | open |  | 2026-11-11T20:04:55.434Z |  |
 | 67 | 17 | deviation | build/x86_64/root-tree/lib/churn-cats.rc |  | rc userland malloc pool corrupts under sustained backquote churn (~428+ iterations, poisoned-header signature) — found by 17-02's composed churn leg; repro committed; deferred to 17-03's rc rows | open |  | 2026-11-12T21:27:16.731Z |  |
 | 68 | 17 | deviation | build/x86_64/services-r9-x64.log | 132 | services-x64 gate faults at the dns stage: kernel NULL-call (PF pc=0x0) after devmnt cs error — pre-existing, A/B-proven identical at pins b02408cad and 02218e88c; last green services run was the 15-08 era; root cause open (17-04-deferred-items.md) | open |  | 2026-11-12T23:34:20.636Z |  |
+| 69 | 17 | deviation | build/x86_64/tier1-sweep.rc |  | 17-05: the tier1 gate's date check passes on a pre-existing display quirk, not a real epoch — hdate -n == 0 every r9-x64 kernel this era (r9 devcons serves no /dev/bintime; libc nsec() returns 0 on the failed open) and the sweep's *20[0-9][0-9]* expectation is met only because ctime(0) under the EST timezone data displays 'Feb 7 2006'; identical at r9 63bfda9 (pre) and 59d28fa (post), live-measured both sides; root fix belongs to the clock-seam owner (Phase-14's no-RTC era shape) | open |  | 2026-11-13T01:59:58.328Z |  |
 
 ````json
 [
@@ -953,6 +954,19 @@ last_updated: 2026-11-13T01:47:22.000Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-12T23:34:20.636Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 69,
+    "kind": "deviation",
+    "phase": "17",
+    "file": "build/x86_64/tier1-sweep.rc",
+    "line": null,
+    "description": "17-05: the tier1 gate's date check passes on a pre-existing display quirk, not a real epoch — hdate -n == 0 every r9-x64 kernel this era (r9 devcons serves no /dev/bintime; libc nsec() returns 0 on the failed open) and the sweep's *20[0-9][0-9]* expectation is met only because ctime(0) under the EST timezone data displays 'Feb 7 2006'; identical at r9 63bfda9 (pre) and 59d28fa (post), live-measured both sides; root fix belongs to the clock-seam owner (Phase-14's no-RTC era shape)",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-13T01:59:58.328Z",
     "resolved_at": null,
     "milestone": "v2.1"
   }
