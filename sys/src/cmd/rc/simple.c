@@ -74,6 +74,21 @@ Xsimple(void)
 }
 struct word nullpath = { "", 0};
 
+/*
+ * #46 (17-06): doredir's Dup was unchecked in both redirect arms — a
+ * failed dup left the target descriptor unset while rc went on to exec,
+ * silently misrouting the child's I/O on that fd.  Report through rc's
+ * diagnostic channel and exit with errors: never exec against a broken
+ * redirect.  Does not return.
+ */
+static void
+dupfailed(int from, int to)
+{
+	pfmt(err, "rc: can't dup %d to %d: %r\n", from, to);
+	flush(err);
+	Exit("error");
+}
+
 void
 doredir(redir *rp)
 {
@@ -82,12 +97,14 @@ doredir(redir *rp)
 		switch(rp->type){
 		case ROPEN:
 			if(rp->from!=rp->to){
-				Dup(rp->from, rp->to);
+				if(Dup(rp->from, rp->to) < 0)
+					dupfailed(rp->from, rp->to);
 				close(rp->from);
 			}
 			break;
 		case RDUP:
-			Dup(rp->from, rp->to);
+			if(Dup(rp->from, rp->to) < 0)
+				dupfailed(rp->from, rp->to);
 			break;
 		case RCLOSE:
 			close(rp->from);

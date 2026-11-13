@@ -358,7 +358,7 @@ void
 Execute(word *args, word *path)
 {
 	char **argv = mkargv(args);
-	char file[1024], errstr[ERRMAX+1];
+	char file[1024], errstr[ERRMAX+1], cerrstr[ERRMAX+1];
 	int nc;
 
 	Updenv();
@@ -387,11 +387,21 @@ Execute(word *args, word *path)
 		 * swap/vm (e.g., arg. list too long) or other allocation or
 		 * i/o failure, stop searching and print the reason for failure.
 		 */
-		rerrstr(errstr, sizeof errstr);
-		if (strstr(errstr, " allocat") != nil ||
-		    strstr(errstr, " full") != nil ||
-		    strstr(errstr, "i/o error") != nil)
+		rerrstr(cerrstr, sizeof cerrstr);
+		if (strstr(cerrstr, " allocat") != nil ||
+		    strstr(cerrstr, " full") != nil ||
+		    strstr(cerrstr, "i/o error") != nil){
+			strcpy(errstr, cerrstr);
 			break;
+		}
+		/*
+		 * #65 (17-06): keep the FIRST candidate's failure — only the
+		 * last candidate's rerrstr used to survive the loop, so the
+		 * trailing candidate's "can't open" masked the real reason an
+		 * earlier (matching) candidate failed to exec.
+		 */
+		if(errstr[0] == '\0')
+			strcpy(errstr, cerrstr);
 	}
 	if(errstr[0] == '\0')		/* pick up any werrstr "too long"s */
 		rerrstr(errstr, sizeof errstr);

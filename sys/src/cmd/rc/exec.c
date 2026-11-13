@@ -712,6 +712,13 @@ Xqdol(void)
 	deglob(s);
 	a = vlook(s)->val;
 	poplist();
+	/* 17-06 (#49): like Xbackq's 06-07 case, the popped name list can
+	 * be the stack's ONLY list — the result pushword below would then
+	 * abort rc ("pushword but no argv", the flake class the backquote
+	 * fixtures measured).  Restore the invariant every reader assumes:
+	 * Xqdol leaves a list on the stack for the result. */
+	if(runq->argv==0)
+		pushlist();
 	n = count(a);
 	if(n==0){
 		pushword("");
@@ -823,6 +830,12 @@ Xcount(void)
 		inttoascii(num, a && 1<=n && n<=count(a)?1:0);
 	}
 	poplist();
+	/* 17-06 (#49): the popped name list can be the stack's ONLY list —
+	 * the count pushword below would then abort rc ("pushword but no
+	 * argv", the Xbackq flake's residual class).  Keep the invariant:
+	 * Xcount leaves a list on the stack for the result. */
+	if(runq->argv==0)
+		pushlist();
 	pushword(num);
 }
 
