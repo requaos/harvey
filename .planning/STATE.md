@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: r9 Kernel Flush-Out
-status: executing
-stopped_at: Completed 17-06-PLAN.md
-last_updated: "2026-11-13T02:48:45.260Z"
+status: verifying
+stopped_at: "Completed 17-07-PLAN.md (halted: the CR-07 cure refuted at the fix pin — the row open-enriched, FLUSHOUT complete, all other gates green)"
+last_updated: "2026-11-13T06:39:42.938Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 17 execution started
-state_head: 406d5cbba3304360e81089dd34dd7a21822bcad5
+state_head: fdd7626c871c821b16f2299444b3727c23292c45
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 39
-  completed_plans: 38
+  completed_plans: 39
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 
 Phase: 17 (r9 Kernel Flush-Out) — EXECUTING
 Plan: 7 of 7
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-12 — Phase 17 execution started
 
 Progress: [█████░░░░░░░░░░░░░░░] 29% (v2.1: 2/7 phases — 13-14 complete, 15-19 next)
@@ -96,6 +96,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 17 P05 | 97 min | 3 tasks | 12 files |
 | Phase 17 P05 | 97 min | 3 tasks | 12 files |
 | Phase 17 P17-06 | 41 min | 3 tasks | 5 files |
+| Phase 17 P07 | 3h 44min (halted at the refuted cure; wall ~4h with unattended loops) | 3 tasks | 23 files |
 
 ## Accumulated Context
 
@@ -217,6 +218,9 @@ Recent decisions affecting current work:
 - [Phase 17]: [17-06] #49's fix sites are Xqdol+Xcount — the invariant audit found exactly two remaining pop-then-pushword ops in exec.c (the class reaching the recorded pushword panic); pop-then-deref ops are a different crash surface and stay unguarded — minimal fix exactly matching the recorded crash class; the 06-07 Xbackq guard completes its class
 - [Phase 17]: [17-06] No fixture for any rc corner (D-11 escape clause): no sweep fails a dup; absolute-path invocation never exercises the #65 masking path; the #49 class is HVF-timing-only (A6 — unreproducible on this venue, audit-grounded, live-fire reopener) — fixture routes disproportionate or unmeasured; the re-greened sweeps + invariant shapes are the pin
 - [Phase 17]: [17-06] A /amd64/bin byte change (the fixed rc) trips mkimage witness-manifest digest — the standing remedy is build/mm/build-9k10t1.sh re-run (donor rebuild + 38-member manifest re-pin, gitignored, no commit, no pin advance); services-x64 stays blocked by the pre-existing #68 dns-stage kernel trap (A/B-identical at this pin, kernel byte-identical — root cause owned by 17-07) — the 14-08 identical-6.outs discipline executing as designed; the services block is out of this plan's authority (no flake.lock)
+- [Phase 17]: 17-07: the D-09 fold verdict is a SPLIT — #66 is the CR-07 class (reproduced live 3x, stays OPEN); #47 the wedge form closed-by-discipline; #50 a different class waived frozen (17-CR07-ROOTCAUSE.md is the record)
+- [Phase 17]: 17-07: the cure evidence FAILED — the stress series at the fix pin (r9 8f3ff11) refuted the deregister fix as the cure (fired at run 3, 25s, the byte-consistent signature); the fix stands as hardening (4 pins, gates green) but #66/CR-07 stay open with the enriched record and the committed reproduction instrument (fires the class at will in ~25s)
+- [Phase 17]: 17-07: the 30/30 narrowing matrix localizes the class to the FULL 8-way concurrent bulk transfer (launch storm alone and <=4-way full-depth never fire); the KVM capture ceiling is an empirical platform fact (-d int blind at death, cpu_reset post-state, userspace-APIC refused, TCG-tap wedges at ping)
 
 ### Pending Todos
 
@@ -227,6 +231,7 @@ None yet.
 - aarch64 is FROZEN at the v2.0 pin — all v2.1 work keys to x86_64; do not "fix" aarch64 paths in passing
 - raspi3b-on-qemu-11.1.2 boot defect — accepted (pre-existing, A/B-proven not-a-regression); tracked in PROJECT.md Active
 - 14-06 RESOLVED (cycle 4, r9@8aa9ba2): the "scheduler corruption" was sched_loop's diverging trap_return resume arm leaving SCHED_CONTEXT stale against a stack slot the intervening scheduler iterations reused — wild execution explains every prior symptom (the "lying panic" with merged cold-block locations, the H2-class garbage parent, the apparent paqfs death: it never died, it was readied and never resumed); the devpipe/qreopen suspicion was run live and ELIMINATED (pid-keyed rings: no EOF/err/reopen in the whole run); q35shell green twice consecutively, full regression battery green at r9@8aa9ba2
+- CR-07/WINDOWS #66 OPEN after 17-07: the 8-way-transfer triple fault — reproducible at will (boot-r9-stress-x64, ~25s, ~8%/run); cure unfound (the deregister fix refuted by the series); reopener conditions in 17-CR07-ROOTCAUSE section 7
 
 ## Deferred Items
 
@@ -239,6 +244,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-13T02:48:44.628Z
-Stopped at: Completed 17-06-PLAN.md
+Last session: 2026-11-13T06:39:42.288Z
+Stopped at: Completed 17-07-PLAN.md (halted: the CR-07 cure refuted at the fix pin — the row open-enriched, FLUSHOUT complete, all other gates green)
 Resume file: None
