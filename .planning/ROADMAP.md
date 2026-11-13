@@ -195,7 +195,7 @@ Plans:
   2. The RFMEM OOM-path page leaks (the 6 WR findings) are closed with refcount proofs — leak-repro gates demonstrate bounded memory under fork/exec churn (FLUSH-02)
   3. The Phase-7 WR hardening gaps are closed: cap-walk loud-abort holes, WaitSet-16-vs-MAX_PROCS-64 sizing, used-id slot-liveness (FLUSH-03)
   4. The known kernel windows are closed or gated — fork+exec arena drain (WINDOWS #44), namec union-create miss (WINDOWS #45) — every flush-out fix lands with a pin (FLUSH-04)
-**Plans**: 3/7 plans executed
+**Plans**: 5/7 plans executed
 Plans:
 **Wave 1**
 - [x] 17-01-PLAN.md — the verification wave: the closure pipeline tracer (CR-01 exemplar), the D-02 OOM-audit completion (exec.rs remainder), CR-03's deterministic sem pins, the 12 already-fixed 08-ledger re-cites, 17-FLUSHOUT.md seeded (FLUSH-01, FLUSH-02; D-01/D-02/D-13/D-16)
@@ -207,10 +207,10 @@ Plans:
 - [x] 17-03-PLAN.md — WR-05 WaitSet resize to the real 512 table + the loud full arm, WR-06 used-ring unposted-slot liveness — pure-struct pins, two class commits, own-commit pin advance (FLUSH-03)
 
 **Wave 4** *(blocked on Wave 3)*
-- [ ] 17-04-PLAN.md — the cap-walk loud-abort quartet (WR-01..04: shared Caps::parse + the q35 extent/minimum/BAR holes) as ONE class commit + the full x64 battery re-run, WR-07/08 3-part dispositions — the 07 ledger's WR sweep completes (FLUSH-03)
+- [x] 17-04-PLAN.md — the cap-walk loud-abort quartet (WR-01..04: shared Caps::parse + the q35 extent/minimum/BAR holes) as ONE class commit + the full x64 battery re-run, WR-07/08 3-part dispositions — the 07 ledger's WR sweep completes (FLUSH-03)
 
 **Wave 5** *(blocked on Wave 4)*
-- [ ] 17-05-PLAN.md — namec pass: #45 union-create fix (walk_one's union consult + pin) + #18 verify-and-close (the four pg.lock sites + contention evidence) (FLUSH-04, D-10)
+- [x] 17-05-PLAN.md — namec pass: #45 union-create fix (walk_one's union consult + pin) + #18 verify-and-close (the four pg.lock sites + contention evidence) (FLUSH-04, D-10)
 
 **Wave 6** *(blocked on Wave 5)*
 - [ ] 17-06-PLAN.md — the three rc rows (#46/#49/#65) as one Harvey fix-class commit, sweep-proven — no pin mechanics (FLUSH-04, D-11)
@@ -266,7 +266,7 @@ Plans:
 | 14. Harvey amd64 Userspace on r9 | v2.1 | 9/9 | Complete    | 2026-11-09 |
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 9/9 | Complete    | 2026-11-10 |
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | 8/8 | Complete    | 2026-11-12 |
-| 17. r9 Kernel Flush-Out | v2.1 | 3/7 | In Progress | - |
+| 17. r9 Kernel Flush-Out | v2.1 | 5/7 | In Progress | - |
 | 18. In-Guest p9sk1 Auth Domain | v2.1 | - | Not started | - |
 | 19. CPU Service + Drawterm + rio Desktop | v2.1 | - | Not started | - |
 

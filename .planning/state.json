@@ -81,12 +81,12 @@
     {
       "number": "16",
       "name": "Host Net Modes + Networking Exit Gate",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "17",
       "name": "r9 Kernel Flush-Out",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "18",
@@ -101,8 +101,8 @@
   ],
   "next": {
     "command": "/gsd-progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 16 (11 of 19 roadmap phases complete) · ready to verify"
+    "label": "Advance to the next step",
+    "reason": "Phase 17 (12 of 19 roadmap phases complete) · executing"
   },
-  "updated_at": "2026-11-11T20:45:21.571Z"
+  "updated_at": "2026-11-13T01:56:21.241Z"
 }

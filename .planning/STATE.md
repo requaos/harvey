@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: r9 Kernel Flush-Out
 status: executing
-stopped_at: Completed 17-04-PLAN.md
-last_updated: "2026-11-13T00:01:31.101Z"
+stopped_at: Completed 17-05-PLAN.md
+last_updated: "2026-11-13T01:58:20.269Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 17 execution started
-state_head: ef7b6a04c642d074d4190f3da872a7a0aef35de3
+state_head: 84700e6e66e77e13417c4f8aba53523be58f12e1
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 39
-  completed_plans: 35
+  completed_plans: 37
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 17 (r9 Kernel Flush-Out) — EXECUTING
-Plan: 5 of 7
+Plan: 6 of 7
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 17 execution started
 
@@ -93,6 +93,8 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 17 P02 | 224 min | 3 tasks | 26 files |
 | Phase 17 P03 | 18 min | 3 tasks | 15 files |
 | Phase 17 P04 | 96 min | 3 tasks | 9 files |
+| Phase 17 P05 | 97 min | 3 tasks | 12 files |
+| Phase 17 P05 | 97 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -206,6 +208,10 @@ Recent decisions affecting current work:
 - [Phase 17]: 17-04 TDD shape: RED evidence for both fix tasks was captured and classified BEFORE any implementation (17-04-t1/t2 RED_EVIDENCE_OK, libtest JSON preserved), but the pins rode the ONE class commit per the plan's own Pitfall-5 prohibition — no separate test() commit exists for 17-04; documented in the SUMMARY's TDD Gate Compliance section
 - [Phase 17]: 17-04 D-13 token mapping executed: WR-07/WR-08 closed as the 07 ledger's native 'deferred' disposition carrying the full D-15 3-part rationale in Source (WHERE/WHY/Reopener:) — same vocabulary-mapping class as 17-02's WINDOWS resolved-vs-fixed call; the ledger ends with exactly the 5 IN rows open
 - [Phase 17]: 17-04 services-x64 dns-stage trap (kernel PF at pc=0x0 after a devmnt cs error): PRE-EXISTING, A/B-proven — the identical trap frame fires at pin b02408cad (r9 658001b, pre-17-04); last green services run was the 15-08 era; deferred (17-04-deferred-items.md + WINDOWS), the root-cause belongs to the next plan touching the services venue
+- [Phase 17]: [Phase 17]: 17-05: WINDOWS #18 closed verify+pin — the four-site syscall.rs pgrp-lock audit found every site already snapshot-then-drop (the shared namec chain_snapshot carries the contract; sys_bind/unmount/mount lock only the table mutation; sys_create's :1159 block IS the shape verbatim); the 17-02 churn/composed captures are the under-load pin
+- [Phase 17]: [Phase 17]: 17-05: WINDOWS #45 closed fix+pin — sys_create's probe and create consult the union chain (walk_one_union/create_chan_union, first-accepting member; refusals propagate per the 15-03 server-owns-policy stance, a deliberate deviation from donor createdir's MCREATE gate); RED-proven 6 host pins at port/src/namec_tests.rs (venue A)
+- [Phase 17]: [Phase 17]: 17-05: the empty mount-table key collision — a registry attach chan's empty path keys to the same normalize('/')=='' the boot's bind -a /root / owns, so every union consult needs namec's #-arm nomount bit at the call site; found live by the tier1 gate (init's setenv('#e/timezone') silently failing -> T1-FAIL date), fixed r9 421d5e1 with a counterfactual pin
+- [Phase 17]: [Phase 17]: 17-05: the tier1 date check's green is a pre-existing quirk — hdate -n == 0 every kernel this era (r9 devcons has no /dev/bintime; libc nsec() returns 0) and the 20xx expectation is met by ctime(0)+EST displaying 'Feb 7 2006'; identical pre/post 17-05, recorded open in 17-05-deferred-items.md
 
 ### Pending Todos
 
@@ -228,6 +234,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-13T00:01:30.359Z
-Stopped at: Completed 17-04-PLAN.md
+Last session: 2026-11-13T01:58:19.647Z
+Stopped at: Completed 17-05-PLAN.md
 Resume file: None
