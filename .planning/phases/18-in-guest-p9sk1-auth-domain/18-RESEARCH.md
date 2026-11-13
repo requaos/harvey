@@ -477,17 +477,23 @@ secstored -v &					# tcp!*!5356, stays foreground-verbose in background rc &
 | A6 | TCG CI runners of this project use `--cpu qemu64` without `+rdrand` (committed 13-06/16-06 flag chain; qemu docs verified for the general qemu64 default) — so jitter is load-bearing in CI | Pitfalls #12 | if CI ever adds +rdrand, the RDRAND leg also gets CI coverage — strictly better, no risk |
 | A7 | Third user name, DEMO authdom token spelling, local-file format/name, marker vocabulary — planner discretion per CONTEXT; research proposes none as locked | throughout | none (explicitly discretionary) |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All four questions carry executable in-plan resolutions (annotated 2026-11-13 at plan revision — none remains open; pointers name the resolving plan task):
 
 1. **Generator host-build venue** — plan9port libsec/libauthsrv linking vs vendoring the four donor algorithm files?
    - What we know: setup.sh installs plan9port `9c` as pcc; plan9port ships libsec/libauthsrv upstream; the needed code (passtokey, des, desCBC, nvcsum) is small and self-contained.
    - What's unclear: whether nixpkgs' plan9port builds/links those libs in the mkimage environment.
    - Recommendation: Wave-0 probe compiles a 20-line host C with 9c linking -lauthsrv -lsec; fallback = vendored files (gcc or 9c). Either way the ALGORITHM code is the donor's, not a reimplementation (A1).
+   - RESOLVED: 18-03 Task 1 runs the Wave-0 A1 probe (9c link test against -lauthsrv -lsec) with the vendored-donor-files fallback pinned inside the same task; the probe verdict is recorded in the 18-03 SUMMARY.
 2. **Writable /adm/secstore venue** — mntgen (mount-points, read-only files per 15-06) vs ramfs (not in tier data) vs copy-before-start?
    - Recommendation: decide by a 10-minute in-guest probe during Wave 0 of the auth image work (create/write/read a file under each candidate); the sweep already proves mntgen mount-points.
+   - RESOLVED: 18-05 Task 2 owns the in-guest venue probe (create/write/read under the mntgen-served /adm/secstore; add the `cmd/ramfs` tier leaf and serve the dir from ramfs if file writes fail); the verdict + evidence line land in the 18-05 SUMMARY.
 3. **Does the auth image run cs from /lib/ndb/local directly (`-f` default) or a composed file?**
    - The sweep used `-f /env/<file>`; the auth domain wants the REAL baked local. cs's default db is /lib/ndb/local; verify cs -f accepts the baked path or run default. Trivial, in-plan.
+   - RESOLVED: 18-04 Task 3 pins cs running with its DEFAULT db — the baked /lib/ndb/local — no `-f` (recorded in the task's read_first and its sweep leg 3).
 4. **The `ether=` ndb value's single source** (AUTH-05): qemu's default NIC MAC (52:54:00:12:34:56 when unspecified) is a venue literal — it belongs in netaddr.rc (new ether key) or in the r9 TOML netdev stanza, per the single-source rule. Planner picks the home; the seam grep enforces it.
+   - RESOLVED: 18-04 Task 3 pins netaddr.rc as the single home (new `ether=` key carrying the qemu-default MAC, documented in a comment) with `ether=@ETHER@` in local.template; the venue-literal grep assert enforces it.
 
 ## Environment Availability
 
