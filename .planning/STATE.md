@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: r9 Kernel Flush-Out
 status: executing
-stopped_at: Completed 17-03-PLAN.md
-last_updated: "2026-11-12T22:11:04.189Z"
+stopped_at: Completed 17-04-PLAN.md
+last_updated: "2026-11-13T00:01:31.101Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 17 execution started
-state_head: a9b538bd96292f494fffc040e5a84ebec00b558b
+state_head: ef7b6a04c642d074d4190f3da872a7a0aef35de3
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 39
-  completed_plans: 34
+  completed_plans: 35
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 17 (r9 Kernel Flush-Out) — EXECUTING
-Plan: 4 of 7
+Plan: 5 of 7
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 17 execution started
 
@@ -92,6 +92,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 17 P01 | 38 min | 3 tasks | 5 files |
 | Phase 17 P02 | 224 min | 3 tasks | 26 files |
 | Phase 17 P03 | 18 min | 3 tasks | 15 files |
+| Phase 17 P04 | 96 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -201,6 +202,10 @@ Recent decisions affecting current work:
 - [Phase 17]: [17-02] The composed venue's bounded-memory mechanism: the PREFERRED arm — kernel-x64 re-pointed at a new q35churnshell config (q35shell verbatim + the churn dev key; q35shell.toml byte-stable) carrying the per-exit heap marker; the composed gate bounds its window from the kernel's own emitted numbers
 - [Phase 17]: [17-02] The contention leg found its own bug: rfmem_brk_set's lone-member arm (the post-sibling-exit state) mapped nothing — the survivor's first malloc fault-killed it; fixed r9 72edbba. New deferred finding: rc's userland pool corrupts under ~428+ backquote iterations (17-03's rows)
 - [Phase 17]: [17-03] WR-05/WR-06 closed push-before-pin: one port-level MAX_WAITERS=512 const (the live table, both arches) resized all three WaitSet copies + twelve take buffers with a count+report full arm; next_used gained the unposted-slot liveness reject — 9 waitset pins + 1 used-drain negative RED-proven, r9 aea604c..658001b, FOD re-wired (NAR sha256-0KGcgz, three-way agreement), pin b02408cad lock-only, smoke+net gates ALL STAGES PASS, 07 ledger at 11 open
+- [Phase 17]: 17-04 end-edge re-derivation: qemu 11.1.2's virtio notify cap (length = notify_off_multiplier x VIRTIO_QUEUE_MAX = 4 x 1024 = 0x1000 at offset 0x3000) ends EXACTLY at the 0x4000 BAR boundary (the BAR is sized pow2ceil(notify.offset + notify.size)) — the plan's flagged >=-style edge would reject the real device and redden every net gate; the closed form keeps the > edge and adds the zero-length reject, which alone closes the named offset==bar_size length==0 hole; pinned by the live-shape admit pin (cap_extents_admit_the_live_q35_shape)
+- [Phase 17]: 17-04 TDD shape: RED evidence for both fix tasks was captured and classified BEFORE any implementation (17-04-t1/t2 RED_EVIDENCE_OK, libtest JSON preserved), but the pins rode the ONE class commit per the plan's own Pitfall-5 prohibition — no separate test() commit exists for 17-04; documented in the SUMMARY's TDD Gate Compliance section
+- [Phase 17]: 17-04 D-13 token mapping executed: WR-07/WR-08 closed as the 07 ledger's native 'deferred' disposition carrying the full D-15 3-part rationale in Source (WHERE/WHY/Reopener:) — same vocabulary-mapping class as 17-02's WINDOWS resolved-vs-fixed call; the ledger ends with exactly the 5 IN rows open
+- [Phase 17]: 17-04 services-x64 dns-stage trap (kernel PF at pc=0x0 after a devmnt cs error): PRE-EXISTING, A/B-proven — the identical trap frame fires at pin b02408cad (r9 658001b, pre-17-04); last green services run was the 15-08 era; deferred (17-04-deferred-items.md + WINDOWS), the root-cause belongs to the next plan touching the services venue
 
 ### Pending Todos
 
@@ -223,6 +228,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-12T22:11:03.529Z
-Stopped at: Completed 17-03-PLAN.md
+Last session: 2026-11-13T00:01:30.359Z
+Stopped at: Completed 17-04-PLAN.md
 Resume file: None
