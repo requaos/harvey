@@ -234,10 +234,17 @@ Plans:
 **Plans**: 5 plans
 
 Plans:
+**Wave 1**
 - [ ] 18-01-PLAN.md — r9 `/dev/random` re-keyed to CPUID-gated RDRAND/RDSEED + TSC/jitter fallback (AUTH-02; armed-source print, q35auth substrate profile, KVM+TCG green twice, push-before-pin posture)
-- [ ] 18-02-PLAN.md — r9 devcap `#¤` donor-verbatim + hand-rolled HMAC-SHA1 + per-proc user + eve gate (AUTH-03; the phase's ONE FOD re-wire pass + lock-only Harvey pin advance)
 - [ ] 18-03-PLAN.md — Harvey bake-time domain generator: committed interface + gitignored local file + hash-paired unit (nvram/keys/ndb-auth/manifest) + teeth-proven verify (AUTH-01)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+- [ ] 18-02-PLAN.md — r9 devcap `#¤` donor-verbatim + hand-rolled HMAC-SHA1 + per-proc user + eve gate (AUTH-03; the phase's ONE FOD re-wire pass + lock-only Harvey pin advance)
+
+**Wave 3** *(blocked on Wave 2 completion)*
 - [ ] 18-04-PLAN.md — sixth mkimage contract + auth bring-up (pairing boot check → nvram= → keyfs → listen1/authsrv -d on tcp!*!567 → secstored -v) + AUTH-05 ndb staging + the app-per-gate expect gate (AUTH-01, AUTH-04, AUTH-05, AUTH-07)
+
+**Wave 4** *(blocked on Wave 3 completion)*
 - [ ] 18-05-PLAN.md — probe legs (auth/debug full p9sk1 + speaksfor C probe + negative control) + secstore round-trip + CI leg + AUTH-09 docs (AUTH-06, AUTH-07, AUTH-08, AUTH-09)
 
 ### Phase 19: CPU Service + Drawterm + rio Desktop

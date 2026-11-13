@@ -3,16 +3,17 @@ gsd_state_version: "1.0"
 milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
-status: completed
+current_phase_name: In-Guest p9sk1 Auth Domain
+status: executing
 stopped_at: Phase 18 context gathered
-last_updated: "2026-11-13T17:01:26.196Z"
+last_updated: "2026-11-13T19:48:41.460Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 17 complete
-state_head: 39ffda8131f351cbf65ec759d9aed2f8319a7bab
+state_head: db66ca18dad947deb0cd170aeb80bddb70babbc1
 progress:
   total_phases: 6
   completed_phases: 2
-  total_plans: 40
+  total_plans: 45
   completed_plans: 40
 ---
 
@@ -27,9 +28,9 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 ## Current Position
 
-Phase: 18
+Phase: 18 (In-Guest p9sk1 Auth Domain) — READY TO EXECUTE
 Plan: Not started
-Status: Ready to plan
+Status: Ready to execute
 Last activity: 2026-11-13 — Phase 17 complete
 
 Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 complete, 18-19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phases 18-19)
