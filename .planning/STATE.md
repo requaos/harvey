@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: r9 Kernel Flush-Out
 status: executing
-stopped_at: Completed 17-05-PLAN.md
-last_updated: "2026-11-13T01:58:20.269Z"
+stopped_at: Completed 17-06-PLAN.md
+last_updated: "2026-11-13T02:48:45.260Z"
 last_activity: 2026-11-12
 last_activity_desc: Phase 17 execution started
-state_head: 84700e6e66e77e13417c4f8aba53523be58f12e1
+state_head: 406d5cbba3304360e81089dd34dd7a21822bcad5
 progress:
   total_phases: 5
   completed_phases: 2
   total_plans: 39
-  completed_plans: 37
+  completed_plans: 38
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-09)
 ## Current Position
 
 Phase: 17 (r9 Kernel Flush-Out) — EXECUTING
-Plan: 6 of 7
+Plan: 7 of 7
 Status: Ready to execute
 Last activity: 2026-11-12 — Phase 17 execution started
 
@@ -95,6 +95,7 @@ Progress: [█████░░░░░░░░░░░░░░░] 29% (v2
 | Phase 17 P04 | 96 min | 3 tasks | 9 files |
 | Phase 17 P05 | 97 min | 3 tasks | 12 files |
 | Phase 17 P05 | 97 min | 3 tasks | 12 files |
+| Phase 17 P17-06 | 41 min | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -212,6 +213,10 @@ Recent decisions affecting current work:
 - [Phase 17]: [Phase 17]: 17-05: WINDOWS #45 closed fix+pin — sys_create's probe and create consult the union chain (walk_one_union/create_chan_union, first-accepting member; refusals propagate per the 15-03 server-owns-policy stance, a deliberate deviation from donor createdir's MCREATE gate); RED-proven 6 host pins at port/src/namec_tests.rs (venue A)
 - [Phase 17]: [Phase 17]: 17-05: the empty mount-table key collision — a registry attach chan's empty path keys to the same normalize('/')=='' the boot's bind -a /root / owns, so every union consult needs namec's #-arm nomount bit at the call site; found live by the tier1 gate (init's setenv('#e/timezone') silently failing -> T1-FAIL date), fixed r9 421d5e1 with a counterfactual pin
 - [Phase 17]: [Phase 17]: 17-05: the tier1 date check's green is a pre-existing quirk — hdate -n == 0 every kernel this era (r9 devcons has no /dev/bintime; libc nsec() returns 0) and the 20xx expectation is met by ctime(0)+EST displaying 'Feb 7 2006'; identical pre/post 17-05, recorded open in 17-05-deferred-items.md
+- [Phase 17]: [17-06] The three rc corners (#46/#49/#65) landed as ONE Harvey class commit 6779df7d7 (D-11) — checked doredir Dup in both arms, Execute first-failure errstr, Xqdol/Xcount argv-stack guards; proof = smoke-x64/tier1-x64 ALL STAGES PASS at the 17-05 pin, no r9 pin mechanics — D-11 executed as locked: rc is the load driver; one class commit, sweep-proven, panic sites untouched
+- [Phase 17]: [17-06] #49's fix sites are Xqdol+Xcount — the invariant audit found exactly two remaining pop-then-pushword ops in exec.c (the class reaching the recorded pushword panic); pop-then-deref ops are a different crash surface and stay unguarded — minimal fix exactly matching the recorded crash class; the 06-07 Xbackq guard completes its class
+- [Phase 17]: [17-06] No fixture for any rc corner (D-11 escape clause): no sweep fails a dup; absolute-path invocation never exercises the #65 masking path; the #49 class is HVF-timing-only (A6 — unreproducible on this venue, audit-grounded, live-fire reopener) — fixture routes disproportionate or unmeasured; the re-greened sweeps + invariant shapes are the pin
+- [Phase 17]: [17-06] A /amd64/bin byte change (the fixed rc) trips mkimage witness-manifest digest — the standing remedy is build/mm/build-9k10t1.sh re-run (donor rebuild + 38-member manifest re-pin, gitignored, no commit, no pin advance); services-x64 stays blocked by the pre-existing #68 dns-stage kernel trap (A/B-identical at this pin, kernel byte-identical — root cause owned by 17-07) — the 14-08 identical-6.outs discipline executing as designed; the services block is out of this plan's authority (no flake.lock)
 
 ### Pending Todos
 
@@ -234,6 +239,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-13T01:58:19.647Z
-Stopped at: Completed 17-05-PLAN.md
+Last session: 2026-11-13T02:48:44.628Z
+Stopped at: Completed 17-06-PLAN.md
 Resume file: None
