@@ -49,7 +49,7 @@ Full detail: `.planning/milestones/v2.0-ROADMAP.md`
 - [x] **Phase 14: Harvey amd64 Userspace on r9** - amd64 Ureg/TrapFrame ABI contract, exec through the real syscall path, boot→init→rc to the `% ` prompt, tier machinery + `/net` gates re-keyed to `objtype=amd64` (completed 2026-11-09)
 - [x] **Phase 15: Userspace Tiers + Bootfs Payload (amd64)** - services/GUI/long-tail tiers on the k10t1 venue then r9-x86_64; rio/acme/sam donor syscall traces; desktop payload staged in bootfs (completed 2026-11-10)
 - [x] **Phase 16: Host Net Modes + Networking Exit Gate** - hermetic slirp+hostfwd default, explicit `--net=slirp|tap|vmnet`, linux tap/bridge L2-truth leg + doctor checker; the NETIP-08 tap-leg soak gate (completed 2026-11-12)
-- [ ] **Phase 17: r9 Kernel Flush-Out** - *(cross-repo: `../r9`)* the open Phase-7/8 CR/WR backlog + known kernel windows closed under real userspace load, every fix landing with a pin
+- [x] **Phase 17: r9 Kernel Flush-Out** - *(cross-repo: `../r9`)* the open Phase-7/8 CR/WR backlog + known kernel windows closed under real userspace load, every fix landing with a pin (completed 2026-11-13)
 - [ ] **Phase 18: In-Guest p9sk1 Auth Domain** - hash-paired bake-time domain generator, `/dev/random` from x86_64 entropy + devcap `#¤`, keyfs/authsrv on tcp/567, loopback probe green before any drawterm
 - [ ] **Phase 19: CPU Service + Drawterm + rio Desktop** - `cpu -R` end-to-end, flake drawterm, rio in-session only, full-chain smoke + clean-checkout proof on linux-x86_64
 
@@ -195,7 +195,7 @@ Plans:
   2. The RFMEM OOM-path page leaks (the 6 WR findings) are closed with refcount proofs — leak-repro gates demonstrate bounded memory under fork/exec churn (FLUSH-02)
   3. The Phase-7 WR hardening gaps are closed: cap-walk loud-abort holes, WaitSet-16-vs-MAX_PROCS-64 sizing, used-id slot-liveness (FLUSH-03)
   4. The known kernel windows are closed or gated — fork+exec arena drain (WINDOWS #44), namec union-create miss (WINDOWS #45) — every flush-out fix lands with a pin (FLUSH-04)
-**Plans**: 8/8 plans executed (7/7 original executed + 1 gap-closure pending)
+**Plans**: 8/8 plans complete (7/7 original executed + 1 gap-closure pending)
 Plans:
 **Wave 1**
 - [x] 17-01-PLAN.md — the verification wave: the closure pipeline tracer (CR-01 exemplar), the D-02 OOM-audit completion (exec.rs remainder), CR-03's deterministic sem pins, the 12 already-fixed 08-ledger re-cites, 17-FLUSHOUT.md seeded (FLUSH-01, FLUSH-02; D-01/D-02/D-13/D-16)
@@ -269,7 +269,7 @@ Plans:
 | 14. Harvey amd64 Userspace on r9 | v2.1 | 9/9 | Complete    | 2026-11-09 |
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 9/9 | Complete    | 2026-11-10 |
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | 8/8 | Complete    | 2026-11-12 |
-| 17. r9 Kernel Flush-Out | v2.1 | 8/8 | In Progress | - |
+| 17. r9 Kernel Flush-Out | v2.1 | 8/8 | Complete    | 2026-11-13 |
 | 18. In-Guest p9sk1 Auth Domain | v2.1 | - | Not started | - |
 | 19. CPU Service + Drawterm + rio Desktop | v2.1 | - | Not started | - |
 
