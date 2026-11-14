@@ -1,0 +1,36 @@
+# authdomain.example — the committed interface for a real p9sk1 auth
+# domain (18-03, AUTH-01 / D-01).  Copy to <repo-root>/authdomain.local
+# (gitignored) and edit; authdomain-gen reads ./authdomain.local when
+# no -f is given.  ABSENT file => ephemeral DEMO domain: label DEMO,
+# authdom DEMO-harvey, users glenda/bootes/norbert sharing one random
+# demo password — CI and clean checkouts stay green, and the DEMO
+# material is throwaway by construction.  Never commit real values.
+#
+# Interface contract (this file is the shape proof — the self-test
+# parses a filled-in copy of it):
+#   flat KEY=VALUE lines, no spaces around '=', '#' comments, blanks ok.
+#
+# label — the loud token embedded in the nvram authdom, the ndb-auth
+# header, and every manifest row set (D-04).  Default when omitted: DEMO.
+label=DEMO
+# authdom — the p9sk1 authentication domain string, at most 47
+# printable chars.  The label must appear inside it.  Default: DEMO-harvey
+authdom=DEMO-harvey
+# machine_password — derives the nvram machkey, which is ALSO the
+# /adm/keys master key (getauthkey.c:14).  When omitted: fresh random.
+# Keep it secret; never reuse a real one outside your local file.
+machine_password=CHANGE-ME-machine
+# secstore_password — lands in the nvram config field (the secstore
+# client's -n source); at most 13 chars (the CONFIGLEN=14 field).
+# When omitted: fresh random.
+secstore_password=CHANGE-ME-sec
+#
+# users — one `user <name> <password>' line per user.  Names: at most
+# 27 printable chars, no spaces or '/'.  Distinct passwords are fine
+# here (the shared-password form is a DEMO-path convenience only, for
+# sentinel-fed probes).  No user lines at all => the three-user DEMO
+# membership (glenda, bootes, norbert).  authid (the speaksfor row's
+# hostid and the nvram authid) is fixed: bootes.
+user glenda CHANGE-ME-glenda
+user bootes CHANGE-ME-bootes
+user norbert CHANGE-ME-norbert

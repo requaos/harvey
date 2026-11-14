@@ -163,3 +163,7 @@ __pycache__/
 /build/x86_64/smoke-r9-net.log
 /build/x86_64/smoke-r9-net-run1.log
 /build/x86_64/smoke-r9-net-run2.log
+# 18-03: the developer's real auth-domain key material (D-01) — the
+# committed interface lives at build/x86_64/authdomain.example; the
+# local file itself never lands in git history
+/authdomain.local
