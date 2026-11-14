@@ -1,0 +1,167 @@
+#!/bin/rc
+# auth-sweep.rc — the 18-04 AUTH domain bring-up sweep (AUTH-04/D-02/
+# D-03/D-04): the services-sweep.rc shape (15-02's donor-proven
+# disciplines) re-keyed onto the baked p9sk1 domain.  The sweep runs
+# from the boot flow (auth-termrc's `rc /lib/auth-sweep.rc r9' — init
+# sources the termrc; never typed, both venues' single source).
+#
+# Legs (in emission order; each prints its OWN markers — the host gate
+# presence-asserts them, never interleaving order):
+#	leg 1	the D-02 BOOT pairing check — BEFORE keyfs, always:
+#		recompute sha1 over /adm/nvram, /adm/keys, /lib/ndb/auth
+#		against /adm/domain.manifest's rows (in-guest sha1sum,
+#		tier-1); pass prints `authdom: PAIRED <label>' (D-04 —
+#		the label from the manifest's label row), ANY mismatch
+#		prints `authdom: FAIL <artifact>' and SKIPS every later
+#		leg (fail-loud; the termrc still reaches exec rc -i so
+#		serial shows why — a headless gate must NEVER wedge
+#		behind keyfs's interactive machine-key prompt)
+#	leg 2	mntgen /mnt + the nvram= env assignment + NON-
+#		interactive keyfs (NO -p: the nvram= path — readnvram's
+#		getenv("nvram") -> plain file, safeoff 0, 109-byte
+#		Nvrsafe read; keyfs prints its own `N keys read' and
+#		mounts /mnt/keys) -> `AUTH-OK keyfs'
+#	(18-04 Task 2/3 append: the loopback bring-up + the listener
+#	 topology (listen1 -t tcp!*!567 /amd64/bin/authsrv -d +
+#	 secstored -v), cs over the baked default /lib/ndb/local, and
+#	 factotum with norbert's p9sk1 key.)
+#
+# Marker vocabulary (the host gate's contract): `authdom: PAIRED
+# <label>', `authdom: FAIL <artifact>', `AUTH-OK <leg>', `AUTH-FAIL
+# <leg>', `AUTH-DONE' (every leg green; a failed sweep terminates in
+# `AUTH-FAIL sweep' so the gate's fast-fail arm localizes without a
+# timeout stall).
+#
+# rc-syntax discipline (15-02's measured list, carried verbatim):
+# braced `if not {' bodies are parse errors that kill a sourced file
+# mid-stream — ONLY the tier1/services sweeps' proven shapes appear:
+# a same-line single command under `if(...)' (positively or negatively
+# conditioned), `if not cmd' same-line, and a braced TRUE arm
+# (optionally negated: `if(! cond){ ... }') for multi-line bodies.  A
+# bare `=' ends a word (the nvram= assignment below is safe EXACTLY
+# because it stands alone on its own line; =-bearing argv is always
+# single-quoted); NO fd-dup redirects inside nested sourced blocks.
+# Sourced-not-typed on every venue.
+#
+# Vocabulary discipline (the services contract's §11b lineage): every
+# command the sweep runs carries the $B/h* prefix except `bind' (the
+# 14-09 utility supply, staged unprefixed) and rc's own builtins —
+# the h* names resolve through /bin (the namespace's
+# `bind /root/$cputype/bin /bin').
+#
+#	usage: rc /lib/auth-sweep.rc [venue]	venue: r9 (default)
+
+venue=$1
+if(~ $#venue 0) venue=r9
+B=/bin
+
+# svc_waitpath <iters> <path> — bounded existence spin (1s sleeps).
+# True when the path appeared inside the budget, false when the spin
+# expired (the caller's AUTH-FAIL arm classifies the wedge/absence).
+# The counter rides a LIST append ($#n) — immune to the empty-
+# substitution cascade a failed arithmetic backquote would cause.
+fn svc_waitpath {
+	n=()
+	while(! $B/htest -e $2 && $B/htest $#n -lt $1){
+		n=($n x)
+		$B/hsleep 1
+	}
+	$B/htest -e $2
+}
+
+# svc_waitport <iters> <port> — bounded spin for an announced tcp
+# listener conv (any /net/tcp/N/local carrying !<port>), the 14-09
+# port-discovery shape.  Sets svcportfound (nonempty = found).  Same
+# $#n counter discipline.
+svcportfound=''
+fn svc_waitport {
+	n=()
+	svcportfound=''
+	while($B/htest $#n -lt $1 && ~ $svcportfound ''){
+		for(d in /net/tcp/[0-9]*){
+			loc=`{$B/hcat $d/local >[2]/dev/null}
+			if(~ $"loc *!^$2)
+				svcportfound=$d
+		}
+		if(~ $svcportfound ''){
+			n=($n x)
+			$B/hsleep 1
+		}
+	}
+}
+
+# --- leg 1: the D-02 boot pairing check (BEFORE keyfs — always) ------
+# The manifest is the generator's own 5-row shape (18-03: `label <t>',
+# `users <n>', one `<sha1>  <name>' row per artifact — strictly three
+# artifact rows: nvram, keys, ndb-auth): ten whitespace-separated
+# words when hcat splits it.  Flat ladder, one compare per artifact —
+# the in-guest sha1sum word ($sum(1)) against the manifest's row
+# position; rc's `~' does exact matching on the hex (no glob chars in
+# a sha1).  ANY mismatch names the artifact and skips every later leg.
+man=`{$B/hcat /adm/domain.manifest}
+pairfail=''
+if(! ~ $#man 10) pairfail=manifest
+if(~ $pairfail ''){
+	if(! ~ $man(1) label) pairfail=manifest
+}
+if(~ $pairfail ''){
+	if(! ~ $man(3) users) pairfail=manifest
+}
+if(~ $pairfail ''){
+	if(! ~ $man(6) nvram) pairfail=manifest
+}
+if(~ $pairfail ''){
+	if(! ~ $man(8) keys) pairfail=manifest
+}
+if(~ $pairfail ''){
+	if(! ~ $man(10) ndb-auth) pairfail=manifest
+}
+if(~ $pairfail ''){
+	sumnv=`{$B/hsha1sum /adm/nvram}
+	if(! ~ $sumnv(1) $man(5)) pairfail=nvram
+}
+if(~ $pairfail ''){
+	sumkeys=`{$B/hsha1sum /adm/keys}
+	if(! ~ $sumkeys(1) $man(7)) pairfail=keys
+}
+if(~ $pairfail ''){
+	sumndb=`{$B/hsha1sum /lib/ndb/auth}
+	if(! ~ $sumndb(1) $man(9)) pairfail=ndb-auth
+}
+if(~ $pairfail '') echo authdom: PAIRED $man(2)
+if(! ~ $pairfail ''){
+	echo authdom: FAIL $pairfail
+	echo AUTH-FAIL pairing
+}
+
+# --- leg 2: mntgen + the nvram= env + NON-interactive keyfs ----------
+# mntgen mounts /mnt FIRST (the repo termrc's own idiom — the mount
+# walk through its union materializes /mnt/keys).  nvram= is a PLAIN
+# assignment on its own line — the only safe form (the 15-02 measured
+# lexer rule) — and it MUST precede the keyfs line: keyfs's server
+# rfork carries RFENVG, so the child sees a COPY of the env at fork
+# time (Pitfall 8).  NO -p flag: the -p path is getpass (interactive);
+# the nvram path is readnvram -> getenv("nvram") -> plain 109-byte
+# file at safeoff 0 — prompt-free by construction when the pairing
+# held (a valid five-sum Nvrsafe never consults the nvtab fallback).
+# keyfs itself prints `N keys read' (its own load line); the sweep's
+# observable is the mounted /mnt/keys tree inside a bounded spin.
+keyfsstat=fail
+if(~ $pairfail ''){
+	if($B/hmntgen /mnt){
+		nvram=/adm/nvram
+		if($B/hkeyfs -m /mnt/keys /adm/keys){
+			if(svc_waitpath 10 /mnt/keys) keyfsstat=ok
+		}
+	}
+}
+if(~ $keyfsstat ok) echo AUTH-OK keyfs
+if not echo AUTH-FAIL keyfs
+
+# --- the terminal marker (AUTH-DONE only on a fully-green sweep) -----
+sweepstat=ok
+if(! ~ $pairfail '') sweepstat=fail
+if(! ~ $keyfsstat ok) sweepstat=fail
+if(~ $sweepstat ok) echo AUTH-DONE
+if not echo AUTH-FAIL sweep
+exit

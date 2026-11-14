@@ -359,6 +359,35 @@
             export HARVEY_NETADDR_SEAM="${./build/x86_64/root-tree/lib/netaddr.rc}"
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.procps ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
+          # 18-04 (AUTH-04/D-08 + AUTH-01's bake arm + the AUTH-05/07
+          # substrate): the AUTH gate — the net-smoke pipeline re-keyed
+          # onto the sixth bake contract: tier build → the AUTH bake
+          # (mkimage section 14: chain tree + the auth-suite set
+          # computed from the tier data + authdomain-gen INVOKED AT
+          # BAKE with the D-02 pairing assert over the staged copies —
+          # out/bootfs-auth.paq) → iso-builder compose →
+          # build/x86_64/smoke-r9-auth.expect driving the auth
+          # bring-up sweep from the boot flow (auth-termrc →
+          # `rc /lib/auth-sweep.rc r9', no typed legs): the boot
+          # pairing banner with the DEMO label, NON-interactive keyfs
+          # over the baked nvram (`N keys read'), the listener topology
+          # (listen1 -t tcp!*!567 /amd64/bin/authsrv -d + secstored -v
+          # on 5356), cs over the baked /lib/ndb/local, factotum with
+          # norbert's p9sk1 key, AUTH-DONE, the never-appears post-pass
+          # for the nvram getpass string, zero AUTH-FAIL.  netSmoke
+          # R9X64Pkg's shape verbatim (the emitter export + iproute2
+          # for the driver's hostfwd ss observation + procps for the
+          # survivor sweep); stdenv.cc is the ONE addition — the
+          # authdomain-gen host build inside the bake (the 18-03
+          # vendored-donor venue's single dependency, T-18-SC: nixpkgs
+          # toolchain, no registry fetch).  Green TWICE consecutively
+          # with both captures retained is the plan's proof.
+          authSmokeR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-auth-x64" ./nix/smoke-r9-auth-x64.sh ''
+            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
+            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
+            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.iproute2 pkgs.procps pkgs.stdenv.cc ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -408,6 +437,10 @@
           # same x64 block (its attrs: kernel-x64, iso-builder,
           # netdev-args; the doctor + peer are Harvey-side).
           boot-r9-stress-x64 = mkApp stressR9X64Pkg;
+          # 18-04: the AUTH gate — rides the same x64 block (its attrs:
+          # kernel-x64, iso-builder, netdev-args — the emitter feeds
+          # the driver's slirp argv with the D-04 hostfwd pair).
+          boot-r9-auth-x64 = mkApp authSmokeR9X64Pkg;
         }
         # 16-03 (HNET-05/D-14): the doctor app — linux-only in its OWN
         # optionalAttrs gate (the checks are linux's; darwin's vmnet

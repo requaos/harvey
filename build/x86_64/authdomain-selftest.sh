@@ -66,7 +66,12 @@ grep -q '^verify: OK dir=demo label=DEMO users=3$' verify.log || fail "verify su
 
 NB=$(wc -c < demo/nvram | tr -d ' ')
 KB=$(wc -c < demo/keys | tr -d ' ')
-[ "$NB" = "109" ] || fail "nvram is $NB bytes, want 109 (Nvrsafe)"
+# 112 = the 109-byte Nvrsafe layout + 3 zero tail bytes (the amd64
+# guest compiler 6c end-pads the all-char struct to 112 and its
+# readnvram reads sizeof bytes — measured live at 18-04's first boot;
+# 18-04's Rule-1 fix, carried here so the committed self-test pins the
+# GUEST-consuming size)
+[ "$NB" = "112" ] || fail "nvram is $NB bytes, want 112 (Nvrsafe 109 + the 6c guest-ABI tail pad)"
 [ "$KB" = "227" ] || fail "keys is $KB bytes, want 227 (KEYDBOFF + 3*KEYDBLEN)"
 
 grep -q '^label DEMO$' demo/manifest || fail "manifest lacks the 'label DEMO' row"

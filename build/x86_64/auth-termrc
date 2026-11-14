@@ -1,0 +1,20 @@
+#!/bin/rc
+# auth-termrc — the AUTH image's /rc/bin/termrc (18-04, AUTH-04/D-08,
+# staged by mkimage.sh's auth contract §14): the services-termrc shape
+# with the sweep swapped — the in-image auth bring-up sweep
+# (build/x86_64/auth-sweep.rc baked at /lib/auth-sweep.rc) runs from
+# the boot flow exactly as the DONOR venue runs its rc (init's
+# `. /rc/bin/termrc' — the k10t1.rc shape; no typed interaction, the
+# venue symmetry).  mkimage.sh's auth contract stages THIS file as the
+# image's rc/bin/termrc; the chain/tier/services skeletons' termrc are
+# untouched.
+#
+# The sweep runs in a CHILD rc (its trailing exit never kills init's
+# shell); the interactive %  prompt follows AUTH-DONE.  A failed
+# pairing check SKIPS every daemon leg (fail-loud, never a silent
+# interactive nvram wedge) and the prompt still arrives — serial shows
+# why.
+
+rc /lib/auth-sweep.rc r9
+
+exec rc -i

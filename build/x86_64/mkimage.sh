@@ -1223,3 +1223,303 @@ trailer7=$(od -An -tx1 -j $((sz7 - 28)) -N 4 "$SUBSTRATE_IMAGE" | tr -d ' \n')
 [ "$trailer7" = "6b46e688" ] || err "$SUBSTRATE_IMAGE: bad trailer magic $trailer7 (want 6b46e688)"
 
 echo "== PASS: baked $SUBSTRATE_IMAGE ($sz7 bytes; skeleton + randread as /amd64/init; header $magic7 trailer $trailer7; KERNDATE $KERNDATE)"
+
+# ------------------------------------------------------------------
+# 14. the AUTH bake (18-04, AUTH-04/D-08 — the SIXTH contract, the
+#     section the wave-1 numbering note pinned: 18-01's substrate took
+#     §13, so this auth contract is §14; the plan's own "§13" refs
+#     predate that landing): the chain tree + the auth-suite payload
+#     computed from the tier data + the bake-time p9sk1 domain from
+#     authdomain-gen (18-03) — out/bootfs-auth.paq.  The auth image
+#     boots the chain to the auth bring-up sweep (auth-sweep.rc baked
+#     at /lib/auth-sweep.rc, auth-termrc staged as rc/bin/termrc — the
+#     services contract's 11l override shape): the D-02 BOOT pairing
+#     check over the staged /adm/{nvram,keys,domain.manifest} +
+#     /lib/ndb/auth, then NON-interactive keyfs (the nvram= env path,
+#     D-03), then (18-04 Tasks 2-3) the listener topology + cs +
+#     factotum.  The services image's sweep semantics are untouched
+#     (D-08); one-image-per-gate intact — purely additive (Pitfall 7).
+#
+#     The domain material (D-01/D-02): authdomain-gen is INVOKED AT
+#     BAKE (host cc over the vendored donor files — the 18-03 venue,
+#     the committed self-test's build line); absent /authdomain.local
+#     (the repo-root default, gitignored) => ephemeral DEMO material,
+#     so a clean checkout bakes green on presence-based gates.  The
+#     pairing is asserted over the STAGED COPIES (manifest digests
+#     re-verified — the bake REFUSES on mismatch) and re-verified in
+#     the guest before keyfs (the sweep's leg 1).  The auth image is
+#     NOT byte-reproducible across bakes by design (D-01); KERNDATE
+#     pins the deterministic layer while per-bake content varies —
+#     both true at once (Pitfall 10).
+AUTH_IMAGE="$OUT/bootfs-auth.paq"
+
+# 14a. the sweep + override inputs + the auth-suite tier entries (the
+#      11a probe-subject assert discipline: every staged member names
+#      the tier entry it rides — a missing entry means the data and
+#      the bake diverged, red HERE never in the guest; artifacts are
+#      then computed through the entry->artifact mapping, never a
+#      hardcoded binary list)
+[ -f "$HARVEY/build/x86_64/auth-sweep.rc" ] || err "build/x86_64/auth-sweep.rc missing (the committed auth bring-up sweep, 18-04)"
+[ -f "$HARVEY/build/x86_64/auth-termrc" ] || err "build/x86_64/auth-termrc missing (the auth image's termrc override)"
+AUTH_T2="$HARVEY/build/x86_64/tiers/tier2-services.txt"
+AUTH_T1D="$HARVEY/build/x86_64/tiers/tier1-cmds.txt"
+for e in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv \
+	cmd/auth/as cmd/auth/authsrv cmd/auth/changeuser cmd/auth/debug \
+	cmd/auth/keyfs cmd/auth/secstore; do
+	"$GREP" -qE "^$e([[:space:]]|#|$)" "$AUTH_T2" \
+		|| err "auth bake: tier-2 data lacks the auth-suite entry $e (the bake's staging set and the tier data diverged)"
+done
+for e in cmd/cat cmd/echo cmd/ls cmd/test cmd/sleep cmd/sha1sum cmd/auth/factotum:factotum; do
+	"$GREP" -qE "^$e([[:space:]]|#|$)" "$AUTH_T1D" \
+		|| err "auth bake: tier-1 data lacks the helper entry $e (the sweep's helper vocabulary)"
+done
+
+# 14b. the auth-suite staging set, COMPUTED from the tier data (11b's
+#      resolver verbatim: file entries stage themselves, dir entries
+#      stage their whole installed member tree, container-leaf
+#      entries stage the driver-harvested bin-root target; duplicate
+#      h* names are a bake error — the mapping must be unambiguous)
+AUTH_HLIST="$TMPD/auth-hlist"
+: > "$AUTH_HLIST"
+auth_stage() {
+	# auth_stage <abs-src> <h-name> — record one h* member
+	_src=$1
+	_h=$2
+	if "$GREP" -q "^$_h " "$AUTH_HLIST"; then
+		err "auth bake: duplicate h* name $_h (two tier entries map to it — the staging mapping is ambiguous)"
+	fi
+	echo "$_h $_src" >> "$AUTH_HLIST"
+}
+for entry in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv \
+	cmd/auth/as cmd/auth/authsrv cmd/auth/changeuser cmd/auth/debug \
+	cmd/auth/keyfs cmd/auth/secstore; do
+	case "$entry" in
+	*:*)	tgt="${entry##*:}"; rel="${entry%%:*}"; rel="${rel#cmd/}" ;;
+	*)	tgt=""; rel="${entry#cmd/}" ;;
+	esac
+	if [ -n "$tgt" ]; then
+		# container leaf (cmd/aux:listen1 — 18-04 Task 2): the tier
+		# driver harvests $tgt at the bin root
+		[ -f "$BIN/$tgt" ] || err "auth bake: $BIN/$tgt missing — run sh build/x86_64/subset-build.sh first (tier-2 $entry)"
+		auth_stage "$BIN/$tgt" "h$tgt"
+	elif [ -d "$BIN/$rel" ]; then
+		for f in $(find "$BIN/$rel" -type f | sort); do
+			auth_stage "$f" "h${f##*/}"
+		done
+	elif [ -f "$BIN/$rel" ]; then
+		# a dir entry whose mkfile installs SEVERAL members FLAT
+		# beside the entry's own name (cmd/auth/secstore: `TARG =
+		# secstore secstored secuser aescbc' -> /amd64/bin/auth/*) —
+		# the member set is the mkfile's own multi-word TARG line
+		# (the authority on what the entry builds; a SINGLE-word
+		# TARG is just a file entry — cmd/exportfs installs alone at
+		# the bin root — and stages the found file, the 11b rule)
+		_mkf="$HARVEY/sys/src/$entry/mkfile"
+		_targw=""
+		if [ -f "$_mkf" ]; then
+			_targw=$(awk '/^TARG[[:space:]]*=/ { sub(/#.*/, ""); sub(/^[^=]*=/, ""); for (i = 1; i <= NF; i++) print $i }' "$_mkf" | wc -l | tr -d ' ')
+		fi
+		if [ "${_targw:-0}" -gt 1 ]; then
+			_parent="${rel%/*}"
+			for m in $(awk '/^TARG[[:space:]]*=/ { sub(/#.*/, ""); sub(/^[^=]*=/, ""); for (i = 1; i <= NF; i++) print $i }' "$_mkf"); do
+				[ -f "$BIN/$_parent/$m" ] || err "auth bake: $BIN/$_parent/$m missing — run sh build/x86_64/subset-build.sh first (tier-2 $entry's mkfile TARG member)"
+				auth_stage "$BIN/$_parent/$m" "h$m"
+			done
+		else
+			auth_stage "$BIN/$rel" "h${rel##*/}"
+		fi
+	else
+		# the member mkfile's BIN disagreement (subset-build's own
+		# table): some dirs install at the bin ROOT
+		base="${rel##*/}"
+		[ -f "$BIN/$base" ] || err "auth bake: tier-2 entry $entry has no artifact at $BIN/$rel or $BIN/$base — run sh build/x86_64/subset-build.sh first"
+		auth_stage "$BIN/$base" "h$base"
+	fi
+done
+_nauth=$(wc -l < "$AUTH_HLIST" | tr -d ' ')
+[ "$_nauth" -ge 1 ] || err "the auth-suite h* staging set is empty — the tier data parse failed"
+# every sweep subject must be in the computed set (hfactotum rides the
+# tier-1 helper leg at 14c/14i, not this list)
+for h in hmntgen hcs hcsquery hkeyfs hauthsrv hsecstored; do
+	"$GREP" -q "^$h " "$AUTH_HLIST" || err "auth bake: sweep subject $h missing from the computed auth-suite set (the resolver lost it)"
+done
+
+# 14c. the tier-1 helper artifacts (the sweep's $B/h* vocabulary — the
+#      entries asserted at 14a; the artifacts named loudly with the
+#      remediation) + the unprefixed utility supply (bind — NOT an rc
+#      builtin; the 14-09 net-section supply, the services bake's own
+#      11j line) + the chain inputs (the 11c checks)
+for rel in cat echo ls test sleep sha1sum auth/factotum; do
+	[ -f "$BIN/$rel" ] || err "$BIN/$rel missing — run sh build/x86_64/subset-build.sh first (the auth sweep's tier-1 helper set)"
+done
+[ -s "$BIN/bind" ] || err "$BIN/bind missing — run sh build/x86_64/subset-build.sh first (the sweep's loopback bring-up)"
+[ -s "$BIN/auth/authsrv" ] || err "$BIN/auth/authsrv missing — run sh build/x86_64/subset-build.sh first (the listen1 exec target)"
+[ -s "$BIN/rc" ] || err "$BIN/rc missing — run sh build/x86_64/subset-build.sh first"
+[ -s "$HARVEY/amd64/init" ] || err "amd64/init missing — run sh build/x86_64/subset-build.sh first (stage/init)"
+[ -s "$CHAIN_OUT/boot" ] || err "$CHAIN_OUT/boot missing — run sh build/x86_64/subset-build.sh first (9k/boot)"
+[ -s "$BIN/paqfs" ] || err "$BIN/paqfs missing — run sh build/x86_64/subset-build.sh first"
+
+# 14d. authdomain-gen — INVOKED AT BAKE (D-01): the host cc over the
+#      vendored donor algorithm files (the 18-03 venue; the committed
+#      self-test's build line is the reference invocation).  The flake
+#      app carries stdenv.cc for this; a standalone bake needs cc on
+#      PATH (the devshell provides it).
+AUTH_CC=""
+for _c in cc gcc; do
+	if command -v "$_c" >/dev/null 2>&1; then AUTH_CC="$_c"; break; fi
+done
+[ -n "$AUTH_CC" ] || err "no host C compiler for authdomain-gen — run via the flake app (nix run .#boot-r9-auth-x64, whose runtimeInputs carry stdenv.cc)"
+AUTH_GEN="$TMPD/authdomain-gen"
+# shellcheck disable=SC2086  # the donors glob is a word list by construction
+"$AUTH_CC" -O2 -Wno-unknown-pragmas -I"$HARVEY/build/x86_64/authdom-donors" \
+	-o "$AUTH_GEN" "$HARVEY/build/x86_64/authdomain-gen.c" \
+	"$HARVEY"/build/x86_64/authdom-donors/*.c \
+	|| err "authdomain-gen host build failed (the 18-03 vendored-donor venue)"
+
+STAGE8="$TMPD/root-auth"
+mkdir -p "$STAGE8"
+
+# 14e. the committed skeleton (the chain bake's shape — the /lib net
+#      fixtures ride the skeleton tar; the ndb template rides it too)
+(cd "$ROOT_TREE" && tar -cf - .) | (cd "$STAGE8" && tar -xf -)
+
+# 14f. the bake-time p9sk1 domain: generate (DEMO on the absent repo-
+#      root /authdomain.local — the generator's own default, hence the
+#      $HARVEY cwd), stage the paired unit at its guest homes, then
+#      the D-02 BAKE ARM — authdomain-gen -V over the STAGED COPIES
+#      (manifest digests re-verified; the bake REFUSES on mismatch).
+AUTHDOM_STAGE="$TMPD/authdom-stage"
+(cd "$HARVEY" && "$AUTH_GEN" -o "$AUTHDOM_STAGE") \
+	|| err "authdomain-gen -o failed (the bake-time domain generate)"
+mkdir -p "$STAGE8/adm" "$STAGE8/lib/ndb"
+cp "$AUTHDOM_STAGE/nvram" "$STAGE8/adm/nvram"
+cp "$AUTHDOM_STAGE/keys" "$STAGE8/adm/keys"
+cp "$AUTHDOM_STAGE/manifest" "$STAGE8/adm/domain.manifest"
+cp "$AUTHDOM_STAGE/ndb-auth" "$STAGE8/lib/ndb/auth"
+_nb=$(wc -c < "$STAGE8/adm/nvram" | tr -d ' ')
+[ "$_nb" -eq 112 ] || err "auth bake: staged /adm/nvram is $_nb bytes, want 112 (the 109-byte Nvrsafe + the 6c guest-ABI tail pad — readnvram reads sizeof(Nvrsafe)==112 on the guest)"
+[ -s "$STAGE8/adm/keys" ] || err "auth bake: staged /adm/keys is empty"
+[ -s "$STAGE8/adm/domain.manifest" ] || err "auth bake: staged /adm/domain.manifest is empty"
+[ -s "$STAGE8/lib/ndb/auth" ] || err "auth bake: staged /lib/ndb/auth is empty"
+AUTH_VDIR="$TMPD/auth-verify"
+mkdir -p "$AUTH_VDIR"
+cp "$STAGE8/adm/nvram" "$AUTH_VDIR/nvram"
+cp "$STAGE8/adm/keys" "$AUTH_VDIR/keys"
+cp "$STAGE8/lib/ndb/auth" "$AUTH_VDIR/ndb-auth"
+cp "$STAGE8/adm/domain.manifest" "$AUTH_VDIR/manifest"
+# the teeth seam (the 15-08 discipline): AUTHBAKE_DOCTOR=nvram|keys|
+# ndb-auth flips the first byte of the named STAGED COPY's scratch
+# verify-dir twin AFTER staging and BEFORE the verify arm — the
+# negative-control run (`AUTHBAKE_DOCTOR=nvram sh build/x86_64/
+# mkimage.sh') must exit nonzero AT the pairing assert below, proving
+# the bake's own refusal path (never only the generator's self-test).
+if [ -n "${AUTHBAKE_DOCTOR:-}" ]; then
+	case "$AUTHBAKE_DOCTOR" in
+	nvram|keys|ndb-auth)
+		_f="$AUTH_VDIR/$AUTHBAKE_DOCTOR"
+		{ printf 'c'; tail -c +2 "$_f"; } > "$_f.d" && mv "$_f.d" "$_f" \
+			|| err "auth bake: the AUTHBAKE_DOCTOR byte-flip failed"
+		echo "== AUTH TEETH: doctored the staged $AUTHBAKE_DOCTOR copy — the pairing assert below MUST refuse" ;;
+	*) err "AUTHBAKE_DOCTOR=$AUTHBAKE_DOCTOR: want nvram|keys|ndb-auth" ;;
+	esac
+fi
+"$AUTH_GEN" -V "$AUTH_VDIR" \
+	|| err "auth bake: the D-02 pairing assert REFUSED the staged copies (authdomain-gen -V nonzero — the bake refuses)"
+echo "== auth pairing verified over the staged copies (authdomain-gen -V over the bake's own scratch twin)"
+
+# 14g. empty mount-point dirs + staging parents (the chain set + the
+#      domain's /adm + the /lib/ndb home)
+mkdir -p "$STAGE8/root" "$STAGE8/env" "$STAGE8/proc" "$STAGE8/dev" "$STAGE8/srv" \
+	"$STAGE8/fd" "$STAGE8/bin" "$STAGE8/tmp" "$STAGE8/mnt" \
+	"$STAGE8/net" "$STAGE8/boot" "$STAGE8/amd64/bin" \
+	"$STAGE8/rc/lib" "$STAGE8/rc/bin" "$STAGE8/adm/timezone" "$STAGE8/adm" \
+	"$STAGE8/lib/ndb"
+
+# 14h. the chain binaries from THIS build's products (the 9e/11g
+#      discipline: BIN + /amd64/init + out/boot, never a stale out/
+#      harvest for members that have a /amd64/bin home)
+cp "$CHAIN_OUT/boot" "$STAGE8/boot/boot"
+cp "$BIN/paqfs" "$STAGE8/boot/paqfs"
+cp "$HARVEY/amd64/init" "$STAGE8/amd64/init"
+for f in rc ls cat echo ps; do
+	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first"
+	cp "$BIN/$f" "$STAGE8/amd64/bin/$f"
+done
+
+# 14i. the auth-suite payload (the computed 14b set) + the tier-1
+#      helper vocabulary + the unprefixed utility supply + the
+#      listen1 exec target (authsrv at its donor-default exec path —
+#      the sweep's `listen1 -t tcp!*!567 /amd64/bin/authsrv -d' names
+#      the UNPREFIXED path, so the image carries it there; hauthsrv
+#      stays the sweep's own vocabulary name)
+while read -r _h _src; do
+	cp "$_src" "$STAGE8/amd64/bin/$_h"
+done < "$AUTH_HLIST"
+for rel in cat echo ls test sleep sha1sum auth/factotum; do
+	cp "$BIN/$rel" "$STAGE8/amd64/bin/h${rel##*/}"
+done
+cp "$BIN/bind" "$STAGE8/amd64/bin/bind"
+cp "$BIN/auth/authsrv" "$STAGE8/amd64/bin/authsrv"
+magic=$(od -An -tx1 -N4 "$STAGE8/amd64/bin/authsrv" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "authsrv exec-path copy: bad magic $magic (want 00008a97)"
+
+# 14j. the sweep at /lib + the termrc OVERRIDE (the 11l rule: the auth
+#      image runs the sweep from the boot flow, no typed interaction)
+#      + the bake-time verbatim copies (the chain bake's 11n rule)
+cp "$HARVEY/build/x86_64/auth-sweep.rc" "$STAGE8/lib/auth-sweep.rc"
+cp "$HARVEY/build/x86_64/auth-termrc" "$STAGE8/rc/bin/termrc"
+cp "$HARVEY/rc/lib/rcmain" "$STAGE8/rc/lib/rcmain"
+cp "$HARVEY/adm/timezone/local" "$STAGE8/adm/timezone/local"
+
+# 14k. pre-bake manifest: the chain paths + the domain artifacts + the
+#      payload, PRINTED as the staging manifest (the bake log is the
+#      gate's evidence — the plan's verify greps these lines)
+for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
+	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
+	amd64/bin/bind amd64/bin/authsrv \
+	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
+	usr/glenda/lib/profile adm/nvram adm/keys adm/domain.manifest \
+	lib/ndb/auth lib/auth-sweep.rc; do
+	[ -f "$STAGE8/$p" ] || err "auth manifest: $p missing from staged tree"
+	echo "auth manifest: /$p staged"
+done
+_nh=0
+while read -r _h _src; do
+	[ -f "$STAGE8/amd64/bin/$_h" ] || err "auth manifest: amd64/bin/$_h missing from staged tree"
+	_nh=$((_nh + 1))
+done < "$AUTH_HLIST"
+echo "auth manifest: ${_nh} h* sweep binaries staged (the auth-suite set computed from tiers/tier2-services.txt + the tier-1 helpers: $_nauth tier-2 members)"
+for p in root env proc dev srv fd bin tmp mnt net; do
+	[ -d "$STAGE8/$p" ] || err "auth manifest: mount-point dir /$p missing"
+done
+
+# 14l. /boot/factotum ABSENCE (auth-stub-by-absence — the same D-02
+#      rule as every bake above; hfactotum in /amd64/bin is the sweep
+#      payload, NOT the boot auth stub).  NO writable /sys/log is ever
+#      staged or bound (Pitfall 6: syslog's #c/cons fallback IS the
+#      AUTH-07 serial mechanism — a writable log file silently kills
+#      it); the manifest above carries no sys/log member by design.
+[ ! -e "$STAGE8/boot/factotum" ] || err "auth manifest: /boot/factotum present — auth-stub-by-absence violated"
+[ ! -e "$STAGE8/sys/log" ] || err "auth manifest: a /sys/log tree is staged — Pitfall 6 (the syslog console fallback IS the serial-visibility mechanism; a writable log file silently kills it)"
+
+# 14m. rcmain ships byte-verbatim (the chain bake's cmp guard)
+cmp -s "$HARVEY/rc/lib/rcmain" "$STAGE8/rc/lib/rcmain" || err "staged rcmain diverges from rc/lib/rcmain (auth)"
+
+# 14n. determinism + bake (the chain bake's rule; the per-file cap
+#      assert rides too — the 15-07 measured hazard; the mkpaqfs
+#      failure itself is the fail-on-any-diagnostic backstop)
+_maxf8=$(find "$STAGE8" -type f -printf '%s\n' | sort -n | tail -1)
+[ "$_maxf8" -le 4194304 ] || err "auth bake: a staged file of $_maxf8 bytes exceeds mkpaqfs's 4194304-byte per-file cap"
+find "$STAGE8" -exec touch -h -d "@$KERNDATE" {} +
+rm -f "$AUTH_IMAGE"
+KERNDATE="$KERNDATE" "$MKPAQFS" -o "$AUTH_IMAGE" "$STAGE8" || err "mkpaqfs failed (auth)"
+[ -s "$AUTH_IMAGE" ] || err "$AUTH_IMAGE missing/empty after mkpaqfs"
+
+# 14o. the byte-format contract (same header/trailer magic checks)
+magic8=$(od -An -tx1 -N4 "$AUTH_IMAGE" | tr -d ' \n')
+[ "$magic8" = "529ab12b" ] || err "$AUTH_IMAGE: bad header magic $magic8 (want 529ab12b)"
+sz8=$(wc -c < "$AUTH_IMAGE" | tr -d ' ')
+trailer8=$(od -An -tx1 -j $((sz8 - 28)) -N 4 "$AUTH_IMAGE" | tr -d ' \n')
+[ "$trailer8" = "6b46e688" ] || err "$AUTH_IMAGE: bad trailer magic $trailer8 (want 6b46e688)"
+
+echo "== PASS: baked $AUTH_IMAGE ($sz8 bytes; chain + auth suite + the paired p9sk1 domain; header $magic8 trailer $trailer8; KERNDATE $KERNDATE)"

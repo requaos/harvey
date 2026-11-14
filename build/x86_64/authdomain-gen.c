@@ -5,13 +5,17 @@
  * ephemeral DEMO path when it is absent) into the hash-paired unit
  * every later bake and boot check agrees with by construction:
  *
- *	nvram		exactly 109 bytes, the Nvrsafe layout
- *			(sys/include/authsrv.h:140-157): machkey/authkey/
+ *	nvram		exactly 112 bytes: the 109-byte Nvrsafe layout
+ *			(sys/include/authsrv.h:140-157 — machkey/authkey/
  *			config/authid/authdom + five nvcsum (seed 9) sums,
- *			all five valid (readnvram checks three; we emit and
- *			verify all five).  The machkey IS the /adm/keys
- *			master key — getauthkey.c:14 memmoves it straight
- *			out of this file.
+ *			all five valid; readnvram checks three, we emit and
+ *			verify all five) plus 3 zero tail bytes — the amd64
+ *			guest compiler (6c) end-pads the all-char struct to
+ *			112 and its readnvram reads sizeof bytes (a 109-byte
+ *			file failed its length check SILENTLY — measured
+ *			live at 18-04's first boot).  The machkey IS the
+ *			/adm/keys master key — getauthkey.c:14 memmoves it
+ *			straight out of this file.
  *	keys		KEYDBOFF(8) random bytes + one 73-byte record per
  *			user in keyfs writeusers' layout (keyfs.c:740-795):
  *			Namelen(28) name | DESKEYLEN(7) key | status(1)=Sok
@@ -75,6 +79,19 @@ enum
 	Demopwlen=	12,	/* >=7 (secuser), <=13 (nvram config), alnum */
 	Filecap=	65536,	/* artifact read cap; real artifacts are tiny */
 	Namelen=	ANAMELEN,	/* keyfs.c:35 — the keys record name width */
+	/* the nvram FILE is 112 bytes: the 109-byte Nvrsafe layout plus 3
+	 * zero tail bytes, because the GUEST compiler (Harvey's amd64 6c,
+	 * the tier build's) end-pads the all-char struct to 112 — its
+	 * readnvram reads sizeof(Nvrsafe)==112 and a 109-byte file
+	 * returned 109 != 112: the SILENT readnvram failure class (no
+	 * diagnostic under flag 0, getauthkey escalates straight to the
+	 * interactive getpass — measured live at 18-04's first boot:
+	 * "read 109 want 112", all five sums verified green over the 109
+	 * donor-layout bytes, i.e. the member offsets are IDENTICAL and
+	 * only the tail pad differs).  Host compilers see sizeof(Nvrsafe)
+	 * == 109 (no padding — all-char members); every field access here
+	 * casts the same first 109 bytes either way. */
+	Nvramfile=	112,
 };
 
 /* keyfs.c:39 — status byte values; Sok is the only one we write */
@@ -435,6 +452,7 @@ void
 generate(Domain *d, char *dir)
 {
 	Nvrsafe nv;
+	uchar nvbuf[Nvramfile];
 	uchar *buf, *chk;
 	char ndb[512], manifest[8192], hex[SHA1dlen*2+1];
 	int i, buflen, n, ndblen, manlen;
@@ -454,7 +472,8 @@ generate(Domain *d, char *dir)
 			sysfatal("passtokey failed for %s", u->name);
 	}
 
-	/* nvram: the 109-byte Nvrsafe, all five sums valid */
+	/* nvram: the 109-byte Nvrsafe layout, all five sums valid, padded
+	 * to the 112-byte FILE size the guest ABI reads (Nvramfile above) */
 	memset(&nv, 0, sizeof nv);
 	if(passtokey(nv.machkey, d->machpw) != 1)
 		sysfatal("passtokey failed for the machine password");
@@ -520,7 +539,9 @@ generate(Domain *d, char *dir)
 	}
 	free(chk);
 
-	writefile(dir, "nvram", &nv, sizeof nv, 0600);
+	memset(nvbuf, 0, sizeof nvbuf);
+	memmove(nvbuf, &nv, sizeof nv);	/* + 3 zero tail bytes: Nvramfile */
+	writefile(dir, "nvram", nvbuf, Nvramfile, 0600);
 	writefile(dir, "keys", buf, buflen, 0600);
 
 	/* ndb-auth: the speaksfor rows + a header comment carrying the
@@ -537,7 +558,7 @@ generate(Domain *d, char *dir)
 	/* manifest: label row, users row, one sha1 row per artifact
 	 * (hash the just-written files — what verify will re-read) */
 	manlen = snprint(manifest, sizeof manifest, "label %s\nusers %d\n", d->label, d->nu);
-	sha1hex((uchar*)&nv, sizeof nv, hex);
+	sha1hex(nvbuf, Nvramfile, hex);
 	manlen += snprint(manifest + manlen, sizeof manifest - manlen, "%s  nvram\n", hex);
 	n = readfile(dir, "keys", buf, buflen);
 	sha1hex(buf, n, hex);
@@ -659,12 +680,13 @@ verify(char *dir)
 			return 1;
 		}
 
-	/* Nvrsafe re-read: exactly 109 bytes, all five sums valid —
-	 * what readnvram checks AND what it ignores (readnvram.c:299-311
-	 * checks three; we emitted five, so verify five) */
+	/* Nvrsafe re-read: exactly Nvramfile bytes (the 109-byte layout +
+	 * the guest-ABI tail pad), all five sums valid — what readnvram
+	 * checks AND what it ignores (readnvram.c:299-311 checks three; we
+	 * emitted five, so verify five) */
 	n = readfile(dir, "nvram", nv, Filecap);
-	if(n != sizeof(Nvrsafe)){
-		fprint(2, "verify: nvram: %d bytes, want %d\n", n, (int)sizeof(Nvrsafe));
+	if(n != Nvramfile){
+		fprint(2, "verify: nvram: %d bytes, want %d\n", n, Nvramfile);
 		free(art);
 		return 1;
 	}
@@ -723,15 +745,15 @@ verify(char *dir)
 int
 info(char *dir)
 {
-	uchar nv[sizeof(Nvrsafe)];
+	uchar nv[Nvramfile];
 	uchar keys[Filecap];
 	Nvrsafe *safe;
 	char manifest[Filecap], label[32], *line, *next;
 	int n, nu, i;
 
-	n = readfile(dir, "nvram", nv, sizeof nv);
-	if(n != sizeof(Nvrsafe))
-		sysfatal("nvram: %d bytes, want %d", n, (int)sizeof(Nvrsafe));
+	n = readfile(dir, "nvram", nv, Nvramfile);
+	if(n != Nvramfile)
+		sysfatal("nvram: %d bytes, want %d", n, Nvramfile);
 	safe = (Nvrsafe*)nv;
 	n = readfile(dir, "manifest", (uchar*)manifest, Filecap);
 	manifest[n] = 0;

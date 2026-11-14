@@ -1,0 +1,238 @@
+#!/usr/bin/expect -f
+# smoke-r9-auth.expect — the AUTH gate driver for x86_64 (18-04,
+# AUTH-04/D-08 + AUTH-07's substrate): the smoke-r9-net.expect chassis
+# (env contract incl. the emitter's netdev argv — the D-04 hostfwd
+# pair rides the pinned TOML data, the 16-06 mechanism) re-keyed onto
+# the termrc-driven sweep boot (the services gate's stage vocabulary —
+# NO typed legs: init sources auth-termrc, which runs
+# `rc /lib/auth-sweep.rc r9' from the boot flow).  The caller is
+# nix/smoke-r9-auth-x64.sh = the flake app boot-r9-auth-x64.
+#
+#   staged boot (banner → paqfs → version) →
+#   the D-02 boot pairing check's verdict (authdom: PAIRED on the
+#   green arm — the label prints per D-04; authdom: FAIL names the
+#   artifact) →
+#   keyfs's own load line (`N keys read' — the NON-interactive start's
+#   evidence, AUTH-04/D-03) →
+#   the sweep's verdicts (AUTH-OK/AUTH-FAIL keyfs) →
+#   (18-04 Task 2/3 append: the listener topology's verdicts +
+#   secstored's ANNOUNCE + the hostfwd-5670 host-side observation +
+#   the cs + factotum verdicts) →
+#   AUTH-DONE → the %  prompt (the interactive shell the sweep's
+#   termrc execs) →
+#   the whole-capture post-passes: zero AUTH-FAIL, the exact getpass
+#   string `can't read NVRAM, please enter machine key' NEVER present
+#   (the silent-wedge marker — T-18-08: the pairing check precedes
+#   keyfs and a valid five-sum nvram keeps the happy path prompt-free
+#   by construction; its presence means the boot is wedged behind an
+#   interactive prompt), the PAIRED banner with the DEMO label
+#   present.
+#
+#   exit 0 only when EVERY stage + post-pass passed; a failure exits 1
+#   and names the failed stage on stderr — never a bare
+#   hang-to-timeout with no localization.  An AUTH-FAIL line anywhere
+#   fast-aborts via expect_before (the sweep names its failing leg on
+#   the wire; waiting the full timeout for the absent ok marker would
+#   only hide it).
+#
+# Hygiene: the caller rm -f's the capture BEFORE launch and we rm -f +
+# log_file it fresh below — the file starts empty and only THIS run's
+# boot writes it, so a pre-seeded stale capture can never satisfy a
+# marker wait.  Every exit path kills qemu's process group (expect's
+# spawn sets the child up as a session/group leader on its pty).
+#
+# Markers: PRESENCE assertions only, never interleaving order
+# (preemption and TCG make arrival order meaningless).  Patterns are
+# CRLF-tolerant substrings, never end-of-line anchored.  The sweep's
+# markers are its OUTPUT (the boot flow runs it; nothing is typed).
+# Timeouts are TCG-sized (600s per stage; KVM boots in seconds).
+#
+# Env (exported by nix/smoke-r9-auth-x64.sh — the flake app):
+#   R9_QEMU      default qemu-system-x86_64
+#   R9_ISO       REQUIRED — the COMPOSED auth ISO (the caller's
+#                iso-builder output: r9 kernel-x64 + the auth bake as
+#                /boot/bootfs.paq)
+#   R9_SMOKE_LOG REQUIRED — the serial capture (fresh per run; the
+#                green-twice gate runs retain both captures as
+#                evidence)
+#   R9_NETDEV_ARGV REQUIRED — the emitter's slirp argv as ONE
+#                space-separated line (the caller's capture of
+#                `r9-netdev-args --mode slirp'); the spawn block below
+#                splits it into the netdev+device tokens — NO netdev
+#                literal lives in this file (16-06, D-05; the D-04
+#                hostfwd pair 5670->567 rides the pinned TOML data —
+#                the hostfwd-5670 stage observes the host side of that
+#                seam while the guest runs, 18-04 Task 2 / D-09)
+#   R9_MACHINE/R9_CPU/R9_ACCEL — the caller-selected q35 shape
+#                (defaults q35/host/kvm; TCG selects qemu64)
+#   R9_RUN_TAG   the per-run unique tag in qemu's argv (-name); the
+#                caller's survivor sweep keys on it
+#
+# usage: env R9_ISO=… R9_SMOKE_LOG=… expect build/x86_64/smoke-r9-auth.expect
+# exit 0 on all-pass; exit 1 names the failed stage on stderr; exit 2
+# on a contract violation (missing env).
+
+set timeout 600                    ;# per stage, TCG-sized
+match_max 1048576                  ;# the whole sweep's output rides one buffer window
+# NOTE: log_user stays ON — expect 5.45 writes NOTHING to log_file when
+# log_user is 0 (measured on the aarch64 gate): the capture file would
+# be empty.  The wire echo on the driver's stdout is the app's visible
+# progress; the stage lines name it on stderr.
+
+# --- required env (loud, before any spawn) -------------------------------
+foreach v {R9_ISO R9_SMOKE_LOG R9_NETDEV_ARGV} {
+    if {![info exists env($v)]} {
+        puts stderr "smoke-r9-auth-x64: \$$v unset — run via the flake app (nix run .#boot-r9-auth-x64)"
+        exit 2
+    }
+}
+set QEMU [expr {[info exists env(R9_QEMU)] ? $env(R9_QEMU) : "qemu-system-x86_64"}]
+set run_tag [expr {[info exists env(R9_RUN_TAG)] ? $env(R9_RUN_TAG) : "r9x64auth-[pid]-[clock seconds]"}]
+
+# --- Hygiene: a fresh capture per run -----------------------------------
+# The caller already rm -f'd it; remove again here so the rule holds
+# however this script is invoked (a stale capture is dead evidence).
+exec rm -f $env(R9_SMOKE_LOG)
+
+# --- spawn qemu: the composed auth ISO on -cdrom (the q35 shape the
+#     caller selected — kvm/host by default, tcg/qemu64 explicitly;
+#     the netdev+device tokens are the SPLIT R9_NETDEV_ARGV — the
+#     emitter's slirp argv with the D-04 hostfwd pair; the NIC is
+#     inert for the loopback sweep legs but the hostfwd seam is the
+#     Phase-19 drawterm entry, observed host-side from Task 2 on) ----
+set R9_MACHINE [expr {[info exists env(R9_MACHINE)] ? $env(R9_MACHINE) : "q35"}]
+set R9_CPU [expr {[info exists env(R9_CPU)] ? $env(R9_CPU) : "host"}]
+set R9_ACCEL [expr {[info exists env(R9_ACCEL)] ? $env(R9_ACCEL) : "kvm"}]
+
+# split the emitter's one-line argv into spawn tokens (whitespace
+# split, empty tokens dropped; the emitter prints space-separated
+# tokens containing no spaces — its committed contract; the 16-05
+# soak driver's mechanism)
+set netdev_argv {}
+foreach tok [split $env(R9_NETDEV_ARGV)] {
+    if {$tok ne ""} {
+        lappend netdev_argv $tok
+    }
+}
+if {[llength $netdev_argv] == 0} {
+    puts stderr "smoke-r9-auth-x64: R9_NETDEV_ARGV is empty — the caller's emitter capture failed (the slirp argv is required)"
+    exit 2
+}
+
+spawn $QEMU -M $R9_MACHINE -cpu $R9_CPU -smp 1 -m 1024M \
+    -accel $R9_ACCEL \
+    -cdrom $env(R9_ISO) \
+    {*}$netdev_argv \
+    -nographic \
+    -name $run_tag
+set spawn_pid [exp_pid]
+log_file $env(R9_SMOKE_LOG)
+
+# --- teardown: kill qemu's process group ------------------------------
+# The spawned qemu is a session/group leader (expect's pty setup), so
+# the group IS the qemu subtree; catch: already-dead is fine.  The
+# lone-pid second form is the no-group fallback.  The caller's EXIT
+# trap sweeps any survivor keyed on this run's unique tag.
+proc cleanup {} {
+    global spawn_pid
+    catch { exec kill -KILL -- -$spawn_pid 2>/dev/null }
+    catch { exec kill -KILL $spawn_pid 2>/dev/null }
+}
+
+# --- staged ordered assertions (each stage names its failure) ---------
+# NOTE: expect_out must be global here — expect sets it in the CURRENT
+# scope, and the sweep stages read the captured buffer AFTER stage
+# returns.
+proc stage {name re} {
+    global expect_out
+    expect {
+        -re $re { puts stderr "smoke-r9-auth-x64: stage ok — $name" }
+        timeout { puts stderr "smoke-r9-auth-x64: TIMEOUT at stage: $name"; cleanup; exit 1 }
+        eof { puts stderr "smoke-r9-auth-x64: qemu exited (EOF) at stage: $name"; cleanup; exit 1 }
+    }
+}
+
+# fast-fail on kernel panic markers anywhere in the boot (the net
+# gate's rule; the real-chain "syscall 10 unimplemented" notes are NOT
+# panics — the 14-06 gate's documented exemption class) — and on the
+# sweep's own `AUTH-FAIL <leg>' OUTPUT line (the sweep names its
+# failing leg on the wire; waiting the full timeout for the absent ok
+# marker would only hide it).  The sweep's AUTH-FAIL markers are
+# boot-flow OUTPUT only (nothing is typed on this venue), so the
+# pattern can never false-match an echoed command line.
+expect_before {
+    -re {panic|Unhandled interrupt} {
+        puts stderr "smoke-r9-auth-x64: kernel panic marker on the wire — aborting"
+        cleanup
+        exit 1
+    }
+    -re {AUTH-FAIL} {
+        puts stderr "smoke-r9-auth-x64: the sweep printed AUTH-FAIL — aborting (the failing leg is named on the wire)"
+        cleanup
+        exit 1
+    }
+}
+
+# 1. the staged boot sequence: banner → paqfs server → boot(8)'s
+#    version print (the chain's stages; the auth payload rides the
+#    same image — the sweep then runs from termrc BEFORE any prompt)
+stage banner    {r9 from the Internet}
+stage paqfs     {paqfs\.\.\.}
+stage version   {version\.\.\.}
+
+# 2. the D-02 boot pairing check's verdict — either arm (the post-pass
+#    below demands the PAIRED banner with the DEMO label).  The
+#    verdict lines are the sweep's OUTPUT: `authdom: PAIRED <label>'
+#    (D-04 — the label parsed from the manifest's label row) or
+#    `authdom: FAIL <artifact>'.
+stage pairing-verdict {authdom: (PAIRED|FAIL)}
+
+# 3. keyfs's own load line — the NON-interactive start's evidence:
+#    keyfs prints `N keys read' when readnvram succeeded over the
+#    baked nvram (getauthkey's prompt path never fires — the post-pass
+#    asserts the exact getpass string stays absent).
+stage keysread {keys read}
+
+# 4. the keyfs leg's verdict (presence proves the probe RAN to
+#    classification; the AUTH-FAIL arm already fast-aborted above)
+stage keyfs-verdict {AUTH-OK keyfs}
+
+# 5. the terminal sweep marker
+stage sweep-done {AUTH-DONE}
+
+# 6. the interactive % prompt — the shell the sweep's termrc execs
+#    AFTER AUTH-DONE (the sweep ran in a child; init's shell survives)
+stage prompt {% }
+
+# 7. the whole-file post-pass: stop the log, read the capture, assert
+#    the never-appears contracts (T-18-08: the interactive-wedge
+#    marker must be PROVABLY unreachable on the green path) + the
+#    banner's label (D-04: the DEMO label prints — the gate is the
+#    DEMO path's by design, D-01: a developer's local authdomain.local
+#    re-keys the domain and this gate reds loudly, never silently).
+log_file                           ;# stop + flush before the whole-file scan
+set fh [open $env(R9_SMOKE_LOG) r]
+set whole [read $fh]
+close $fh
+if {[string match "*can't read NVRAM, please enter machine key*" $whole]} {
+    puts stderr "smoke-r9-auth-x64: nvram getpass prompt PRESENT in the capture — the boot wedged interactively (the pairing check must precede keyfs and a valid five-sum nvram never prompts)"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9-auth-x64: stage ok — nvram-prompt-absent (the getpass string never appeared)"
+if {[string match "*AUTH-FAIL*" $whole]} {
+    puts stderr "smoke-r9-auth-x64: AUTH-FAIL present in the capture — a leg failed"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9-auth-x64: stage ok — zero AUTH-FAIL in the capture"
+if {![string match "*authdom: PAIRED DEMO*" $whole]} {
+    puts stderr "smoke-r9-auth-x64: the PAIRED banner's DEMO label is absent (a local-file bake re-keyed the domain — the gate is the DEMO path's, D-01/D-04)"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9-auth-x64: stage ok — pairing banner `authdom: PAIRED DEMO' present"
+
+puts stderr "smoke-r9-auth-x64: ALL STAGES PASS — chain boot, D-02 boot pairing (DEMO label), non-interactive keyfs (N keys read), AUTH-OK keyfs, AUTH-DONE, nvram-prompt-absent, zero AUTH-FAIL"
+cleanup
+exit 0
