@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: In-Guest p9sk1 Auth Domain
 status: executing
-stopped_at: Completed 18-07-PLAN.md
-last_updated: "2026-11-14T16:28:53.221Z"
+stopped_at: Completed 18-08-PLAN.md (gap-closure execution complete)
+last_updated: "2026-11-14T17:05:35.412Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 18 execution started
-state_head: 18645c9d4de98f733aacf6c02b6b005f3ebceeae
+state_head: 2e641f03bff9c3f81b61fbc1a34c33914b1f0aca
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 48
-  completed_plans: 47
+  completed_plans: 48
 ---
 
 # Project State
@@ -106,6 +106,7 @@ Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 compl
 | Phase 18 P05 | 105 min | 3 tasks | 13 files |
 | Phase 18 P06 | 21 min | 3 tasks | 7 files |
 | Phase 18 P07 | 34min | 3 tasks | 6 files |
+| Phase 18 P08 | 33min | 3 tasks | 10 files |
 
 ## Accumulated Context
 
@@ -247,6 +248,10 @@ Recent decisions affecting current work:
 - [Phase 18]: [18-06] Environment fact: mkimage.sh's auth-section TARG resolver breaks inside harvey's nix devshell (hostbin-first PATH shadows GNU awk with the vendored Plan 9 awk, which silently empties the [[:space:]] regex parse -> 'hsecstored missing'); the sanctioned flake-app PATH (plan9port LAST) is unaffected — recorded in 18 deferred-items.md, mkimage untouched
 - [Phase 18]: 18-07: the AUTH-08 devip defect was tcp_socket's smoltcp stock defaults (Nagle ON + 10ms delayed ACK) — every sub-MSS follow-up write held for a post-deadline drive no fully-parked venue can run (x86_64's q35 tick never calls tick_check; the 08-04 leg is aarch64-only); the fix is the DONOR's TCP shape (Nagle off, ACK immediate), platform-neutral in port/, pinned RED->GREEN (tcp_two_write_client_pattern_round_trips) and proven live (mode-2 stall -> mode-2 round-trip); mode-1's survival explained: a direction's first small segment egresses its own drive and the readied client's pre-block drive releases the held tail after venue-interleaved 10ms — delivery-by-timing-luck, now moot
 - [Phase 18]: 18-07: ack_delay(None) is load-bearing beyond Nagle — the 10ms delayed ACK also gated tx-buffer drain, so >2048-byte bulk writes (secstore PUT, Phase 19 exportfs) would block in tcp_write_data's send arm on the same never-driven timer; and the x86_64 tick_check gap (retransmit/keepalive/connect-timeout timers never fire under full park) is recorded as the adjacent latent defect, NOT fixed here — reopener in 18 deferred-items, first venue needing timer-mediated TCP progress under park
+- [Phase 18]: [18-06 closure] CR-01: the #c/hostowner write is eve-gated BEFORE the store lock (iseve reads the static under its own lock — a store-lock-first order self-deadlocks) with the donor's 128-byte Ebadarg bound, refused live from ring 3 (r9 652f025); the donor's renameuser side effects stay unported — fail-closed, reopener: the first real hostowner-write consumer. CR-02: armed_source derives cpuid1_ecx from a fresh cpuid(1,0) over a scripted-cpuid seam (r9 f594b4c)
+- [Phase 18]: [18-07 closure] the devip two-write defect was Nagle ON + 10ms delayed-ACK defaults at tcp_socket — the donor's shape restores delivery (r9 ab4cb66); ack_delay(None) is load-bearing for >2048-byte bulk writes; x86_64's unwired tick_check stays the recorded adjacent latent defect (reopener: the first venue needing timer-mediated TCP progress under park)
+- [Phase 18]: [18-08] the phase's one FOD pass closed over all gap kernel bytes together: two-derivation proof (A plain ab4cb66 + B marker clone 27a141ac, byte-identical ISOs — NAR sha256-8uL7mR… three-way-agreed with the FOD's own got-value), r9 pushed at 9103522, Harvey flake.lock b2a6151 -> 9103522 lock-only; net-smoke re-green at the pin
+- [Phase 18]: [18-08] the secstore round-trip venue fact: the client's default serve $attr translation reds through cs on r9 (kernel namec ENOENT relayed as the cs Rerror) — the client pins -s 127.0.0.1 (the hauthprobe legs' literal-loopback idiom); the gate flip ADDS presence demands, never substitutes — every pre-existing tooth stayed armed, green twice at the pin
 
 ### Pending Todos
 
@@ -271,6 +276,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T16:28:52.525Z
-Stopped at: Completed 18-07-PLAN.md
+Last session: 2026-11-14T17:05:34.719Z
+Stopped at: Completed 18-08-PLAN.md (gap-closure execution complete)
 Resume file: None

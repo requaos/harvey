@@ -51,15 +51,15 @@
 
 ### In-Guest Auth Domain (AUTH — continuing)
 
-- [ ] **AUTH-01**: Bake-time domain generator: machine key + `/adm/keys` + nvram-substitute + ndb entries produced as ONE hash-paired unit; demo domain loudly labeled DEMO; pairing fails loud
+- [x] **AUTH-01**: Bake-time domain generator: machine key + `/adm/keys` + nvram-substitute + ndb entries produced as ONE hash-paired unit; demo domain loudly labeled DEMO; pairing fails loud
 - [x] **AUTH-02**: r9 `/dev/random` CSPRNG for p9sk1 challenges, seeded from an x86_64-appropriate entropy source (no DTB — e.g. RDRAND/jitter mix), re-keyed from v2.0's DTB-seeded design <!-- closed 18-06/18-08: CR-02 (the armed_source RDRAND-probe rebind to cpuid(1,0) over the scripted-cpuid seam, r9 f594b4c) + the 18-08 FOD pass pinning the bytes (r9 9103522, flake.lock advanced lock-only) -->
 - [x] **AUTH-03**: r9 devcap `#¤` (caphash/capuse) — the `auth_chuid` path the cpu server depends on <!-- closed 18-06/18-08: CR-01 (the #c/hostowner write iseve gate with the donor's 128-byte bound, refused live from ring 3, r9 652f025) + the 18-08 FOD pass pinning the bytes (r9 9103522) -->
-- [ ] **AUTH-04**: keyfs starts non-interactively over the baked `/adm/keys`; authsrv listens on tcp/567
-- [ ] **AUTH-05**: ndb content for the guest domain (authdom, hostid, sys, ether) staged in the image
-- [ ] **AUTH-06**: In-guest loopback p9sk1 probe (auth/debug) green BEFORE any drawterm attempt; non-hostowner speaksfor gate
-- [ ] **AUTH-07**: Serial-visible auth logging from day one
+- [x] **AUTH-04**: keyfs starts non-interactively over the baked `/adm/keys`; authsrv listens on tcp/567
+- [x] **AUTH-05**: ndb content for the guest domain (authdom, hostid, sys, ether) staged in the image
+- [x] **AUTH-06**: In-guest loopback p9sk1 probe (auth/debug) green BEFORE any drawterm attempt; non-hostowner speaksfor gate
+- [x] **AUTH-07**: Serial-visible auth logging from day one
 - [x] **AUTH-08**: secstore available for persistent key storage beyond baked keys <!-- 18-05: PARTIAL-BLOCKED — the substrate green (the ramfs venue + secuser account, live-proven per gate run); the client PUT/GET round-trip is venue-blocked by r9's devip two-write TCP defect (kernel pinned b2a6151; STATE blocker + 18-05-SUMMARY §THE BLOCKER; reopener: the next r9 kernel-byte pass) --><!-- closed 18-06/18-07/18-08: the devip two-write fix (r9 ab4cb66, donor-faithful tcp sockets — Nagle off, ACK immediate) delivered SConn's pattern; 18-08 restored the sweep's 9d legs + flipped the gate to presence demands — the round-trip green twice at the advanced pin (r9 9103522), evidence evidence/18-08-auth-{a,b}.log; the AUTH-SKIP arm retired -->
-- [ ] **AUTH-09**: writable-`/adm` + nvram-substitute scoping decided and documented (baked+paired for CI; host-9P `/adm` mount for real use)
+- [x] **AUTH-09**: writable-`/adm` + nvram-substitute scoping decided and documented (baked+paired for CI; host-9P `/adm` mount for real use)
 
 ### CPU Service (CPU — continuing)
 
@@ -144,15 +144,15 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | FLUSH-02 | Phase 17 | Complete |
 | FLUSH-03 | Phase 17 | Complete |
 | FLUSH-04 | Phase 17 | Complete |
-| AUTH-01 | Phase 18 | Gaps Found |
+| AUTH-01 | Phase 18 | Complete |
 | AUTH-02 | Phase 18 | Complete |
 | AUTH-03 | Phase 18 | Complete |
-| AUTH-04 | Phase 18 | Gaps Found |
-| AUTH-05 | Phase 18 | Gaps Found |
-| AUTH-06 | Phase 18 | Gaps Found |
-| AUTH-07 | Phase 18 | Gaps Found |
+| AUTH-04 | Phase 18 | Complete |
+| AUTH-05 | Phase 18 | Complete |
+| AUTH-06 | Phase 18 | Complete |
+| AUTH-07 | Phase 18 | Complete |
 | AUTH-08 | Phase 18 | Complete |
-| AUTH-09 | Phase 18 | Gaps Found |
+| AUTH-09 | Phase 18 | Complete |
 | CPU-01 | Phase 19 | Pending |
 | CPU-02 | Phase 19 | Pending |
 | CPU-03 | Phase 19 | Pending |
