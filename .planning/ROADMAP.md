@@ -231,12 +231,12 @@ Plans:
   3. keyfs starts non-interactively over the baked `/adm/keys`, authsrv listens on tcp/567, and the guest domain's ndb content (authdom, hostid, sys, ether) is staged in the image (AUTH-04, AUTH-05)
   4. The in-guest loopback p9sk1 probe is green BEFORE any drawterm attempt: auth/debug completes a full handshake over loopback, the non-hostowner speaksfor gate passes, and serial-visible auth logging has been present since day one (AUTH-06, AUTH-07)
   5. secstore is available for persistent key storage beyond the baked keys, and the writable-`/adm` + nvram-substitute scoping is decided and documented (in-phase decision: baked+paired for CI; host-9P `/adm` mount for real use) (AUTH-08, AUTH-09)
-**Plans**: 5 plans
+**Plans**: 2/5 plans executed
 
 Plans:
 **Wave 1**
-- [ ] 18-01-PLAN.md — r9 `/dev/random` re-keyed to CPUID-gated RDRAND/RDSEED + TSC/jitter fallback (AUTH-02; armed-source print, q35auth substrate profile, KVM+TCG green twice, push-before-pin posture)
-- [ ] 18-03-PLAN.md — Harvey bake-time domain generator: committed interface + gitignored local file + hash-paired unit (nvram/keys/ndb-auth/manifest) + teeth-proven verify (AUTH-01)
+- [x] 18-01-PLAN.md — r9 `/dev/random` re-keyed to CPUID-gated RDRAND/RDSEED + TSC/jitter fallback (AUTH-02; armed-source print, q35auth substrate profile, KVM+TCG green twice, push-before-pin posture)
+- [x] 18-03-PLAN.md — Harvey bake-time domain generator: committed interface + gitignored local file + hash-paired unit (nvram/keys/ndb-auth/manifest) + teeth-proven verify (AUTH-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 - [ ] 18-02-PLAN.md — r9 devcap `#¤` donor-verbatim + hand-rolled HMAC-SHA1 + per-proc user + eve gate (AUTH-03; the phase's ONE FOD re-wire pass + lock-only Harvey pin advance)
@@ -284,7 +284,7 @@ Plans:
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 9/9 | Complete    | 2026-11-10 |
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | 8/8 | Complete    | 2026-11-12 |
 | 17. r9 Kernel Flush-Out | v2.1 | 8/8 | Complete    | 2026-11-13 |
-| 18. In-Guest p9sk1 Auth Domain | v2.1 | - | Not started | - |
+| 18. In-Guest p9sk1 Auth Domain | v2.1 | 2/5 | In Progress | - |
 | 19. CPU Service + Drawterm + rio Desktop | v2.1 | - | Not started | - |
 
 ## Backlog

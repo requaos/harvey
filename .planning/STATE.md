@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: In-Guest p9sk1 Auth Domain
 status: executing
-stopped_at: Phase 18 context gathered
-last_updated: "2026-11-13T19:48:41.460Z"
+stopped_at: Wave 1 complete (18-01, 18-03); wave 2 (18-02) next
+last_updated: "2026-11-14T02:49:34.454Z"
 last_activity: 2026-11-13
-last_activity_desc: Phase 17 complete
-state_head: db66ca18dad947deb0cd170aeb80bddb70babbc1
+last_activity_desc: Phase 18 execution started
+state_head: f0efff37cf18ec7b1a46cccb1f61d0da0020efa6
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 45
-  completed_plans: 40
+  completed_plans: 42
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 ## Current Position
 
-Phase: 18 (In-Guest p9sk1 Auth Domain) — READY TO EXECUTE
-Plan: Not started
+Phase: 18 (In-Guest p9sk1 Auth Domain) — EXECUTING
+Plan: 3 of 5
 Status: Ready to execute
-Last activity: 2026-11-13 — Phase 17 complete
+Last activity: 2026-11-13 — Phase 18 execution started
 
 Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 complete, 18-19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phases 18-19)
 
@@ -99,6 +99,8 @@ Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 compl
 | Phase 17 P17-06 | 41 min | 3 tasks | 5 files |
 | Phase 17 P07 | 3h 44min (halted at the refuted cure; wall ~4h with unattended loops) | 3 tasks | 23 files |
 | Phase 17 P08 | 48 min wall across two executor sessions (Task 1 series 14:17-14:35Z; continuation 14:46-15:05Z) | 3 tasks | 19 files |
+| Phase 18 P01 | 50 min | 3 tasks | 8 files |
+| Phase 18 P03 | 58 min | 3 tasks | 21 files |
 
 ## Accumulated Context
 
@@ -225,6 +227,9 @@ Recent decisions affecting current work:
 - [Phase 17]: 17-07: the cure evidence FAILED — the stress series at the fix pin (r9 8f3ff11) refuted the deregister fix as the cure (fired at run 3, 25s, the byte-consistent signature); the fix stands as hardening (4 pins, gates green) but #66/CR-07 stay open with the enriched record and the committed reproduction instrument (fires the class at will in ~25s)
 - [Phase 17]: 17-07: the 30/30 narrowing matrix localizes the class to the FULL 8-way concurrent bulk transfer (launch storm alone and <=4-way full-depth never fire); the KVM capture ceiling is an empirical platform fact (-d int blind at death, cpu_reset post-state, userspace-APIC refused, TCG-tap wedges at ping)
 - [Phase 17]: [17-08] The CR-07/#66 terminus RATIFIED: ratify-disposition + FLUSH-04 yes (Neil Skinner, 2026-11-13T14:42:08Z) — WINDOWS #66 waived with the 3-part D-15 rationale + resolved_at, the 08-ledger CR-07 row deferred with the same rationale + the ratification cite, FLUSHOUT's cells/verdict/lineage ratified, the VERIFICATION overrides block recorded with the rest of the file hash-intact, REQUIREMENTS FLUSH-01/FLUSH-04 checked + Complete; the waiver is of the CURE this era (class live ~8%/run, reopener + instrument stand); the TCG x slirp avenue completed NO-FIRE-IN-SERIES (N=10 serialized, weak-negative semantics stated in the record itself) — The verifier's single blocking gap (CR-07/#66 neither closed nor explicitly dispositioned) closes via the goal's own disposition arm: the evidence — live reproduction 3x, the refuted strongest-candidate fix, the 30/30 narrowing matrix, the empirically established KVM capture ceiling completed by section 8's TCG x slirp avenue, and the committed reproduction instrument — supports a waiver only a maintainer could grant, and it was granted with who/when recorded verbatim. The class stays live (~8%/run under the full 8-way concurrent bulk transfer) with the venue-conditional reopener intact; records-only, r9 untouched at 8f3ff11 == origin/main.
+- [Phase 18]: [18-01] r9 /dev/random re-keyed x86_64-native: CPUID-gated RDRAND/RDSEED with TSC/jitter-mix fallback through the existing RandomHooks seam; q35auth substrate profile proves it live (KVM source=rdrand x2, TCG source=jitter x3); port/src/devcons.rs + aarch64 byte-identical — Phase 18 AUTH substrate; plan text is authority
+- [Phase 18]: [18-01] Harvey marker chassis: randread.c opens #c/random DEVICE-DIRECT (first exec has no namespace; paqfs /dev is an empty stub so plain-path open ENOENTs); mkimage contract numbering — the substrate bake is S13, so 18-04/05 AUTH bake is S14 (their plan "S13k" references predate this) — Deviation-class finding from wave 1; recorded so wave 3/4 executors apply the right section number
+- [Phase 18]: [18-03] authdomain-gen venue = VENDORED in-tree donors (17 files), not plan9port 9l linking: must-have pins algorithm bytes to Harvey donors + self-test must run bare-shell; cross-validated byte-identical on fixed vector key=ed1d buf0=36 — Plan venue discretion resolved by must-have pinning
 
 ### Pending Todos
 
@@ -248,6 +253,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-13T17:01:25.453Z
-Stopped at: Phase 18 context gathered
-Resume file: .planning/phases/18-in-guest-p9sk1-auth-domain/18-CONTEXT.md
+Last session: 2026-11-14T02:49:07.828Z
+Stopped at: Wave 1 complete (18-01, 18-03); wave 2 (18-02) next
+Resume file: .planning/phases/18-in-guest-p9sk1-auth-domain/18-02-PLAN.md
