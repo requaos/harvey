@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
-status: completed
-stopped_at: Phase 19 context gathered
-last_updated: "2026-11-14T21:16:47.799Z"
+status: executing
+stopped_at: Completed 19-01-PLAN.md (CPU-02 tracer green x2 KVM + TCG; r9 pushed e491ed5)
+last_updated: "2026-11-14T22:19:02.571Z"
 last_activity: 2026-11-14
-last_activity_desc: Phase 18 complete
-state_head: aa0372e92ffb390021ce2a0dee6301d73cd5c87c
+last_activity_desc: Phase 19 execution started
+state_head: 5aae21d461559ce9f605861cb2e0cb46c6121afd
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 58
-  completed_plans: 48
+  completed_plans: 49
 ---
 
 # Project State
@@ -24,14 +24,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-13)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
-**Current focus:** Phase 19 — cpu + drawterm + rio (next; needs /gsd:phase to enter the ROADMAP — the planned set ends at 18)
+**Current focus:** Phase 19 — CPU Service + Drawterm + rio Desktop
 
 ## Current Position
 
-Phase: 19 (CPU Service + Drawterm + rio Desktop) — READY TO EXECUTE
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-11-14 — Phase 18 complete
+Phase: 19 (CPU Service + Drawterm + rio Desktop) — EXECUTING
+Plan: 2 of 10
+Status: Ready to execute
+Last activity: 2026-11-14 — Phase 19 execution started
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
@@ -108,6 +108,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 18 P06 | 21 min | 3 tasks | 7 files |
 | Phase 18 P07 | 34min | 3 tasks | 6 files |
 | Phase 18 P08 | 33min | 3 tasks | 10 files |
+| Phase 19 P01 | 32 min | 3 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -253,6 +254,7 @@ Recent decisions affecting current work:
 - [Phase 18]: [18-07 closure] the devip two-write defect was Nagle ON + 10ms delayed-ACK defaults at tcp_socket — the donor's shape restores delivery (r9 ab4cb66); ack_delay(None) is load-bearing for >2048-byte bulk writes; x86_64's unwired tick_check stays the recorded adjacent latent defect (reopener: the first venue needing timer-mediated TCP progress under park)
 - [Phase 18]: [18-08] the phase's one FOD pass closed over all gap kernel bytes together: two-derivation proof (A plain ab4cb66 + B marker clone 27a141ac, byte-identical ISOs — NAR sha256-8uL7mR… three-way-agreed with the FOD's own got-value), r9 pushed at 9103522, Harvey flake.lock b2a6151 -> 9103522 lock-only; net-smoke re-green at the pin
 - [Phase 18]: [18-08] the secstore round-trip venue fact: the client's default serve $attr translation reds through cs on r9 (kernel namec ENOENT relayed as the cs Rerror) — the client pins -s 127.0.0.1 (the hauthprobe legs' literal-loopback idiom); the gate flip ADDS presence demands, never substitutes — every pre-existing tooth stayed armed, green twice at the pin
+- [Phase 19]: [Phase 19]: 19-01 CPU-02 tracer — service=cpu arrives via the boot protocol, not file content: GRUB -append -> grub.cfg @R9-APPEND@ token (both ISO emitters, empty-append byte-stable) -> mb2 tag-1 cmdline -> kernel-parsed donor-plan9.ini bootconf pairs MERGED into the seeded ROOT env group (overlong loud at parse AND compose) -> boot(8) execinit's getenv("init") arm (A4 verified multi-word) -> init -c -> cpurc. The §15 cpurc fixture is a MARKER BINARY (rc exec's the file directly — rcmain eval's $cflag; a script needs 19-02's kernel #!) that prints and parks so init's terminal fallback never runs
 
 ### Pending Todos
 
@@ -278,6 +280,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T19:09:30.744Z
-Stopped at: Phase 19 context gathered
-Resume file: .planning/phases/19-cpu-service-drawterm-rio-desktop/19-CONTEXT.md
+Last session: 2026-11-14T22:19:01.716Z
+Stopped at: Completed 19-01-PLAN.md (CPU-02 tracer green x2 KVM + TCG; r9 pushed e491ed5)
+Resume file: None
