@@ -1,317 +1,254 @@
 ---
-last_mapped_commit: fa0ed761b9667411e8d93797bdbb79ba0598fa2f
-last_mapped_at: 2026-11-03
+last_mapped_commit: bdcf45a51dced761eec09538b5f0786ff81e0399
+last_mapped_at: 2026-11-13
 ---
 # Testing Patterns
 
-**Analysis Date:** 2026-11-03
+**Analysis Date:** 2026-11-13
 
-**Bottom line up front:** This Plan 9 codebase has **no unit test framework**. There is no jest/vitest/googletest equivalent, no assertion library, no mocking framework, and no enforced coverage. In-tree testing is ad-hoc shell (rc/sh) scripts and mkfile `test:V` targets that run the built binary and compare outputs with `cmp`. The **primary verification surface is the Nix flake harness** (`flake.nix` apps): a full clean-checkout build pipeline where a failed stage fails the run, now crowned by the **self-asserting aarch64 boot smoke** (`nix run .#boot-r9-smoke` — an expect driver asserting a marker sequence over the qemu serial wire, gated on two consecutive green runs). Match these idioms when adding tests.
+This repo has **no xUnit-style test framework for the C tree**. Testing is gate-based and layered: host-side Rust unit tests, expect-driven qemu boot gates, in-guest rc sweeps emitting a marker vocabulary, build-artifact markers, bake-time manifest asserts with pinned digests, coverage sweeps, and CI workflows. The sibling repo `../r9` carries the kernel-side unit tests (`cargo xtask test` battery).
+
+The prime directive, stated repeatedly in the scripts themselves: **mk/tool exit status is never trusted; markers and artifact asserts are the only gates** (`build/x86_64/subset-build.sh:45-46`). A pass that cannot name its evidence is not a pass.
 
 ## Test Framework
 
-**Runner:**
-- None for unit tests. Tests are plain shell scripts or `test:V` targets inside per-directory `mkfile`s, executed by Plan 9 `mk` (build via plan9port's `mk` or the in-tree toolchain on Unix — see `BUILD_ON_UNIX`).
-- Test targets found via `grep "test:V" sys/src/**/mkfile`:
-  - `sys/src/cmd/fossil/mkfile` — full integration test (formats a scratch fossil, mounts it, drives the console)
-  - `sys/src/cmd/bzip2/mkfile` — golden-file round-trip comparison
-  - `sys/src/cmd/spell/mkfile` — `cmp y z` output comparison
-  - `sys/src/cmd/cifs/mkfile` — smoke run against a live server (host-specific, not hermetic)
-  - `sys/src/games/mp3enc/mkfile` — byte-compare encoded output (`cmp -l ... | wc -l`)
-  - `sys/src/cmd/4l/mkfile`, `vl/mkfile`, `il/mkfile` — linker/assembler tests
-  - `sys/src/libstdio/mkfile` — `test:V` just archives objects (effectively a build check)
+**Layers (each with its own runner):**
 
-**Build harness as test surface (flake apps — the project's primary gate):**
-- `flake.nix` exposes the pipeline as apps (`flake.nix:44-111`): `nix run .#setup` → `nix run .#toolchain` → `nix run .#build` → `nix run .#iso`. Each stage is a `writeShellApplication` with `set -euo pipefail`; **a build failure is the test failure**.
-- `nix run .#setup` (`nix/setup.sh`) — populates `$HARVEY/.build/hostbin-<os>-<arch>/bin` with the plan9port bootstrap tools; errors if `$HARVEY` is not a checkout.
-- `nix run .#toolchain` (`nix/toolchain.sh`) — builds the Plan 9 cross toolchain (`BUILDTOOLCHAIN`, `cmd/BUILD`, vendored `9cc`); requires setup first and checks for `$HARVEY_LINUX_BIN/pcc` (`nix/toolchain.sh:18-21`).
-- `nix run .#build` (`nix/build.sh`) — full kernel+userland build inside a Linux private mount namespace (`sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE`); on darwin the same app runs `nix/vm-build.sh`, which rsyncs the checkout to a lima VM (`nix/lima-harvey.yaml`), runs `setup && toolchain && build` in the guest, and rsyncs `amd64/`, `386/`, `aarch64/` artifacts back.
-- `nix run .#iso` (`nix/iso.sh`) — boots the 9legacy ISO under qemu + expect and builds Harvey inside the VM (`build/build.bash`); the cross-platform (TCG) path.
-- `nix run .#boot-r9` (`nix/boot-r9.sh`, wired at `flake.nix:83-87,109`) — **the aarch64 composition** (INT-01, D-10/D-11): builds the aarch64 userland (`build/aarch64/subset-build.sh`; lima on darwin, native `sudo unshare` on linux), bakes `build/aarch64/bootfs.paq` with Harvey's own mkpaqfs (`build/aarch64/mkimage.sh`), fdtput-patches a throwaway copy of the r9 package's DTB, and launches the flake-input r9 kernel to the interactive `%` prompt on `qemu-system-aarch64 -M virt,gic-version=2` (TCG). Kernel and DTB arrive ONLY as the pinned r9 flake input's store paths via `R9_KERNEL_PKG` (`flake.lock` rev `9549cee63d86a0c6d9b4d04ed8860b2efabcd3e6`) — no sibling-checkout path (INT-04).
-- `nix run .#boot-r9-smoke` (`nix/smoke-r9.sh` + `build/aarch64/smoke-r9.expect`, wired at `flake.nix:93-97,110`) — the SAME composed pipeline launched under the expect driver, which drives the full D-09 sweep against the serial wire and exits 0/1 for CI. **Markers are the ONLY proof — the supervisor's exit status is never trusted** (D-16).
-- Both `boot-r9` apps exist only on systems where r9 ships `packages.kernel-virt` (aarch64-darwin, aarch64-linux, x86_64-linux) — a `builtins.hasAttr` gate keeps evaluation lazy elsewhere (`flake.nix:104-111`; x86_64-darwin is out of project scope).
+| Layer | Tool | Config / entry |
+|-------|------|----------------|
+| Host Rust unit tests (harvey) | `cargo test` | `build/harness/Cargo.toml` (~70 `#[test]` fns) |
+| Kernel/host port tests (r9) | `cargo xtask test` | `../r9/xtask/src/main.rs` (`TestStep`, line 3042) |
+| Boot gates (both repos) | expect + qemu | `build/x86_64/*.expect`, `build/aarch64/*.expect` |
+| In-guest sweeps | rc scripts | `build/x86_64/tier1-sweep.rc`, `services-sweep.rc` |
+| Build gates | sh drivers | `build/x86_64/subset-build.sh`, `build/x86_64/mkimage.sh` |
+| Coverage proof | sh driver | `build/x86_64/coverage-sweep.sh` → `dir-coverage.txt` |
+| CI | GitHub Actions | `.github/workflows/phase6.yml`, `r9-shell.yml`, `harvey.yml` |
 
-**Assertion Library:**
-- None. Assertions are `cmp` exit statuses and explicit shell `if` checks. In C, `assert` is the macro from `sys/include/libc.h` (`#define assert(x) if(x){}else _assert("x")`) — used in debug code, not in test suites.
-- In the flake harness, assertions are explicit guards with stderr diagnostics: `if [ ! -x "$HARVEY_LINUX_BIN/$t" ]; then echo "error: ..." >&2; exit 1; fi` (`nix/build.sh:54-59`).
+**Assertion styles:**
+- Rust: standard `#[test]` + `assert_*!` macros
+- expect gates: `stage` proc regex matches + whole-file post-pass string/regex scans
+- sh gates: `[ ... ] || err "..."` asserts, digest comparisons (`sha256sum`/`md5sum` vs pinned constants), magic-byte checks via `od`
 
 **Run Commands:**
-
 ```bash
+# Harvey host-harness unit tests (from build/harness/)
+cargo test
 
-# Flake pipeline (host-side harness; darwin builds via lima VM):
+# r9 regression battery (from ../r9) — port lib tests + arch bin tests
+nix develop -c cargo xtask test
 
-nix run .#setup && nix run .#toolchain && nix run .#build
-nix run .#iso                      # qemu+expect ISO build path
-nix run .#boot-r9                  # aarch64: r9 kernel + Harvey userland, interactive % prompt
-nix run .#boot-r9-smoke            # aarch64: the same pipeline under the self-asserting expect smoke
-R9_SKIP_BUILD=1 nix run .#boot-r9-smoke   # iteration hatch (skip userland build) — NEVER for gates
-nix develop                        # devshell with plan9port, qemu, expect, etc.
+# One-command boot gates (from harvey repo root; nix flake apps)
+nix run .#boot-r9-smoke-x64        # x86_64 smoke: boot to % prompt + command sweep
+nix run .#boot-r9-tier1-x64        # x86_64 tier-1 sweep gate (36+ markers)
+nix run .#boot-r9-net-smoke-x64    # net gates: static + DHCP + loopback echo
+nix run .#boot-r9-services-x64     # tier-2 services probes (SVC-* markers)
+nix run .#boot-r9-churn-x64        # exec churn / heap-marker bound
+nix run .#boot-r9-tier1            # aarch64 tier-1 venue
+nix run .#boot-r9-smoke            # aarch64 smoke venue
 
-# Native Plan 9 (or plan9port mk) in-tree tests:
+# Build-only gates
+sh build/x86_64/subset-build.sh    # tier build, emits T*-ART markers
+sh build/x86_64/mkimage.sh         # bake gates (manifest + digest + magic asserts)
+sh build/x86_64/coverage-sweep.sh  # full-tree coverage proof
 
-cd sys/src/cmd/bzip2 && mk test
-cd sys/src/cmd/fossil && mk test        # destructive-ish: writes /tmp/fossil, mounts /n/fossil
-
-# Upstream-style suites (POSIX sh):
-
-cd sys/src/cmd/lzip/testsuite && sh check.sh . .   # clzip round-trip tests
-sys/src/cmd/postscript/tests/runtests              # drives translator binaries over post* inputs
+# Escape hatch (iteration only, NEVER the gate)
+R9_SKIP_BUILD=1 nix run .#boot-r9-tier1-x64
 ```
+Env knobs: `R9_ACCEL=kvm|tcg` (no silent downgrade), `R9_CPU`, `R9_TIER1_LOG`, `KERNDATE`, `R9_SKIP_BUILD`.
 
 ## Test File Organization
 
 **Location:**
-- No fixed convention. Patterns present in tree:
-  - Co-located `testsuite/` subdirectory: `sys/src/cmd/lzip/testsuite/` (contains `check.sh`, `test.txt`)
-  - Co-located `tests/` subdirectory: `sys/src/cmd/postscript/tests/` (input corpus `postbgi1`, `postdaisy1`, … plus `runtests` script)
-  - Co-located ad-hoc C test programs in libraries: `sys/src/libbio/btestprint.c` (a standalone `main` that exercises `Bprint` with a large string)
-  - Golden data files beside the command: `sys/src/cmd/bzip2/sample1.ref`, `sample1.bz2` referenced from its mkfile
-  - Compiler QA suite: `sys/src/cmd/qa/` (yacc-generated random-instruction tester for assemblers: `a.y`, `lex.c`)
-  - Host harness scripts: `nix/*.sh` (referenced from `flake.nix` via `builtins.readFile`)
+- Host Rust tests: co-located `#[cfg(test)] mod` blocks at the bottom of each module (`build/harness/src/trace.rs` — 18 tests after the pure parsing core), plus separate `*_tests.rs` files wired from `lib.rs` in `../r9/port/src/` (`namec_tests.rs`, `devip_tests.rs`, `devether_tests.rs`, `allocator_tests.rs`)
+- expect gates: `build/<venue>/<name>.expect` beside their sh drivers in `nix/`
+- In-guest sweeps: `build/x86_64/tier1-sweep.rc`, `services-sweep.rc` (committed; baked into images at `/lib/`)
+- Fixtures: `build/x86_64/root-tree/` (committed image skeleton incl. `/lib` net fixtures), `build/x86_64/hello.c` + committed `nm-input.6` (baked object), `build/x86_64/nm-input.6`
+- Evidence: serial captures retained under `.planning/phases/<phase>/evidence/*.log`; ledgers in `build/x86_64/tier{0..3}.ledger`
 
 **Naming:**
-- Scripts: `check.sh`, `runtests`
-- Test programs: suffixed `test` or `*test*.c` (`btestprint.c`)
-- Golden files: `*.ref`, `*.bz2`, numbered corpora (`postdmd1`)
+- expect: `<purpose>-r9[-x64].expect` (`smoke-r9-x64.expect`, `tier1-r9.expect`, `netsoak-r9.expect`, `stress-r9.expect`, `churn-r9.expect`, `services-r9.expect`)
+- Rust: `<module>_tests.rs` or inline `mod tests`
+- Logs: `<gate>.log`, run-retained copies `*-run1.log`, `*-run2.log` (gates are run twice for flake detection — "green ×2")
 
 **Structure:**
-
 ```
-sys/src/cmd/<cmd>/
-├── mkfile            # may contain a test:V target
-├── sample*.ref       # golden inputs/outputs
-└── testsuite/        # or tests/ — shell script + fixtures
-
-flake.nix             # app definitions: setup/toolchain/build/iso/boot-r9/boot-r9-smoke
-nix/
-├── setup.sh          # stage 1: host bin population
-├── toolchain.sh      # stage 2: cross toolchain build
-├── build.sh          # stage 3 (linux): namespace build
-├── vm-build.sh       # stage 3 (darwin): lima guest build + artifact rsync
-├── iso.sh            # qemu+expect ISO build
-├── boot-r9.sh        # aarch64 compose: build → bake → DTB patch → interactive qemu
-├── smoke-r9.sh       # the same pipeline under the expect smoke (exit 0/1)
-├── lima-harvey.yaml  # darwin build VM definition
-└── minimega.nix      # VM orchestration package (linux only)
-
-build/aarch64/        # the aarch64 boot-chain harness + smoke surface
-├── subset-build.sh   # the ONE userland-build driver (lima on darwin, nsrun.sh on linux)
-├── mkimage.sh        # bakes bootfs.paq from root-tree/ + built binaries (manifest-gated)
-├── mkpaqfs-host.sh   # builds Harvey's in-tree mkpaqfs as a host binary (.build/bin/)
-├── run-r9.sh         # dev-time qemu launcher (--log FILE = gate mode)
-├── drive-r9.expect   # interactive-gate driver (05-08; the smoke's lineage)
-├── smoke-r9.expect   # the packaged smoke driver — staged marker assertions, exit 0/1/2
-├── root-tree/        # committed image skeleton (lib/namespace, rc/bin/termrc, profile)
-├── {init,pidwait,stacksmoke,smokefork,smokenote,tracehello}.c
-│                     # harness/smoke binaries, compiled by vendored 7c/7l in the guest
-├── trace-syscalls.py # donor-kernel syscall tracer (stdlib-only python3)
-├── trace-boot.rc …   # rc trace scripts staged into donor bootdirs as DATA
-├── out/              # gitignored: staged/harvested binaries (subset-build/stage-build)
-├── bootfs.paq        # gitignored: the baked paqfs root image (mkimage.sh)
-└── *.log             # gitignored transient captures (drive-r9/compose-gate/smoke-r9)
+build/x86_64/
+├── *.expect              # qemu boot gate drivers (host side)
+├── *-sweep.rc            # in-guest marker sweeps (baked into image /lib)
+├── tier-termrc, services-termrc   # termrc overrides running sweeps from boot flow
+├── mkimage.sh            # bake gates (6 image contracts, each with asserts)
+├── subset-build.sh       # tier build driver (T*-ART markers)
+├── stage-build.sh        # mkimage input producer (smoke-out/, out/)
+├── coverage-sweep.sh     # full-tree build coverage proof
+├── tiers/tier{0..4}*.txt # append-only allowlist data
+├── root-tree/            # committed image skeleton + rc fixtures
+└── tier{0..3}.ledger     # per-artifact verdict records
+nix/<gate>-r9[-x64].sh    # flake-app wrappers: build → bake → compose → gate
 ```
-
-**Evidence conventions (the boot-chain gates):**
-- Transient captures (`build/aarch64/drive-r9.log`, `compose-gate.log`, `smoke-r9.log`) are gitignored (`.gitignore`); **a passing capture is copied into the phase dir as retained evidence** by the plan's gate task. The canonical evidence bundle for the boot composition is `.planning/phases/05-shell-boot-one-command-integration/05-EVIDENCE.md` (referenced from `build/REPRODUCIBILITY.md`).
-- Every capture is `rm -f`'d BEFORE qemu launches — a pre-seeded stale log is dead evidence that could satisfy the next run's marker waits (D-16/Pitfall 10; enforced at `nix/smoke-r9.sh:166-169` AND `smoke-r9.expect:68-71`).
-- The committed exception to "binaries aren't evidence": `build/aarch64/hello.7.out` (the Phase-2 ABI bisect binary) IS committed as gate evidence; `build/aarch64/gate-evidence.log` accumulates sha256-stamped PASS blocks per gate run.
 
 ## Test Structure
 
-**Suite Organization (mkfile target pattern — the dominant in-tree idiom):**
-From `sys/src/cmd/bzip2/mkfile:21-29`:
-
-```mk
-test:V: $O.bzip2 $O.bunzip2
-	./$O.bzip2 -1  < sample1.ref > sample1.rb2
-	./$O.bunzip2  < sample1.bz2 > sample1.tst
-	cmp sample1.bz2 sample1.rb2
-	cmp sample1.ref sample1.tst
-```
-
-Build the binary, run it on fixture input, `cmp` against golden output. A nonzero `cmp` exit fails the mk run — that is the entire assertion mechanism.
-
-**Full integration pattern (services):**
-From `sys/src/cmd/fossil/mkfile:59-80`:
-
-```mk
-test:V: all
-	rm -f /srv/test.fossil /srv/test.fscons
-	slay 8.flfmt | rc
-	{syscall seek 1 6400000000 0; echo} >>/tmp/fossil
-	8.flfmt -y /tmp/fossil
-	8.fossil -f /tmp/fossil
-	cat /srv/test.fscons &
-	echo fsys main >>/srv/test.fscons
-	mount /srv/test.fossil /n/fossil
-	...
-	echo sync >>/srv/test.fscons
-```
-
-Spin up the real server on a scratch file, drive it through its `/srv` console interface, exercise the mounted namespace. This is the model for testing file servers and daemons here.
-
-**Flake harness stage pattern (host-side):**
-From `nix/vm-build.sh:56-62` — each stage's status is captured explicitly and a failed guest build **refuses to sync artifacts back**:
-
-```bash
-ssh -F "$SSH_CFG" "$GUEST" "KERNDATE=$KERNDATE bash -lc 'set -e; cd \"$GUEST_DIR\" && nix run .#setup && nix run .#toolchain && nix run .#build'" || {
-	RC=$?
-	echo "error: guest build failed (rc=$RC) — refusing to rsync artifacts back" >&2
-	exit $RC
+**expect gate pattern (canonical: `build/x86_64/tier1-r9.expect`):**
+```tcl
+# 1. env contract, loud, before any spawn
+foreach v {R9_ISO R9_TIER1_LOG R9_EXPECT_OK R9_EXPECT_SKIP} {
+    if {![info exists env($v)]} { puts stderr "...: \$$v unset"; exit 2 }
 }
+# 2. fresh capture (a stale capture is dead evidence)
+exec rm -f $env(R9_TIER1_LOG)
+# 3. spawn qemu with per-run unique -name tag; log_file the serial wire
+spawn $QEMU -M $R9_MACHINE -cpu $R9_CPU -accel $R9_ACCEL -cdrom $env(R9_ISO) \
+    -nographic -name $run_tag
+log_file $env(R9_TIER1_LOG)
+# 4. teardown: kill qemu's process group on EVERY exit path
+proc cleanup {} { catch { exec kill -KILL -- -$spawn_pid } ... }
+# 5. fast-fail on panic anywhere in the boot
+expect_before { -re {panic|Unhandled interrupt} { ...; exit 1 } }
+# 6. staged ordered assertions, each naming its failure
+stage banner {r9 from the Internet}
+stage paqfs  {paqfs\.\.\.}
+stage sweep-done {T1-DONE}
+stage prompt {% }
+# 7. whole-file post-pass: every expected T1-OK present, SKIP set EQUALITY
+#    (both directions), zero T1-FAIL, zero panic
 ```
-
-Preflight gates use sentinel files so a clean checkout is never blocked by state the build itself is about to produce: `amd64/.userland-ok` arms the four-binary userland check only after a successful build (`nix/build.sh:73-89,114-120`).
-
-**Expect-driven boot smoke pattern (the aarch64 gate — the project's strongest test idiom):**
-`build/aarch64/smoke-r9.expect` (grown from the interactive-gate driver `build/aarch64/drive-r9.expect`) spawns qemu directly with serial on stdio and walks **staged, ordered marker assertions**, each naming its failure on stderr:
-
-```
-banner ("r9 from the Internet") → paqfs… → stacksmoke ("depth 64 ok") → % prompt
-→ echo round-trip ("r9shell7") → ls /bin subset (rc ls cat echo ps present)
-→ ps (≥3 live-process lines, one rc) → cat /lib/namespace (known line)
-→ DEL safety (partial line + 0x7f → re-prompt, rc alive, "r9delok" clean)
-→ exit → init's for(;;) restart ("init: starting /bin/rc" → fresh prompt)
-```
-
-The discipline that makes the markers trustworthy:
-
-- **Presence, never interleaving order** (D-13): TCG preemption makes arrival order meaningless; each command's output is captured up to the next `% ` prompt, then presence-asserted with word-anchored regexps (`\mname\M`).
-- **Unforgeable markers:** r9's devcons does not echo typed input this era, so `r9shell7` on the wire can only be the echo binary's OUTPUT; DEL-safety uses a typed `fnord` non-command partial so a flush failure can never echo the marker through it.
-- **Fast-fail on panic:** `expect_before { -re {panic|Unhandled interrupt} … }` aborts the run anywhere in the boot.
-- **TCG-sized timeouts:** 600s PER STAGE (Pitfall 11); never shorten to "speed up" a gate.
-- **Exit contract:** `exit 0` only when every stage passed; `exit 1` names the failed stage (banner/paqfs/stacksmoke/prompt/echo/ls/ps/cat/DEL/restart); `exit 2` on a missing-env contract violation.
-- **Teardown:** every exit path kills qemu's process group; the supervising shell's EXIT trap sweeps survivors with a bracket-fixed `pkill -f '[q]emu-system-aarch64.*kernel-virt\.elf'` that cannot self-match (`nix/smoke-r9.sh:127-141`).
-- **Acceptance gate = TWO CONSECUTIVE green runs**, not one (INT-02: `e97bc2245` — "two consecutive green `nix run .#boot-r9-smoke` runs on darwin + retained evidence"). A single pass is flake-suspect under TCG.
-
-**Shell script pattern:**
-From `sys/src/cmd/lzip/testsuite/check.sh`: POSIX sh, accumulates failures in a `fail` variable (`test_failed() { fail=1; ... }`), checks exit codes explicitly (`[ $? = 1 ]`), prints one line per failure with `$LINENO`, exits nonzero at the end. Not native Plan 9 style (it's an imported upstream suite) but functional.
 
 **Patterns:**
-- Setup: build target as a prerequisite of `test:V`
-- Teardown: `rm -f` of scratch files at the start of the next run; some targets end with `rm testcase.new.mp3`; flake scripts remove shim dirs via `trap '/bin/rm -rf "$SHIMDIR"' EXIT`
-- Assertion: `cmp`, exit-status checks, `wc -l` on `cmp -l` output; in the harness, explicit `[ ! -x ... ]` guards with `exit 1`
+- Setup: driver wrapper (`nix/*.sh`) does build → bake → compose ISO → rm stale log → export env → run expect
+- Teardown: expect `cleanup` proc + caller EXIT trap `pkill -f "[q]emu-system-x86_64.*${R9_RUN_TAG}"` (bracket-fixed so pkill can't self-match)
+- Assertion: presence-only markers over serial; whole-file scan for set equality
+
+**In-guest sweep pattern (`build/x86_64/tier1-sweep.rc:80-85`):**
+```rc
+# check NAME CMD... — run the fixed input; zero exit status → T1-OK.
+# A failing entry never aborts the sweep.
+fn check {
+	n=$1
+	shift
+	if($*) echo T1-OK $n
+	if not echo T1-FAIL $n
+}
+```
+Every check runs a FIXED input with a pinned expectation (exact digests, exact first lines, deterministic word orders), e.g.:
+```rc
+md5out=`{$B/hmd5sum $D/sentinel.txt}
+if(~ $"md5out '6c3d57e94871f9606c5b63c315e76135 '^$D^/sentinel.txt) echo T1-OK md5sum
+```
+
+**Rust unit test pattern (`build/harness/src/trace.rs`):**
+```rust
+// Pure parsing core is separated from the live driver SO IT CAN BE
+// UNIT-TESTED; the live driver feeds it captured bytes.
+#[test]
+fn sysh_parses_defines() {
+    let m = load_sysh("#define BIND 2\n");
+    assert_eq!(m.get("bind"), Some(&2));
+}
+```
+`../r9/port/src/*_tests.rs` fixtures build synthetic paqfs images byte-by-byte (magic constants `0x529AB12B` etc.) and stub dev tables — the "host venue" pattern; group-dependent tests serialize on a SEAM lock because hooks are process-global.
 
 ## Mocking
 
-**Framework:** None.
+**Framework:** None. There is no mocking library in any language layer.
 
-**Patterns:**
-- Mocking does not exist in this codebase. Dependencies are replaced with real stand-ins:
-  - File servers are tested against a scratch disk file (`/tmp/fossil`) instead of real hardware
-  - The kernel's test seam is the device/namespace interface: tests mount, bind, and read/write synthetic files rather than stubbing functions
-  - Host-tool collisions are handled with **shim binaries** in a `mktemp` dir rather than mocks: the `9l` `-static`-dropping shim and the binutils `nm` shadow in `nix/toolchain.sh:26-47`, `nix/build.sh:16-32`
-  - The darwin build replaces the environment, not the code: the whole checkout is rsynced into a real Linux VM (`nix/vm-build.sh`) because the kernel build needs Linux mount namespaces — no simulation
-  - The r9 boot chain substitutes **pinned, read-only real artifacts** for the kernel: `kernel-virt.elf` + `virt-gicv2.dtb` arrive as nix store paths (`R9_KERNEL_PKG`), never as caller-supplied paths (T-05-21); the DTB is `cp`'d to a throwaway `mktemp` copy, `chmod u+w`'d, and fdtput-patched there — the store object is never mutated (`nix/boot-r9.sh:125-148`)
-- To isolate new code, follow the fossil pattern: run the real implementation against temporary state in `/tmp` and a private namespace
+**What exists instead:**
+- Real execution: gates boot the real kernel under qemu and run the real freshly-built binaries — the marker is proof of execution, never of a supervisor's opinion
+- Synthetic fixtures in Rust tests: hand-built byte images (synthetic paqfs trees in `../r9/port/src/namec_tests.rs`) — the only "mocks", and they mock data, not code
+- Substitution seams: `build/x86_64/root-tree/lib/netaddr.rc` is the ONE place a venue address may live (D-11 seam); bakes assert via grep that no venue literal leaked into any other fixture (`build/x86_64/mkimage.sh:541-544`)
+- Marker binaries: images stage a deliberately-tiny `init` (the `smokesleep` marker) whose rodata strings are grep-asserted so the wrong init cannot ride (`mkimage.sh:216-219`)
 
-**What to Mock:**
-- Hardware dependencies → point the program at a regular file (`/tmp/fossil` pattern)
-- Network dependencies → prefer loopback/`/net` on a private namespace, or skip (existing `cifs` test depends on a live host and is not hermetic — do not copy this)
+**What to Mock:** nothing at the gate level; synthetic data images in host unit tests only.
 
-**What NOT to Mock:**
-- Function-level stubbing has no precedent; don't introduce a C mocking library
+**What NOT to Mock:** the kernel, the boot chain, or the binaries under test. A daemon "earns its SVC-OK marker ONLY through a real client interaction through it ... a daemon that merely started is NEVER an OK" (`build/x86_64/services-sweep.rc:7-11`).
 
 ## Fixtures and Factories
 
 **Test Data:**
-- Golden files committed next to the code: `sys/src/cmd/bzip2/sample1.ref`, `sample1.bz2`; `sys/src/cmd/lzip/testsuite/test.txt`
-- Input corpora for output-producing tools: `sys/src/cmd/postscript/tests/post*1` files
-- Generated fixtures: fossil test synthesizes an empty filesystem image via `syscall seek 1 6400000000 0` (sparse file) instead of committing a 6.4 GB fixture
+- **Sentinel file** — byte-exact `'alpha bravo charlie\n__SUBSET_GREP_LINE__\n'` (41 bytes), created at bake time by `printf`, digest-pinned in TWO places (bake assert + in-guest assert): md5 `6c3d57e94871f9606c5b63c315e76135`, sha1 `893404a2c36b54f5c7874070d1acefe38f7ce652` (`build/x86_64/mkimage.sh:437-441`)
+- **Baked object fixture** — `build/x86_64/nm-input.6`, produced at authoring time by host `6c` over the committed `build/x86_64/hello.c`; reproducible byte-identically only from the same absolute source path (the path rides the object's file symbol) — the reproduction command is recorded in comments (`tier1-sweep.rc:56-64`)
+- **Image skeleton** — `build/x86_64/root-tree/` committed tree (termrc, namespace, profile, net fixtures `lib/netip-*.rc`); staged via `tar` into each bake
+- **Float canary** — `T1-OK float-d01` is MANDATORY on every venue: `awk 'BEGIN{printf "%.3f\n", 1.0/3.0}'` must print `0.333`, execution-proving user SSE/FP state end-to-end (`tier1-sweep.rc:147-154`)
+- **ndb token template** — `root-tree/lib/ndb/local.template` carries `@TOKEN@`s only; substituted at bake time from the netaddr seam and asserted BOTH ways (every seam value present, zero leftover `@`)
 
-**Location:**
-- Adjacent to the command under test, or in a `testsuite/`/`tests/` subdirectory of the command directory
+**Location:** fixtures live beside their consumers under `build/<venue>/` (`root-tree/lib/`, `hello.c`, `nm-input.6`); in-guest data bakes to `/lib/tier1/` in the image.
+
+**Digest/magic pinning conventions:**
+- paqfs header magic `529ab12b` (first 4 bytes), trailer magic `6b46e688` — checked via `od` on every baked image
+- Plan 9 a.out magic `00008a97` (amd64) checked on host-side-linked binaries (`mkimage.sh:965-973`)
+- Cross-venue binary identity: `.build/9k10t1-tier-manifest.sha256` (38-member sha256 manifest of `/amd64/bin`) is digest-verified by the tier bake — the identical-binary-set ABI witness for both kernels (`mkimage.sh:369-382`)
 
 ## Coverage
 
-**Requirements:** None enforced. No coverage tooling exists anywhere in the tree (no gcov/lcov configs, no CI coverage step).
+**Requirements:** No line-coverage tool. Coverage means TREE coverage: every dir under `sys/src/cmd`, `sys/src/games`, every `lib*`, every cmd-root single, and every container member is VISITED, BUILT under a per-dir budget, and verdicted.
 
 **View Coverage:**
-
 ```bash
-
-# Not available. Closest proxies:
-
-# - kernel profiling: kprof(1) via /sys/src/cmd/kprof.c
-
-# - acid debugger: /sys/src/cmd/acid
-
+sh build/x86_64/coverage-sweep.sh   # regenerates build/x86_64/dir-coverage.txt
 ```
+- Output grammar: `<key> visited=N build=ok|fail|hang` — DATA ROWS ONLY
+- `COVERAGE_SWEEP=1` disengages the six mk allowlist filter arms so the sweep certifies the WHOLE tree, "never the allowlist to itself"
+- A wedged dir is a classified `timeout` row (`build=hang`), never a silent pass; VISIT-with-no-EXIT classifies hang
+- Every exclusion is a named `# exclude: <path> <reason>` line in `tiers/tier4-tail.txt` — a stale exclusion fails the run
+- The green gate requires the full universe with every row ok — a partial file never passes as proof
 
 ## Test Types
 
 **Unit Tests:**
-- Not present as a category. The closest analog is co-located test programs like `sys/src/libbio/btestprint.c` — a standalone `main` exercising one library call, run manually.
+- `build/harness` Rust: pure parsing cores (syscall-name resolution, regex, console parsing, mkfs9, trace ENTRY fragments) — `cargo test`
+- `../r9/port/src/*_tests.rs`: kernel logic host-side (namec union consult, devip, devether, allocator) with synthetic paqfs images and stub devices; group-global hooks serialize on a SEAM lock
 
-**Integration Tests:**
-- The dominant real test type: mkfile `test:V` targets that build and run actual binaries against fixtures (bzip2, spell, mp3enc) or live subsystems (fossil).
-- Assembler/compiler QA: `sys/src/cmd/qa/` generates random instruction streams and verifies assembler output — a property-based/fuzz-style approach unique in the tree.
-- **The flake build pipeline is the de-facto integration suite for the port:** `nix run .#build` compiles the full userland + kernel for `objtype=amd64` (with `aarch64/` artifacts synced back from the guest on darwin, `nix/vm-build.sh:64-67`); green build = port progressing.
+**Integration / Boot Gates (expect + qemu):**
+- Smoke: banner → paqfs → version → `% ` prompt → typed command sweep (`build/x86_64/smoke-r9.expect`)
+- Tier-1: the sweep runs from the boot flow (termrc override — no typed interaction); float canary first; marker parity + exact SKIP set; T1-DONE; the interactive prompt
+- Net: static + DHCP + loopback tcp/udp echo through real binaries (`build/x86_64/smoke-r9-net.expect`, drivers `nix/smoke-r9-net-x64.sh`, soak `netsoak-r9.expect`, `stress-r9.expect`)
+- Services: tier-2 daemon functional probes (mntgen/cs/dns/exportfs/listen/factotum/keyfs/authsrv) — real client interactions, bounded spin waits, never-wedge discipline (`build/x86_64/services-sweep.rc`)
+- Churn: bounded fork+exec churn window with per-exit heap-marker delta (`build/x86_64/churn-r9.expect`, `churncats.c`)
+- Donor venue: Harvey's own 9k kernel (k10t1) runs the SAME sweep — both venues assert identical marker sets (`build/mm/boot-9k10t1-sweep.sh`)
 
-**E2E Tests:**
-- `nix run .#iso` / `build/build.bash`: boots the 9legacy ISO under `qemu-system-i386` with an `expect` harness and builds Harvey inside the VM — the full end-to-end path, cross-platform via TCG.
-- `nix run .#boot-r9-smoke` — the aarch64 E2E (INT-02, D-12): clean-checkout → userland build → image bake → DTB patch → qemu under `build/aarch64/smoke-r9.expect` asserting the full marker sweep (boot → echo → ls/ps/cat → DEL safety → init restart). Acceptance requires **two consecutive green runs**; the darwin leg's evidence lives in the phase dir, and the **linux leg is CI**: `.github/workflows/r9-shell.yml` runs exactly `git clone → nix install (SHA-pinned) → nix run .#boot-r9-smoke` on `ubuntu-latest` with a 90-minute budget, on every push (`build/REPRODUCIBILITY.md:86-156`).
-- `nix run .#boot-r9` is the interactive counterpart (terminal as console, ctrl-a x to quit) — it is NOT a self-asserting test; use it for dev, the smoke for gates.
-- CI smoke level: `.github/workflows/` builds the whole system on `ubuntu-latest` with qemu + `ufs` file serving and runs `build/command.bash`. No assertion of boot success beyond script completion.
-- VM orchestration for multi-VM testing: `minimega` is packaged via `nix/minimega.nix` (Linux-only, KVM; manages Harvey/r9 **amd64** test VMs — aarch64 guests are **not** supported upstream, noted at `flake.nix:37-42`).
+**Build/Bake Gates (host-side asserts):**
+- `subset-build.sh`: per-entry fresh build (`mk <target>.clean` / object rm BEFORE every build — a stale object can never earn a marker), fresh archives (`rm -f` target `.a`; `ar vu` never prunes), T0/T1/T2/T3-ART sha256 markers, magic checks
+- `mkimage.sh`: pre-bake manifests (every mandated path present, PRINTED as evidence), init-identity grep guards (marker vs real init, inverted per image), `/boot/factotum` ABSENCE asserts (auth-stub-by-absence), rcmain byte-verbatim `cmp` guards, KERNDATE mtime pinning for byte-reproducible bakes, mkpaqfs per-file 4194304-byte cap assert (silent-drop hazard), header/trailer magic checks
+- Negative controls: r9's `ureg-check` gate runs the real check then a deliberately-mutated header copy (cs → cseg) and asserts the mutation IS rejected — "the mutated ... copy was rejected with a named-field diff" (`../r9/xtask/src/uregcheck.rs:178-195`); CI's gethunk repro gates rebuild pristine compilers from git and verify the hang signature on them, green only on the fixed pair (`.github/workflows/phase6.yml`, `build/aarch64/gethunk-repro-*.sh`)
 
-**Frozen-ABI verification (aarch64 port):**
-- The Harvey↔r9 syscall wire contract is `aarch64/ABI.md` + `aarch64/include/ureg.h`. The enforcement is **build-time static checks in r9**, not a runtime suite (`aarch64/ABI.md:83-143`): in-crate `core::mem::offset_of!` const asserts in r9's `aarch64/src/trap.rs` (fail `cargo build` on layout drift, no Harvey checkout needed) plus the cross-repo `cargo xtask ureg-check` (r9 repo) parsing this repo's `aarch64/include/ureg.h` via `R9_HARVEY_DIR` (default `../harvey`), which runs standalone and as a boot-test precondition — drift fails every r9 boot-test profile.
+**CI (`.github/workflows/`):**
+- `phase6.yml`: wave0-host (repro gates, coverage regenerated in place + `git diff --exit-code` drift signal, generator .7-magic scan, grep-hygiene, venue pin), tier-9k + tier-r9 (both kernel venues, 90m), tier-2 compile gate (T2-ART marker parity), x86_64-poolpanic (verdict PRODUCTION asserted, never the outcome)
+- `r9-shell.yml`: clean checkout → nix install (action pinned to full 40-char SHA) → `nix run .#boot-r9-smoke` (aarch64, TCG); permissions `contents: read`, no secrets
+- `harvey.yml`: legacy 9legacy-ISO pipeline — untouched sibling
 
 ## Common Patterns
 
-**Adding a test to an existing command:**
-1. Add golden fixture files to the command's directory
-2. Add a `test:V` target to its `mkfile` depending on the built binary:
-   ```mk
-   test:V: $O.myprog
-   	./$O.myprog < input.ref > output.tst
-   	cmp output.ref output.tst
-   ```
-3. Ensure scratch files are removed (start of target or `rm` at end)
+**Async / never-wedge testing (in-guest):**
+```rc
+# bounded spin, never an unguarded wait (TCG-timing tolerant)
+$B/hfactotum -s t1facto &
+factctl=0
+for(i in 1 2 3 4 5 6 7 8 9 10){
+	if($B/htest -e /mnt/factotum/ctl) factctl=1
+	if(~ $factctl 0) $B/hsleep 1
+}
+if(~ $factctl 1){ ...probe... }
+if not echo T1-FAIL factotum
+```
 
-**Testing a library:**
-- Write a `*test*.c` program in the library directory with its own `main` (see `sys/src/libbio/btestprint.c`), built manually or via an extra mkfile target; keep it out of `OFILES` so it is not archived into the `.a`
+**Error testing (negative assertions):**
+- SKIP-set EQUALITY: the gate extracts the sweep's own declared `echo T1-SKIP` lines verbatim and asserts the observed set equals it in BOTH directions — "a missing declared SKIP is as red as an extra one" (`tier1-r9.expect:182-193`). Venue honesty: "named T1-SKIP lines, never an unearned T1-OK"
+- Zero-T1-FAIL and zero-panic whole-file scans after the staged pass
+- Usage-level execution proof: a bad flag (`-Z`) must print usage text naming the program — proof the binary ran, on network-less venues (`tier1-sweep.rc:216-220`)
 
-**Verifying a host-harness change (nix/ scripts, flake.nix):**
-1. `nix flake check` / `nix develop` to load the devshell
-2. Run the affected app end to end: `nix run .#setup` → `nix run .#toolchain` → `nix run .#build` (on darwin this exercises the lima path; on Linux the native namespace path). For boot-chain changes: `nix run .#boot-r9-smoke` — the full composition is the test.
-3. Keep scripts shellcheck-clean (project history includes a shellcheck-cleanup pass, commit `df615a33a`; a smoke EXIT-trap quoting fix landed in `163682f60`)
-4. Preserve failure propagation: never let a cleanup or `||` tail mask a nonzero status (regression fixed in `566677c94`, `d663bab7b`)
+**Computed expectations (never a second hardcoded list):**
+```bash
+# nix/tier1-r9-x64.sh:156-191 — the OK set is COMPUTED from the committed
+# tier data minus SKIP members plus the float canary; the SKIP set is
+# extracted VERBATIM from the committed sweep's own SKIP lines
+T1_SKIP=$({ grep -oE '(^|[[:space:]])echo T1-SKIP [A-Za-z0-9.-]+' ... || true; } | awk '{print $NF}' | sort -u)
+```
+Whenever a check flips between SKIP and OK, the check AND the gate's computed expectations change in the SAME commit (Pitfall 4 discipline).
 
-**Adding a stage to the boot smoke (`build/aarch64/smoke-r9.expect`):**
-1. Append a `stage <name> {<regex>}` assertion (or a `send` + capture + presence-check block) BEFORE the DEL/exit stages — the state-resetting stages stay LAST so the sweep rides the first rc generation.
-2. Patterns are presence-only CRLF-tolerant substrings, never end-of-line anchored (D-13); choose markers that cannot be produced by typed-input echo (r9's devcons does not echo).
-3. Name the stage — the failure line `smoke-r9: TIMEOUT at stage: <name>` is the only localization a CI log gets.
-4. Re-run the gate TWICE (`nix run .#boot-r9-smoke` × 2 consecutive green) and retain both captures as phase evidence.
-
-**Evidence-log conventions (boot-chain gates):**
-- Capture path is env-overridable (`R9_SMOKE_LOG`, default `build/aarch64/smoke-r9.log` — gitignored); the caller `rm -f`s it before launch and the driver does so again belt-and-braces.
-- A PASSING capture is copied into the phase dir (e.g. the 05-12 gate's evidence); the gitignored working copy is transient.
-- Keep `log_user` ON in expect drivers — expect 5.45 writes nothing to `log_file` with `log_user 0` (measured; the capture file is created empty).
-
-**Async/Concurrent Testing:**
-- No framework support. Threaded code (libthread) is tested by running the threaded program itself (e.g., rio is exercised interactively). Timeouts are handled by shell `sleep`/`await` (`rc/bin/await` exists in `rc/bin`).
-
-**Error Testing:**
-- Verify failure modes through exit status: Plan 9 convention is `exits("message")` on failure, so a test asserts `$status` is non-empty (rc) or `$? != 0` (sh). Example from lzip `check.sh`: `[ $? = 2 ] || test_failed $LINENO`.
-
-**Reproducibility checks:**
-- Kernel builds pin `KERNDATE` from the checkout's git commit (`git log -1 --format=%ct`) with numeric validation and dialect-aware `date` fallbacks (`nix/build.sh:37-51`, `nix/vm-build.sh:19-32`); override with `KERNDATE=<epoch>`. See `build/REPRODUCIBILITY.md`. The lima guest receives `KERNDATE` from the host because the rsync excludes `.git`.
-- The r9 boot reproduction (INT-03, `build/REPRODUCIBILITY.md:86-170`) is **process-level**, not bit-level: the documented command sequence (`git clone … && nix run .#boot-r9-smoke`) reproduces the green smoke on darwin-aarch64 and linux from clean checkouts, resting on the pins: r9 at rev `9549cee63d86a0c6d9b4d04ed8860b2efabcd3e6` + narHash in `flake.lock`, nixpkgs at `31ecbaca1bdefa45dffc409f0250bd8039ea0010`, r9's rust toolchain (`nightly-2026-01-30` via rust-overlay, captured transitively), qemu 11.1.2-era from the nixpkgs pin. `bootfs.paq` bytes differ across checkouts (mkpaqfs embeds KERNDATE-derived time) — the smoke asserts boot BEHAVIOR (marker sequence, D-09 sweep, DEL safety, init restart), never image bytes.
-- Dev-only overrides (never the default, never CI): `nix run .#boot-r9 --override-input r9 git+file:///path/to/r9` (local r9 checkout, D-13); `R9_SKIP_BUILD=1` (skip the userland build leg).
-
-**Caveats when extending tests:**
-- `sys/src/cmd/test.c` is the `test(1)` *command* (the `[` builtin), not a test suite — do not be misled by the name
-- Many `test:V` targets are bit-rotted or host-specific (`cifs` needs a server named `se-00`); verify before relying on them as examples
-- There is no CI job that runs `mk test` anywhere — in-tree tests are opt-in, run manually; the CI/flake gate is "does the full build complete" plus (for aarch64) "does the boot smoke pass" via `.github/workflows/r9-shell.yml`
-- `aarch64/bbin/` is currently empty and `aarch64/bin/` holds **build artifacts** of the port (including a binary named `test` — the `test(1)` command), not test suites
-- `build/aarch64/out/`, `build/aarch64/bootfs.paq`, and the `*.log` captures are gitignored REGENERABLE artifacts — never commit them as evidence; copy passing captures into the phase dir instead. The exception is `build/aarch64/hello.7.out` (committed ABI-bisect gate binary).
-- On darwin, `nix run .#build` mutates nothing in the host checkout until the guest build succeeds — artifacts are only rsynced back on success (`nix/vm-build.sh:58-67`)
-- `nix run .#boot-r9` / `.#boot-r9-smoke` do not exist on x86_64-darwin (the `builtins.hasAttr system r9.packages` gate at `flake.nix:104-111` — r9 ships no kernel-virt there)
-- The smoke's qemu argv values (GICv2, cortex-a72, 1024M, TCG, initrd at `0x48000000`) are the carried-forward LOCKED shape from r9's `aarch64/lib/config_virtexec.toml` — do not "upgrade" to HVF or GICv3 here; the TCG constraint rationale is documented in `build/aarch64/README.md`
+**Evidence discipline:**
+- Gates run ×2 on byte-identical composed ISOs; passing captures retained in `.planning/phases/<phase>/evidence/`
+- Ledgers record `tier=N dir=... bin=... sha256=... exec=T1-OK:r9x64|SKIP:<reason> evidence=<log> commit=<sha> date=<iso>` (`build/x86_64/tier1.ledger`) — compile-only vs execution distinction lives in the `exec` field
+- KERNDATE provenance: git `%ct` of the checkout (overridable) pins mtimes so two bakes of one tree are byte-identical
 
 ---
 
-*Testing analysis: 2026-11-03*
+*Testing analysis: 2026-11-13*

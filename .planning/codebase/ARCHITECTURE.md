@@ -1,328 +1,290 @@
 ---
-last_mapped_commit: fa0ed761b9667411e8d93797bdbb79ba0598fa2f
-last_mapped_at: 2026-11-03
+last_mapped_commit: bdcf45a51dced761eec09538b5f0786ff81e0399
+last_mapped_at: 2026-11-13
 ---
-<!-- refreshed: 2026-11-03 -->
-
+<!-- refreshed: 2026-11-13 -->
 # Architecture
 
-**Analysis Date:** 2026-11-03
+**Analysis Date:** 2026-11-13
 
 ## System Overview
 
-Harvey OS is a distributed operating system forked from Plan 9 4th Edition (Bell Labs). It implements the Plan 9 architectural model: **everything is a file**, per-process namespaces, and the 9P (9P2000) file protocol as the universal interface between components. The codebase contains two parallel kernel trees (legacy `9/` and Harvey's `9k/`), a full userland (~266 commands), ~40 libraries, and per-architecture ports.
+Harvey OS is a **two-repo composed system**. This repo (Harvey) owns the Plan 9
+userspace, libc, native toolchain (6a/6c/6l), and all build/bake/gate machinery.
+The sibling repo `../r9` (`/home/req/code/r9`) is the adopted kernel — a Rust
+no_std reimplementation of the Plan 9 kernel. Harvey's legacy C kernel
+(`sys/src/9k/`, amd64) remains in-tree and green (the "Harvey-on-9k" track), but
+the active v2.1 milestone is Harvey-on-r9 on x86_64 under qemu q35/KVM. The two
+repos are joined **only** through nix flake composition: `flake.nix` pins
+`inputs.r9` (git rev + narHash in `flake.lock`) and consumes r9's exported
+packages (`kernel-x64`, `iso-builder`, `netdev-args`, and aarch64's
+`kernel-virt`). No submodules, no relative-path glue.
 
 ```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Userland (Commands & Apps)                   │
-├──────────────┬──────────────┬──────────────┬────────────────────────┤
-│  Core cmds   │  File servers│  GUI/apps    │  rc shell scripts      │
-│ `sys/src/cmd`│ `sys/src/cmd`│ `sys/src/cmd`│  `rc/bin`              │
-│  (srv, auth, │  (fossil,    │  (acme, rio, │  `usr/glenda/bin/rc`   │
-│   ip, ndb…)  │   venti,     │   sam, mothra│                        │
-│              │   webfs…)    │   via draw)  │                        │
-└──────┬───────┴──────┬───────┴──────┬───────┴──────────┬─────────────┘
-       │              │              │                  │
-       ▼              ▼              ▼                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                        User-space Libraries                          │
-│  `libc` (port+arch asm) `lib9p` `libthread` `libdraw`/`libmemdraw`   │
-│  `libbio` `libsec` `libauth` `libmp` `libventi` `libndb` … (~40)     │
-│  `sys/src/lib*/`         headers: `sys/include/*.h`                  │
-│  POSIX compat layer (APE): `sys/src/ape/`                            │
-└─────────────────────────────────┬───────────────────────────────────┘
-                                  │ system calls (sys.h vectors,
-                                  │ amd64: `l64syscall.s`)
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                            Kernel (`sys/src/9k`)                     │
-├──────────────────────────────┬──────────────────────────────────────┤
-│  Portable kernel (`port/`)   │  Machine-specific (`k10/`, `386/`)   │
-│  proc, chan, dev, qio, page, │  mmu, trap, fpu, apic, asm entry,    │
-│  segment, sysfile, sysproc,  │  vga/ether/uart drivers, `main.c`    │
-│  devmnt (9P client), dev*.c  │                                      │
-└──────────────────────────────┴──────────────────┬───────────────────┘
-                                                  │
-                                                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                     Boot chain & hardware                            │
-│  EFI/PXE bootloaders: `sys/src/boot/efi`, `sys/src/nboot`,           │
-│  `sys/src/9k/boot` (user-mode bootstrap: root fs, auth, bootip)      │
-└─────────────────────────────────────────────────────────────────────┘
-                                  │
-                                  ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│  External 9P services (network): cpu servers, auth servers,          │
-│  file servers (fossil/venti), all reached over 9P2000                │
-└─────────────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                     Nix flake composition (flake.nix)                     │
+│   inputs.r9 pinned rev → kernel-x64 / iso-builder / netdev-args           │
+│   apps: boot-r9-x64, boot-r9-smoke-x64, boot-r9-tier1-x64,                │
+│         boot-r9-net-smoke-x64, boot-r9-services-x64, boot-r9-net-soak-x64,│
+│         boot-r9-churn-x64, boot-r9-stress-x64, net-doctor, build, iso,    │
+│         setup, toolchain (+ frozen aarch64: boot-r9, *-smoke, tier1)      │
+├───────────────────────────────┬──────────────────────────────────────────┤
+│  Harvey repo (this tree)      │  r9 repo (../r9, Rust no_std kernel)     │
+│                               │                                          │
+│  userspace build              │  cargo workspace                         │
+│   sys/src/cmd/ (274 dirs)     │   port/    arch-neutral kernel crate     │
+│   sys/src/lib*/ (40+ libs)    │             (namec, pgrp, devcons/env/   │
+│   sys/src/libc/ + 9syscall/   │              dup/pipe/proc/srv/root/mnt/ │
+│   toolchain sys/src/cmd/6*/   │              ether, devip/, virtio,      │
+│                               │              paqfs, rendez, mcslock)     │
+│  bake + gates                 │   x86_64/  l.S + platform/q35/ (mb2,     │
+│   build/x86_64/mkimage.sh     │             acpi, lapic, ioapic, pci,    │
+│   build/x86_64/tiers/*.txt    │             timer, netgate) + proc,      │
+│   build/x86_64/*.expect       │             syscall, exec, usermem,      │
+│   build/harness/ (Rust)       │             swtch, trap                  │
+│   build/mm/ (minimega, 9k)    │   aarch64/ frozen v2.0 pin; riscv64/     │
+│                               │   xtask/   build/qemu/boot-test/         │
+│  C kernels (kept green)       │             ureg-check harness           │
+│   sys/src/9k/  amd64 (active) │   x86_64/lib/config_q35*.toml profiles   │
+│   sys/src/9/   legacy multi-  │   x86_64/lib/grub.cfg, kernel.ld         │
+│                arch           │                                          │
+├───────────────────────────────┴──────────────────────────────────────────┤
+│        qemu-system-x86_64 -M q35 -accel kvm -cdrom <composed ISO>        │
+│   SeaBIOS → GRUB2 (multiboot2 kernel + module2 bootfs.paq) → r9 →        │
+│   Harvey boot(8) → paqfs root → init → rc → `% ` prompt                  │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ## Component Responsibilities
 
 | Component | Responsibility | File |
 |-----------|----------------|------|
-| Portable kernel | Processes, channels, devices, memory, syscall dispatch | `sys/src/9k/port/` |
-| k10 (amd64) machine layer | MMU, traps, FPU, APIC/IOAPIC, SMP boot, asm entry | `sys/src/9k/k10/` |
-| 386 machine layer | 32-bit x86 drivers (ether, uart, sdata/AHCI, pci, vesa) | `sys/src/9k/386/` |
-| Device drivers (kernel) | Each `devX.c` implements the `Dev` vtable, appears as `/dev` subtree | `sys/src/9k/port/dev*.c` |
-| Kernel build config | Declarative kernel configs → generated `devtab` + embedded root | `sys/src/9k/k10/k10cpu`, `sys/src/9k/mk/parse` |
-| Syscall interface | Syscall numbers/stubs shared kernel↔libc | `sys/src/libc/9syscall/sys.h` |
-| libc | C library: portable (`port/`), syscalls (`9sys/`), per-arch asm (`amd64/`, `386/`, …) | `sys/src/libc/` |
-| lib9p | User-space 9P file server framework (Srv, File, Req, Fid) | `sys/src/lib9p/` |
-| libthread | Cooperative threads + channels (Plan 9 thread model) | `sys/src/libthread/` |
-| Bootloaders | EFI loader, ISO walker, PXE | `sys/src/boot/efi/`, `sys/src/nboot/` |
-| boot (user bootstrap) | First user program: authenticates, mounts root, starts init | `sys/src/9k/boot/boot.c` |
-| Commands | ~266 user commands/daemons/file servers | `sys/src/cmd/` |
-| APE | ANSI/POSIX Environment (ports of Unix software) | `sys/src/ape/` |
-| Legacy kernel | Original Plan 9 kernel tree (multi-arch: pc, bcm, omap, teg2…) | `sys/src/9/` |
-| Host build harness | Builds Harvey ISO by booting Plan 9 under QEMU; also hosts the aarch64 r9-boot supply chain (userland build → paqfs bake → DTB patch → qemu/expect) | `build/` (`build/aarch64/`) |
-| aarch64 port tree | Per-arch install root + frozen user-side syscall ABI contract for the Harvey↔r9 kernel pairing | `aarch64/` (`ABI.md`, `include/u.h`, `include/ureg.h`, `mkfile`) |
-| Nix dev environment | Reproducible host toolchain: devshell + `setup`/`toolchain`/`build`/`iso`/`boot-r9`/`boot-r9-smoke` apps; owns the Harvey↔r9 composition via the pinned `inputs.r9` flake input; lima VM path on darwin | `flake.nix`, `flake.lock`, `nix/` |
-| Agent instructions | Repo-facing agent/project contract (project, stack, conventions, GSD workflow) | `AGENTS.md` |
+| Flake composition | Pin r9, export one-command boot/gate apps, devshell | `flake.nix`, `nix/*.sh` |
+| Portable 9k kernel (C) | Processes, chans, devices, VM, syscall dispatch | `sys/src/9k/port/` |
+| k10 (amd64) machine layer (C) | MMU, traps, FPU, APIC/IOAPIC, SMP, asm entry | `sys/src/9k/k10/` |
+| Kernel config → devtab generation | Declarative configs → `$CONF.c` (devtab, bootconf) + embedded root | `sys/src/9k/mk/parse`, `sys/src/9k/k10/k10cpu`, `sys/src/9k/k10/k10t1` |
+| Kernel IP stack (C) | In-kernel TCP/IP (`/net` via devip) | `sys/src/9k/ip/` |
+| boot(8) user bootstrap | First user process: find root, auth, exec init | `sys/src/9k/boot/boot.c`, `bootr9.c` |
+| libc | C library: portable, syscall wrappers, per-arch asm | `sys/src/libc/` |
+| Syscall ABI table | Syscall numbers shared kernel↔libc (BIND=2 … NMOUNT) | `sys/src/libc/9syscall/sys.h` |
+| Userspace commands | ~274 command/daemon/file-server directories | `sys/src/cmd/` |
+| APE | ANSI/POSIX env for ported Unix software | `sys/src/ape/` |
+| Legacy kernel | Original multi-arch Plan 9 kernel tree (dormant) | `sys/src/9/` |
+| r9 portable kernel (Rust) | Arch-neutral proc/exec/namespace/devices/virtio/devip/paqfs | `../r9/port/src/` |
+| r9 x86_64 platform (Rust) | l.S entry, mb2, ACPI/ECAM, LAPIC/IOAPIC/timer, proc/syscall/exec | `../r9/x86_64/src/` |
+| r9 boot profiles | TOML data → cfg emission, qemu args, dist shape | `../r9/x86_64/lib/config_q35*.toml`, `../r9/xtask/src/config.rs` |
+| r9 acceptance harness | cargo xtask build/qemu/boot-test/ureg-check; netdev argv emitter | `../r9/xtask/src/main.rs`, `../r9/xtask/src/bin/r9-netdev-args.rs` |
+| amd64 exec/ABI contract | Frozen 184-byte Ureg + syscall wire contract | `amd64/ABI.md` (aarch64 twin: `aarch64/ABI.md`) |
+| Userland staging build | Namespace build → marker + boot-chain binaries | `build/x86_64/stage-build.sh` |
+| Image bake | bootfs*.paq images from root-tree skeleton + built binaries | `build/x86_64/mkimage.sh`, `build/x86_64/root-tree/` |
+| Tier allowlists | Append-only committed data gating userspace sweeps | `build/x86_64/tiers/tier{0..4}*.txt` |
+| Expect gates | qemu serial-driven smoke/tier/net/services/churn/soak gates | `build/x86_64/*.expect`, `build/aarch64/*.expect` |
+| Host harness | std-only Rust: srv9/drive9/gdbpoke9/mkfs9/trace-syscalls | `build/harness/` |
+| minimega 9k venue | .mm scripts booting 9k10cpu/k10t1/k10draw under KVM | `build/mm/` |
+| 9k namespace build | mk build inside private mount namespace | `sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE`, `sys/src/BUILD`, `sys/src/BUILD_SETUP_NAMESPACE` |
+| CI | nix-pipeline workflows | `.github/workflows/harvey.yml`, `phase6.yml`, `r9-shell.yml` |
 
 ## Pattern Overview
 
-**Overall:** Microkernel-flavored monolithic kernel + user-space file servers, unified by the 9P protocol ("everything is a file"), with per-process namespaces.
+**Overall:** Plan 9 "everything is a file" OS, dual-kernel (C 9k + Rust r9), with a
+reproducible nix+bake+expect delivery pipeline wrapped around it.
 
 **Key Characteristics:**
-- **File-oriented IPC:** All resources (network, windows, processes, auth, graphics) are presented as files served over 9P2000 (`sys/include/fcall.h`, `sys/include/9p.h`). User programs `bind`/`mount` these into their private namespace.
-- **Per-process namespaces:** Each process group has its own mount table (`sys/src/9k/port/pgrp.c`, `sys/src/9k/port/chan.c`). There is no single global file tree — the view of the system is constructed per-process via `bind(2)`/`mount(2)`.
-- **Device = vtable:** Kernel devices implement the `Dev` struct interface (reset/init/attach/walk/stat/open/read/write/close…) declared in `sys/src/9k/port/portdat.h` (~line 198). The `devtab[]` array is *generated* from declarative kernel config files.
-- **Kernel split:** portable vs. machine-dependent. All portable logic lives in `port/`; arch code lives in a sibling dir (`k10/`, `386/`). The mk build merges them via `../mk/portmkfile` + `../mk/bootmkfile` + an awk `parse` of the config file.
-- **User-space file servers:** Services that would be kernel subsystems elsewhere (DNS, auth, ftp, http, web, wiki) run as user processes using `lib9p` and are mounted over 9P. The kernel's `devmnt.c` is the 9P *client* that glues mounts into the namespace.
-- **rfork process model:** Process creation is `rfork(flags)` with fine-grained sharing flags (RFPROC, RFNAMEG, RFENVG, RFNOTEG…), not fork/exec. Threads via `libthread` build on this.
-- **Note-based async:** Instead of Unix signals, Plan 9 uses textual "notes" posted to a process (`atnotify`, `noted` in libc; `sys/src/9k/port/proc.c`).
+- **File-oriented IPC:** all resources are files over 9P2000 (`sys/include/fcall.h`); per-process namespaces built via bind/mount
+- **Device = vtable:** kernel devices implement `struct Dev` (`sys/src/9k/port/portdat.h:198`); `devtab[]` generated from declarative config by awk (`sys/src/9k/mk/parse` lines 296–300); r9 mirrors this with `dev*.rs` modules cfg-gated by TOML (`../r9/port/src/`, `../r9/x86_64/lib/config_q35*.toml`)
+- **Portable/machine split, twice:** 9k `port/` + `k10/`; r9 `port/` crate + `x86_64/`/`aarch64/`/`riscv64/` crates
+- **Frozen ABI as documents + build gates:** `amd64/ABI.md` is the whole kernel/user boundary; enforced two-layer (const asserts + `cargo xtask ureg-check` with negative control)
+- **Committed data, never flags:** tier allowlists (`build/x86_64/tiers/*.txt`), boot profiles (r9 `config_*.toml`), bootfs payload manifest (`build/x86_64/bootfs-payload.txt`) are append-only data files driving machinery
+- **Evidence gates:** every claim is an expect/boot-test gate that exits 0/1 with retained serial captures; venue honesty (SKIP lines labeled, never unearned OK)
+- **Pin discipline:** r9 arrives only via flake input pin; kernel-byte commits re-stale the boot-iso FOD hash — re-wire-then-pin at phase close
 
 ## Layers
 
-**Kernel portable layer (`sys/src/9k/port/`):**
-- Purpose: Architecture-independent OS services — processes, channels (name resolution), device dispatch, queues, paging/segments, syscall handlers, portable device drivers (console, env, pipe, proc, mnt, srv, ssl/tls, root fs, sd storage, uart core, draw/mouse).
-- Location: `sys/src/9k/port/` (62 `.c` files)
-- Contains: `proc.c` (scheduler), `chan.c` (name channeling / namespace resolution), `dev.c` (dev dispatch), `qio.c` (queued I/O), `page.c`/`segment.c` (VM), `sysfile.c` (file syscalls: sysopen, sysbind, sysmount, sysnmount…), `sysproc.c` (process syscalls), `qlock.c`/`taslock.c` (locking), `qmalloc.c` (kernel alloc), `devmnt.c` (9P mount client), `devroot.c` (embedded boot root fs), `edf.c` (earliest-deadline-first scheduler), `portdat.h`/`portfns.h` (portable kernel data/prototypes).
-- Depends on: machine layer (`k10/`) for MMU, traps, clock, FPU.
-- Used by: linked into every kernel config (see `OBJ=$MACH $CONF.root.$O $DEVS $PORT` in `sys/src/9k/k10/mkfile:15`).
+**Harvey userspace (C):**
+- Location: `sys/src/cmd/`, `sys/src/lib*/`, `sys/src/ape/`
+- Built by mk inside a Linux mount namespace emulating the Plan 9 root
+  layout (`sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE` → `BUILD_SETUP_NAMESPACE` →
+  `sys/src/BUILD`), driven host-side by `nix/build.sh` (native) or
+  `nix/vm-build.sh` (lima VM on darwin)
+- Keyed by `objtype` (currently `amd64` for v2.1; `aarch64` frozen at v2.0)
 
-**Machine layer (`sys/src/9k/k10/`, `sys/src/9k/386/`):**
-- Purpose: Everything hardware-specific for a CPU family/board.
-- Location: `sys/src/9k/k10/` (amd64; 55 files), `sys/src/9k/386/` (i386 drivers)
-- Contains: `main.c` (kernel entry `main(u32int ax, u32int bx)` at line 145 — multiboot), `mmu.c`, `trap.c`, `fpu.c`, `apic.c`/`ioapic.c`, `mp.c`/`sipi.c` (SMP startup), `memory.c`, assembly entry/interrupt/syscall stubs (`l64v.s`, `l64idt.s`, `l64syscall.s`, `l64sipi.s`, `l32p.s`), `arch.c`, drivers (`devvga.c`, `devacpi.c`, `i8254.c`, `i8259.c`, `hpet.c`), and kernel config files (`k10cpu`, `k10cpuf`, `k10aoe`, `k10root`).
-- Depends on: `port/` APIs; libc subset in kernel (`port/lib.h`).
-- Used by: linked with `port/` objects per config.
+**9k kernel (C, amd64 — kept green):**
+- Portable: `sys/src/9k/port/` (proc.c, chan.c, dev*.c, sysfile.c, sysproc.c, segment.c, qio.c, qlock.c, devmnt.c 9P client, devroot.c embedded root)
+- Machine: `sys/src/9k/k10/` (main.c:145 entry, mmu.c, trap.c, l64*.s, apic/ioapic, mp/sipi)
+- Config-generated glue: `sys/src/9k/mk/` (`parse` awk, `portmkfile`, `bootmkfile`, `mkroot`, `mkenum`)
+- Configs: `k10cpu`, `k10cpuf`, `k10f`, `k10aoe`, `k10root`, `k10t1` (tier-1 CI venue with embedded sweep), `k10draw` (draw donor venue)
 
-**Kernel build machinery (`sys/src/9k/mk/`):**
-- Purpose: Generates per-config kernel sources: `parse` (awk) reads a config file (`k10cpu`) and emits `$CONF.c` (devtab + linktab + root fs table), `bootmkfile`/`portmkfile` supply mk rules, `mkroot`/`mkrootall` build the embedded boot root image.
-- Location: `sys/src/9k/mk/`
-- Consumed by: `sys/src/9k/k10/mkfile` (`<| awk -f ../mk/parse $CONF` at line 11).
+**r9 kernel (Rust, x86_64 active):**
+- `../r9/port/src/`: arch-neutral — `namec.rs` (name resolution), `pgrp.rs`, `fdgrp.rs`, `devcons.rs`/`devenv.rs`/`devdup.rs`/`devpipe.rs`/`devproc.rs`/`devsrv.rs`/`devroot.rs`/`devmnt.rs` (9P client), `devether.rs` + `netif.rs`, `devip/` (arp, conv, ipifc, medium, proto, route, stack, waker — smoltcp 0.14 behind the devip ABI), `virtio.rs` (from-scratch unsafe-free transport), `paqfs.rs` (bootfs reader), `rendez.rs`, `mcslock.rs`, allocator family. `#[forbid(unsafe_code)]` on every module except named floors (`globalalloc`, `mcslock`, `devip_waker` bridge)
+- `../r9/x86_64/src/`: `l.S` (mb2 header + 32-bit entry + long mode), `main.rs`, `platform/q35/` (`mb2.rs`, `acpi.rs`, `lapic.rs`, `ioapic.rs`, `pci.rs` ECAM, `timer.rs` CPUID-gated x2APIC TSC-deadline/xAPIC periodic, `netgate.rs`, `churngate.rs`), `proc.rs` (per-process PML4/TSS-rsp0, round-robin, rfork/await, notes), `syscall.rs` (SYSCALL/SYSRET, software-built Ureg), `exec.rs` (a.out loader, S_MAGIC 0x8A97), `usermem.rs` (validated user access on live-CR3 model; 4-GiB device alias window at PML4[510]), `swtch.rs` (one resume path via `first_entry` trampoline), `trap.rs`
+- `../r9/aarch64/` (frozen at v2.0 pin): platform/{raspi3b,raspi4b,virt}, GIC, DTB boot
+- `../r9/xtask/src/`: subcommands `build | expand | kasm | dist | test | clippy | check | qemu | boot-test | ureg-check | initrd | clean`; `config.rs` compiles TOML profiles into `--cfg` flags (`dev_*`, `ip_*`, `link_*`, `nodev_*`, `nouart_*`, `platform`); `bin/r9-netdev-args.rs` emits qemu netdev argv (slirp/tap/vmnet) from the same TOML
 
-**User C library (`sys/src/libc/`):**
-- Purpose: The single C library for all native programs.
-- Structure: `port/` (112 portable `.c` files: string, fmt/printf, math, dir ops, regexp glue, pool allocators), `9sys/` (syscall wrappers: `open.c`, `mount.c`, `bind.c`, `dial.c`, `convM2S.c`/`convS2M.c` for 9P messages), `9syscall/sys.h` (syscall number table — BIND=2, MOUNT=46, NMOUNT added by Harvey), `fmt/` (printf family), per-arch dirs (`amd64/`, `386/`, `arm/`, `riscv/`, …) with assembly implementations (`memcpy.s`, `setjmp.s`, `tas.s`, `main9.s` startup).
-- Headers: `sys/include/libc.h` plus per-arch `u.h` (`amd64/include/u.h`, `386/include/u.h`) and `ureg.h`.
-
-**User-space services & commands (`sys/src/cmd/`):**
-- Purpose: All userland — from `cat.c`/`cp.c` to subsystems: `ip/` (TCP/IP stack daemons), `auth/` (authentication server + factotum), `ndb/` (network database), `fossil`/`venti` (archival file servers), `acme/` (editor/window system), `rio` (window manager), `sam`, `webfs`, `wikifs`, `upas/` (mail), `aux/`, compilers/assemblers/linkers per arch (`8c/8a/8l` = amd64 compiler/asm/linker, `5c` = arm, `6c` family…), `go/` (Go toolchain fetch scripts), `mk` (build tool), `rc` (shell).
-- Depends on: libc + specialized libs (`lib9p`, `libthread`, `libdraw`, `libmemdraw`, `libbio`, `libsec`, `libmp`, `libauth`, `libndb`…).
-
-**APE — ANSI/POSIX Environment (`sys/src/ape/`):**
-- Purpose: POSIX compatibility layer for ported Unix software (its own libc, headers, and commands like diff/patch/sh).
-- Contains: `lib/` (ape libc), `cmd/` (ported GNU/BSD tools), `9src/` (X11R5 etc.), `config/`.
-- Note: APE programs are second-class citizens; native code uses Plan 9 APIs directly.
-
-**Boot chain:**
-- `sys/src/boot/efi/` — EFI application: walks ISO/FAT filesystems, loads kernel + `plan9.ini` from ESP, sets up framebuffer, jumps to kernel entry. `iso.c` contains the ISO9660 walker (`isowalk`).
-- `sys/src/nboot/` — newer boot loader tree (efi, pc).
-- `sys/src/9k/boot/` — the `boot` user program embedded in/loaded with the kernel: performs authentication (`bootauth.c`, `doauthenticate.c`), finds the root (`local.c`, `bootip.c`), then execs init.
-
-**Host tooling layer (Nix):**
-- Purpose: Reproducible host environment on darwin-aarch64, linux-aarch64, linux/x86_64 — replaces manual plan9port/qemu/expect installation; also owns the Harvey↔r9 composition.
-- Location: `flake.nix` (two inputs: `nixpkgs/nixos-unstable` and `r9 = github:requaos/r9`, both pinned in `flake.lock` — r9 at rev `9549cee63d86a0c6d9b4d04ed8860b2efabcd3e6`, narHash `sha256-g9OBd1Mwll2bx5bNjzxkuREB0X3H7uTPTyQ62PGrzQc=`; the lock also captures r9's transitive nixpkgs/rust-overlay nodes), scripts in `nix/`.
-- Structure: `flake.nix` exposes six `apps` built with `writeShellApplication` (`mkScriptApp`), each wrapping a `nix/*.sh` script with a controlled `PATH` and `PLAN9` export: `setup` (`nix/setup.sh` — populates per-host `$HARVEY/.build/hostbin-<os>-<arch>/bin` with bootstrap `pcc`/host tools), `toolchain` (`nix/toolchain.sh` — builds the Plan 9 cross compilers 6a/6c/6l, 8a/8c/8l + vendored 9cc), `build` (`nix/build.sh` on Linux — full kernel build in a private mount namespace via `unshare`; `nix/vm-build.sh` on darwin — rsyncs the checkout into a lima VM (`nix/lima-harvey.yaml`, Ubuntu 24.04) because the namespace build needs Linux bind mounts and virtiofs subdir mounts silently yield empty trees), `iso` (`nix/iso.sh` — the legacy qemu+expect `build/build.bash` path), and the r9 composition pair `boot-r9` (`nix/boot-r9.sh` — build the aarch64 userland → bake `bootfs.paq` → fdtput-patch the r9 DTB → qemu to the interactive `%` prompt) and `boot-r9-smoke` (`nix/smoke-r9.sh` — the same pipeline launched under `build/aarch64/smoke-r9.expect`, exiting 0/1 for CI). Both r9 apps export `R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"` and are gated by `optionalAttrs (builtins.hasAttr system r9.packages)` so evaluation stays lazy where r9 ships no `kernel-virt` (x86_64-darwin).
-- Key invariants enforced by the wrappers: `$PLAN9/bin` is appended LAST on `PATH` (per `BUILD_ON_UNIX` — plan9port ships a 9p `mount` that must not shadow util-linux `mount`); `HARVEY_LINUX_BIN` is per-OS/arch so a checkout shared with the lima guest never clobbers host binaries; shims strip `-static` from `9l` (modern Apple ld and nix glibc can't link static) and shadow Harvey's ken-format `nm` during host-ELF autolib; the r9 kernel/DTB arrive ONLY as nix store paths from the flake input (T-05-21 — never a sibling-checkout path, INT-04).
-- Also provides: `devShells.default` (plan9port, qemu, expect, gnused…; exports `HARVEY`, `PLAN9`, `HARVEY_LINUX_BIN`, `objtype=amd64`, `FORCERCFORMK=1`) and, Linux-only, a `minimega` package (`nix/minimega.nix`, v3.3.0 via `buildGoModule`) for KVM test-VM orchestration — amd64 guests only, no upstream aarch64 guest support.
-
-**aarch64 r9-boot supply chain (`build/aarch64/`):**
-- Purpose: Host-side harness that produces, launches, and asserts the Harvey-aarch64-userland-on-r9-kernel boot: builds the userland subset in a Plan 9 mount namespace, bakes the paqfs root image with Harvey's own mkpaqfs, fdtput-patches the r9 DTB, and drives qemu (interactive or expect-asserted). Also retains the 9front donor-kernel bridge harness (proving the vendored 7a/7c/7l toolchain + frozen ABI against a reference kernel) and the 05-03 syscall trace rig.
-- Location: `build/aarch64/` (full file inventory in STRUCTURE.md → Directory Purposes).
-- Producers: `subset-build.sh` (the ONE userland build driver on both hosts — darwin: lima guest namespace via `vm-run.sh`/`nsrun.sh`; linux: the same generated guest script natively under `sudo unshare -m`; builds 13 libs + 16 commands + the boot chain `boot`/`init`/`paqfs`/`stacksmoke`, harvests to gitignored `aarch64/bin/` + `build/aarch64/out/`, R_MAGIC `0x8C47`-verified), `stage-build.sh` (the phase-04 staged-init supply chain — compiles `init.c`/`smokefork.c`/`smokenote.c`/`stacksmoke.c` for r9's own `cargo xtask initrd` bake; owns `out/` wholesale, "last writer wins"), `mkimage.sh` (stages the committed `root-tree/` skeleton + binaries + verbatim `rc/lib/rcmain`/`adm/timezone/local`, asserts the manifest including the D-02 `/boot/factotum` absence, bakes `bootfs.paq` via the host mkpaqfs from `mkpaqfs-host.sh`, verifies paqfs magics `529ab12b`/`6b46e688`).
-- Launchers: `run-r9.sh` (unpackaged dev launcher; `R9_KERNEL`/`R9_DTB` required env — no implicit sibling-checkout defaults; locked qemu argv `-M virt,gic-version=2 -cpu cortex-a72 -smp 1 -m 1024M -accel tcg`, initrd via `-device loader,addr=0x48000000`) and the flake apps `nix/boot-r9.sh`/`nix/smoke-r9.sh` (the packaged compose/smoke; kernel+DTB arrive only as the r9 flake input's store paths).
-- Drivers: `drive-r9.expect` (05-08 interactive gate — spawns `run-r9.sh`), `smoke-r9.expect` (05-12 packaged smoke — spawns qemu directly): staged presence-only marker assertions (banner → `paqfs...` → `stacksmoke: depth 64 ok` → `% ` prompt → echo round-trip → `ls`/`ps`/`cat` sweep → DEL safety → init restart), CRLF-tolerant, 600s TCG-sized per stage, qemu process-group kill on every exit path.
+**Delivery machinery (host):**
+- Build: `build/x86_64/stage-build.sh` (namespace driver; outputs gitignored `build/x86_64/out/` chain binaries + `smoke-out/` marker tree)
+- Bake: `build/x86_64/mkimage.sh` — bakes `bootfs.paq` (marker), `bootfs-chain.paq` (boot chain), `bootfs-tier.paq`, `bootfs-net.paq`, `bootfs-services.paq` from `build/x86_64/root-tree/` skeleton + built binaries; paqfs byte format (magic 529ab12b) is arch-shared with aarch64; deterministic (KERNDATE-pinned mtimes)
+- Compose: r9's `iso-builder` (`../r9/flake.nix` export; templated `grub.cfg` with `multiboot2 /boot/kernel` + `module2 /boot/bootfs.paq`) → GRUB ISO
+- Boot/launch: `nix/boot-r9-x64.sh` (qemu q35, KVM default, net mode from `--net=slirp|tap|vmnet` via the emitter, no silent downgrades)
+- Diagnose: `nix/net-doctor.sh` (read-only host-state checker with exact remediation prints)
 
 ## Data Flow
 
-### Primary Request Path (file open → device)
+### Primary Boot Path (x86_64, Harvey-on-r9 — the current core value)
 
-1. User calls `open("/net/tcp/clone", ORDWR)` — libc wrapper `sys/src/libc/9sys/open.c`, issuing syscall vector `OPEN` (14) via amd64 `syscall` instruction (`sys/src/9k/k10/l64syscall.s`).
-2. Kernel trap/syscall entry → `sys/src/9k/k10/syscall.c` → dispatch table (from `sys/src/libc/9syscall/sys.h`) → `sysopen()` in `sys/src/9k/port/sysfile.c:286`.
-3. Name resolution: `namec()` in `sys/src/9k/port/chan.c` walks the per-process namespace (union/mount table in `pgrp.c`), crossing mount points into `devmnt` for 9P-mounted services or into a kernel device via `devtab[]`.
-4. Device dispatch: `dev.c` looks up the device by rune (e.g., `'|'` pipe, `'d'` cons, `'I'` ip) in `devtab[]` (generated into `$CONF.c`), calls the `Dev` vtable's `open/read/write` (`portdat.h:198`).
-5. For networked file servers: `devmnt.c` formats 9P `Topen`/`Tread` messages (`sys/include/fcall.h`), sends them over the mounted channel to the user-space server process (e.g., `webfs`, `fossil`), which replies via `lib9p`'s request loop (`sys/src/lib9p/srv.c`, `req.c`).
+1. `nix run .#boot-r9-x64` → `nix/boot-r9-x64.sh` (kernel arrives ONLY as `R9_KERNEL_X64_PKG` store path from `inputs.r9.packages.kernel-x64` — the q35shell-profile kernel ELF)
+2. Userland build: `build/x86_64/stage-build.sh` — native Linux namespace build (`objtype=amd64`, vendored 6c/6l); harvests boot(8)/init/rc/paqfs + marker set to `out/` + `smoke-out/`
+3. Bake: `build/x86_64/mkimage.sh` → `out/bootfs.paq` + `out/bootfs-chain.paq`
+4. Compose: `R9_ISO_BUILDER` (r9 flake export) builds the GRUB ISO (fixed-output derivation; byte-reproducible)
+5. Launch: `qemu-system-x86_64 -M q35 -accel kvm -cpu host -cdrom <ISO> -nographic` (+ emitter-produced netdev argv)
+6. In-guest: SeaBIOS → GRUB2 (`../r9/x86_64/lib/grub.cfg`) → mb2 → `../r9/x86_64/src/l.S` → `main.rs` (mb2 stash/tag-3 module `bootfs.paq`) → `platform/q35` init → `port/` devroot+paqfs serve `/` → exec `/boot/boot` (Harvey `sys/src/9k/boot/boot.c` + `bootr9.c` bootconf, `embed` method → `/rootfs.img`) → paqfs 9P server mounts root → exec `/amd64/init` → `rc` (`/rc/lib/rcmain`, `/rc/bin/termrc`) → interactive `% ` prompt
 
-### Boot Flow (amd64)
+### 9k Standalone Boot (Harvey-on-9k track)
 
-1. Firmware → EFI loader `sys/src/boot/efi/efi.c` → reads `plan9.ini`, loads kernel image `9k10cpu` at physical 0x110000 (link address `-T0xfffffffff0110000`, see `k10/mkfile:21-22`).
-2. Assembly entry (`l32p.s` → protected mode → `l64v.s` long mode) → C entry `main(u32int ax, u32int bx)` in `sys/src/9k/k10/main.c:145`.
-3. `main()` initializes: console, memory map (`memory.c`), MMU (`mmu.c`), traps (`trap.c`, `l64idt.s`), APIC/IOAPIC, SMP application processors (`sipi.c`), then calls portable init: `procinit0`, `devtabreset`/`devtabinit` (`port/devtab.c`), timers, and finally `init0` which starts the first user process.
-4. First user process runs `boot` (`sys/src/9k/boot/boot.c`) from the embedded root (`devroot.c`, built by `sys/src/9k/mk/mkrootall`), which authenticates to the network, mounts the real root file system, and execs the init script (`/rc/bin/rc` with `rcmain` — see `sys/src/9k/root/rcmain`).
-5. `rcmain` → `cpurc`/`termrc` (`rc/bin/`) → starts namespace, `factotum`, network services, and on terminals: `rio` + `acme` (`usr/glenda/bin/rc/riostart`).
+1. EFI/multiboot → `sys/src/9k/k10/l64v.s`/`l32p.s` → `sys/src/9k/k10/main.c:145` `main(u32int ax, u32int bx)`
+2. Machine init → portable init in `sys/src/9k/port/` → pid 1 = `boot` (`sys/src/9k/boot/boot.c`) from embedded root (`devroot.c`)
+3. Venue boots driven by `build/mm/boot-9k10cpu.mm` (minimega/KVM) and `build/mm/boot-9k10t1-sweep.sh` (tier-1 sweep from embedded root — an rc script IS `/boot/boot` per `initcode.c`'s contract)
 
-### Network Path (TCP/IP)
+### Userspace Namespace Build Flow
 
-1. `sys/src/9k/port/netif.c` + machine ethernet drivers (`k10/ether*.c` in `386/` dir, e.g., `ether82563.c`) implement the medium; `devether.c` binds NICs.
-2. IP stack lives in kernel `sys/src/9k/ip/` (tcp.c, udp.c, ipifc.c, iproute.c, arp.c, icmp.c, ipv6.c…) exposed as `/net` files.
-3. User-space daemons in `sys/src/cmd/ip/` (dhcpd, tftpd, snoopy, 6in4, ppp…) manipulate `/net`; `libip` provides shared helpers.
-4. DNS/connection services run as user file servers: `sys/src/cmd/ndb/dns.c`, `cs.c` mounted at `/net`.
+1. `nix develop` (devshell: plan9port, `$PLAN9/bin` LAST in PATH, `objtype=amd64`, `HARVEY_LINUX_BIN=.build/hostbin-<os>-<arch>/bin`)
+2. `nix run .#build` → `nix/build.sh` → `sys/src/RUN_BUILD_IN_PRIVATE_NAMESPACE` (`sudo unshare -m`) → `sys/src/BUILD_SETUP_NAMESPACE` → `sys/src/BUILD` (`mk clean; mk libs; mk all`) → `build/scripts/linux-build`
+3. Artifacts land in the repo-root `amd64/` install tree (`/amd64/bin/...` inside the namespace); host tools in `.build/`
 
-### r9 Boot Pipeline (aarch64 compose — `nix run .#boot-r9[-smoke]`)
+### Gate Flow (acceptance evidence)
 
-1. **Kernel/DTB arrive as store paths:** `flake.nix` exports `R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"` into `nix/boot-r9.sh` / `nix/smoke-r9.sh`; the scripts resolve `kernel-virt.elf` + `aarch64/lib/virt-gicv2.dtb` under that read-only store path (with a `find` fallback for layout drift). No sibling-checkout path exists anywhere in the composition (INT-04).
-2. **KERNDATE derivation:** host-side `git log -1 --format=%ct` (override `KERNDATE=<epoch>`), exported into the build — the BUILD-04 pin; see `build/REPRODUCIBILITY.md`.
-3. **Userland build:** `build/aarch64/subset-build.sh` — the one driver on both hosts: darwin rsyncs the checkout into the lima guest and runs the generated guest script under `nsrun.sh --wrap` (Plan 9 mount namespace via `sudo unshare -m`: `/sys`←checkout sys, `/aarch64`←checkout aarch64); linux runs the same guest script natively under `sudo unshare`. Builds libc + 12 libs (`libbio libregexp libip libndb libmp libsec libString libthread lib9p libauth libauthsrv libflate`) + 16 commands + the boot chain (`boot(8)` via `sys/src/9k/boot/mkfile.aarch64`, `init` via cmd's per-target install, `paqfs`, `stacksmoke`) with `objtype=aarch64`; harvests to `aarch64/bin/` and `build/aarch64/out/`, every boot-chain binary R_MAGIC-verified (`00 00 8c 47` BE). Skip hatch: `R9_SKIP_BUILD=1` (dev iteration only, never the gate).
-4. **Image bake:** `build/aarch64/mkimage.sh` stages the committed `build/aarch64/root-tree/` skeleton (`lib/namespace`, `rc/bin/termrc`, `usr/glenda/lib/profile`) + empty mount-point dirs (`/root /env /proc /dev /srv /fd /bin /tmp /mnt`) + the built binaries + verbatim `rc/lib/rcmain` and `adm/timezone/local`; asserts the manifest (including `/boot/factotum` ABSENT — D-02 auth-stub-by-absence — and the real-init identity via rodata grep `"init: starting /bin/rc"`, guarding against `stage-build.sh`'s `out/` pollution), then bakes `build/aarch64/bootfs.paq` with the host mkpaqfs (`.build/bin/mkpaqfs`, built by `mkpaqfs-host.sh`) and verifies the paqfs header/trailer magics (`529ab12b` / `6b46e688`).
-5. **DTB patch:** a writable throwaway copy of the package's `virt-gicv2.dtb` gets `/chosen linux,initrd-start`/`linux,initrd-end` written by `fdtput` as two 32-bit BE cells each, high word first (r9's `property_value_as_u64` reads one 8-byte BE cell; dtc has no 8-byte property type) — mirrors r9's `xtask/src/config.rs` `prepare_initrd_dtb` (lines 385-434).
-6. **Launch:** locked qemu argv (values from r9's `aarch64/lib/config_virtexec.toml` `[qemu]`): `qemu-system-aarch64 -M virt,gic-version=2 -cpu cortex-a72 -smp 1 -m 1024M -accel tcg -kernel <r9 ELF> -dtb <patched copy> -device loader,file=<bootfs.paq>,addr=0x48000000 -nographic`. `boot-r9` runs qemu foreground on stdio (the terminal is the console; ctrl-a x quits); `build/aarch64/run-r9.sh` is the unpackaged equivalent (env contract: `R9_KERNEL`/`R9_DTB` required, no defaults; `--log FILE` gate mode).
-7. **Smoke (boot-r9-smoke only):** `build/aarch64/smoke-r9.expect` spawns qemu itself, captures serial to a fresh-per-run log (`R9_SMOKE_LOG`, rm'd before launch — a stale capture is dead evidence), and drives the staged assertion sweep: banner `r9 from the Internet` → `paqfs...` → `stacksmoke: depth 64 ok` → `% ` prompt → `echo r9shell7` round-trip → `ls /bin` subset presence (`rc ls cat echo ps`) → `ps` live-process lines incl rc → `cat /lib/namespace` known line (`bind -c #e /env`) → DEL (0x7f) interrupt safety + `r9delok` re-prompt → `exit` → init's `for(;;)` restart to a fresh prompt. Exit 0 only when every stage passed; each stage names its failure on stderr; markers are PRESENCE assertions only, never interleaving order; qemu's process group is killed on every exit path. `build/aarch64/drive-r9.expect` is the interactive-gate predecessor (spawns `run-r9.sh` instead of qemu directly). CI: `.github/workflows/r9-shell.yml` runs the clean-checkout smoke on `ubuntu-latest`.
+1. Flake app (e.g. `boot-r9-smoke-x64` → `nix/smoke-r9-x64.sh`) runs build → bake → compose, then spawns qemu under expect
+2. `build/x86_64/smoke-r9.expect` drives serial stages (banner → `% `, echo round-trip, ls/ps/cat, DEL safety, init restart) with whole-capture post-passes; exits 0/1 naming the failed stage; capture retained in `build/x86_64/*.log`
+3. r9-side equivalents: `cargo xtask boot-test` with `BootProfile`/`BootStage` marker assertions (`../r9/xtask/src/main.rs`); `cargo xtask ureg-check` cross-checks Ureg layouts against `amd64/include/ureg.h`
 
-### Guest-side boot flow inside the image (what the smoke asserts)
+### Tier Sweep Flow (both-kernels witness)
 
-1. r9 kernel starts → banner, mounts the paqfs initrd, execs `/boot/boot` (the aarch64 boot(8) from `sys/src/9k/boot/mkfile.aarch64` + hand-written `bootr9.c` bootconf).
-2. `boot` runs the real chain: opencons → bindenvsrv → doauth (glenda path — `/boot/factotum` absent, D-02) → rfork(RFNAMEG) → connectembed (pipe + fork + exec `/boot/paqfs` — the `paqfs...` print) → fversion → mount `/root` → nsinit binds → execinit → `/aarch64/init`.
-3. `init` (the real one, from cmd's `init.install`) runs `newns` against the image's scoped `/lib/namespace` — the re-mount pair `mount -a #s/boot /root` + `bind -a /root /` comes FIRST (newns's RFCNAMEG wipe clears boot's mount table) — then `rc/lib/rcmain` → `/rc/bin/termrc` (runs `stacksmoke` first, D-15, then `exec rc -i`) → the interactive `% ` prompt as user glenda.
+1. Tier data: `build/x86_64/tiers/tier0-libs.txt` … `tier4-tail.txt` (append-only)
+2. Subset build (mk filter arms) → artifact markers; k10t1 embeds the set (`sys/src/9k/k10/k10t1` rootdir) and boots the sweep donor-side
+3. Same `/amd64/bin` set bakes into `bootfs-tier.paq` and executes on r9 (`nix run .#boot-r9-tier1-x64` → `build/x86_64/tier1-r9.expect`) — identical marker sets on BOTH kernels is the ABI witness
 
 **State Management:**
-- Kernel global singletons exist and are deliberate: `Sys* sys` (system structure, `k10/main.c:17`), `conf` (config), per-CPU `Mach*` (`m` macro), device state in each `dev*.c`. `extern Mach *m;` per-CPU pointer is the threading model.
-- User state: environment variables are files in `/env` (`devenv.c`); process control via `/proc` (`devproc.c`).
+- Kernel singletons are idiomatic: 9k `Sys* sys` (`sys/src/9k/k10/main.c`), `conf`, `devtab[]` (generated), per-CPU `Mach *m`; r9 uses per-proc `Proc` + spinlock-free MCS/BusyCell primitives (`../r9/port/src/mcslock.rs`)
+- User state: env vars are files in `/env`; process control via `/proc`; per-pgrp mount tables (`pgrp.c` / `../r9/port/src/pgrp.rs`)
 
 ## Key Abstractions
 
-**Chan (channel):**
-- Purpose: The kernel's open-file handle — the result of name resolution; every operation on a file goes through a `Chan`.
-- Examples: `sys/src/9k/port/chan.c` (`cclose` line 378, `addelem` line 287 — union directory resolution)
-- Pattern: Ref-counted, linked to a `Dev` + qid path; mount points stitch Chan trees together (`Mount` struct in `pgrp.c`).
+**Chan (9k) / namec (r9):**
+- The open-file handle produced by name resolution; every file op flows through it
+- Examples: `sys/src/9k/port/chan.c`, `../r9/port/src/namec.rs` (+ `namec_tests.rs`)
 
-**Dev (device vtable):**
-- Purpose: Uniform interface for kernel devices — the table-driven polymorphism at the heart of "everything is a file".
-- Examples: `sys/src/9k/port/portdat.h:198` (struct Dev), drivers `devcons.c`, `devpipe.c`, `devmnt.c`, `devproc.c`, `devdraw.c`, `devtls.c`; registration list generated from kernel config (`sys/src/9k/k10/k10cpu` `dev` section) by `sys/src/9k/mk/parse`.
-- Pattern: One C file per device named `dev<name>.c`; init order follows `devtab[]` (`port/devtab.c`).
+**Dev vtable + generated devtab (9k):**
+- `struct Dev` (`sys/src/9k/port/portdat.h:198`); one `dev<name>.c` per device; `devtab[]` emitted by `sys/src/9k/mk/parse` from the config's `dev` section; r9 analog: `#[cfg(dev_<name>)] pub mod dev<name>;` gated by TOML (`../r9/port/src/lib.rs`, `../r9/xtask/src/config.rs`)
 
-**9P message codec (fcall):**
-- Purpose: Wire format of 9P2000 — every file operation becomes T/R message pairs (Tversion, Tattach, Twalk, Topen, Tread…).
-- Examples: `sys/include/fcall.h`, codec in `sys/src/libc/9sys/convM2S.c` + `convS2M.c`, server-side helpers in `sys/src/lib9p/`.
+**9P2000:**
+- Wire format `sys/include/fcall.h`; codecs `sys/src/libc/9sys/convM2S.c`/`convS2M.c`; kernel client `sys/src/9k/port/devmnt.c` (+ `../r9/port/src/devmnt.rs`); user-space server framework `sys/src/lib9p/` (`Srv`, `File`, `Req`, `Fid`; canonical ramfs in `sys/src/lib9p/ramfs.c`)
 
-**Srv/File (lib9p):**
-- Purpose: Framework for writing user-space file servers: define a `Srv` struct with attach/walk/read/write hooks and a `FileTree`, then `postmountsrv()` mounts it into the namespace.
-- Examples: `sys/src/lib9p/srv.c`, `file.c`, `listen.c`, `post.c`; canonical trivial server `sys/src/lib9p/ramfs.c`; real servers: `sys/src/cmd/webfs/`, `sys/src/cmd/wikifs/`.
+**rfork process model:**
+- `rfork(flags)` with fine-grained sharing (RFPROC, RFMEM, RFNAMEG…); r9 implements donor dupseg semantics (`../r9/x86_64/src/proc.rs`, RFMEM growth families + refcount-gated frees — Phase 8/17)
+- Notes (not signals): textual notes via `atnotify`/`noted`; r9 delivers through devproc
 
-**Proc + rfork:**
-- Purpose: Process abstraction with composable sharing.
-- Examples: `sys/src/9k/port/proc.c`, `sysproc.c` (`sysrfork`), user wrappers `sys/src/libc/9sys/rfork.c` / `fork.c`.
-- Pattern: `rfork(RFPROC|RFMEM|RFNAMEG|…)` selects what child shares; `libthread` layers coroutines + channels (`sys/src/libthread/channel.c`) on top.
+**paqfs boot image:**
+- Read-only compressed root filesystem (magic 529ab12b, trailer 6b46e688): host mkpaqfs (`build/x86_64/mkpaqfs-host.sh`) bakes; r9 `../r9/port/src/paqfs.rs` reads (miniz inflate); delivered as mb2 tag-3 module on x86_64, DTB/loader device on aarch64
 
-**Segment/Page:**
-- Purpose: Virtual memory — address spaces are lists of `Segment`s (text, data, bss, stack, mapped files) backed by `Image`s (demand-paged from files).
-- Examples: `sys/src/9k/port/segment.c`, `page.c`, `image.c`, machine MMU in `k10/mmu.c`.
+**Exec/ABI contract:**
+- `amd64/ABI.md` / `aarch64/ABI.md`: Ureg layout byte-verbatim (184-byte amd64 frame), syscall number in BP, args at SP+8, result in AX, note convention; r9's TrapFrame IS Ureg — no translation; build-enforced via const asserts + `cargo xtask ureg-check` (negative control)
 
-**Qid/Dir:**
-- Purpose: Unique file identity (`Qid`: path+vers+type) and portable directory entry `Dir` — the 9P metadata currency.
-- Examples: `sys/include/libc.h`, `sys/src/libc/9sys/convM2D.c`, `dirstat.c`.
+**Tier allowlists + marker ledgers:**
+- Committed append-only data (`build/x86_64/tiers/*.txt`) is the only growth path; artifact+execution marker ledgers (`build/aarch64/markers/`) are the only gates — mk exit status is never trusted
+
+**Expect serial gates:**
+- Stage-asserted qemu serial drivers (`build/x86_64/smoke-r9.expect` et al.): fresh capture per run, process-group teardown, venue-labeled evidence, exit 0/1
+
+**Flake composition with hasAttr gating:**
+- `flake.nix` exports x64 apps only where r9 ships the consumed attrs (`kernel-x64`, `iso-builder`, `netdev-args`); aarch64 apps frozen at the v2.0 pin; never widen the gate list ahead of a pin advance
 
 ## Entry Points
 
-**Kernel (amd64/k10):**
-- Location: `sys/src/9k/k10/main.c` — `main(u32int ax, u32int bx)` at line 145 (multiboot magic + params)
-- Triggers: EFI loader (`sys/src/boot/efi/efi.c`) or multiboot/nboot chain; asm entry `l64v.s`/`l32p.s` sets up stack/long mode first.
-- Responsibilities: Machine init → portable kernel init (`port/`) → spawn first user process (`boot`).
+**r9 kernel entry (x86_64):**
+- Location: `../r9/x86_64/src/l.S` (mb2 header, `ENTRY(start)` per `../r9/x86_64/lib/kernel.ld`, KZERO=0xffffffff80000000) → `../r9/x86_64/src/main.rs`
+- Triggers: GRUB2 multiboot2 off the composed ISO (never `-kernel`)
+- Responsibilities: mb2 stash, long mode, platform/q35 init, first user exec (boot(8))
 
-**User bootstrap (boot):**
-- Location: `sys/src/9k/boot/boot.c` (`main`), helpers `bootauth.c`, `bootip.c`, `local.c`
-- Triggers: Exec'd by kernel `init0` as pid 1 from embedded root.
-- Responsibilities: Root filesystem selection (local/tcp), authentication handshake, then exec of system init.
+**9k kernel entry (amd64):**
+- Location: `sys/src/9k/k10/main.c:145` `main(u32int ax, u32int bx)` (multiboot)
+- Triggers: EFI loader (`sys/src/boot/efi/`) / nboot (`sys/src/nboot/`) / minimega qemu venue (`build/mm/`)
 
-**System init (rc):**
-- Location: `sys/src/9k/root/rcmain` (embedded), `rc/bin/termrc`, `rc/bin/cpurc`
-- Triggers: Exec'd by `boot`.
-- Responsibilities: Build the default namespace (`/lib/namespace`), start services (`factotum`, network, `rio`/`acme` on terminals).
+**boot(8):**
+- Location: `sys/src/9k/boot/boot.c`; r9 bootconf `sys/src/9k/boot/bootr9.c` (hand-written; the amd64 C kernel awk-generates its own); built by `sys/src/9k/boot/mkfile.amd64`
+- Responsibilities: root selection (embed/local/tcp), auth handshake, exec init
 
-**Command programs:**
-- Location: `sys/src/cmd/<name>.c` (single-file) or `sys/src/cmd/<name>/` (multi-file with mkfile).
-- Convention: `void main(int argc, char *argv[])`, use `ARGBEGIN{...}ARGEND` macro for flags (Plan 9 style), exit via `exits("msg")`.
+**rc startup:**
+- `/rc/lib/rcmain` + `/rc/bin/termrc` (or cpurc for `service=cpu` — Phase 19), staged at bake time from `rc/lib/rcmain` (single source, cmp-guarded) and `build/x86_64/root-tree/`
 
-**Host build (from Linux/macOS):**
-- Location: `build/build.bash` (QEMU + expect harness), `build/scripts/` (`build`, `repl`, `iso`, `main`, `funcs`), Docker path: `build/Dockerfile`, `build/BUILD_IN_DOCKER`.
-- Triggers: `bash build.bash` from `build/`. Requires a host 9P server (`ufs`/`centre`) on port 5640 to receive the ISO (`build/README`).
-- Native (on Plan 9/Harvey): `sys/src/BUILD` runs `mk libs && mk all`, then `build/scripts/linux-build`.
+**User commands:**
+- `void main(int argc, char *argv[])` + `ARGBEGIN{...}ARGEND` + `exits("msg")` — see `sys/src/cmd/cat.c`, `cp.c`
 
-**Kernel build (per config):**
-- Location: `sys/src/9k/k10/mkfile` — targets like `9k` build `9k10cpu` (mk var `p=9`, `CONF=k10cpu`).
-- Triggers: `mk 9k` in `sys/src/9k/k10/`. Uses Plan 9 toolchain `8c/8a/8l` (`objtype=amd64`, line 5).
-
-**Host build (Nix — current path):**
-- Location: `flake.nix` apps → `nix/setup.sh`, `nix/toolchain.sh`, `nix/build.sh` (Linux), `nix/vm-build.sh` (darwin→lima), `nix/iso.sh`.
-- Triggers: `nix run .#setup` → `nix run .#toolchain` → `nix run .#build` (or `.#iso` for the legacy qemu path); `nix develop` drops into the devshell.
-- Responsibilities: Replaces manual plan9port/Docker setup; darwin builds rsync the checkout to a lima guest (guest-local disk — virtiofs bind-mount subtrees don't work) and rsync artifacts (`amd64/`, `386/`, `aarch64/`) back.
-
-**r9 compose/smoke (aarch64 shell boot):**
-- Location: `flake.nix` apps → `nix/boot-r9.sh` (interactive), `nix/smoke-r9.sh` (CI smoke → `build/aarch64/smoke-r9.expect`); unpackaged dev launcher `build/aarch64/run-r9.sh` (+ `drive-r9.expect` interactive gate).
-- Triggers: `nix run .#boot-r9` (to the interactive `%` prompt), `nix run .#boot-r9-smoke` (self-asserting, exit 0/1 — the CI/clean-checkout proof); `nix run .#boot-r9 --override-input r9 git+file:///path/to/r9` for a local r9 checkout (D-13 dev flow, never the default).
-- Responsibilities: Compose the pinned r9 flake-input kernel (`r9.packages.<system>.kernel-virt` store paths) with the Harvey aarch64 userland — build (`build/aarch64/subset-build.sh`) → bake (`mkimage.sh` → `bootfs.paq`) → fdtput DTB patch → qemu `virt,gic-version=2` TCG launch; the smoke variant drives the D-09 assertion sweep over the serial wire.
+**Host build/bootstrap:**
+- `BUILD_ON_UNIX` (repo root) → `nix run .#setup` → `.#toolchain` → `.#build`/`.#iso`; kernel mk entry `sys/src/9k/k10/mkfile` (`mk 9k` builds `9k10cpu`); CI: `.github/workflows/harvey.yml`, `phase6.yml` (four-leg tier CI), `r9-shell.yml` (x64 shell + net-smoke jobs)
 
 ## Architectural Constraints
 
-- **Threading:** Kernel is a single-stack-per-CPU cooperative/preemptive hybrid: processes are kernel coroutines scheduled by `proc.c`; per-CPU `Mach` state, `taslock.c` test-and-set spinlocks + `qlock.c` queueing locks; `Rendez` sleep/wakeup (`sleep`/`wakeup`). User space: `libthread` coroutines + channels, or raw `rfork(RFPROC)` procs. No pthreads in native code (APE has its own).
-- **Global state:** Kernel singletons are idiomatic: `Sys *sys` (`k10/main.c:17`), `conf`, `devtab[]` (generated), per-device state structs at file scope in each `dev*.c`, `Mach *m` per-CPU. Do not add process-specific data to device globals — use `Chan`/`qid` private fields.
-- **Toolchain:** Plan 9's own C compiler suite (`8c` amd64, `6c` 386…), NOT gcc/clang for native code. Dialect: Plan 9 C (no prototypes needed across files — `fns.h`/`portfns.h` collect them; `#pragma` variants; `void` returns default). Headers included as `u.h` → `libc.h` → `../port/lib.h` in kernel.
-- **Build tool:** `mk` (not make). All builds via `mkfile` + includes (`</$objtype/mkfile`, `mkfile.proto`).
-- **Cross-arch includes:** per-arch headers resolved via `/$objtype/include` (e.g., `amd64/include/u.h`, `ureg.h`) — code references them as absolute `/amd64/include/...` paths inside the Plan 9 namespace.
-- **Circular imports:** Kernel `port/` ↔ machine dirs interdepend by design (`port/lib.h` included from machine code; machine provides `fns.h`/`dat.h`/`mem.h` consumed by port). The mk layer resolves ordering; do not add new reverse deps beyond the established header triad (`dat.h`/`fns.h`/`mem.h` per arch).
-- **Two kernels coexist:** `sys/src/9/` (legacy, full multi-arch) vs `sys/src/9k/` (Harvey, amd64/386 focus). New work targets `9k`. Shared libs (libc etc.) serve both.
-- **Two repos, one ABI:** the aarch64 user side runs on the **r9** Rust kernel, consumed as a pinned flake input (`inputs.r9 = github:requaos/r9`, rev+narHash in `flake.lock`; the compose apps see only `r9.packages.<system>.kernel-virt` store paths — never a sibling-checkout path, INT-04). The user↔kernel wire contract is frozen in-repo (`aarch64/ABI.md` + `aarch64/include/ureg.h`); see Cross-Cutting Concerns → Syscall ABI. Do not edit either file without re-freezing both repos. Dev flow against a local r9 checkout (D-13): `nix run .#boot-r9 --override-input r9 git+file:///path/to/r9` — dev-only, never the default, never what CI uses.
-- **aarch64 toolchain letter is 7:** `aarch64/mkfile` sets `CC=7c LD=7l AS=7a O=7` (the 9front arm64 toolchain letters, adopted verbatim). Object files for aarch64 are `*.7`.
-- **Host builds are Nix-mediated:** the supported host entry points are the `flake.nix` apps (`setup`→`toolchain`→`build`/`iso`), not raw `build/build.bash` or Docker. PATH ordering is contractual: `$HARVEY_LINUX_BIN` FIRST, `$PLAN9/bin` LAST. The kernel build requires Linux mount namespaces — on darwin it runs inside the lima VM defined by `nix/lima-harvey.yaml`.
+- **Two kernels must keep sharing one userspace:** identical `/amd64/bin` sets run on k10t1 and r9 — any ABI-affecting change must re-freeze `amd64/ABI.md` and re-pin both repos; never change `ureg.h` or `sys.h` casually
+- **Threading:** 9k = per-CPU `Mach`, tas/qlocks, `Rendez` sleep/wakeup, kernel coroutines; r9 = no_std Rust, MCS locks/BusyCell (`../r9/port/src/mcslock.rs`), per-proc CR3 with live TTBR0-equivalent user memory model (no Linux-style copy layer may be introduced)
+- **Global state:** kernel singletons idiomatic (see above); r9 `static mut` count is 0 and gated
+- **Toolchain:** Plan 9 compilers (6c/6a/6l for amd64) only for native code — never gcc/clang; `mk` not make; `$PLAN9/bin` LAST in PATH (plan9port `mount` shadowing)
+- **aarch64 frozen:** v2.0-pin apps/scripts in `nix/` + `build/aarch64/` stay byte-untouched; all v2.1 work keys to x86_64
+- **Pin/FOD discipline:** r9 kernel bytes arrive only via `flake.lock` pin; a kernel-byte commit re-stales the `boot-iso` fixed-output derivation — re-wire-then-pin with two-derivation byte-identity proof; pin advances are their own commits, never bundled
+- **Circular imports:** 9k `port/` ↔ machine dirs interdepend by design via the `dat.h`/`fns.h`/`mem.h` triad; do not add new reverse deps
+- **Check-cfg predeclare rule (r9):** every new TOML-emitted cfg (`dev_*`, `ip_*`, …) must be declared in the root `Cargo.toml` `[workspace.lints.rust] unexpected_cfgs` check-cfg list BEFORE first code use
 
 ## Anti-Patterns
 
-### Mixing portable and machine code
+### Deriving tool names from `$cputype`
 
-**What happens:** A few machine-dependent hacks leak into portable files or vice versa (e.g., `main.c` still carries `extern void crapoptions(void); /* XXX - must go */` at `k10/main.c:11-12`).
-**Why it's wrong:** Breaks the `port/` ↔ `k10/` split that makes the kernel portable; the mk `parse` machinery assumes clean layering.
-**Do this instead:** Put new hardware logic in the machine dir (`k10/` or `386/`), expose it via `fns.h`, and call it from `port/` through that header. 19 `XXX`/`TODO` markers in `sys/src/9k/` flag known violations — check them before adding nearby code.
+**What happens:** `sys/src/cmd/jpg/mkfile:56-68` derives a nonexistent `oc` compiler from `cputype=unix`, aborting the cmd DIRS loop before `ip/`+`venti/`.
+**Why it's wrong:** root-embedding kernels then can't find `/amd64/bin/ip/ipconfig`.
+**Do this instead:** host-built generators normalize on the awk idiom — `objtype=$cputype mk <tool>.$cputype` (Phase 1 decision).
 
-### Bypassing the namespace with hardcoded paths in C
+### Trusting mk exit status as gate evidence
 
-**What happens:** C code opening absolute Unix-style paths assuming a global root.
-**Why it's wrong:** Plan 9 has per-process namespaces; the "real" root depends on how the process's namespace was assembled (`bind`/`mount` order, `/lib/namespace`). Hardcoded assumptions break under `cpu`, `auth`, or chroot-like namespace games.
-**Do this instead:** Open the conventional Plan 9 locations (`/net`, `/dev`, `/env`, `#c` device roots like `#|/data` for pipe) and let the user's namespace resolve them; use `bind`/`mount` (or `sysbind`/`sysmount` in kernel, `sys/src/9k/port/sysfile.c:1174/1192`) rather than renaming files.
+**What happens:** plan9port mk aborts at the first failing recipe and `sys/src/BUILD` swallows statuses.
+**Why it's wrong:** a red build can look green.
+**Do this instead:** truth lives in committed artifact+execution marker ledgers; allowlist growth is a reviewable diff (`build/x86_64/tiers/*.txt`, `build/aarch64/markers/`).
 
-### Using APE/POSIX APIs in native code
+### Sibling-checkout or submodule kernel glue
 
-**What happens:** Including `ape` headers (`sys/include/ape/`, `amd64/include/ape/`) or linking the ape libc in a native program.
-**Why it's wrong:** APE shadows Plan 9 semantics (fork vs rfork, signals vs notes, blocking I/O) and produces subtly broken native binaries.
-**Do this instead:** Native code uses `libc.h` + Plan 9 idioms (`rfork`, `atnotify`, `thread` library, `dial()`/`announce()` for networking in `sys/src/libc/9sys/dial.c`/`announce.c`). APE is only for ported Unix programs under `sys/src/ape/cmd/`.
+**What happens:** relative paths/submodules for the r9 kernel were considered.
+**Why it's wrong:** fragile, non-reproducible composition; the pin must name a fetchable commit.
+**Do this instead:** `inputs.r9` git pin in `flake.nix`; local checkouts only via `--override-input` (dev-only).
+
+### Silent venue/mode downgrades
+
+**What happens:** auto-falling back TCG→KVM or tap→slirp would mask venue-specific defects.
+**Why it's wrong:** slirp forgives L2 bugs; evidence must name its venue.
+**Do this instead:** explicit `R9_ACCEL` / `--net=<mode>` resolution failing loudly (`nix/boot-r9-x64.sh`); tap leg refuses to launch unless `nix/net-doctor.sh` passes; SKIP lines in ledgers, never unearned OK.
+
+### Adding a second hardcoded list
+
+**What happens:** duplicating a payload/marker/expectation list in a second place drifts.
+**Why it's wrong:** gates assert stale sets.
+**Do this instead:** one committed data file everywhere — `build/x86_64/bootfs-payload.txt`, `tiers/*.txt`, computed SVC expectations from the tier data.
 
 ## Error Handling
 
-**Strategy:** String-based errors via the errstr mechanism + longjmp-style `error()` unwinding in the kernel; `nil`-return or `-1` + errstr in user space.
+**9k kernel (C):**
+- `error(Efoo)` longjmp-style unwind (`sys/src/9k/port/error.h`); `waserror()`/`poperror()`/`nexterror()` guard cleanup; `panic()` for unrecoverable state
+- Syscalls return `-1` + errstr; user prints via `%r` (`sys/src/cmd/cp.c` pattern: `fprint(2, "cp: ...%r\n")`, set `failed`, end `exits("errors")`); fatal via `sysfatal`
+- Exit is `exits(0)` / `exits("msg")` — never `exit()`
 
-**Patterns:**
-- Kernel: `error("message")` raises (`port/error.h`, `sys/src/9k/port/proc.c` unwinds via `nexterror()`/`poperror()`); `waserror()` guards resource cleanup. `kerror` for kernel-originated failures.
-- User: functions return -1/nil and set thread-local errstr; caller checks with `errstr(buf, n)` (`sys/src/libc/9sys/errstr.c`); `exits("diagnostic")` terminates with a status string consumed by `wait`/`await`.
-- Notes: async conditions arrive as textual notes ("hangup", "alarm", "sys: trap: …"); programs install `atnotify()` handlers (`sys/src/libc/port/atnotify.c`).
-- No errno. No exceptions. Assertions via `assert()` (`_assert.c`) or `panic()` in kernel for unrecoverable state.
+**r9 (Rust):**
+- `Result`/`DynError` through xtask; kernel-side loud-unimplemented syscall default (measured-set dispatch, no silent stubs); `virtpanic`-class debug configs; marker-based gates make failures name the stage
+- Host tests: `../r9/port/tests/` + inline `*_tests.rs` (152-pin port suite, virtio state-machine pins)
+
+**Build/bake:** every step loud — `err()` helpers exit 1 with context (`build/x86_64/mkimage.sh`); expect gates never hang-to-timeout silently
 
 ## Cross-Cutting Concerns
 
-**Logging:** No syslog daemon in the modern sense — services write to their console or to files under `sys/log/<service>/` (e.g., `sys/log/dns`, `sys/log/httpd`). Kernel: `print()`/`iprint()` to console + `devkprof`/trace facilities (`devtrace.c`). Command-line tools print diagnostics to stderr (fd 2) with program name prefix by convention.
-
-**Validation:** Argument parsing via `ARGBEGIN`/`ARGEND` macros (`sys/include/libc.h`); path canonicalization via `cleanname()` (`sys/src/libc/port/cleanname.c`); user/kernel pointer checks via `validaddr`/`validname` family in the kernel syscall layer.
-
-**Authentication:** Centralized in `factotum` (user-space key agent, `sys/src/cmd/auth/factotum/`) speaking 9P; kernel support via `devcap.c` (capability device) and `sysauth.c`; wire crypto in `libsec` (TLS in kernel `devtls.c` + user `libsec`), auth server code in `sys/src/cmd/auth/` + `libauthsrv`/`libauth`. Network identity via `ndb` (`sys/src/ndb`, `libndb`).
-
-**Syscall ABI (aarch64 — FROZEN):** The Harvey↔r9 user-side syscall wire contract for `objtype=aarch64` is frozen (decisions D-15/D-16/D-17) and lives in two in-repo files that must change together — changing either after Phase 4 means re-freezing both this repo and `../r9`:
-- `aarch64/ABI.md` — the canonical prose contract. Wire format: syscall number in register `R0`; arguments in 8-byte slots at user `SP+8` upward (`SP+0` is the reserved link-register slot; the stub's `MOV R0, 0(FP)` materializes arg0 into its stack slot, so the first kernel-visible argument is at `SP+8`); trap via `SVC`; result returned in `R0`. Kernel read side computes `(Sargs*)(ureg->sp+BY2WD)` with `BY2WD=8` (per 9front arm64 `trap.c:196`/`mem.h:92` at pin `350266104f1fed81c78c3d05fa44f523bec0ae4d`). Syscall table is Harvey's `sys/src/libc/9syscall/sys.h` 0–54 verbatim: 0–52 wire-identical to 9front arm64 (including `SYSR1=0` and the 48–49 gap), 53 `NSEC` is zero-arg register-return, 54 `NMOUNT` is Harvey-only (six-arg; r9 may leave it unimplemented until called). A Phase-4 appendix (kernel-side enforcement) pins r9's `TrapFrame` byte offsets against `ureg.h` (r0@0 … r28@224, r29@232, r30/link@240, sp@248, pc@256, psr@264, type@272; `sizeof(Ureg)`=280, r9 frame stride 288) and specifies the two-layer drift check: in-crate `core::mem::offset_of!` const asserts in r9's `aarch64/src/trap.rs` plus `cargo xtask ureg-check` (r9 repo) parsing this repo's `aarch64/include/ureg.h` — located via `R9_HARVEY_DIR`, default `../harvey` — failing every boot-test profile on drift.
-- `aarch64/include/ureg.h` — the frozen trap frame, field-for-field: `r0`..`r28` (`r28` = `sb`), `r29`, `r30`/`link` union, `sp`, `pc` (interrupted address), `psr`, `type` (exception class). r9's Rust trap frame is checked against this at build time.
-- User-side stubs are generated per syscall by the `case aarch64` block of `sys/src/libc/9syscall/mkfile` (`TEXT name(SB), 1, $0` / `MOV R0, 0(FP)` / `MOV $NN, R0` / `SVC` / `RETURN`; `seek`→`_seek` and `exits`→`_exits` quirks preserved).
-- Explicitly **not** part of the contract (D-17): kernel-side dispatch style. Harvey 9k's `void sysxxx(Ar0*, va_list)` and 9front's `void sysxxx(Ar0)` are both internal; r9 matches only the wire contract above.
-- Base types for the port are in `aarch64/include/u.h` (LP64: `long`=64-bit assumption avoided — `vlong`/`uvlong`, `uintptr`, `usize`, `jmp_buf[2]` with `JMPBUFSP`/`JMPBUFPC`, 8-byte-slot `va_list`).
+**Logging:** serial console is the wire — `print`/`iprint` (kernel), expect captures retained as evidence (`build/x86_64/*.log`); no syslog concept
+**Validation:** ABI enforced at build (const asserts + ureg-check); bake manifests assert every staged path present/non-empty (`build/x86_64/mkimage.sh`); seam asserts (netaddr venue tokens) run at bake time
+**Authentication:** Phase 18 (planned) in-guest p9sk1 domain — bake-time hash-paired generator; today the chain images carry NO `/boot/factotum` (auth stub = deliberate absence in `mkimage.sh` contracts)
+**Reproducibility:** KERNDATE from git commit (env-overridable), pinned mtimes, fixed-output ISO derivation, bit-identical bakes (`build/REPRODUCIBILITY.md`)
+**Observability:** r9 heap_stats/churngate markers (Phase 17 leak gates); `cargo xtask boot-test` per-run fresh serial logs; qemu `-d int,guest_errors` capture instrument (`nix/stress-r9-net-x64.sh`)
 
 ---
 
-*Architecture analysis: 2026-11-03*
+*Architecture analysis: 2026-11-13*
