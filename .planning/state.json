@@ -91,7 +91,7 @@
     {
       "number": "18",
       "name": "In-Guest p9sk1 Auth Domain",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "19",
@@ -100,9 +100,9 @@
     }
   ],
   "next": {
-    "command": "/gsd-progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 17 (13 of 19 roadmap phases complete) · executing"
+    "command": "/gsd-progress",
+    "label": "Show progress",
+    "reason": "Unsure of state — showing progress"
   },
-  "updated_at": "2026-11-14T16:28:23.426Z"
+  "updated_at": "2026-11-14T17:57:00.505Z"
 }
