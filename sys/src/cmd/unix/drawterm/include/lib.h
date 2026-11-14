@@ -69,6 +69,10 @@ extern	int	chartorune(Rune*, char*);
 extern	int	runelen(long);
 extern	int	fullrune(char*, int);
 
+/* the strtoll rename above (libstrtoll) lost its prototype;
+ * modern compilers make the implicit declaration an error */
+extern	vlong	libstrtoll(const char*, char**, int);
+
 extern  int	wstrtoutf(char*, Rune*, int);
 extern  int	wstrutflen(Rune*);
 
