@@ -88,3 +88,23 @@ jobs:
       - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 — API-resolved 2026-11-06 (the 06-08 rule)
       - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # pinned SHA (header rule)
       - run: env R9_ACCEL=tcg nix run .#boot-r9-net-smoke-x64
+
+  # 18-05 (AUTH-06..AUTH-09): the composed AUTH gate's hosted leg —
+  # the full p9sk1 domain boot (bake-time generator + pairing asserts
+  # + keyfs/listeners/cs/factotum) through BOTH probe legs (auth/debug
+  # as norbert + the speaksfor C probe with its fail-closed deny
+  # control) and the secstore PUT/GET round-trip.  R9_ACCEL=tcg is
+  # load-bearing beyond the KVM-less-runner rule: the p9sk1 challenges
+  # consume /dev/random, and TCG exercises the jitter-mix seeding path
+  # (18-01's D-05) — a TCG red after a KVM green is a substrate bug,
+  # never gate noise.  The services venue stays blocked pre-existing
+  # (#68) — no services leg here.
+  # Supply chain: the same pinned checkout/nix-installer SHAs as the
+  # sibling jobs (the header rule); no other external steps.
+  auth-smoke-x64:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90 # TCG scale; the gate's own per-stage 600s timeouts localize failures
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 — API-resolved 2026-11-06 (the 06-08 rule)
+      - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # pinned SHA (header rule)
+      - run: env R9_ACCEL=tcg nix run .#boot-r9-auth-x64

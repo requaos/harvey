@@ -369,6 +369,129 @@ probes; qemu 11.1.2 both builds unless noted):
   runtime; this README spells the committed seam values out).
 
 
+## Auth domain (Phase 18: AUTH-01..AUTH-09)
+
+One command boots the whole p9sk1 domain and gates it:
+
+```
+nix run .#boot-r9-auth-x64            # KVM default; R9_ACCEL=tcg for the hosted leg
+```
+
+The bake (mkimage §14, the sixth contract) invokes the domain
+generator AT BAKE: `authdomain-gen` (18-03, host cc over the vendored
+Harvey donor algorithm files — passtokey/DES-CBC/nvcsum are the
+donor's own code, compiled not reimplemented) produces the
+hash-paired unit — `/adm/nvram` (the 112-byte Nvrsafe the guest's
+readnvram expects — the amd64 6c end-pads the 109-byte struct; the
+generator emits layout+tail), `/adm/keys` (DES-CBC under the nvram
+machkey — the pairing invariant), `/lib/ndb/auth` (the speaksfor
+rows), and the sha1 manifest.  The bake asserts the pairing over the
+STAGED COPIES (`AUTHBAKE_DOCTOR=nvram|keys|ndb-auth` flips a byte in
+the scratch twin and the bake must refuse — the runnable teeth seam)
+and the guest re-verifies all three digests before keyfs starts.
+
+### The domain interface (D-01)
+
+- **A developer's real domain:** a gitignored `/authdomain.local` at
+  the repo root satisfying the committed interface
+  `build/x86_64/authdomain.example` (label/authdom/
+  machine_password/secstore_password + user lines).  Actual key
+  material never lands in git history.
+- **Absent file (CI / clean checkout):** the generator produces
+  ephemeral **DEMO** material at bake time — real randomness, the
+  loud DEMO label in every artifact (`DEMO-harvey`, three users
+  glenda/bootes/norbert sharing one 12-char per-bake password), so
+  every presence-based gate stays green on a clean checkout and the
+  image is legitimately NOT byte-reproducible across bakes (the
+  manifest is an internal-consistency proof, never a cross-build
+  identity claim; the auth image is never FOD-bound).
+- **A local-file bake re-keys the domain** — the gate asserts the
+  PAIRED banner carries the DEMO label and reds loudly if it doesn't.
+
+### The scoping verdict (AUTH-09/D-15)
+
+**Baked+paired per-bake domains are the CI/gate venue.**  For REAL
+use, the writable-`/adm` + nvram-substitute answer is a **host-9P
+`/adm` mount — documented, not wired** (never implemented in this
+phase): the wiring belongs to the
+phase that first needs a real (non-CI) domain (post-v2.1 or a
+demand-named follow-up).  No such mount exists anywhere in this tree;
+nothing here promises one.  Consequence: the secstore venue is
+per-boot scratch (ramfs) — persistence ACROSS boots is not claimed
+and is part of the same deferred wiring.
+
+### The venue facts (measured)
+
+- **The writable `/adm/secstore` is ramfs** — mntgen's FILE writes
+  are read-only on this tree (15-06), re-confirmed live in 18-05: an
+  rc `>` create under a mntgen-served `/adm/secstore` is refused
+  (`devmnt: directory opens OREAD only`) and rc's redirect-open
+  failures are FATAL to a sourced sweep — the gate's leg probes the
+  ramfs venue (MREPL|MCREATE) live instead.  The `cmd/ramfs` tier
+  leaf carries it.
+- **`listen1 -t` is the trusted arm** for `authsrv -d` on
+  `tcp!*!567` (its `-t` skips `becomenone()`, whose namespace strip
+  would starve authsrv; the staged-copy listener cannot pass `-d`).
+  `secstored -v` announces `tcp!*!5356` self-contained.
+- **AUTH-07's serial visibility is syslog's `#c/cons` fallback** —
+  authsrv -d's `tr-ok`/`tr-fail` and secstored's
+  `ANNOUNCE`/`AUTH`/`[id] PUT/GET` lines reach the console because
+  read-only paqfs makes `/sys/log/*` unopenable.  NEVER stage a
+  writable `/sys/log` (a writable log file silently kills the
+  fallback — Pitfall 6).
+- **The service-name row:** the composed `/lib/ndb/local` carries
+  `tcp=ticket port=567` — cs's `ipserv` translates alpha service
+  names through the ndb (`cs.c`), so every `dial(netmkaddr(a, nil,
+  "ticket"))` (auth/debug's own form and authprobe's) resolves.
+- **The 112-byte Nvrsafe guest ABI:** any future bake-side emitter of
+  nvram-substitutes must emit 109-layout + 3 tail bytes (the amd64
+  guest compiler end-pads the struct; readnvram reads sizeof bytes
+  and rejects other lengths silently).
+
+### The marker vocabulary
+
+| Marker | Producer | Meaning |
+|--------|----------|---------|
+| `authdom: PAIRED <label>` | the sweep's leg 1 | the D-02 boot pairing check passed (label from the manifest — DEMO on the gate path) |
+| `AUTH-OK keyfs` | leg 2 | keyfs mounted `/mnt/keys` non-interactively over `nvram=` |
+| `AUTH-LOOPBACK-UP` | leg 3 | the loopback /net bring-up |
+| `AUTH-OK authsrv-listen` / `AUTH-OK secstored` | leg 4 | the listener topology (567 connect-accept proven; 5356 announced) |
+| `AUTH-OK cs` | leg 5 | cs answered `authdom=DEMO-harvey` → `auth=127.0.0.1` from the baked local |
+| `AUTH-OK factotum` | leg 6 | factotum carries norbert's p9sk1 key (written from the baked feed) |
+| `AUTH-DEBUGOBS ticket request using norbert@…` | leg 7 | auth/debug's OWN p9sk1 success line as norbert (the filtered echo — only the matching line reaches serial, T-18-13) |
+| `authprobe: SPEAKSFOR-OK bootes for norbert` | leg 8 | the speaks-for wire form (hostid≠uid) proven: the reply decrypts with the SPEAKER's key and carries `suid=norbert` |
+| `authprobe: SPEAKSFOR-DENIED sys` | leg 8 | the negative control's EXPECTED output (exactly once; the `uid=!sys` row bit and the scrambled reply failed to decrypt) |
+| `AUTH-CONSOLEOBS restored` | leg 8 | the sentinel window's cleanup (`'#c/cons'` re-bind — getpassm needs the live console) |
+| `AUTH-VENUEOBS ramfs-file-write-ok` | leg 3b/9 | the writable venue probed live (create/write/read through the ramfs mount) |
+| `AUTH-OK secuser` | leg 9 | the account created through the venue (console-fed passwords; who/ + store/ + who/norbert standing) |
+| `AUTH-SKIP secstore-roundtrip` + `AUTH-SKIP-WHY r9-devip-two-write-tcp` | leg 9 | the client PUT/GET round-trip NAMED-SKIPPED — see the blocker below; the gate's post-pass holds the verdict `AUTH-OK secstore-roundtrip` PROVABLY absent (no unearned OK) |
+| `AUTH-DONE` | the sweep | every leg green |
+| `tr-ok` / `tr-fail` (syslog) | authsrv -d | the per-exchange AUTH-07 evidence (the deny exchange's `tr-fail … no speaks for` is the fail-closed proof) |
+
+The gate redacts the per-bake DEMO password from the retained capture
+(auth/debug's noise leg echoes the sentinel line into one syslog
+authid field); the asserts run over the true capture first.
+
+### The open blocker: the secstore client round-trip (AUTH-08/D-14)
+
+The secstore SUBSTRATE is green end-to-end (the ramfs venue, the
+console-fed secuser account creation, the staged payload object) —
+but the client PUT/GET round-trip is NAMED-SKIPPED on this venue:
+**r9's devip loopback TCP never delivers SConn's donor write pattern**
+(a 2-byte binary count write immediately followed by the payload
+write — `secstore/SConn.c` SC_write).  Measured live in 18-05
+(`evidence/18-05-secstore-stall-modes.console.log`): the two-write
+client form stalls with BOTH procs parked forever (and an alarm note
+never reaches a devip-blocked proc); a ONE-write control on the same
+listener round-trips — the server even replies through the same
+two-write pattern on its own side.  The defect is in r9's devip seam
+(the delivery/wake of the second fast-path send), kernel bytes pinned
+at `b2a6151` — outside the Harvey tree's authority.  Reopener: the
+next r9 kernel-byte pass (Phase 19's cpu path rides multi-write TCP
+too).  Until it closes, the gate asserts the round-trip verdict stays
+ABSENT — `AUTH-SKIP secstore-roundtrip` with the reason line is the
+honest state, never an unearned OK.
+
 ## The timer chain
 
 Mode selection is CPUID-gated at boot and printed with provenance
