@@ -3,13 +3,12 @@ gsd_state_version: "1.0"
 milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
-current_phase_name: In-Guest p9sk1 Auth Domain
-status: executing
-stopped_at: Completed 18-08-PLAN.md (gap-closure execution complete)
-last_updated: "2026-11-14T17:05:35.412Z"
+status: completed
+stopped_at: Phase 18 complete — all phases complete
+last_updated: "2026-11-14T17:57:00.486Z"
 last_activity: 2026-11-14
-last_activity_desc: Phase 18 execution started
-state_head: 2e641f03bff9c3f81b61fbc1a34c33914b1f0aca
+last_activity_desc: Phase 18 complete
+state_head: 9d9135294583f01ab557d4d718eb3246674c44c0
 progress:
   total_phases: 6
   completed_phases: 2
@@ -28,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 ## Current Position
 
-Phase: 18 (In-Guest p9sk1 Auth Domain) — GAP CLOSURE COMPLETE
-Plan: 8 of 8 (all plans executed; 18-08 closed the phase's three verification gaps — CR-01/CR-02 fixed+pushed+pinned, the AUTH-08 round-trip delivered and presence-demanded at the pin)
-Status: Phase 18 execution complete; Phase 19 next
-Last activity: 2026-11-14 — 18-08 gap-closure execution complete
+Phase: 18
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-11-14 — Phase 18 complete
 
 Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 complete, 18-19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phases 18-19)
 
@@ -50,6 +49,7 @@ Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 compl
 | 15 | 9 | - | - |
 | 16 | 8 | - | - |
 | 17 | 8 | - | - |
+| 18 | 8 | - | - |
 
 **Recent Trend:** n/a (milestone start)
 **Per-Plan Metrics:**
@@ -277,5 +277,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-14T17:05:34.719Z
-Stopped at: Completed 18-08-PLAN.md (gap-closure execution complete)
+Stopped at: Phase 18 complete — all phases complete
 Resume file: None

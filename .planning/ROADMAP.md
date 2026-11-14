@@ -50,7 +50,7 @@ Full detail: `.planning/milestones/v2.0-ROADMAP.md`
 - [x] **Phase 15: Userspace Tiers + Bootfs Payload (amd64)** - services/GUI/long-tail tiers on the k10t1 venue then r9-x86_64; rio/acme/sam donor syscall traces; desktop payload staged in bootfs (completed 2026-11-10)
 - [x] **Phase 16: Host Net Modes + Networking Exit Gate** - hermetic slirp+hostfwd default, explicit `--net=slirp|tap|vmnet`, linux tap/bridge L2-truth leg + doctor checker; the NETIP-08 tap-leg soak gate (completed 2026-11-12)
 - [x] **Phase 17: r9 Kernel Flush-Out** - *(cross-repo: `../r9`)* the open Phase-7/8 CR/WR backlog + known kernel windows closed under real userspace load, every fix landing with a pin (completed 2026-11-13)
-- [ ] **Phase 18: In-Guest p9sk1 Auth Domain** - hash-paired bake-time domain generator, `/dev/random` from x86_64 entropy + devcap `#¤`, keyfs/authsrv on tcp/567, loopback probe green before any drawterm
+- [x] **Phase 18: In-Guest p9sk1 Auth Domain** - hash-paired bake-time domain generator, `/dev/random` from x86_64 entropy + devcap `#¤`, keyfs/authsrv on tcp/567, loopback probe green before any drawterm (completed 2026-11-14)
 - [ ] **Phase 19: CPU Service + Drawterm + rio Desktop** - `cpu -R` end-to-end, flake drawterm, rio in-session only, full-chain smoke + clean-checkout proof on linux-x86_64
 
 ## Phase Details
@@ -289,7 +289,7 @@ Plans:
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 9/9 | Complete    | 2026-11-10 |
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | 8/8 | Complete    | 2026-11-12 |
 | 17. r9 Kernel Flush-Out | v2.1 | 8/8 | Complete    | 2026-11-13 |
-| 18. In-Guest p9sk1 Auth Domain | v2.1 | 8/8 | In Progress | - |
+| 18. In-Guest p9sk1 Auth Domain | v2.1 | 8/8 | Complete    | 2026-11-14 |
 | 19. CPU Service + Drawterm + rio Desktop | v2.1 | - | Not started | - |
 
 ## Backlog
