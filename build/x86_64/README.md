@@ -513,6 +513,118 @@ both captures retained: `evidence/18-08-auth-a.log`,
 where the payload line came back in the delivered bytes).  The
 client dials `-s 127.0.0.1` — see the venue fact above.
 
+## Drawterm (Phase 19: DESK-01, DESK-06, DESK-07)
+
+The client surface is the **vendored in-tree drawterm**
+(`sys/src/cmd/unix/drawterm`) — D-01's source of record: the Plan 9 4e
+lineage carrying the Harvey-era fixes, built as a normal part of this
+tree.  Upstream (0intro/9front) maintenance is deliberately NOT
+re-vendored; every phase-19 addition (`-O`, `-G`, the `gui-none`
+backend) lands as ordinary Harvey commits on the vendor.  The flake's
+`packages.drawterm` compiles that committed source hermetically (D-02:
+`src` is the repo directory itself — no `fetchurl`, no `fetchgit`, no
+`patchPhase`), and the `nix run .#drawterm` app wraps it (linux-only;
+darwin is the documented-manual venue below).
+
+### The flag table
+
+| Flag | Meaning |
+|------|---------|
+| `-O cpu=<host>,auth=<addr>,user=<name>` | **The pinned-connection form** (the OQ-2 settlement): comma-separated `key=value` with exactly the three keys `cpu`, `auth`, `user`, all required, none empty. `auth` may carry its service — the 3-part `tcp!host!port` form passes through `netmkaddr` verbatim. **With `-O`, argv is the single source of connection parameters: the `$cpu`/`$auth`/`$USER` environment reads never execute** (T-19-12). A spec with an unknown key, an empty value, or a missing key is a usage error naming the accepted keys — validated before any gui init, so the message is reachable headless. |
+| `-G` | **No-window stdio session** (D-04): connect, authenticate, mount — and the session's stdio rides the invoking terminal. No window, no X display (works with `DISPLAY` unset; `#m`/`#i` are never bound). drawterm puts its own tty into raw mode (output post-processing kept, `ISIG` off so `^C` is a byte for the remote side) and restores it on every exit path; the remote's exit ends the local process with the status propagated. The windowed path is untouched. |
+| `-e` | Encryption/hash algorithms. **The default is `rc4_256 sha1` (encrypted)** — devssl `#D` via `pushssl`, D-15: ordinary sessions are encrypted by construction. `-e clear` clears encryption and is the **DEBUG fallback only** — it never appears in any wrapper-printed line or committed recipe. |
+| `-a <authserver>` / `-c <cpusererver>` | The legacy per-argument connection flags (no-`-O` path only — with `-O` the env reads AND these lose to the spec). |
+| `-u <user>` | Username (no-`-O` path; `-O user=` otherwise). |
+| `-s <secstore>` | Secstore server (default: the auth server). |
+| `-k <keyspec>`, `-r <root>`, `-C <cmd…>`, `-d` | Existing vendor flags: factotum keyspec, devroot base, remote command form, debug. |
+
+The `-O`/`-G` surface is pinned by `sys/src/cmd/unix/drawterm/flagtest.sh`
+(TAP; green on both the gui-x11 and gui-none builds).
+
+### The wrapper (`nix run .#drawterm`) — TESTED on the primary host (headless leg)
+
+`nix/drawterm-x64.sh` scrubs `$cpu`/`$auth`/`$PASS`/`$USER` before
+anything (the connection-hijack surface, Pitfall 3), accepts **no
+arguments**, pins the seam-derived spec
+(`cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda` — the Phase-16
+D-04 hostfwd pair's loopback side, host 17010→guest 17010 and host
+5670→guest 567; the 18-05 literal-idiom form), prints the exact
+connect lines (windowed primary + the `-G` text form; **no `-e` flag
+anywhere**), and execs the package binary. With `DISPLAY` set it runs
+the windowed line; headless it runs the `-G` stdio line **loudly**
+(`DISPLAY unset — headless venue: …`, never a silent downgrade).
+Observed live: the no-guest dial refusal (`cpu: can't dial:
+127.0.0.1: Connection refused`, exit 1) and the hostile-env scrub
+(`cpu=evil auth=evil USER=evil` never reach the dial).
+
+### The linux session recipe (D-07)
+
+Two terminals, zero extra machinery:
+
+1. **Boot the guest** — `nix run .#boot-r9-x64` (default slirp) in
+   one terminal; leave it running. The hostfwd pair is listening on
+   `127.0.0.1:17010` (cpu) and `127.0.0.1:5670` (auth) once the guest
+   brings the listeners up.
+2. **Connect** — `nix run .#drawterm` in the other terminal. With a
+   display you get the rio-capable windowed session; headless you get
+   the `-G` stdio session. In an interactive bash shell, quote the
+   spec when typing it by hand (the `!` in the auth address is a
+   history-expansion character): `drawterm -G -O 'cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda'`.
+3. **Log in** — the password prompt is drawterm's own console
+   (`readcons`; no echo). Phase 18's baked users apply (18-D-12).
+4. **Teardown** — exit the remote shell: the session ends and
+   drawterm exits (`goodbye`, status propagated). Then `ctrl-a x` the
+   qemu terminal.
+
+Venue honesty: the pieces proven on the primary host are the builds,
+the wrapper's scrub/pin/print/dial, and the flag surface; the full
+interactive login→shell-marker loop over hostfwd is 19-08's `-G`
+interop gate (green-twice on local KVM per D-14).
+
+### The darwin page — DOCUMENTED-MANUAL, `-G` only (amended D-03, D-05/D-06)
+
+The darwin graphical leg is **deferred** by owner decision
+2026-11-14: this phase ships no darwin window backend, and XQuartz
+was considered and **rejected** (an X11-on-mac dependency for a
+Plan 9 client is a compatibility layer too far; the native window
+path belongs to a future milestone porting a 64-bit Cocoa/AppKit
+backend of the 9front `gui-cocoa` class into the vendor — that is
+the recorded reopener). Until then darwin's drawterm is the same
+vendored source built with the **gui-none backend** (`-G` only —
+no Carbon, no XQuartz, nothing graphical):
+
+```
+git clone <harvey> && cd harvey/sys/src/cmd/unix/drawterm
+make CONF=osx GUI=none
+```
+
+The connection rides an SSH tunnel to the linux-hosted guest over
+the existing loopback-bound hostfwd pair — zero new network surface
+(D-05):
+
+```
+ssh -L 17010:127.0.0.1:17010 -L 5670:127.0.0.1:5670 user@linuxhost
+```
+
+then, on the mac against its own forwarded loopback:
+
+```
+./drawterm -G -O 'cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda'
+```
+
+Not executed by construction this phase (no darwin runner — the same
+venue label as the net-modes darwin page). A recipe that was never
+run is not evidence; the DESK-07 darwin acceptance row requires a
+real run on the machine.
+
+### The `-G` gate note
+
+`-G` is deliberately the CI-able shape: scripted login → shell marker
+over the hostfwd pair on a pty, green-twice on local KVM — that gate
+is **19-08's** (`boot-r9` interop compose; D-12's credentials file,
+D-14's venue verdict). This page's `-G` material is the client-side
+surface that gate drives.
+
 ## The timer chain
 
 Mode selection is CPUID-gated at boot and printed with provenance
