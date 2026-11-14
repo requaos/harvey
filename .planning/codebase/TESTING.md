@@ -43,6 +43,7 @@ nix run .#boot-r9-tier1-x64        # x86_64 tier-1 sweep gate (36+ markers)
 nix run .#boot-r9-net-smoke-x64    # net gates: static + DHCP + loopback echo
 nix run .#boot-r9-services-x64     # tier-2 services probes (SVC-* markers)
 nix run .#boot-r9-churn-x64        # exec churn / heap-marker bound
+nix run .#boot-r9-auth-x64        # p9sk1 auth domain: pairing+keyfs+listeners+cs+factotum
 nix run .#boot-r9-tier1            # aarch64 tier-1 venue
 nix run .#boot-r9-smoke            # aarch64 smoke venue
 

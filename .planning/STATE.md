@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: In-Guest p9sk1 Auth Domain
 status: executing
-stopped_at: Completed 18-02-PLAN.md
-last_updated: "2026-11-14T03:54:31.544Z"
+stopped_at: Completed 18-04-PLAN.md
+last_updated: "2026-11-14T05:13:33.562Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 18 execution started
-state_head: d55278f9a789e2ecc3ab63c5d4132e82425135f2
+state_head: abb87905593f5984508a27183c2f3b9c93cf5adb
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 45
-  completed_plans: 43
+  completed_plans: 44
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 18 (In-Guest p9sk1 Auth Domain) — EXECUTING
-Plan: 4 of 5
+Plan: 5 of 5
 Status: Ready to execute
 Last activity: 2026-11-13 — Phase 18 execution started
 
@@ -102,6 +102,7 @@ Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 compl
 | Phase 18 P01 | 50 min | 3 tasks | 8 files |
 | Phase 18 P03 | 58 min | 3 tasks | 21 files |
 | Phase 18 P02 | 41min | 3 tasks | 19 files |
+| Phase 18 P04 | 72 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -233,6 +234,9 @@ Recent decisions affecting current work:
 - [Phase 18]: [18-03] authdomain-gen venue = VENDORED in-tree donors (17 files), not plan9port 9l linking: must-have pins algorithm bytes to Harvey donors + self-test must run bare-shell; cross-validated byte-identical on fixed vector key=ed1d buf0=36 — Plan venue discretion resolved by must-have pinning
 - [Phase 18]: [18-02] devcap #¤ donor-verbatim on hand-rolled HMAC-SHA1 + per-proc user + eve gate: the eve base is HOSTOWNER-defaulted-to-glenda (the donor's empty-eve + boot-writehostowner ordering cannot survive a venue whose first exec IS the marker); the formatted "invalid capability %s@%s" rides a device-local CapErr to err_dyn (the port Result's &str cannot carry bytes, no leak); FIFO-256 oldest-eviction and remcap-before-user-match (the mismatched cap BURNS) are the two donor orders pinned by name
 - [Phase 18]: [18-02] The phase's one kernel-byte FOD pass closed: two-derivation byte-identity proof (A @ 9ef9390 plain + B @ 42e0a83 kernel-neutral marker clone, NAR sha256-im+zCI… three-way-agreed with the FOD got-value), r9 pushed to b2a6151, Harvey flake.lock 8f3ff11 -> b2a6151 lock-only; net-smoke/smoke/tier1/churn ALL STAGES PASS at the pin (heap 84 B/exit — the new per-proc user Vec leaves no residue); services stays blocked pre-existing (#68)
+- [Phase 18]: [18-04] Harvey's amd64 6c END-PADS the all-char Nvrsafe to 112 bytes (host compilers see 109): the guest's readnvram reads sizeof bytes and a 109-byte nvram failed the length check SILENTLY (measured live: read 109 want 112, all five sums green over the donor-layout bytes — member offsets identical, tail pad only); the generator now emits 109-layout + 3 zero tail bytes — load-bearing for every future guest consumer of Nvrsafe
+- [Phase 18]: [18-04] The AUTH contract is mkimage §14 (the plan's §13 refs predate 18-01's substrate landing — the wave-1 note executed): bootfs-auth.paq = chain + tier-computed auth suite + authdomain-gen invoked AT BAKE, the D-02 pairing verified over the STAGED COPIES (AUTHBAKE_DOCTOR is the committed runnable teeth seam); listen1 -t is the trusted arm (skips becomenone — authsrv's child needs the real namespace), and AUTH-07's serial visibility is syslog's #c/cons fallback (never a writable /sys/log)
+- [Phase 18]: [18-04] AUTH-05 seam staging: local.template is two-consumer — the AUTH bake substitutes all five tokens (@AUTHDOM@ from the generator run's own -i output, never a seam key), the services bake substitutes the seam's four and STRIPS the auth row (asserted both ways); netaddr.rc's ether key is the NIC MAC's single home and the venue-literal grep gained the 52:54:00 class
 
 ### Pending Todos
 
@@ -256,6 +260,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T03:54:30.870Z
-Stopped at: Completed 18-02-PLAN.md
+Last session: 2026-11-14T05:13:32.864Z
+Stopped at: Completed 18-04-PLAN.md
 Resume file: None

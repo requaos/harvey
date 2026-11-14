@@ -26,7 +26,8 @@ packages (`kernel-x64`, `iso-builder`, `netdev-args`, and aarch64's
 │   inputs.r9 pinned rev → kernel-x64 / iso-builder / netdev-args           │
 │   apps: boot-r9-x64, boot-r9-smoke-x64, boot-r9-tier1-x64,                │
 │         boot-r9-net-smoke-x64, boot-r9-services-x64, boot-r9-net-soak-x64,│
-│         boot-r9-churn-x64, boot-r9-stress-x64, net-doctor, build, iso,    │
+│         boot-r9-churn-x64, boot-r9-stress-x64, boot-r9-auth-x64,         │
+│         net-doctor, build, iso,                                           │
 │         setup, toolchain (+ frozen aarch64: boot-r9, *-smoke, tier1)      │
 ├───────────────────────────────┬──────────────────────────────────────────┤
 │  Harvey repo (this tree)      │  r9 repo (../r9, Rust no_std kernel)     │
