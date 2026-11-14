@@ -217,3 +217,7 @@ None - no external service configuration required.
 ---
 *Phase: 19-cpu-service-drawterm-rio-desktop*
 *Completed: 2026-11-14*
+
+## Self-Check: PASSED
+
+All key-files created/modified exist on disk; all 6 task commits are ancestors of HEAD; the plan `<verify>` commands and acceptance criteria re-ran green at close-out (flagtest 6/6 gui-none, usage rejects, NIX-PKG-OK / APP-EVAL-OK / WRAPPER-PRINTS-AND-DIALS, README-SECTIONS-OK).

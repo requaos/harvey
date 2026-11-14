@@ -70,7 +70,7 @@
 
 ### Drawterm + rio Desktop (DESK — continuing)
 
-- [ ] **DESK-01**: Flake drawterm app: provenance decision recorded; wrapper pins `-O`, scrubs `$cpu`/`$auth`/`$PASS`, prints the exact connect line
+- [x] **DESK-01**: Flake drawterm app: provenance decision recorded; wrapper pins `-O`, scrubs `$cpu`/`$auth`/`$PASS`, prints the exact connect line
 - [ ] **DESK-02**: profile `case cpu` binds /mnt/term/dev over /dev and execs rio (serial marker proves rio did NOT start at boot)
 - [x] **DESK-03**: `/lib/font/bit/*` + glenda-style lib/profile + `/lib/ndb/local` template staged in bootfs with manifest assertions
 - [ ] **DESK-04**: r9 devssl `#D` (rc4_256/sha1) for encrypted sessions via pushssl; `-e clear` documented fallback (stronger crypto is PROTOCOL-blocked — the hardening milestone)
@@ -157,7 +157,7 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | CPU-02 | Phase 19 | Pending |
 | CPU-03 | Phase 19 | Pending |
 | CPU-04 | Phase 19 | Pending |
-| DESK-01 | Phase 19 | Pending |
+| DESK-01 | Phase 19 | Complete |
 | DESK-02 | Phase 19 | Pending |
 | DESK-04 | Phase 19 | Pending |
 | DESK-05 | Phase 19 | Pending |

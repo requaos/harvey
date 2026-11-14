@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
 status: executing
-stopped_at: Completed 19-01-PLAN.md (CPU-02 tracer green x2 KVM + TCG; r9 pushed e491ed5)
-last_updated: "2026-11-14T22:19:02.571Z"
+stopped_at: Completed 19-06-PLAN.md (drawterm -O/-G + gui-none + nix wrapper)
+last_updated: "2026-11-14T23:11:21.572Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 19 execution started
-state_head: 5aae21d461559ce9f605861cb2e0cb46c6121afd
+state_head: a3f7c7d8d50c4d19f071ebc23645eca84c475e5a
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 58
-  completed_plans: 49
+  completed_plans: 50
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 19 (CPU Service + Drawterm + rio Desktop) — EXECUTING
-Plan: 2 of 10
+Plan: 3 of 10
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 19 execution started
 
@@ -109,6 +109,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 18 P07 | 34min | 3 tasks | 6 files |
 | Phase 18 P08 | 33min | 3 tasks | 10 files |
 | Phase 19 P01 | 32 min | 3 tasks | 9 files |
+| Phase 19 P06 | 32 min | 3 tasks | 12 files |
 
 ## Accumulated Context
 
@@ -255,6 +256,8 @@ Recent decisions affecting current work:
 - [Phase 18]: [18-08] the phase's one FOD pass closed over all gap kernel bytes together: two-derivation proof (A plain ab4cb66 + B marker clone 27a141ac, byte-identical ISOs — NAR sha256-8uL7mR… three-way-agreed with the FOD's own got-value), r9 pushed at 9103522, Harvey flake.lock b2a6151 -> 9103522 lock-only; net-smoke re-green at the pin
 - [Phase 18]: [18-08] the secstore round-trip venue fact: the client's default serve $attr translation reds through cs on r9 (kernel namec ENOENT relayed as the cs Rerror) — the client pins -s 127.0.0.1 (the hauthprobe legs' literal-loopback idiom); the gate flip ADDS presence demands, never substitutes — every pre-existing tooth stayed armed, green twice at the pin
 - [Phase 19]: [Phase 19]: 19-01 CPU-02 tracer — service=cpu arrives via the boot protocol, not file content: GRUB -append -> grub.cfg @R9-APPEND@ token (both ISO emitters, empty-append byte-stable) -> mb2 tag-1 cmdline -> kernel-parsed donor-plan9.ini bootconf pairs MERGED into the seeded ROOT env group (overlong loud at parse AND compose) -> boot(8) execinit's getenv("init") arm (A4 verified multi-word) -> init -c -> cpurc. The §15 cpurc fixture is a MARKER BINARY (rc exec's the file directly — rcmain eval's $cflag; a script needs 19-02's kernel #!) that prints and parks so init's terminal fallback never runs
+- [Phase 19]: [19-06] drawterm -O is the pinned-connection single source (argv spec cpu=/auth=/user=; the $cpu/$auth/$USER env reads never execute when -O present) and -G is the no-window stdio session (raw tty restored via atexit, cons on real stdio, exit propagation) — gui-none is the none backend class member (no X11/Carbon; loud screen stubs) for the amended-D-03 darwin -G-only leg
+- [Phase 19]: [19-06] the wrapper (nix run .#drawterm) scrubs $cpu/$auth/$PASS/$USER, pins cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda, prints the encrypted-default connect lines (windowed primary + -G text form; -e clear is debug-only wording, never a printed line), and execs — headless venues run the -G line loudly; the x64 hasAttr gate list stayed byte-unchanged
 
 ### Pending Todos
 
@@ -280,6 +283,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T22:19:01.716Z
-Stopped at: Completed 19-01-PLAN.md (CPU-02 tracer green x2 KVM + TCG; r9 pushed e491ed5)
+Last session: 2026-11-14T23:11:20.650Z
+Stopped at: Completed 19-06-PLAN.md (drawterm -O/-G + gui-none + nix wrapper)
 Resume file: None
