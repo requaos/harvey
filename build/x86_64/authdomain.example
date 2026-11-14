@@ -1,7 +1,9 @@
 # authdomain.example — the committed interface for a real p9sk1 auth
 # domain (18-03, AUTH-01 / D-01).  Copy to <repo-root>/authdomain.local
-# (gitignored) and edit; authdomain-gen reads ./authdomain.local when
-# no -f is given.  ABSENT file => ephemeral DEMO domain: label DEMO,
+# and edit; authdomain-gen reads ./authdomain.local when no -f is
+# given.  The gitignore rule: .gitignore carries /authdomain.local (the
+# repo-root path only) — real key material never lands in git history
+# (T-18-06).  ABSENT file => ephemeral DEMO domain: label DEMO,
 # authdom DEMO-harvey, users glenda/bootes/norbert sharing one random
 # demo password — CI and clean checkouts stay green, and the DEMO
 # material is throwaway by construction.  Never commit real values.

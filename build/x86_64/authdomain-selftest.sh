@@ -147,6 +147,54 @@ else
 	echo "NEG-CONTROL-REFUSED-truncated: $(tail -1 v4.log)"
 fi
 
+echo "== local-file interface path (the committed example is the shape proof)"
+# fill the example's placeholders with test values: a custom label, a
+# custom authdom, three users with DISTINCT passwords (the shared
+# password is a DEMO-path convenience only).  Distinct passwords
+# provably work: generate decrypts the whole keys buffer with the
+# donor oldCBCdecrypt and re-derives every user key with donor
+# passtokey before writing — any password that did not derive would
+# abort generate right here.
+sed	-e 's/^label=.*/label=SELFTEST/' \
+	-e 's/^authdom=.*/authdom=SELFTEST-domain/' \
+	-e 's/^machine_password=.*/machine_password=selftest-machpw/' \
+	-e 's/^secstore_password=.*/secstore_password=stsec12/' \
+	-e 's/^user glenda .*/user glenda selftest-pw-one/' \
+	-e 's/^user bootes .*/user bootes selftest-pw-two/' \
+	-e 's/^user norbert .*/user norbert selftest-pw-three/' \
+	"$HARVEY/build/x86_64/authdomain.example" > self.local
+./gen -o d2 -f self.local >gen2.log 2>&1 \
+	|| { cat gen2.log; fail "local-file generate exited nonzero"; }
+./gen -V d2 >verify2.log 2>&1 \
+	|| { cat verify2.log; fail "verify refused the local-file unit"; }
+# the local file WINS over the DEMO defaults: custom label/authdom in,
+# DEMO token absent everywhere
+grep -q '^label SELFTEST$' d2/manifest || fail "local-file manifest lacks the custom label"
+grep -a -q 'SELFTEST-domain' d2/nvram || fail "local-file nvram lacks the custom authdom"
+if grep -a -q 'DEMO' d2/nvram; then
+	fail "DEMO token leaked into the local-file nvram"
+fi
+if grep -q '^label DEMO$' d2/manifest; then
+	fail "DEMO label leaked into the local-file manifest"
+fi
+./gen -i d2 >info2.log 2>&1 || { cat info2.log; fail "-i exited nonzero on the local-file unit"; }
+grep -q '^users: 3$' info2.log || fail "local-file unit lost the user count"
+grep -q '^names: glenda bootes norbert$' info2.log || fail "local-file unit lost the names"
+grep -q '^label: SELFTEST$' info2.log || fail "local-file unit lost its label in -i"
+echo "LOCALFILE-PATH-OK"
+
+echo "== missing -f: a requested-but-missing file refuses loud"
+# silent fallback to DEMO when a file was EXPLICITLY requested is the
+# D-01 forbidden failure mode; absence-fallback happens only on the
+# implicit default path (proven green in the DEMO leg above)
+if ./gen -o d3 -f nosuchfile.local >miss.log 2>&1; then
+	fail "missing -f silently generated instead of refusing"
+else
+	grep -q "can't open nosuchfile.local" miss.log \
+		|| fail "missing -f refusal is not loud about the file"
+	echo "MISSING-F-REFUSED"
+fi
+
 echo "== gitignore: /authdomain.local must stay out of git"
 (cd "$HARVEY" && git check-ignore -q authdomain.local) \
 	|| fail "authdomain.local is not gitignored (T-18-06)"
