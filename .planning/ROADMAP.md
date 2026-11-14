@@ -283,11 +283,13 @@ Plans:
 **Wave 6** *(at the advanced pin)*
 - [ ] 19-07-PLAN.md — §15 seventh contract full: re-keyed cpurc (pairing→keyfs→authsrv→factotum→trusted aux/listen) + tcp17010 + cmd/cpu tier + D-12 creds emission + in-session-only profile + bring-up probe green twice (CPU-02, CPU-03, DESK-02, DESK-05)
 
-**Wave 7** *(parallel)*
+**Wave 7**
 - [ ] 19-08-PLAN.md — the -G interop gate: pty-driven scripted drawterm session over hostfwd, encrypted default, green twice on local KVM (DESK-06, CPU-04, DESK-04 live)
+
+**Wave 8** *(serialized after 19-08: both gates bake out/bootfs-cpu.paq and bind the 127.0.0.1:17010/5670 hostfwd pair)*
 - [ ] 19-09-PLAN.md — boot-r9-x64 --system=cpu full-system mode + full-chain smoke extension + README (INT-05)
 
-**Wave 8**
+**Wave 9**
 - [ ] 19-10-PLAN.md — human legs (linux graphical row + darwin -G row, blocking-human checkpoints) + darwin graphical deferral records + clean-checkout proof of v2.1 (DESK-07 as owner-resolved, INT-07)
 **UI hint**: yes
 

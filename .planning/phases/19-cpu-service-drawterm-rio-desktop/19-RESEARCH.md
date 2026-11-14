@@ -333,7 +333,7 @@ Not a rename/refactor/migration phase — feature composition; no runtime state 
 
 ### Pitfall 1: The darwin backend is Carbon, not Cocoa (D-03 conflict)
 **What goes wrong:** `Make.osx` carries `-m32 ... -framework Carbon -framework QuickTime` and `gui-osx/screen.c` includes `<Carbon/Carbon.h>` + `<QuickTime/QuickTime.h>` and calls `QDBeginCGContext/GetWindowPort` [VERIFIED: sys/src/cmd/unix/drawterm/Make.osx, gui-osx/screen.c:8-9,729-739]. Carbon was never 64-bit and 32-bit support ended at macOS 10.15; Apple Silicon cannot run or build it [CITED: eclecticlight.co/2023/06/30/deprecation; Apple Developer docs]. The DESK-07 darwin graphical leg cannot ship as written.
-**How to avoid:** resolve OQ-1 at plan time — port a 64-bit Cocoa (AppKit) frontend (9front's `gui-cocoa` class, `CONF=osx-cocoa make`, builds natively arm64 [CITED: github.com/Plan9-Archive/drawterm-metal-cocoa, github.com/rcarmo/drawterm]) into the Harvey vendor as a Harvey commit (D-01/D-02 posture allows it; 9front imports are MIT per PROJECT constraints), or re-decide with the user. A darwin `-G`-only build (no GUI) is a lesser fallback that cannot satisfy DESK-07's screenshot row.
+**How to avoid:** resolve OQ-1 at plan time — port a 64-bit Cocoa (AppKit) frontend (9front's `gui-cocoa` class, `CONF=osx-cocoa make`, builds natively arm64 [CITED: github.com/Plan9-Archive/drawterm-metal-cocoa, github.com/rcarmo/drawterm]) into the Harvey vendor as a Harvey commit (D-01/D-02 posture allows it; 9front imports are MIT per PROJECT constraints), or re-decide with the user. A darwin `-G`-only build (no GUI) is a lesser fallback that cannot satisfy DESK-07's screenshot row. **(RESOLVED 2026-11-14, amended D-03: the owner re-decided — darwin is `-G` text-only this milestone and the darwin `-G` leg IS the DESK-07 darwin row (19-10, screenshot of the Terminal session); the gui-cocoa-class port is the named reopener, not a this-phase deliverable. The "cannot satisfy DESK-07" clause above is superseded by the owner's amended scope; 19-06 delivers the gui-none build.)**
 **Warning signs:** any darwin build log mentioning Carbon/QuickTime/-m32.
 
 ### Pitfall 2: `-O` does not exist in the vendor
@@ -499,6 +499,12 @@ This phase's CONTEXT pins the script text as `#!/bin/cpu -R` (no `-N` — authen
 | A6 | devmnt's existing Tstat/Twalk/Topen over /mnt/term plus rio's measured syscall set (no Wstat in rio's table; sam uses Remove only) means the desktop path needs no kernel work beyond the three named syscalls | DESK-02/05 | low — the 15-06 tables are the measure-first evidence; surprises are owned under D-11 |
 
 ## Open Questions
+
+> **(RESOLVED 2026-11-14 — all four settled at planning; the dispositions below supersede the per-item recommendations in this section.)**
+> - **OQ-1 RESOLVED — owner decision, amended D-03 (2026-11-14):** darwin is `-G` text-mode only this milestone; the gui-cocoa-class port is NOT taken — the live recommendation below (option a, port gui-cocoa now) is superseded. Settlement: 19-06 (gui-none backend — no Carbon, no XQuartz; darwin -G documented-manual recipe) and 19-10 (darwin graphical row deferred with the named reopener: a future milestone porting a 64-bit Cocoa/AppKit backend of the 9front gui-cocoa class into the vendor; REQUIREMENTS/STATE deferral records).
+> - **OQ-2 RESOLVED — 19-06:** `-O cpu=HOST,auth=ADDR,user=NAME` comma grammar; argv is the single source (env reads skipped when -O present); malformed specs are usage errors naming the accepted keys.
+> - **OQ-3 RESOLVED — 19-07:** `aux/listen -t /bin/service tcp` in cpurc (CPU-03's letter, exercises `#!` through the donor path) with `listen1 -t` retained for flags-carrying authsrv; both announce markers asserted by the bring-up probe.
+> - **OQ-4 RESOLVED — 19-09:** `--system=cpu|terminal` on boot-r9-x64, default terminal (chain path byte-untouched); unknown modes are usage errors naming the valid set.
 
 1. **The darwin backend decision (OQ-1 — must resolve at plan time; D-03 as written is unsatisfiable)**
    - What we know: vendored `gui-osx` is 32-bit Carbon/QuickDraw; `-m32` unsupported on arm64 toolchains; QuickTime gone. D-03 says "native Cocoa ... aarch64-darwin, no XQuartz". 9front's `gui-cocoa` is a 64-bit AppKit frontend building natively on Apple Silicon [CITED]; Harvey's license posture permits 9front MIT imports.
