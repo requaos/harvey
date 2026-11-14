@@ -1169,6 +1169,12 @@ SUBSTRATE_IMAGE="$OUT/bootfs-substrate.paq"
 	|| err "smoke-out/randread does not carry its marker string (re-run sh build/x86_64/stage-build.sh)"
 "$GREP" -q "substrate: DONE" "$STAGE_SRC/randread" \
 	|| err "smoke-out/randread does not carry its terminal marker (re-run sh build/x86_64/stage-build.sh)"
+# 18-02: the devcap legs' markers (the #¤ fixture pair) — the binary
+#      must carry all four or the gate's presence asserts redden.
+for _capmark in "cap: POST-OK" "cap: USE-OK" "cap: ONESHOT-REJECT" "cap: HOSTOWNER-GATE"; do
+	"$GREP" -q "$_capmark" "$STAGE_SRC/randread" \
+		|| err "smoke-out/randread lacks the devcap marker '$_capmark' (re-run sh build/x86_64/stage-build.sh)"
+done
 "$GREP" -q "init: starting /bin/rc" "$STAGE_SRC/randread" \
 	&& err "smoke-out/randread carries the REAL init's signature (stage-build staged the wrong binary)"
 
@@ -1196,6 +1202,8 @@ for p in root env proc dev srv fd bin tmp mnt net; do
 done
 "$GREP" -q "random: READS-OK" "$STAGE7/amd64/init" \
 	|| err "substrate: amd64/init is not the randread marker (re-run sh build/x86_64/stage-build.sh)"
+"$GREP" -q "cap: POST-OK" "$STAGE7/amd64/init" \
+	|| err "substrate: amd64/init carries the entropy marker but not the devcap legs (re-run sh build/x86_64/stage-build.sh)"
 [ ! -e "$STAGE7/boot/factotum" ] || err "substrate manifest: /boot/factotum present — auth-stub-by-absence violated"
 
 # 13e. determinism + bake (the marker bake's rule; the per-file cap
