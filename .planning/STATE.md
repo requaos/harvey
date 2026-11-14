@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: In-Guest p9sk1 Auth Domain
 status: executing
-stopped_at: Completed 18-05-PLAN.md (phase execution complete)
-last_updated: "2026-11-14T15:02:52.895Z"
-last_activity: 2026-11-13
+stopped_at: Completed 18-06-PLAN.md
+last_updated: "2026-11-14T15:36:05.936Z"
+last_activity: 2026-11-14
 last_activity_desc: Phase 18 execution started
-state_head: d12a7341d9161a36cf648f6147058500ce61abfe
+state_head: 31b9b5c2dcee992d731687fb65dd8dac7fe51c62
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 48
-  completed_plans: 45
+  completed_plans: 46
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 ## Current Position
 
-Phase: 18 (In-Guest p9sk1 Auth Domain) — READY TO EXECUTE
-Plan: 5 of 5
+Phase: 18 (In-Guest p9sk1 Auth Domain) — EXECUTING
+Plan: 7 of 8
 Status: Ready to execute
-Last activity: 2026-11-13 — Phase 18 execution started
+Last activity: 2026-11-14 — Phase 18 execution started
 
 Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 complete, 18-19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phases 18-19)
 
@@ -104,6 +104,7 @@ Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 compl
 | Phase 18 P02 | 41min | 3 tasks | 19 files |
 | Phase 18 P04 | 72 min | 3 tasks | 13 files |
 | Phase 18 P05 | 105 min | 3 tasks | 13 files |
+| Phase 18 P06 | 21 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -240,6 +241,9 @@ Recent decisions affecting current work:
 - [Phase 18]: [18-04] AUTH-05 seam staging: local.template is two-consumer — the AUTH bake substitutes all five tokens (@AUTHDOM@ from the generator run's own -i output, never a seam key), the services bake substitutes the seam's four and STRIPS the auth row (asserted both ways); netaddr.rc's ether key is the NIC MAC's single home and the venue-literal grep gained the 52:54:00 class
 - [Phase 18]: 18-05: the secstore round-trip is venue-blocked — r9 devip never delivers SConn's donor two-write TCP pattern (2-byte count + payload; both procs park; alarm notes never reach a devip-blocked proc; the one-write control round-trips and the server's own two-write reply delivers); kernel pinned b2a6151 — the gate holds the verdict PROVABLY absent (named SKIP, no unearned OK); reopener: the next r9 kernel-byte pass (Phase 19's cpu path rides multi-write TCP)
 - [Phase 18]: 18-05: the writable /adm/secstore venue is RAMFS (the cmd/ramfs leaf, mounted before the listeners, live-probed per gate run) — mntgen file-writes measured read-only (15-06, re-confirmed live) AND rc's output-redirect open failures are fatal to a sourced sweep (the probe line itself kills the script — the fatal-redirect fact is new load-bearing rc knowledge); secuser's field prompts are console-typed (userinput's whole-chunk reads coalesce any file feed)
+- [Phase 18]: [18-06] CR-01 closed: the #c/hostowner write arm is eve-gated with the donor hostownerwrite semantics (iseve Eperm-class refusal BEFORE the store lock — iseve reads the static under its own lock, so a store-lock-first ordering would self-deadlock — plus the 128-byte Ebadarg bound); the donor's renameuser side effects stay unported (no in-tree writer; an eve writing a foreign name makes the base foreign — fail-closed, pinned); proven live from ring 3 (cap: HOSTOWNER-REFUSED on the q35auth gate, green twice) and by 3 devcons host pins; r9 652f025
+- [Phase 18]: [18-06] CR-02 closed: armed_source derives cpuid1_ecx from a fresh cpuid(1,0) call over a scripted-cpuid cfg(test) seam (the test_tsc idiom, loud unscripted-leaf miss, ONE body for both builds); TEST_SOURCE retired — every entropy pin exercises the real probe->classify composition; both mis-wiring directions RED-proven (RED_EVIDENCE_OK) then green; the KVM rdrand label's RDSEED-host precondition is now a pinned venue shape, not luck; r9 f594b4c
+- [Phase 18]: [18-06] Environment fact: mkimage.sh's auth-section TARG resolver breaks inside harvey's nix devshell (hostbin-first PATH shadows GNU awk with the vendored Plan 9 awk, which silently empties the [[:space:]] regex parse -> 'hsecstored missing'); the sanctioned flake-app PATH (plan9port LAST) is unaffected — recorded in 18 deferred-items.md, mkimage untouched
 
 ### Pending Todos
 
@@ -264,6 +268,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T07:06:26.216Z
-Stopped at: Completed 18-05-PLAN.md (phase execution complete)
+Last session: 2026-11-14T15:36:05.137Z
+Stopped at: Completed 18-06-PLAN.md
 Resume file: None
