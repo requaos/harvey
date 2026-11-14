@@ -447,6 +447,13 @@ and is part of the same deferred wiring.
   nvram-substitutes must emit 109-layout + 3 tail bytes (the amd64
   guest compiler end-pads the struct; readnvram reads sizeof bytes
   and rejects other lengths silently).
+- **The secstore client pins its listener (18-08, measured):** the
+  client's default serve `$auth` rides cs's `$attr` translation,
+  whose system-identity substrate ENOETs on r9 (the kernel's
+  `namec: does not exist` relayed verbatim as the cs error —
+  `secstore: can't dial tcp!$auth!5356`).  The sweep's 9d legs pass
+  `-s 127.0.0.1` (secstore's own flag) — the same literal-loopback
+  dial class the hauthprobe legs prove every run.
 
 ### The marker vocabulary
 
@@ -464,7 +471,10 @@ and is part of the same deferred wiring.
 | `AUTH-CONSOLEOBS restored` | leg 8 | the sentinel window's cleanup (`'#c/cons'` re-bind — getpassm needs the live console) |
 | `AUTH-VENUEOBS ramfs-file-write-ok` | leg 3b/9 | the writable venue probed live (create/write/read through the ramfs mount) |
 | `AUTH-OK secuser` | leg 9 | the account created through the venue (console-fed passwords; who/ + store/ + who/norbert standing) |
-| `AUTH-SKIP secstore-roundtrip` + `AUTH-SKIP-WHY r9-devip-two-write-tcp` | leg 9 | the client PUT/GET round-trip NAMED-SKIPPED — see the blocker below; the gate's post-pass holds the verdict `AUTH-OK secstore-roundtrip` PROVABLY absent (no unearned OK) |
+| `secstore: saved N bytes` | leg 9d (client, fd 2) | the client PUT's own success line — unconditional on a completed PUT |
+| `AUTH norbert` / `[norbert] PUT` / `[norbert] GET` (syslog) | secstored -v | the round-trip's server-side tokens through the `#c/cons` fallback (one AUTH line per connection) |
+| `AUTH-SECOBS AUTH-ROUNDTRIP-PAYLOAD-18-05` | leg 9d | the bytes-back observation — the unique payload line grepped out of the `-G` GET's DELIVERED bytes (D-14: test-delivery-not-counters) |
+| `AUTH-OK secstore-roundtrip` | leg 9d | the verdict, printed ONLY on that bytes-back match; presence-demanded by the gate (18-08's flip — the 18-05 named-SKIP arm is retired) |
 | `AUTH-DONE` | the sweep | every leg green |
 | `tr-ok` / `tr-fail` (syslog) | authsrv -d | the per-exchange AUTH-07 evidence (the deny exchange's `tr-fail … no speaks for` is the fail-closed proof) |
 
@@ -472,25 +482,36 @@ The gate redacts the per-bake DEMO password from the retained capture
 (auth/debug's noise leg echoes the sentinel line into one syslog
 authid field); the asserts run over the true capture first.
 
-### The open blocker: the secstore client round-trip (AUTH-08/D-14)
+### The closed blocker: the secstore client round-trip (AUTH-08/D-14) — DELIVERED
 
-The secstore SUBSTRATE is green end-to-end (the ramfs venue, the
-console-fed secuser account creation, the staged payload object) —
-but the client PUT/GET round-trip is NAMED-SKIPPED on this venue:
-**r9's devip loopback TCP never delivers SConn's donor write pattern**
-(a 2-byte binary count write immediately followed by the payload
-write — `secstore/SConn.c` SC_write).  Measured live in 18-05
-(`evidence/18-05-secstore-stall-modes.console.log`): the two-write
-client form stalls with BOTH procs parked forever (and an alarm note
-never reaches a devip-blocked proc); a ONE-write control on the same
-listener round-trips — the server even replies through the same
-two-write pattern on its own side.  The defect is in r9's devip seam
-(the delivery/wake of the second fast-path send), kernel bytes pinned
-at `b2a6151` — outside the Harvey tree's authority.  Reopener: the
-next r9 kernel-byte pass (Phase 19's cpu path rides multi-write TCP
-too).  Until it closes, the gate asserts the round-trip verdict stays
-ABSENT — `AUTH-SKIP secstore-roundtrip` with the reason line is the
-honest state, never an unearned OK.
+The 18-05 blocker is CLOSED (18-07 + 18-08).  The defect — r9's
+devip loopback TCP never delivering SConn's donor two-write pattern
+(a 2-byte count write then the payload write, `secstore/SConn.c`
+SC_write; both procs parked forever) — was root-caused at
+`tcp_socket`'s stock smoltcp defaults: **Nagle ON + a 10 ms delayed
+ACK** held every sub-MSS follow-up write for a post-deadline drive a
+fully-parked venue can never run.  The fix (r9 `ab4cb66`, the 18-07
+plan) restores the donor's TCP shape — Nagle off, ACK immediate —
+pinned RED->GREEN host-side (`tcp_two_write_client_pattern_round_trips`)
+and proven live (the mode-2 stall became the mode-2 round-trip;
+`evidence/18-07-devip-twowrite-{repro,fix}.console.log`; the 18-05
+isolation matrix stays at
+`evidence/18-05-secstore-stall-modes.console.log`).
+
+18-08 closed the Harvey half: the FOD pass pinned the kernel bytes
+(r9 `9103522`, Harvey `flake.lock` advanced lock-only), the sweep's
+9d legs are restored per their committed shape (venue copy, PUT with
+CWD there, `-G` GET, the bytes-back grep), and the gate FLIPPED from
+the retired named-SKIP arm to presence demands (`secstore: saved`,
+`AUTH norbert`, `[norbert] PUT`/`[norbert] GET`, `AUTH-SECOBS`, and
+the verdict are all staged and post-pass demanded; every pre-existing
+tooth — nvram-prompt-absent, zero-AUTH-FAIL, the DEMO label,
+ANNOUNCE, DENIED-exactly-once, tr-ok, no-speaks-for — stayed armed).
+The full gate is green twice consecutively at the advanced pin with
+both captures retained: `evidence/18-08-auth-a.log`,
+`evidence/18-08-auth-b.log` (redacted; the verdict appears only
+where the payload line came back in the delivered bytes).  The
+client dials `-s 127.0.0.1` — see the venue fact above.
 
 ## The timer chain
 

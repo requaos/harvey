@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 ## Current Position
 
-Phase: 18 (In-Guest p9sk1 Auth Domain) — EXECUTING
-Plan: 8 of 8
-Status: Ready to execute
-Last activity: 2026-11-14 — Phase 18 execution started
+Phase: 18 (In-Guest p9sk1 Auth Domain) — GAP CLOSURE COMPLETE
+Plan: 8 of 8 (all plans executed; 18-08 closed the phase's three verification gaps — CR-01/CR-02 fixed+pushed+pinned, the AUTH-08 round-trip delivered and presence-demanded at the pin)
+Status: Phase 18 execution complete; Phase 19 next
+Last activity: 2026-11-14 — 18-08 gap-closure execution complete
 
 Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 complete, 18-19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phases 18-19)
 
@@ -258,7 +258,7 @@ None yet.
 - raspi3b-on-qemu-11.1.2 boot defect — accepted (pre-existing, A/B-proven not-a-regression); tracked in PROJECT.md Active
 - 14-06 RESOLVED (cycle 4, r9@8aa9ba2): the "scheduler corruption" was sched_loop's diverging trap_return resume arm leaving SCHED_CONTEXT stale against a stack slot the intervening scheduler iterations reused — wild execution explains every prior symptom (the "lying panic" with merged cold-block locations, the H2-class garbage parent, the apparent paqfs death: it never died, it was readied and never resumed); the devpipe/qreopen suspicion was run live and ELIMINATED (pid-keyed rings: no EOF/err/reopen in the whole run); q35shell green twice consecutively, full regression battery green at r9@8aa9ba2
 - CR-07/WINDOWS #66 DISPOSITIONED (waived) at the 17-08 terminus: the 8-way-transfer triple-fault class stays live ~8%/run but the cure is venue-blocked — KVM capture ceiling + TCG×slirp avenue (N=10, NO-FIRE-IN-SERIES) both exhausted, strongest-candidate fix refuted at the fix pin; maintainer-ratified waiver (Neil Skinner, 2026-11-13T14:42:08Z) with 3-part D-15 rationale; reopener conditions + the committed boot-r9-stress-x64 instrument in 17-CR07-ROOTCAUSE sections 8-9
-- 18-05/AUTH-08: the secstore client round-trip is venue-blocked — r9 devip loopback TCP never delivers SConn's donor two-write pattern (2-byte count + payload; both procs park forever, an alarm note never reaches a devip-blocked proc; a one-write control round-trips and the server's own two-write reply delivers — evidence 18-05-secstore-stall-modes.console.log); kernel bytes pinned at b2a6151, outside Harvey-side authority; reopener: the next r9 kernel-byte pass (Phase 19's cpu path rides multi-write TCP too); the gate holds the round-trip verdict PROVABLY absent (AUTH-SKIP + reason line, no unearned OK)
+- 18-05/AUTH-08 RESOLVED (18-07/18-08): the devip two-write defect was tcp_socket's stock smoltcp defaults (Nagle ON + 10ms delayed ACK holding every sub-MSS follow-up write for a post-deadline drive a fully-parked venue can never run) — fixed donor-faithfully at r9 ab4cb66 (Nagle off, ACK immediate; ack_delay(None) also unblocks >2048-byte bulk writes); 18-08's FOD pass pinned the bytes (r9 9103522, Harvey flake.lock advanced lock-only), restored the sweep's 9d legs (-s 127.0.0.1 — the $attr cs class reds on r9, the literal-loopback idiom instead), and flipped the gate to presence demands — the round-trip is green twice at the pin with the bytes-back AUTH-SECOBS (evidence 18-08-auth-{a,b}.log, redacted); the AUTH-SKIP arm is retired; no residual
 
 ## Deferred Items
 
