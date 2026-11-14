@@ -43,7 +43,7 @@ nix run .#boot-r9-tier1-x64        # x86_64 tier-1 sweep gate (36+ markers)
 nix run .#boot-r9-net-smoke-x64    # net gates: static + DHCP + loopback echo
 nix run .#boot-r9-services-x64     # tier-2 services probes (SVC-* markers)
 nix run .#boot-r9-churn-x64        # exec churn / heap-marker bound
-nix run .#boot-r9-auth-x64        # p9sk1 auth domain: pairing+keyfs+listeners+cs+factotum
+nix run .#boot-r9-auth-x64        # p9sk1 auth domain: pairing+keyfs+listeners+cs+factotum+auth/debug probe+speaksfor+secstore substrate (client round-trip named-skipped: r9 devip two-write TCP blocker)
 nix run .#boot-r9-tier1            # aarch64 tier-1 venue
 nix run .#boot-r9-smoke            # aarch64 smoke venue
 
@@ -213,7 +213,7 @@ sh build/x86_64/coverage-sweep.sh   # regenerates build/x86_64/dir-coverage.txt
 
 **CI (`.github/workflows/`):**
 - `phase6.yml`: wave0-host (repro gates, coverage regenerated in place + `git diff --exit-code` drift signal, generator .7-magic scan, grep-hygiene, venue pin), tier-9k + tier-r9 (both kernel venues, 90m), tier-2 compile gate (T2-ART marker parity), x86_64-poolpanic (verdict PRODUCTION asserted, never the outcome)
-- `r9-shell.yml`: clean checkout → nix install (action pinned to full 40-char SHA) → `nix run .#boot-r9-smoke` (aarch64, TCG); permissions `contents: read`, no secrets
+- `r9-shell.yml`: clean checkout → nix install (action pinned to full 40-char SHA) → `nix run .#boot-r9-smoke` (aarch64, TCG) + the x64 legs (`net-smoke-x64`, `auth-smoke-x64` — both `R9_ACCEL=tcg`; the auth leg carries the p9sk1 probe legs + the secstore SKIP); permissions `contents: read`, no secrets
 - `harvey.yml`: legacy 9legacy-ISO pipeline — untouched sibling
 
 ## Common Patterns

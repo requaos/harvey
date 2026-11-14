@@ -231,7 +231,7 @@ Plans:
   3. keyfs starts non-interactively over the baked `/adm/keys`, authsrv listens on tcp/567, and the guest domain's ndb content (authdom, hostid, sys, ether) is staged in the image (AUTH-04, AUTH-05)
   4. The in-guest loopback p9sk1 probe is green BEFORE any drawterm attempt: auth/debug completes a full handshake over loopback, the non-hostowner speaksfor gate passes, and serial-visible auth logging has been present since day one (AUTH-06, AUTH-07)
   5. secstore is available for persistent key storage beyond the baked keys, and the writable-`/adm` + nvram-substitute scoping is decided and documented (in-phase decision: baked+paired for CI; host-9P `/adm` mount for real use) (AUTH-08, AUTH-09)
-**Plans**: 4/5 plans executed
+**Plans**: 5/5 plans executed
 
 Plans:
 **Wave 1**
@@ -245,7 +245,7 @@ Plans:
 - [x] 18-04-PLAN.md — sixth mkimage contract + auth bring-up (pairing boot check → nvram= → keyfs → listen1/authsrv -d on tcp!*!567 → secstored -v) + AUTH-05 ndb staging + the app-per-gate expect gate (AUTH-01, AUTH-04, AUTH-05, AUTH-07)
 
 **Wave 4** *(blocked on Wave 3 completion)*
-- [ ] 18-05-PLAN.md — probe legs (auth/debug full p9sk1 + speaksfor C probe + negative control) + secstore round-trip + CI leg + AUTH-09 docs (AUTH-06, AUTH-07, AUTH-08, AUTH-09)
+- [x] 18-05-PLAN.md — probe legs (auth/debug full p9sk1 + speaksfor C probe + negative control) + secstore round-trip + CI leg + AUTH-09 docs (AUTH-06, AUTH-07, AUTH-08, AUTH-09)
 
 ### Phase 19: CPU Service + Drawterm + rio Desktop
 **Goal**: The milestone's payoff — `nix run .#boot-r9` remains the ONE command on x86_64 and now brings up the full system (net + auth + cpu listener); `nix run .#drawterm` connects from the host, authenticates, and lands the user in an interactive rio desktop session — on the flush-out-hardened kernel. **Work spans both repos plus the flake glue.**
@@ -284,7 +284,7 @@ Plans:
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 9/9 | Complete    | 2026-11-10 |
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | 8/8 | Complete    | 2026-11-12 |
 | 17. r9 Kernel Flush-Out | v2.1 | 8/8 | Complete    | 2026-11-13 |
-| 18. In-Guest p9sk1 Auth Domain | v2.1 | 4/5 | In Progress | - |
+| 18. In-Guest p9sk1 Auth Domain | v2.1 | 5/5 | In Progress | - |
 | 19. CPU Service + Drawterm + rio Desktop | v2.1 | - | Not started | - |
 
 ## Backlog

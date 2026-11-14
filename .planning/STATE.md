@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: In-Guest p9sk1 Auth Domain
-status: executing
-stopped_at: Completed 18-04-PLAN.md
-last_updated: "2026-11-14T05:13:33.562Z"
+status: verifying
+stopped_at: Completed 18-05-PLAN.md (phase execution complete)
+last_updated: "2026-11-14T07:06:26.912Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 18 execution started
-state_head: abb87905593f5984508a27183c2f3b9c93cf5adb
+state_head: 8fce2f5f821ae09a2fd17f5c842d939d7adecf87
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 45
-  completed_plans: 44
+  completed_plans: 45
 ---
 
 # Project State
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 Phase: 18 (In-Guest p9sk1 Auth Domain) — EXECUTING
 Plan: 5 of 5
-Status: Ready to execute
+Status: Phase complete — ready for verification
 Last activity: 2026-11-13 — Phase 18 execution started
 
 Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 complete, 18-19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phases 18-19)
@@ -103,6 +103,7 @@ Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 compl
 | Phase 18 P03 | 58 min | 3 tasks | 21 files |
 | Phase 18 P02 | 41min | 3 tasks | 19 files |
 | Phase 18 P04 | 72 min | 3 tasks | 13 files |
+| Phase 18 P05 | 105 min | 3 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -237,6 +238,8 @@ Recent decisions affecting current work:
 - [Phase 18]: [18-04] Harvey's amd64 6c END-PADS the all-char Nvrsafe to 112 bytes (host compilers see 109): the guest's readnvram reads sizeof bytes and a 109-byte nvram failed the length check SILENTLY (measured live: read 109 want 112, all five sums green over the donor-layout bytes — member offsets identical, tail pad only); the generator now emits 109-layout + 3 zero tail bytes — load-bearing for every future guest consumer of Nvrsafe
 - [Phase 18]: [18-04] The AUTH contract is mkimage §14 (the plan's §13 refs predate 18-01's substrate landing — the wave-1 note executed): bootfs-auth.paq = chain + tier-computed auth suite + authdomain-gen invoked AT BAKE, the D-02 pairing verified over the STAGED COPIES (AUTHBAKE_DOCTOR is the committed runnable teeth seam); listen1 -t is the trusted arm (skips becomenone — authsrv's child needs the real namespace), and AUTH-07's serial visibility is syslog's #c/cons fallback (never a writable /sys/log)
 - [Phase 18]: [18-04] AUTH-05 seam staging: local.template is two-consumer — the AUTH bake substitutes all five tokens (@AUTHDOM@ from the generator run's own -i output, never a seam key), the services bake substitutes the seam's four and STRIPS the auth row (asserted both ways); netaddr.rc's ether key is the NIC MAC's single home and the venue-literal grep gained the 52:54:00 class
+- [Phase 18]: 18-05: the secstore round-trip is venue-blocked — r9 devip never delivers SConn's donor two-write TCP pattern (2-byte count + payload; both procs park; alarm notes never reach a devip-blocked proc; the one-write control round-trips and the server's own two-write reply delivers); kernel pinned b2a6151 — the gate holds the verdict PROVABLY absent (named SKIP, no unearned OK); reopener: the next r9 kernel-byte pass (Phase 19's cpu path rides multi-write TCP)
+- [Phase 18]: 18-05: the writable /adm/secstore venue is RAMFS (the cmd/ramfs leaf, mounted before the listeners, live-probed per gate run) — mntgen file-writes measured read-only (15-06, re-confirmed live) AND rc's output-redirect open failures are fatal to a sourced sweep (the probe line itself kills the script — the fatal-redirect fact is new load-bearing rc knowledge); secuser's field prompts are console-typed (userinput's whole-chunk reads coalesce any file feed)
 
 ### Pending Todos
 
@@ -248,6 +251,7 @@ None yet.
 - raspi3b-on-qemu-11.1.2 boot defect — accepted (pre-existing, A/B-proven not-a-regression); tracked in PROJECT.md Active
 - 14-06 RESOLVED (cycle 4, r9@8aa9ba2): the "scheduler corruption" was sched_loop's diverging trap_return resume arm leaving SCHED_CONTEXT stale against a stack slot the intervening scheduler iterations reused — wild execution explains every prior symptom (the "lying panic" with merged cold-block locations, the H2-class garbage parent, the apparent paqfs death: it never died, it was readied and never resumed); the devpipe/qreopen suspicion was run live and ELIMINATED (pid-keyed rings: no EOF/err/reopen in the whole run); q35shell green twice consecutively, full regression battery green at r9@8aa9ba2
 - CR-07/WINDOWS #66 DISPOSITIONED (waived) at the 17-08 terminus: the 8-way-transfer triple-fault class stays live ~8%/run but the cure is venue-blocked — KVM capture ceiling + TCG×slirp avenue (N=10, NO-FIRE-IN-SERIES) both exhausted, strongest-candidate fix refuted at the fix pin; maintainer-ratified waiver (Neil Skinner, 2026-11-13T14:42:08Z) with 3-part D-15 rationale; reopener conditions + the committed boot-r9-stress-x64 instrument in 17-CR07-ROOTCAUSE sections 8-9
+- 18-05/AUTH-08: the secstore client round-trip is venue-blocked — r9 devip loopback TCP never delivers SConn's donor two-write pattern (2-byte count + payload; both procs park forever, an alarm note never reaches a devip-blocked proc; a one-write control round-trips and the server's own two-write reply delivers — evidence 18-05-secstore-stall-modes.console.log); kernel bytes pinned at b2a6151, outside Harvey-side authority; reopener: the next r9 kernel-byte pass (Phase 19's cpu path rides multi-write TCP too); the gate holds the round-trip verdict PROVABLY absent (AUTH-SKIP + reason line, no unearned OK)
 
 ## Deferred Items
 
@@ -260,6 +264,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T05:13:32.864Z
-Stopped at: Completed 18-04-PLAN.md
+Last session: 2026-11-14T07:06:26.216Z
+Stopped at: Completed 18-05-PLAN.md (phase execution complete)
 Resume file: None
