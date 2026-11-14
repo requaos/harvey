@@ -22,14 +22,16 @@ static void	usage(void);
 static void	writestr(int, char*, char*, int);
 static int	readstr(int, char*, int);
 static char	*rexcall(int*, char*, char*);
+static int	parseospec(char*);
 static char *keyspec = "";
 static AuthInfo *p9any(int);
 
 #define system csystem
 static char	*system;
 static int	cflag;
+int	Gflag;		/* -G: no-window stdio session; set by earlyflags before any gui init */
 extern int	dbg;
-extern char*   base;   // fs base for devroot 
+extern char*   base;   // fs base for devroot
 
 static char	*srvname = "ncpu";
 static char	*ealgs = "rc4_256 sha1";
@@ -66,14 +68,18 @@ int setam(char*);
 void
 exits(char *s)
 {
+	if(Gflag)
+		gconsexit(s);
 	print("\ngoodbye\n");
 	for(;;) osyield();
 }
 
+char *usagestr = "usage: drawterm [-G] [-O cpu=host,auth=authaddr,user=name] [-a authserver] [-c cpuserver] [-s secstore] [-u user]";
+
 void
 usage(void)
 {
-	fprint(2, "usage: drawterm [-a authserver] [-c cpuserver] [-s secstore] [-u user]\n");
+	fprint(2, "%s\n", usagestr);
 	exits("usage");
 }
 int fdd;
@@ -100,26 +106,12 @@ mountfactotum(void)
 void
 cpumain(int argc, char **argv)
 {
-	char dat[MaxStr], buf[MaxStr], cmd[MaxStr], *err, *secstoreserver, *p, *s;
-	int fd, ms, data;
+	char dat[MaxStr], buf[MaxStr], cmd[MaxStr], *err, *secstoreserver, *p, *s, *ospec;
+	int fd, ms, data, oflag;
 
-	/* see if we should use a larger message size */
-	fd = open("/dev/draw", OREAD);
-	if(fd > 0){
-		ms = iounit(fd);
-		if(msgsize < ms+IOHDRSZ)
-			msgsize = ms+IOHDRSZ;
-		close(fd);
-	}
-
-	user = getenv("USER");
+	oflag = 0;
+	ospec = nil;
 	secstoreserver = nil;
-	authserver = getenv("auth");
-	if(authserver == nil)
-		authserver = "auth";
-	system = getenv("cpu");
-	if(system == nil)
-		system = "cpu";
 	ARGBEGIN{
 	case 'a':
 		authserver = EARGF(usage());
@@ -144,8 +136,15 @@ cpumain(int argc, char **argv)
 			strcat(cmd, p);
 		}
 		break;
+	case 'G':
+		Gflag = 1;
+		break;
 	case 'k':
 		keyspec = EARGF(usage());
+		break;
+	case 'O':
+		ospec = EARGF(usage());
+		oflag = 1;
 		break;
 	case 'r':
 		base = EARGF(usage());
@@ -162,6 +161,38 @@ cpumain(int argc, char **argv)
 
 	if(argc != 0)
 		usage();
+
+	if(oflag){
+		/*
+		 * -O is the pinned-connection form: argv is the single
+		 * source, so the $cpu/$auth/$USER environment reads never
+		 * execute (the hijack surface; see the -G wrapper).
+		 */
+		if(parseospec(ospec) < 0)
+			usage();
+	}else{
+		user = getenv("USER");
+		authserver = getenv("auth");
+		if(authserver == nil)
+			authserver = "auth";
+		system = getenv("cpu");
+		if(system == nil)
+			system = "cpu";
+	}
+
+	/*
+	 * See if we should use a larger message size (a gui-only probe:
+	 * the -G path never touches the draw device).
+	 */
+	if(!Gflag){
+		fd = open("/dev/draw", OREAD);
+		if(fd > 0){
+			ms = iounit(fd);
+			if(msgsize < ms+IOHDRSZ)
+				msgsize = ms+IOHDRSZ;
+			close(fd);
+		}
+	}
 
 	if(user == nil)
 		user = readcons("user", nil, 0);
@@ -714,6 +745,115 @@ setam(char *name)
 			return 0;
 	am = authmethod;
 	return -1;
+}
+
+/*
+ *  -O spec: cpu=host,auth=authaddr,user=name, comma separated.  The
+ *  pinned-connection form: with -O the environment is never consulted,
+ *  so an unknown key, an empty value or a missing one of the three
+ *  required keys is a usage error naming the accepted keys.  Parsed
+ *  on a private copy: getfields writes NULs over the delimiters, and
+ *  the spec lives in argv (the early pre-scan and cpumain's canonical
+ *  parse must both see it whole).
+ */
+static int
+parseospec(char *spec)
+{
+	static char *specbuf;
+	char *f[8];
+	int i, nf, ncpu, nauth, nuser;
+
+	specbuf = smprint("%s", spec);
+	if(specbuf == nil)
+		return -1;
+	ncpu = nauth = nuser = 0;
+	nf = getfields(specbuf, f, nelem(f), 0, ",");
+	if(nf <= 0)
+		return -1;
+	for(i = 0; i < nf; i++){
+		if(strncmp(f[i], "cpu=", 4) == 0 && f[i][4] != 0){
+			system = f[i]+4;
+			ncpu++;
+		}else if(strncmp(f[i], "auth=", 5) == 0 && f[i][5] != 0){
+			authserver = f[i]+5;
+			nauth++;
+		}else if(strncmp(f[i], "user=", 5) == 0 && f[i][5] != 0){
+			user = f[i]+5;
+			nuser++;
+		}else
+			return -1;
+	}
+	if(ncpu != 1 || nauth != 1 || nuser != 1)
+		return -1;
+	return 0;
+}
+
+/*
+ *  Early flag pre-scan, run from main before any gui init: settles
+ *  Gflag and validates the -O spec so a usage error is visible on a
+ *  headless run (screeninit would otherwise die at the display open
+ *  before cpumain ever parses argv).  Stops at the first token the
+ *  ARGBEGIN grammar below does not own; cpumain remains the canonical
+ *  parse and reports anything left over.
+ */
+void
+earlyflags(int argc, char **argv)
+{
+	int i;
+	char *a, *spec;
+
+	/* the exact -G token first, so a usage exit on a later malformed
+	 * flag still terminates cleanly instead of parking in exits() */
+	for(i = 1; i < argc; i++)
+		if(strcmp(argv[i], "-G") == 0)
+			Gflag = 1;
+
+	spec = nil;
+	for(i = 1; i < argc; i++){
+		a = argv[i];
+		if(a[0] != '-' || a[1] == 0)
+			return;
+		if(strcmp(a, "--") == 0)
+			return;
+		for(a++; *a; a++){
+			switch(*a){
+			case 'd':
+				continue;
+			case 'G':
+				Gflag = 1;
+				continue;
+			case 'O':
+				if(a[1] != 0)
+					spec = a+1;
+				else if(i+1 < argc)
+					spec = argv[++i];
+				else
+					argusage();
+				if(parseospec(spec) < 0)
+					argusage();
+				break;
+			case 'a':
+			case 'c':
+			case 'e':
+			case 'k':
+			case 'r':
+			case 's':
+			case 'u':
+				if(a[1] != 0)
+					break;
+				if(i+1 < argc)
+					i++;
+				else
+					argusage();
+				break;
+			default:
+				/* 'C' eats the rest itself; anything
+				 * unknown is cpumain's usage error */
+				return;
+			}
+			break;
+		}
+	}
 }
 
 /*
