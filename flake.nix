@@ -60,8 +60,16 @@
         # minimega VM orchestration, fetched+built by nix (no submodule glue).
         # Linux-only upstream (KVM, linux/fs.h); manages Harvey/r9 amd64 test
         # VMs on KVM hosts. aarch64 guests are NOT supported upstream.
+        # 19-06 (DESK-01/D-02): the drawterm package — the vendored
+        # in-tree drawterm compiled hermetically (src is the committed
+        # repo dir; no fetch, no patchPhase — local -O/-G/gui-none work
+        # lands as normal Harvey commits on the vendor).  Linux-only
+        # beside minimega: the gui-x11 backend is this phase's windowed
+        # leg (darwin is the documented-manual -G-only venue, amended
+        # D-03).
         // nixpkgs.lib.optionalAttrs pkgs.stdenv.hostPlatform.isLinux {
           minimega = pkgs.callPackage ./nix/minimega.nix { };
+          drawterm = pkgs.callPackage ./nix/drawterm.nix { };
         });
 
       apps = forAllSystems (system:
@@ -281,6 +289,22 @@
           netDoctorPkg = mkScriptApp pkgs "harvey-net-doctor" ./nix/net-doctor.sh ""
             [ pkgs.bash pkgs.qemu pkgs.iproute2 pkgs.iptables pkgs.procps
               pkgs.coreutils pkgs.gnugrep pkgs.gnused ];
+          # 19-06 (DESK-01): the drawterm session wrapper — scrubs the
+          # credential-bearing env ($cpu/$auth/$PASS/$USER), pins the
+          # connection on argv via -O (the committed hostfwd pair's
+          # loopback side: cpu=127.0.0.1, auth=tcp!127.0.0.1!5670,
+          # user=glenda — argv is the single source), prints the exact
+          # encrypted-default connect line (windowed primary + the -G
+          # text form; no -e flag anywhere, D-15), and execs the
+          # package binary.  Headless (DISPLAY unset) runs the -G stdio
+          # line LOUDLY — never a silent downgrade.  linux-only beside
+          # net-doctor: it consumes NO r9 attrs, so it must not ride
+          # (or widen) the frozen kernel-x64/iso-builder gate list.
+          drawtermX64Pkg = mkScriptApp pkgs "harvey-drawterm" ./nix/drawterm-x64.sh ''
+            ${nixpkgs.lib.optionalString isLinux ''
+              export DRAWTERM_BIN="${self.packages.${system}.drawterm}/bin/drawterm"
+            ''}
+          '' [ pkgs.bash ];
           # 16-05 (D-12): the committed host echo peer — the NETIP-08
           # soak's far end.  A host-cc build of nix/host-echo.c (the
           # harness-package precedent: committed repo source, stdenv
@@ -449,6 +473,9 @@
         # iso-builder gate above — research Pitfall 6.
         // nixpkgs.lib.optionalAttrs isLinux {
           net-doctor = mkApp netDoctorPkg;
+          # 19-06 (DESK-01): the drawterm session app — the wrapper
+          # above (scrub + -O pin + printed connect line + exec).
+          drawterm = mkApp drawtermX64Pkg;
         });
 
       devShells = forAllSystems (system:
