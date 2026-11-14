@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
 status: executing
-stopped_at: Completed 19-06-PLAN.md (drawterm -O/-G + gui-none + nix wrapper)
-last_updated: "2026-11-14T23:11:21.572Z"
+stopped_at: Completed 19-02-PLAN.md (CR-03 AcceptPool TCP fix + q35 tick_check; r9 pushed df9ada8)
+last_updated: "2026-11-14T23:38:11.720Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 19 execution started
-state_head: a3f7c7d8d50c4d19f071ebc23645eca84c475e5a
+state_head: b8c544f4474fdfc6e0e13dcb133b66e6f8820ad9
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 58
-  completed_plans: 50
+  completed_plans: 51
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 19 (CPU Service + Drawterm + rio Desktop) — EXECUTING
-Plan: 3 of 10
+Plan: 4 of 10
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 19 execution started
 
@@ -110,6 +110,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 18 P08 | 33min | 3 tasks | 10 files |
 | Phase 19 P01 | 32 min | 3 tasks | 9 files |
 | Phase 19 P06 | 32 min | 3 tasks | 12 files |
+| Phase 19 P02 | 20 min | 3 tasks | 4 files |
 
 ## Accumulated Context
 
@@ -258,6 +259,8 @@ Recent decisions affecting current work:
 - [Phase 19]: [Phase 19]: 19-01 CPU-02 tracer — service=cpu arrives via the boot protocol, not file content: GRUB -append -> grub.cfg @R9-APPEND@ token (both ISO emitters, empty-append byte-stable) -> mb2 tag-1 cmdline -> kernel-parsed donor-plan9.ini bootconf pairs MERGED into the seeded ROOT env group (overlong loud at parse AND compose) -> boot(8) execinit's getenv("init") arm (A4 verified multi-word) -> init -c -> cpurc. The §15 cpurc fixture is a MARKER BINARY (rc exec's the file directly — rcmain eval's $cflag; a script needs 19-02's kernel #!) that prints and parks so init's terminal fallback never runs
 - [Phase 19]: [19-06] drawterm -O is the pinned-connection single source (argv spec cpu=/auth=/user=; the $cpu/$auth/$USER env reads never execute when -O present) and -G is the no-window stdio session (raw tty restored via atexit, cons on real stdio, exit propagation) — gui-none is the none backend class member (no X11/Carbon; loud screen stubs) for the amended-D-03 darwin -G-only leg
 - [Phase 19]: [19-06] the wrapper (nix run .#drawterm) scrubs $cpu/$auth/$PASS/$USER, pins cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda, prints the encrypted-default connect lines (windowed primary + -G text form; -e clear is debug-only wording, never a printed line), and execs — headless venues run the -G line loudly; the x64 hasAttr gate list stayed byte-unchanged
+- [Phase 19]: [19-02] CR-03 closed at spawn_listener: pool members are the accepted connection's socket for life, so the donor TCP shape (Nagle off, no 10ms delayed ACK — tcp_socket's 18-07 calls mirrored exactly) set at the SPAWN site covers every announced connection end-to-end; the WR-04 bulk-drain leg's writer is the CLIENT (the draining ACK comes from the peer — the pool member's delayed ACK is what parks a client bulk write, the exportfs/secstore direction)
+- [Phase 19]: [19-02] D-10 wired: q35 tick()'s dev_exec block carries cfg(dev_ip) tick_check (the aarch64 virt precedent verbatim, no poll/alloc in IRQ context); compile-shape proven by nm symbol contrast (dev_ip kernel exports tick_check, non-dev_ip has zero references) + q35shell boot; 19-08's long-lived session is the named live consumer; the harness gained the ON_BLOCK seam fix (a green pin's un-fired park bound leaked into later-blocking siblings)
 
 ### Pending Todos
 
@@ -283,6 +286,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T23:11:20.650Z
-Stopped at: Completed 19-06-PLAN.md (drawterm -O/-G + gui-none + nix wrapper)
+Last session: 2026-11-14T23:38:10.774Z
+Stopped at: Completed 19-02-PLAN.md (CR-03 AcceptPool TCP fix + q35 tick_check; r9 pushed df9ada8)
 Resume file: None
