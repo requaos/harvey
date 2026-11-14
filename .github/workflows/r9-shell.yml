@@ -89,16 +89,22 @@ jobs:
       - uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa # pinned SHA (header rule)
       - run: env R9_ACCEL=tcg nix run .#boot-r9-net-smoke-x64
 
-  # 18-05 (AUTH-06..AUTH-09): the composed AUTH gate's hosted leg —
-  # the full p9sk1 domain boot (bake-time generator + pairing asserts
-  # + keyfs/listeners/cs/factotum) through BOTH probe legs (auth/debug
-  # as norbert + the speaksfor C probe with its fail-closed deny
-  # control) and the secstore PUT/GET round-trip.  R9_ACCEL=tcg is
-  # load-bearing beyond the KVM-less-runner rule: the p9sk1 challenges
-  # consume /dev/random, and TCG exercises the jitter-mix seeding path
-  # (18-01's D-05) — a TCG red after a KVM green is a substrate bug,
-  # never gate noise.  The services venue stays blocked pre-existing
-  # (#68) — no services leg here.
+  # 18-05/18-08 (AUTH-06..AUTH-09): the composed AUTH gate's hosted
+  # leg — the full p9sk1 domain boot (bake-time generator + pairing
+  # asserts + keyfs/listeners/cs/factotum) through BOTH probe legs
+  # (auth/debug as norbert + the speaksfor C probe with its fail-closed
+  # deny control) and the secstore PUT/GET round-trip EXERCISED and
+  # presence-demanded (18-08's flip at the r9 pin carrying the 18-07
+  # devip two-write fix: `secstore: saved', secstored's AUTH/PUT/GET
+  # syslog tokens, the bytes-back AUTH-SECOBS, and the
+  # AUTH-OK secstore-roundtrip verdict are all demanded — the 18-05
+  # named-SKIP arm is retired; hosted observation of this contract
+  # stays PENDING FIRST PUSH per the standing convention).  R9_ACCEL=tcg
+  # is load-bearing beyond the KVM-less-runner rule: the p9sk1
+  # challenges consume /dev/random, and TCG exercises the jitter-mix
+  # seeding path (18-01's D-05) — a TCG red after a KVM green is a
+  # substrate bug, never gate noise.  The services venue stays blocked
+  # pre-existing (#68) — no services leg here.
   # Supply chain: the same pinned checkout/nix-installer SHAs as the
   # sibling jobs (the header rule); no other external steps.
   auth-smoke-x64:

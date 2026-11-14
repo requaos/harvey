@@ -49,26 +49,29 @@
 #		prompts read the cooked console line-by-line —
 #		userinput's whole-chunk reads coalesce a file feed, so
 #		/dev/cons IS the stdin) -> `AUTH-OK secuser'; the client
-#		PUT/GET round-trip is the named SKIP arm: r9's devip
-#		never delivers SConn's two-write pattern (the donor
-#		client's 2-byte count + payload writes stall with both
-#		procs parked; the one-write control round-trips —
-#		evidence/18-05-secstore-stall-modes.console.log) —
-#		KERNEL bytes, pinned, outside this plan; -> `AUTH-SKIP
-#		secstore-roundtrip' + `AUTH-SKIP-WHY r9-devip-two-write-
-#		tcp' (the 15-08 venue-honesty lineage: a SKIP with its
-#		reason, never an unearned OK; the prohibition holds —
-#		no secstore green without the bytes-back round-trip)
+#		PUT/GET round-trip runs RESTORED (18-08; the 18-07 devip
+#		fix — r9 ab4cb66, donor-faithful tcp sockets with Nagle
+#		off + immediate ACK — delivers SConn's two-write pattern,
+#		closing the 18-05 blocker): copy the payload into the
+#		venue, PUT with CWD there, -G GET, grep the payload line
+#		out of the delivered bytes -> `AUTH-SECOBS <line>' +
+#		`AUTH-OK secstore-roundtrip' ONLY on the bytes-back match
+#		(the D-14 test-delivery-not-counters doctrine; the 18-05
+#		named-SKIP arm is retired, not merely silenced — no
+#		AUTH-SKIP marker remains emittable)
 #
 # Marker vocabulary (the host gate's contract): `authdom: PAIRED
 # <label>', `authdom: FAIL <artifact>', `AUTH-OK <leg>', `AUTH-FAIL
 # <leg>', `AUTH-DEBUGOBS <line>' (leg 7's filtered success line),
 # `AUTH-CONSOLEOBS restored|sentinel-still-bound' (the window's
 # cleanup status), `AUTH-VENUEOBS <verdict>' (leg 9a's probe
-# outcome), `AUTH-SECOBS <bytes>' (the delivered round-trip content),
-# `AUTH-DONE' (every leg green; a failed sweep terminates in
+# outcome), `AUTH-SECOBS <bytes>' (the delivered round-trip content,
+# leg 9d), `AUTH-DONE' (every leg green; a failed sweep terminates in
 # `AUTH-FAIL sweep' so the gate's fast-fail arm localizes without a
-# timeout stall).
+# timeout stall).  The 18-05 AUTH-SKIP family is RETIRED (18-08): no
+# AUTH-SKIP or AUTH-SKIP-WHY marker remains emittable anywhere in
+# this sweep — the round-trip is a demanded leg, green on delivered
+# bytes or AUTH-FAIL.
 #
 # rc-syntax discipline (15-02's measured list, carried verbatim):
 # braced `if not {' bodies are parse errors that kill a sourced file
@@ -428,35 +431,57 @@ if(! ~ $venue ''){
 		secuserstat=ok
 	}
 }
-# 9c. the client PUT/GET round-trip: BLOCKED on this venue — the named
-# SKIP arm (the 15-08 venue-honesty lineage: a SKIP with its reason,
-# never an unearned OK — the prohibition holds: NO secstore green
-# without the bytes-back round-trip).  Root cause (measured live this
-# phase, evidence/18-05-secstore-stall-modes.console.log): r9's devip
-# loopback TCP never delivers SConn's donor write pattern — a 2-byte
-# count write immediately followed by the payload write
-# (secstore/SConn.c SC_write) stalls with BOTH procs parked (the
-# client's read-park drive never lands the pair; an alarm note does
-# not reach a devip-blocked proc either).  The one-write control
-# round-trips (a single 33-byte write got PAKserver's framed error
-# reply back through the same two-write server path), so the defect is
-# the two-write client pattern class in r9's devip seam — KERNEL
-# bytes, pinned at b2a6151, outside this plan's authority.  The
-# venue's substrate stays PROVEN green: ramfs mount + file probe
-# (leg 3b) + the account creation (9b's AUTH-OK secuser — the who
-# entry + who/store dirs through the writable venue, console-fed
-# passwords).  Reopener: the next r9 kernel-byte pass (Phase 19's cpu
-# path rides multi-write TCP too); unblocking = fix devip, then
-# restore 9d below (the committed shape: copy the payload into the
-# venue, PUT with CWD there, -G GET, grep the payload line —
-# AUTH-OK secstore-roundtrip only on the delivered bytes).
-if(~ $secuserstat ok) echo AUTH-SKIP-WHY r9-devip-two-write-tcp
-if(~ $secuserstat ok) echo AUTH-SKIP secstore-roundtrip
-if(~ $secuserstat ok) echo AUTH-SKIP secstore-put
+# 9c. (18-05 history, closed 18-08: the named-SKIP arm this block
+# carried is RETIRED — its blocker closed at r9 ab4cb66, the 18-07
+# devip fix: the defect was tcp_socket's stock smoltcp defaults (Nagle
+# ON + 10ms delayed ACK) holding every sub-MSS follow-up write for a
+# post-deadline drive a fully-parked venue can never run; the fix is
+# the donor's TCP shape — Nagle off, ACK immediate.  The 18-05 stall
+# evidence stays: evidence/18-05-secstore-stall-modes.console.log; the
+# before/after pair: evidence/18-07-devip-twowrite-{repro,fix}
+# .console.log.)
 if not echo AUTH-FAIL secuser
 if(~ $secuserstat ok) echo AUTH-OK secuser
 
-# 9d. (BLOCKED — the SKIP arm above; restore on the devip fix)
+# 9d. the client PUT/GET round-trip, RESTORED per the committed shape
+# (18-08; AUTH-08's client half — D-14 test-delivery-not-counters):
+# copy the payload into the writable venue, PUT with CWD at the venue
+# copy (validatefile refuses '/' in remote names and the client's
+# local file arg IS the remote name — util.c), the -i password from
+# the in-image feed (/boot/authfeed.txt — its single line IS the
+# per-bake DEMO password, the 18-05 deviation-4 mechanism), then the
+# -G GET to stdout captured with the standing newline-only ifs
+# backquote (the hauthprobe capture idiom) — AUTH-SECOBS and the
+# verdict fire ONLY on the payload line AUTH-ROUNDTRIP-PAYLOAD-18-05
+# coming back in the DELIVERED bytes; any leg failure prints
+# AUTH-FAIL secstore-roundtrip (the gate's zero-fail post-pass bites;
+# secstored's `secstore: saved' + the syslog AUTH/[norbert] PUT/GET
+# lines are the server-side evidence the host gate presence-demands).
+# The -s 127.0.0.1 pin (18-08's measured venue fact, first gate run):
+# the client's default serve `$auth' -> `tcp!$auth!5356' rides cs's
+# $attr translation, whose system-identity substrate ENOETs on this
+# venue (r9's kernel namec error relayed verbatim as the cs Rerror —
+# `devmnt: server error: cs: namec: does not exist' in the first
+# run's capture); the literal-IP dial class is PROVEN on this venue
+# (hauthprobe legs dial 127.0.0.1 the same way in the same captures),
+# so the client pins secstored's literal loopback listener — the
+# authsrv legs' own idiom.
+rtstat=fail
+if(~ $secuserstat ok){
+	$B/hcat /boot/secstore-obj.txt > /adm/secstore/secstore-obj.txt
+	if(cd /adm/secstore){
+		$B/hsecstore -s 127.0.0.1 -i -u norbert -p secstore-obj.txt </boot/authfeed.txt
+		gout=`{$B/hsecstore -s 127.0.0.1 -i -u norbert -G secstore-obj.txt </boot/authfeed.txt}
+		for(l in $gout){
+			if(~ $l *'AUTH-ROUNDTRIP-PAYLOAD-18-05'*){
+				echo AUTH-SECOBS $l
+				rtstat=ok
+			}
+		}
+	}
+}
+if(~ $rtstat ok) echo AUTH-OK secstore-roundtrip
+if not echo AUTH-FAIL secstore-roundtrip
 
 # --- the terminal marker (AUTH-DONE only on a fully-green sweep) -----
 sweepstat=ok
@@ -472,6 +497,7 @@ if(! ~ $sfstat ok) sweepstat=fail
 if(! ~ $denystat ok) sweepstat=fail
 if(! ~ $consrestored yes) sweepstat=fail
 if(! ~ $secuserstat ok) sweepstat=fail
+if(! ~ $rtstat ok) sweepstat=fail
 if(~ $sweepstat ok) echo AUTH-DONE
 if not echo AUTH-FAIL sweep
 exit

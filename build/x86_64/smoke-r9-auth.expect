@@ -22,8 +22,13 @@
 #   (the filtered AUTH-DEBUGOBS echo) + hauthprobe's SPEAKSFOR-OK +
 #   the three probe verdicts + the console-restore observation +
 #   the secstore substrate — the venue verdict, secuser's console
-#   feeds, and the client round-trip's NAMED SKIP (r9-devip-two-
-#   write-tcp, the post-pass holds the skip structural)) ->
+#   feeds, and the client round-trip; 18-08 RESTORES the round-trip
+#   legs after the 18-07 devip fix (r9 ab4cb66) and FLIPS the gate
+#   from the retired named-SKIP arm to PRESENCE demands: the PUT's
+#   own `secstore: saved', secstored's `AUTH norbert' + `[norbert]
+#   PUT'/`[norbert] GET' syslog tokens, the bytes-back AUTH-SECOBS,
+#   and the `AUTH-OK secstore-roundtrip' verdict are all staged and
+#   post-pass demanded) ->
 #   AUTH-DONE → the %  prompt (the interactive shell the sweep's
 #   termrc execs) →
 #   the whole-capture post-passes: zero AUTH-FAIL, the exact getpass
@@ -35,8 +40,10 @@
 #   present, the deny control exactly once (SPEAKSFOR-DENIED x1),
 #   tr-ok present (AUTH-07's real-exchange evidence), the deny
 #   exchange's tr-fail 'no speaks for' line (the fail-closed path),
-#   and the secstore round-trip verdict PROVABLY absent (the named
-#   SKIP's teeth — no unearned OK).
+#   and the secstore round-trip PRESENCE-demanded (18-08's flip: the
+#   saved line, the AUTH/PUT/GET syslog tokens, the bytes-back
+#   AUTH-SECOBS, and the verdict must ALL be in the capture — no
+#   unearned OK, and no earned-but-unobserved green either).
 #
 #   exit 0 only when EVERY stage + post-pass passed; a failure exits 1
 #   and names the failed stage on stderr — never a bare
@@ -327,14 +334,9 @@ stage console-restored      {AUTH-CONSOLEOBS restored}
 #     the four field prompts — userinput reads the cooked console
 #     line-by-line, so every answer is typed after its prompt
 #     matches: default expiry, E, N, empty comment), secuser's own
-#     success line and verdict.  The client PUT/GET round-trip is the
-#     NAMED SKIP (the 15-08 venue-honesty lineage): r9's devip never
-#     delivers SConn's donor two-write pattern (the 2-byte count +
-#     payload writes stall with both procs parked; the one-write
-#     control round-trips — evidence/18-05-secstore-stall-modes
-#     .console.log) — kernel bytes, pinned, outside this plan.  The
-#     post-pass below makes the skip STRUCTURAL: AUTH-OK
-#     secstore-roundtrip may never appear until the devip fix lands.
+#     success line and verdict.  (18-08: the 18-05 named-SKIP stages
+#     that stood here are RETIRED — the r9 devip two-write defect
+#     closed at ab4cb66, the 18-07 fix; no AUTH-SKIP stage remains.)
 set pw $env(R9_DEMO_PW)
 feedstage secuser-password1 {norbert password: } "$pw\r"
 feedstage secuser-password2 {retype password: } "$pw\r"
@@ -343,9 +345,24 @@ feedstage secuser-enabled   {Enabled or Disabled} "E\r"
 feedstage secuser-sta       {require STA} "N\r"
 feedstage secuser-comments  {comments .default} "\r"
 stage secuser-written {change written}
-stage secuser-skip-why {AUTH-SKIP-WHY r9-devip-two-write-tcp}
-stage secuser-skip-roundtrip {AUTH-SKIP secstore-roundtrip}
 stage secuser-verdict {AUTH-OK secuser}
+
+# 5e. (18-08) the RESTORED secstore round-trip stages (AUTH-08's
+#     client half, D-14 test-delivery-not-counters) — in the sweep's
+#     emission order: secstored's PAK login syslog token, the PUT
+#     syslog token, the client PUT's own `secstore: saved' line, the
+#     GET connection's syslog token, the sweep's bytes-back
+#     observation (the -G GET's delivered payload line grepped back),
+#     and the verdict (printable ONLY on that bytes-back match).
+#     Message tokens only, never the syslog date prefix.  The
+#     brackets in the syslog tokens are regex-escaped (the stage
+#     patterns are -re).
+stage secstored-auth  {AUTH norbert}
+stage secstored-put   {\[norbert\] PUT}
+stage secstore-saved  {secstore: saved}
+stage secstored-get   {\[norbert\] GET}
+stage secstore-bytesback {AUTH-SECOBS}
+stage roundtrip-verdict {AUTH-OK secstore-roundtrip}
 
 # 6. the terminal sweep marker
 stage sweep-done {AUTH-DONE}
@@ -431,20 +448,47 @@ if {![string match "*no speaks for*" $whole]} {
 }
 puts stderr "smoke-r9-auth-x64: post-pass ok — the deny control's tr-fail 'no speaks for' line present (the fail-closed speaksfor gate proven)"
 
-# the secstore round-trip SKIP post-pass (AUTH-08/D-14, the named
-# blocker's structural teeth): the round-trip verdict may NEVER appear
-# until r9's devip carries the two-write pattern — an unearned OK
-# would violate the phase's own prohibition (no secstore green
-# without the bytes-back round-trip).  The unblock checklist (the
-# committed sweep's 9d comment carries the restore shape): fix devip
-# -> restore the PUT/GET legs -> these asserts flip to presence
-# demands (`secstore: saved', AUTH norbert, \[norbert\] PUT/GET).
-if {[string match "*AUTH-OK secstore-roundtrip*" $whole]} {
-    puts stderr "smoke-r9-auth-x64: AUTH-OK secstore-roundtrip PRESENT without the round-trip legs — the skip arm was bypassed (an unearned OK; the devip blocker must close first)"
+# the secstore round-trip post-pass (AUTH-08/D-14, FLIPPED 18-08 —
+# presence demands; the 18-05 named-SKIP arm is retired, not merely
+# silenced): the client PUT's own success line, secstored's login and
+# PUT/GET syslog tokens, the bytes-back observation, and the verdict
+# must ALL be present — the verdict is emittable ONLY from the
+# bytes-back grep over the -G GET's delivered payload line (the
+# sweep's 9d), so its presence IS the round-trip proof (no unearned
+# OK, and no earned-but-unobserved green either).  string first (exact
+# substring, no glob): the bracketed syslog tokens would be character
+# classes under string match.  A missing marker reds with a named
+# message; any AUTH-FAIL anywhere is already caught above.
+set rt_missing 0
+if {[string first "secstore: saved" $whole] < 0} {
+    puts stderr "smoke-r9-auth-x64: round-trip marker absent — `secstore: saved' (the client PUT's own success line) not in the capture"
+    incr rt_missing
+}
+if {[string first "AUTH norbert" $whole] < 0} {
+    puts stderr "smoke-r9-auth-x64: round-trip marker absent — secstored's `AUTH norbert' PAK login syslog token not in the capture"
+    incr rt_missing
+}
+if {[string first "\[norbert\] PUT" $whole] < 0} {
+    puts stderr "smoke-r9-auth-x64: round-trip marker absent — secstored's `\[norbert\] PUT' syslog token not in the capture"
+    incr rt_missing
+}
+if {[string first "\[norbert\] GET" $whole] < 0} {
+    puts stderr "smoke-r9-auth-x64: round-trip marker absent — secstored's `\[norbert\] GET' syslog token not in the capture"
+    incr rt_missing
+}
+if {[string first "AUTH-SECOBS" $whole] < 0} {
+    puts stderr "smoke-r9-auth-x64: round-trip marker absent — the bytes-back observation `AUTH-SECOBS' not in the capture (the -G GET never delivered the payload line)"
+    incr rt_missing
+}
+if {[string first "AUTH-OK secstore-roundtrip" $whole] < 0} {
+    puts stderr "smoke-r9-auth-x64: round-trip marker absent — the verdict `AUTH-OK secstore-roundtrip' not in the capture (the bytes-back grep never matched; an earned green is missing)"
+    incr rt_missing
+}
+if {$rt_missing > 0} {
     cleanup
     exit 1
 }
-puts stderr "smoke-r9-auth-x64: post-pass ok — the secstore round-trip verdict stays ABSENT (the named SKIP holds: r9-devip-two-write-tcp)"
+puts stderr "smoke-r9-auth-x64: post-pass ok — the secstore round-trip PRESENCE-demanded: saved + AUTH norbert + \[norbert\] PUT/GET syslog tokens + the bytes-back AUTH-SECOBS + the verdict all in the capture"
 
 # the T-18-13 redaction (LAST, after every assert ran over the true
 # capture): auth/debug's noise leg answers its cpu-server-owner prompt
@@ -466,6 +510,6 @@ if {[string first $pw $whole] >= 0} {
     puts stderr "smoke-r9-auth-x64: post-pass ok — the capture carried no DEMO password bytes (nothing to redact)"
 }
 
-puts stderr "smoke-r9-auth-x64: ALL STAGES PASS — chain boot, hostfwd-5670 observed host-side, D-02 boot pairing (DEMO label), non-interactive keyfs (N keys read), AUTH-OK keyfs, loopback up, the writable secstore venue (ramfs, live file probe), authsrv connect-accept on 567, secstored announced on 5356, cs answering authdom from the baked local, factotum carrying the p9sk1 key, auth/debug's p9sk1 success as norbert, hauthprobe's SPEAKSFOR-OK (bootes for norbert), the deny control (SPEAKSFOR-DENIED x1 + 'no speaks for'), console restored, secuser's account through the venue, the secstore round-trip NAMED-SKIPPED (r9-devip-two-write-tcp; the verdict structurally absent), AUTH-DONE, ANNOUNCE on serial, tr-ok present, nvram-prompt-absent, zero AUTH-FAIL, the capture redacted"
+puts stderr "smoke-r9-auth-x64: ALL STAGES PASS — chain boot, hostfwd-5670 observed host-side, D-02 boot pairing (DEMO label), non-interactive keyfs (N keys read), AUTH-OK keyfs, loopback up, the writable secstore venue (ramfs, live file probe), authsrv connect-accept on 567, secstored announced on 5356, cs answering authdom from the baked local, factotum carrying the p9sk1 key, auth/debug's p9sk1 success as norbert, hauthprobe's SPEAKSFOR-OK (bootes for norbert), the deny control (SPEAKSFOR-DENIED x1 + 'no speaks for'), console restored, secuser's account through the venue, the secstore round-trip EXERCISED and presence-demanded (secstore: saved + AUTH norbert + \[norbert\] PUT/GET syslog tokens + the bytes-back AUTH-SECOBS + the AUTH-OK secstore-roundtrip verdict — the 18-05 SKIP arm retired), AUTH-DONE, ANNOUNCE on serial, tr-ok present, nvram-prompt-absent, zero AUTH-FAIL, the capture redacted"
 cleanup
 exit 0
