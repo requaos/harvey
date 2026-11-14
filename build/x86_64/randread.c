@@ -27,12 +27,15 @@
  * the `#¤` capability device over a PRECOMPUTED fixture pair — the cap
  * string glenda@norbert@<base64 20 rand bytes> and its 20-byte
  * HMAC-SHA1 (data "glenda@norbert", key the base64 text; as.c mkcap's
- * contract) fixed at implementation time.  The four markers, in order:
+ * contract) fixed at implementation time.  The five markers, in order:
  * POST-OK (the hostowner posts the hash), USE-OK (the capuse present
  * consumes and /dev/user reads norbert — the FIRST r9 kernel uid
  * mutation, read back live), ONESHOT-REJECT (the same cap again errors
  * "invalid capability" — remcap consumed it), HOSTOWNER-GATE (the
- * mutated user is no longer eve: #¤/caphash open Eperm).  The fixture
+ * mutated user is no longer eve: #¤/caphash open Eperm), and 18-06's
+ * HOSTOWNER-REFUSED (the mutated user's #c/hostowner write REFUSES —
+ * the donor hostownerwrite's iseve gate closing CR-01's eve-base
+ * bypass; the write can no longer re-gain eve).  The fixture
  * pair is cross-pinned host-side (r9's devcap_tests
  * devcap_boot_fixture_hash_matches_the_module); the boot leg proves
  * the plumbing, the pins prove the implementation (the flagged
@@ -125,6 +128,26 @@ capleg(void)
 	}
 	errstr(err, sizeof err);
 	print("cap: HOSTOWNER-GATE err=%s\n", err);
+
+	/*
+	 * 18-06's CR-01 leg: the mutated (non-eve) user attempts the eve
+	 * base rewrite — its own name to #c/hostowner.  The write MUST
+	 * refuse (the donor hostownerwrite's iseve gate, landed 18-06);
+	 * a successful write is the exploit itself (re-gain eve, reopen
+	 * #¤/caphash) and fails fast.  The refusal is the marker.
+	 */
+	fd = open("#c/hostowner", OWRITE);
+	if(fd < 0){
+		print("substrate: FAIL cap hostowner open: %r\n");
+		exits("cap-hostowner-open");
+	}
+	if(write(fd, "norbert\n", strlen("norbert\n")) >= 0){
+		print("substrate: FAIL cap hostowner: non-eve write succeeded (the eve-base bypass)\n");
+		exits("cap-hostowner-bypass");
+	}
+	close(fd);
+	errstr(err, sizeof err);
+	print("cap: HOSTOWNER-REFUSED err=%s\n", err);
 }
 
 void
