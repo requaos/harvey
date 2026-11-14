@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: In-Guest p9sk1 Auth Domain
 status: executing
-stopped_at: Completed 18-06-PLAN.md
-last_updated: "2026-11-14T15:36:05.936Z"
+stopped_at: Completed 18-07-PLAN.md
+last_updated: "2026-11-14T16:28:53.221Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 18 execution started
-state_head: 31b9b5c2dcee992d731687fb65dd8dac7fe51c62
+state_head: 18645c9d4de98f733aacf6c02b6b005f3ebceeae
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 48
-  completed_plans: 46
+  completed_plans: 47
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 18 (In-Guest p9sk1 Auth Domain) — EXECUTING
-Plan: 7 of 8
+Plan: 8 of 8
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 18 execution started
 
@@ -105,6 +105,7 @@ Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 compl
 | Phase 18 P04 | 72 min | 3 tasks | 13 files |
 | Phase 18 P05 | 105 min | 3 tasks | 13 files |
 | Phase 18 P06 | 21 min | 3 tasks | 7 files |
+| Phase 18 P07 | 34min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -244,6 +245,8 @@ Recent decisions affecting current work:
 - [Phase 18]: [18-06] CR-01 closed: the #c/hostowner write arm is eve-gated with the donor hostownerwrite semantics (iseve Eperm-class refusal BEFORE the store lock — iseve reads the static under its own lock, so a store-lock-first ordering would self-deadlock — plus the 128-byte Ebadarg bound); the donor's renameuser side effects stay unported (no in-tree writer; an eve writing a foreign name makes the base foreign — fail-closed, pinned); proven live from ring 3 (cap: HOSTOWNER-REFUSED on the q35auth gate, green twice) and by 3 devcons host pins; r9 652f025
 - [Phase 18]: [18-06] CR-02 closed: armed_source derives cpuid1_ecx from a fresh cpuid(1,0) call over a scripted-cpuid cfg(test) seam (the test_tsc idiom, loud unscripted-leaf miss, ONE body for both builds); TEST_SOURCE retired — every entropy pin exercises the real probe->classify composition; both mis-wiring directions RED-proven (RED_EVIDENCE_OK) then green; the KVM rdrand label's RDSEED-host precondition is now a pinned venue shape, not luck; r9 f594b4c
 - [Phase 18]: [18-06] Environment fact: mkimage.sh's auth-section TARG resolver breaks inside harvey's nix devshell (hostbin-first PATH shadows GNU awk with the vendored Plan 9 awk, which silently empties the [[:space:]] regex parse -> 'hsecstored missing'); the sanctioned flake-app PATH (plan9port LAST) is unaffected — recorded in 18 deferred-items.md, mkimage untouched
+- [Phase 18]: 18-07: the AUTH-08 devip defect was tcp_socket's smoltcp stock defaults (Nagle ON + 10ms delayed ACK) — every sub-MSS follow-up write held for a post-deadline drive no fully-parked venue can run (x86_64's q35 tick never calls tick_check; the 08-04 leg is aarch64-only); the fix is the DONOR's TCP shape (Nagle off, ACK immediate), platform-neutral in port/, pinned RED->GREEN (tcp_two_write_client_pattern_round_trips) and proven live (mode-2 stall -> mode-2 round-trip); mode-1's survival explained: a direction's first small segment egresses its own drive and the readied client's pre-block drive releases the held tail after venue-interleaved 10ms — delivery-by-timing-luck, now moot
+- [Phase 18]: 18-07: ack_delay(None) is load-bearing beyond Nagle — the 10ms delayed ACK also gated tx-buffer drain, so >2048-byte bulk writes (secstore PUT, Phase 19 exportfs) would block in tcp_write_data's send arm on the same never-driven timer; and the x86_64 tick_check gap (retransmit/keepalive/connect-timeout timers never fire under full park) is recorded as the adjacent latent defect, NOT fixed here — reopener in 18 deferred-items, first venue needing timer-mediated TCP progress under park
 
 ### Pending Todos
 
@@ -268,6 +271,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T15:36:05.137Z
-Stopped at: Completed 18-06-PLAN.md
+Last session: 2026-11-14T16:28:52.525Z
+Stopped at: Completed 18-07-PLAN.md
 Resume file: None

@@ -249,7 +249,7 @@ Plans:
 
 **Gap closure** *(waves 5-7 — from 18-VERIFICATION.md gaps_found: CR-01 eve-gate bypass, CR-02 entropy mis-wiring, AUTH-08 devip two-write; ONE FOD cycle across all gap kernel bytes)*
 - [x] 18-06-PLAN.md — CR-01: iseve gate + donor bound on the #c/hostowner write + refusal pins + randread HOSTOWNER-REFUSED leg; CR-02: cpuid(1,0) rebind + scripted-cpuid seam + probe-wiring pins; pushed, no FOD (AUTH-02, AUTH-03)
-- [ ] 18-07-PLAN.md — devip two-write TCP delivery: mechanism record + RED pin + fix + live working-tree re-proof + q35net regression, pushed, no FOD (AUTH-08 kernel half)
+- [x] 18-07-PLAN.md — devip two-write TCP delivery: mechanism record + RED pin + fix + live working-tree re-proof + q35net regression, pushed, no FOD (AUTH-08 kernel half)
 - [ ] 18-08-PLAN.md — the ONE FOD pass (two-derivation proof → re-wire → push → lock-only pin advance → net-smoke re-green) + secstore round-trip legs restored + gate flipped to presence demands + green twice + records closed (AUTH-01..09)
 
 ### Phase 19: CPU Service + Drawterm + rio Desktop
@@ -289,7 +289,7 @@ Plans:
 | 15. Userspace Tiers + Bootfs Payload (amd64) | v2.1 | 9/9 | Complete    | 2026-11-10 |
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | 8/8 | Complete    | 2026-11-12 |
 | 17. r9 Kernel Flush-Out | v2.1 | 8/8 | Complete    | 2026-11-13 |
-| 18. In-Guest p9sk1 Auth Domain | v2.1 | 6/8 | In Progress | - |
+| 18. In-Guest p9sk1 Auth Domain | v2.1 | 7/8 | In Progress | - |
 | 19. CPU Service + Drawterm + rio Desktop | v2.1 | - | Not started | - |
 
 ## Backlog
