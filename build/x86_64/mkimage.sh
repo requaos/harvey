@@ -10,7 +10,11 @@
 # tree + the tier-2 services sweep payload for the r9-x64 venue), and,
 # since 18-01, build/x86_64/out/bootfs-substrate.paq (the SUBSTRATE
 # image — the marker-image shape with randread as /amd64/init, the
-# q35auth random substrate gate's own leg-1 marker), the
+# q35auth random substrate gate's own leg-1 marker), and, since 19-01,
+# build/x86_64/out/bootfs-cpu.paq (the CPU image's §15 seed — the
+# chain tree + the cpurc fixture at /rc/bin/cpurc; the service=cpu
+# identity itself arrives through the boot protocol, NOT file content:
+# the ISO append seam's init=/amd64/init -c bootconf), the
 # paqfs root
 # images for the r9 x86_64 boots (D-04:
 # the byte format carried VERBATIM from aarch64 — same header magic
@@ -1662,3 +1666,131 @@ trailer8=$(od -An -tx1 -j $((sz8 - 28)) -N 4 "$AUTH_IMAGE" | tr -d ' \n')
 [ "$trailer8" = "6b46e688" ] || err "$AUTH_IMAGE: bad trailer magic $trailer8 (want 6b46e688)"
 
 echo "== PASS: baked $AUTH_IMAGE ($sz8 bytes; chain + auth suite + the paired p9sk1 domain; header $magic8 trailer $trailer8; KERNDATE $KERNDATE)"
+
+# ------------------------------------------------------------------
+# 15. the CPU bake (19-01, CPU-02 — the SEVENTH contract's seed form:
+#     the skeleton the full contract in 19-07 expands): the chain tree
+#     + the cpurc fixture at /rc/bin/cpurc — out/bootfs-cpu.paq.  The
+#     cpu image is DELIVERED its service identity through the boot
+#     protocol, never file content: the ISO's append seam carries
+#     init=/amd64/init -c (the q35cpu profile's [dist] append key ->
+#     grub.cfg @R9-APPEND@ -> the mb2 tag-1 cmdline -> the kernel's
+#     bootconf pairs -> the seeded ROOT env group), boot(8)'s execinit
+#     consumes the multi-word init value verbatim (boot.c:208-214,
+#     getenv("init") honored FIRST), and init -c's cpustart runs
+#     rc -c /rc/bin/cpurc.  EXPANSION POINTS (19-07's full contract):
+#     the real cpurc re-keyed from cfg/example/cpurc + 18's proven
+#     daemon sequence (keyfs/authsrv/listeners) replaces the fixture
+#     body below — the tier-computed cpu suite (cmd/cpu, exportfs,
+#     aux/listen) joins the payload — and the §14-style seam asserts
+#     arrive with it.  Until 19-02 lands kernel #! exec, the fixture is
+#     a MARKER BINARY, not a script: rcmain eval's $cflag as a command
+#     word (rc/plan9.c Execute) and rc exec's /rc/bin/cpurc DIRECTLY
+#     (searchpath's absolute-path arm) — a text file needs kernel #!
+#     handling to run (19-02's CPU-01); the binary prints its marker
+#     and PARKS forever so init's terminal fallback loop never runs
+#     (the zero `init: starting /bin/rc` truth — one print of that line
+#     is init's normal post-cpurc behavior, so the fixture must not
+#     return).  Purely additive: every earlier contract untouched.
+CPU_IMAGE="$OUT/bootfs-cpu.paq"
+
+# 15a. the fixture's host-side build (the 14i2 hsvctcpecho precedent:
+#      inline 6c/6l over a generated source — the committed-file form
+#      is unnecessary while the body is five lines).  The print is the
+#      fixture's OWN write syscall from ring 3 (the D-09 marker
+#      discipline); the park is the smokesleep sleep() precedent.
+cat > "$TMPD/cpurc-fixture.c" <<'EOF'
+/* cpurc-fixture.c — the 19-01 §15 cpu-image seed marker.  Replaced by
+ * the real /rc/bin/cpurc script when 19-02 lands kernel #! exec (a
+ * script cannot run here: rc exec's this file directly).
+ */
+#include <u.h>
+#include <libc.h>
+
+void
+main(void)
+{
+	print("cpurc: RAN\n");
+	for(;;)
+		sleep(1000);
+}
+EOF
+(	cd "$HARVEY" && \
+	"$SVC_NS_HBIN/6c" -FTVw -o "$TMPD/.cpurc-fixture.6" -Isys/include -Iamd64/include "$TMPD/cpurc-fixture.c" && \
+	"$SVC_NS_HBIN/6l" -o "$TMPD/cpurc-fixture.bin" -L "$HARVEY/amd64/lib" "$TMPD/.cpurc-fixture.6"
+) || err "cpurc-fixture host-side build failed (the §15 marker binary)"
+magic=$(od -An -tx1 -N4 "$TMPD/cpurc-fixture.bin" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "cpurc-fixture: bad magic $magic (want 00008a97)"
+"$GREP" -q "cpurc: RAN" "$TMPD/cpurc-fixture.bin" \
+	|| err "cpurc-fixture: the marker binary does not carry its print string"
+
+STAGE9="$TMPD/root-cpu"
+mkdir -p "$STAGE9"
+
+# 15b. the committed skeleton (the chain bake's 8b shape — termrc rides
+#      it INERT: the cpu path never reads it, and 19-07's real cpurc
+#      replaces the fixture without touching it)
+(cd "$ROOT_TREE" && tar -cf - .) | (cd "$STAGE9" && tar -xf -)
+
+# 15c. empty mount-point dirs + staging parents (the chain bake's 8c
+#      fixed-order set)
+mkdir -p "$STAGE9/root" "$STAGE9/env" "$STAGE9/proc" "$STAGE9/dev" "$STAGE9/srv" \
+	"$STAGE9/fd" "$STAGE9/bin" "$STAGE9/tmp" "$STAGE9/mnt" \
+	"$STAGE9/net" "$STAGE9/boot" "$STAGE9/amd64/bin" \
+	"$STAGE9/rc/lib" "$STAGE9/rc/bin" "$STAGE9/adm/timezone"
+
+# 15d. the chain binaries (the 8d set verbatim — the cpu image runs the
+#      SAME chain as the terminal image; only the bootconf differs)
+cp "$CHAIN_OUT/boot" "$STAGE9/boot/boot"
+cp "$CHAIN_OUT/paqfs" "$STAGE9/boot/paqfs"
+cp "$CHAIN_OUT/init" "$STAGE9/amd64/init"
+cp "$CHAIN_OUT/rc" "$STAGE9/amd64/bin/rc"
+cp "$CHAIN_OUT/ls" "$STAGE9/amd64/bin/ls"
+cp "$CHAIN_OUT/cat" "$STAGE9/amd64/bin/cat"
+cp "$CHAIN_OUT/echo" "$STAGE9/amd64/bin/echo"
+cp "$CHAIN_OUT/ps" "$STAGE9/amd64/bin/ps"
+# ... and the fixture itself: cpustart's exec target
+cp "$TMPD/cpurc-fixture.bin" "$STAGE9/rc/bin/cpurc"
+
+# 15e. bake-time verbatim copies (the 8e set — rcmain: the rc-main
+#      whose `eval $cflag` runs the fixture; timezone: init's cpenv)
+cp "$HARVEY/rc/lib/rcmain" "$STAGE9/rc/lib/rcmain"
+cp "$HARVEY/adm/timezone/local" "$STAGE9/adm/timezone/local"
+
+# 15f. pre-bake manifest — PRINTED naming §15 (the bake log is the
+#      gate's evidence; later gates grep the section)
+for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
+	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
+	rc/lib/rcmain rc/bin/cpurc rc/bin/termrc lib/namespace \
+	adm/timezone/local usr/glenda/lib/profile; do
+	[ -f "$STAGE9/$p" ] || err "cpu manifest (§15): $p missing from staged tree"
+	echo "cpu manifest (§15): /$p staged"
+done
+for p in root env proc dev srv fd bin tmp mnt net; do
+	[ -d "$STAGE9/$p" ] || err "cpu manifest (§15): mount-point dir /$p missing"
+done
+
+# 15g. /boot/factotum ABSENCE (auth-stub-by-absence — the same D-02
+#      rule as every bake above) + rcmain byte-verbatim (the 8h guard)
+[ ! -e "$STAGE9/boot/factotum" ] || err "cpu manifest (§15): /boot/factotum present — auth-stub-by-absence violated"
+cmp -s "$HARVEY/rc/lib/rcmain" "$STAGE9/rc/lib/rcmain" || err "staged rcmain diverges from rc/lib/rcmain (cpu)"
+
+# 15h. determinism + bake (the 14n rule: the per-file cap assert — the
+#      15-07 measured hazard; the mkpaqfs failure itself is the
+#      fail-on-any-diagnostic backstop)
+_maxf9=$(find "$STAGE9" -type f -printf '%s\n' | sort -n | tail -1)
+[ "$_maxf9" -le 4194304 ] || err "cpu bake: a staged file of $_maxf9 bytes exceeds mkpaqfs's 4194304-byte per-file cap"
+find "$STAGE9" -exec touch -h -d "@$KERNDATE" {} +
+rm -f "$CPU_IMAGE"
+KERNDATE="$KERNDATE" "$MKPAQFS" -o "$CPU_IMAGE" "$STAGE9" || err "mkpaqfs failed (cpu)"
+[ -s "$CPU_IMAGE" ] || err "$CPU_IMAGE missing/empty after mkpaqfs"
+
+# 15i. the byte-format contract (the 14o rule: same header/trailer
+#      magic checks)
+magic9=$(od -An -tx1 -N4 "$CPU_IMAGE" | tr -d ' \n')
+[ "$magic9" = "529ab12b" ] || err "$CPU_IMAGE: bad header magic $magic9 (want 529ab12b)"
+sz9=$(wc -c < "$CPU_IMAGE" | tr -d ' ')
+trailer9=$(od -An -tx1 -j $((sz9 - 28)) -N 4 "$CPU_IMAGE" | tr -d ' \n')
+[ "$trailer9" = "6b46e688" ] || err "$CPU_IMAGE: bad trailer magic $trailer9 (want 6b46e688)"
+
+echo "== PASS: baked $CPU_IMAGE ($sz9 bytes; chain + the §15 cpurc fixture (seed form — 19-07 expands); header $magic9 trailer $trailer9; KERNDATE $KERNDATE)"
