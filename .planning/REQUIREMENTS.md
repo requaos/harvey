@@ -53,7 +53,7 @@
 
 - [ ] **AUTH-01**: Bake-time domain generator: machine key + `/adm/keys` + nvram-substitute + ndb entries produced as ONE hash-paired unit; demo domain loudly labeled DEMO; pairing fails loud
 - [x] **AUTH-02**: r9 `/dev/random` CSPRNG for p9sk1 challenges, seeded from an x86_64-appropriate entropy source (no DTB — e.g. RDRAND/jitter mix), re-keyed from v2.0's DTB-seeded design
-- [ ] **AUTH-03**: r9 devcap `#¤` (caphash/capuse) — the `auth_chuid` path the cpu server depends on
+- [x] **AUTH-03**: r9 devcap `#¤` (caphash/capuse) — the `auth_chuid` path the cpu server depends on
 - [ ] **AUTH-04**: keyfs starts non-interactively over the baked `/adm/keys`; authsrv listens on tcp/567
 - [ ] **AUTH-05**: ndb content for the guest domain (authdom, hostid, sys, ether) staged in the image
 - [ ] **AUTH-06**: In-guest loopback p9sk1 probe (auth/debug) green BEFORE any drawterm attempt; non-hostowner speaksfor gate
@@ -146,7 +146,7 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | FLUSH-04 | Phase 17 | Complete |
 | AUTH-01 | Phase 18 | Pending |
 | AUTH-02 | Phase 18 | Complete |
-| AUTH-03 | Phase 18 | Pending |
+| AUTH-03 | Phase 18 | Complete |
 | AUTH-04 | Phase 18 | Pending |
 | AUTH-05 | Phase 18 | Pending |
 | AUTH-06 | Phase 18 | Pending |

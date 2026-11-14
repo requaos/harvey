@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 17
 current_phase_name: In-Guest p9sk1 Auth Domain
 status: executing
-stopped_at: Wave 1 complete (18-01, 18-03); wave 2 (18-02) next
-last_updated: "2026-11-14T02:49:34.454Z"
+stopped_at: Completed 18-02-PLAN.md
+last_updated: "2026-11-14T03:54:31.544Z"
 last_activity: 2026-11-13
 last_activity_desc: Phase 18 execution started
-state_head: f0efff37cf18ec7b1a46cccb1f61d0da0020efa6
+state_head: d55278f9a789e2ecc3ab63c5d4132e82425135f2
 progress:
   total_phases: 6
   completed_phases: 2
   total_plans: 45
-  completed_plans: 42
+  completed_plans: 43
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 18 (In-Guest p9sk1 Auth Domain) — EXECUTING
-Plan: 3 of 5
+Plan: 4 of 5
 Status: Ready to execute
 Last activity: 2026-11-13 — Phase 18 execution started
 
@@ -101,6 +101,7 @@ Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 compl
 | Phase 17 P08 | 48 min wall across two executor sessions (Task 1 series 14:17-14:35Z; continuation 14:46-15:05Z) | 3 tasks | 19 files |
 | Phase 18 P01 | 50 min | 3 tasks | 8 files |
 | Phase 18 P03 | 58 min | 3 tasks | 21 files |
+| Phase 18 P02 | 41min | 3 tasks | 19 files |
 
 ## Accumulated Context
 
@@ -230,6 +231,8 @@ Recent decisions affecting current work:
 - [Phase 18]: [18-01] r9 /dev/random re-keyed x86_64-native: CPUID-gated RDRAND/RDSEED with TSC/jitter-mix fallback through the existing RandomHooks seam; q35auth substrate profile proves it live (KVM source=rdrand x2, TCG source=jitter x3); port/src/devcons.rs + aarch64 byte-identical — Phase 18 AUTH substrate; plan text is authority
 - [Phase 18]: [18-01] Harvey marker chassis: randread.c opens #c/random DEVICE-DIRECT (first exec has no namespace; paqfs /dev is an empty stub so plain-path open ENOENTs); mkimage contract numbering — the substrate bake is S13, so 18-04/05 AUTH bake is S14 (their plan "S13k" references predate this) — Deviation-class finding from wave 1; recorded so wave 3/4 executors apply the right section number
 - [Phase 18]: [18-03] authdomain-gen venue = VENDORED in-tree donors (17 files), not plan9port 9l linking: must-have pins algorithm bytes to Harvey donors + self-test must run bare-shell; cross-validated byte-identical on fixed vector key=ed1d buf0=36 — Plan venue discretion resolved by must-have pinning
+- [Phase 18]: [18-02] devcap #¤ donor-verbatim on hand-rolled HMAC-SHA1 + per-proc user + eve gate: the eve base is HOSTOWNER-defaulted-to-glenda (the donor's empty-eve + boot-writehostowner ordering cannot survive a venue whose first exec IS the marker); the formatted "invalid capability %s@%s" rides a device-local CapErr to err_dyn (the port Result's &str cannot carry bytes, no leak); FIFO-256 oldest-eviction and remcap-before-user-match (the mismatched cap BURNS) are the two donor orders pinned by name
+- [Phase 18]: [18-02] The phase's one kernel-byte FOD pass closed: two-derivation byte-identity proof (A @ 9ef9390 plain + B @ 42e0a83 kernel-neutral marker clone, NAR sha256-im+zCI… three-way-agreed with the FOD got-value), r9 pushed to b2a6151, Harvey flake.lock 8f3ff11 -> b2a6151 lock-only; net-smoke/smoke/tier1/churn ALL STAGES PASS at the pin (heap 84 B/exit — the new per-proc user Vec leaves no residue); services stays blocked pre-existing (#68)
 
 ### Pending Todos
 
@@ -253,6 +256,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T02:49:07.828Z
-Stopped at: Wave 1 complete (18-01, 18-03); wave 2 (18-02) next
-Resume file: .planning/phases/18-in-guest-p9sk1-auth-domain/18-02-PLAN.md
+Last session: 2026-11-14T03:54:30.870Z
+Stopped at: Completed 18-02-PLAN.md
+Resume file: None
