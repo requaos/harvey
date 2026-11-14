@@ -1362,8 +1362,9 @@ done
 _nauth=$(wc -l < "$AUTH_HLIST" | tr -d ' ')
 [ "$_nauth" -ge 1 ] || err "the auth-suite h* staging set is empty — the tier data parse failed"
 # every sweep subject must be in the computed set (hfactotum rides the
-# tier-1 helper leg at 14c/14i, not this list)
-for h in hmntgen hcs hcsquery hkeyfs hauthsrv hsecstored hlisten1; do
+# tier-1 helper leg at 14c/14i, not this list; hdebug is the 18-05
+# leg-7 subject, hauthprobe is the 14i3 host-side build)
+for h in hmntgen hcs hcsquery hkeyfs hauthsrv hsecstored hlisten1 hdebug; do
 	"$GREP" -q "^$h " "$AUTH_HLIST" || err "auth bake: sweep subject $h missing from the computed auth-suite set (the resolver lost it)"
 done
 
@@ -1487,9 +1488,20 @@ fi
 for _v in "$slirp_guestv4" "$slirp_maskv4" "$slirp_gwv4" "$ether" "$AUTHDOM_VAL" "127.0.0.1"; do
 	"$GREP" -qF "$_v" "$STAGE8/lib/ndb/local" || err "auth bake: /lib/ndb/local lacks the value $_v (a template token went missing)"
 done
+# 18-05: the SERVICE-NAME row — cs's ipserv translates an alpha service
+# name via ndbgetvalue(db, "tcp", <name>, "port") (cs.c:1265-1316), so
+# dial(netmkaddr(addr, nil, "ticket")) — auth/debug's own dial form AND
+# authprobe's — needs a `tcp=ticket port=567' row or cs answers `can't
+# translate service' and every probe dial reds.  567 is the donor
+# protocol constant (D-09's tcp!*!567), not a venue address.  Appended
+# at THIS compose only (the services image keeps its semantics —
+# D-08's minimality), asserted present.
+printf 'tcp=ticket port=567\n' >> "$STAGE8/lib/ndb/local"
+"$GREP" -q '^tcp=ticket port=567$' "$STAGE8/lib/ndb/local" \
+	|| err "auth bake: the tcp=ticket service row missing from the composed /lib/ndb/local"
 [ "$(tail -c 1 "$STAGE8/lib/ndb/local" | od -An -tx1 | tr -d ' \n')" = "0a" ] \
 	|| err "auth bake: /lib/ndb/local is not newline-terminated (libndb's Brdline drops an unterminated final line whole)"
-echo "== auth ndb: /lib/ndb/local composed from local.template (the seam's four tokens + @AUTHDOM@=$AUTHDOM_VAL from the generator run)"
+echo "== auth ndb: /lib/ndb/local composed from local.template (the seam's four tokens + @AUTHDOM@=$AUTHDOM_VAL from the generator run + the tcp=ticket service row for the probe dials)"
 
 # 14g. empty mount-point dirs + staging parents (the chain set + the
 #      domain's /adm + the /lib/ndb home)
@@ -1541,6 +1553,21 @@ magic=$(od -An -tx1 -N4 "$STAGE8/amd64/bin/authsrv" | tr -d ' \n')
 magic=$(od -An -tx1 -N4 "$STAGE8/amd64/bin/hsvctcpecho" | tr -d ' \n')
 [ "$magic" = "00008a97" ] || err "hsvctcpecho: bad magic $magic (want 00008a97)"
 
+# 14i3. hauthprobe — the 18-05 speaksfor leg-2 client (AUTH-06/D-13):
+#       the same 6c/6l block shape; libauthsrv rides the #pragma-lib
+#       autolib record <authsrv.h> plants in the .6 (6l resolves it
+#       through the -L checkout lib path), so the link line itself is
+#       unchanged from the svctcpecho block.  Staged /amd64/bin/
+#       hauthprobe; the sweep's probe window runs its pass and deny
+#       arms (one attempt each — Pitfall 4).
+(	cd "$HARVEY" && \
+		"$SVC_NS_HBIN/6c" -FTVw -o "$STAGE8/.authprobe.6" -Isys/include -Iamd64/include build/x86_64/authprobe.c && \
+		"$SVC_NS_HBIN/6l" -o "$STAGE8/amd64/bin/hauthprobe" -L "$HARVEY/amd64/lib" "$STAGE8/.authprobe.6" && \
+		rm -f "$STAGE8/.authprobe.6"
+	) || err "hauthprobe host-side build failed (auth)"
+magic=$(od -An -tx1 -N4 "$STAGE8/amd64/bin/hauthprobe" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "hauthprobe: bad magic $magic (want 00008a97)"
+
 # 14j. the sweep at /lib + the termrc OVERRIDE (the 11l rule: the auth
 #      image runs the sweep from the boot flow, no typed interaction)
 #      + the bake-time verbatim copies (the chain bake's 11n rule)
@@ -1555,6 +1582,7 @@ cp "$HARVEY/adm/timezone/local" "$STAGE8/adm/timezone/local"
 for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
 	amd64/bin/bind amd64/bin/authsrv amd64/bin/hsvctcpecho \
+	amd64/bin/hauthprobe \
 	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
 	usr/glenda/lib/profile adm/nvram adm/keys adm/domain.manifest \
 	lib/ndb/auth lib/ndb/local lib/auth-sweep.rc boot/authfeed.txt; do

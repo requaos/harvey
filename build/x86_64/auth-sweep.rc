@@ -25,12 +25,31 @@
 #	 topology (listen1 -t tcp!*!567 /amd64/bin/authsrv -d +
 #	 secstored -v), cs over the baked default /lib/ndb/local, and
 #	 factotum with norbert's p9sk1 key.)
+#	leg 7	(18-05) the p9sk1 probe window: the sentinel bound over
+#		/dev/cons, auth/debug run as norbert (factotum's key
+#		drives it) — its OWN `ticket request using norbert@'
+#		success line, filtered-captured (T-18-13: only the
+#		matching line echoes, `AUTH-DEBUGOBS <line>') ->
+#		`AUTH-OK p9sk1-norbert'
+#	leg 8	(18-05, same window) hauthprobe's speaksfor arms: the
+#		pass arm (hostid=bootes uid=norbert, decrypt with the
+#		speaker's key, suid==norbert -> `authprobe:
+#		SPEAKSFOR-OK bootes for norbert') -> `AUTH-OK speaksfor';
+#		the deny arm ONCE (uid=sys, the baked uid=!sys row — the
+#		scrambled reply fails to decrypt -> `authprobe:
+#		SPEAKSFOR-DENIED sys', the EXPECTED negative control;
+#		never a loop — Pitfall 4) -> `AUTH-OK speaksfor-deny';
+#		then the console restored (the '#c/cons' re-bind) for
+#		the later secstore leg's getpassm -> `AUTH-CONSOLEOBS
+#		restored'
 #
 # Marker vocabulary (the host gate's contract): `authdom: PAIRED
 # <label>', `authdom: FAIL <artifact>', `AUTH-OK <leg>', `AUTH-FAIL
-# <leg>', `AUTH-DONE' (every leg green; a failed sweep terminates in
-# `AUTH-FAIL sweep' so the gate's fast-fail arm localizes without a
-# timeout stall).
+# <leg>', `AUTH-DEBUGOBS <line>' (leg 7's filtered success line),
+# `AUTH-CONSOLEOBS restored|sentinel-still-bound' (the window's
+# cleanup status), `AUTH-DONE' (every leg green; a failed sweep
+# terminates in `AUTH-FAIL sweep' so the gate's fast-fail arm
+# localizes without a timeout stall).
 #
 # rc-syntax discipline (15-02's measured list, carried verbatim):
 # braced `if not {' bodies are parse errors that kill a sourced file
@@ -272,6 +291,74 @@ if(~ $#authpw 1){
 if(~ $factstat ok) echo AUTH-OK factotum
 if not echo AUTH-FAIL factotum
 
+# --- leg 7: auth/debug — the FULL p9sk1 challenge-response as norbert
+# (18-05 leg 1, AUTH-06/D-13): the read-only sentinel bound over
+# /dev/cons for the whole probe window (the 15-02 keyfs technique) —
+# auth/debug's readln prompts each open /dev/cons FRESH and read the
+# shared DEMO password line (every fresh OREAD restarts at offset 0 of
+# the bound file).  The bootes-owner cooked prompt eats the same line
+# as harmless noise (A4: its answer becomes tr.authid and that leg's
+# ticket2 fails to decrypt — diagnostics only, the FIRST test's
+# success line is the marker).  The capture is filtered BEFORE echo:
+# ONLY the matching success line reaches serial (T-18-13 — the noise
+# leg's prompt text embeds the sentinel answer; the password never
+# lands in a marker line or the log).  The newline-only ifs makes the
+# backquote split into LINES, so the loop pattern matches whole lines,
+# never cross-line fragments — and it STAYS newline-only for the rest
+# of the sweep (a save/restore of the default ifs is lossy through
+# rc's assignment-time splitting, measured live: the saved copy came
+# back empty; every later backquote here is line-granular by design).
+# The echoed line keeps auth/debug's leading tab — the host gate's
+# pattern is whitespace-class tolerant for exactly that reason.
+p9sk1stat=fail
+sfstat=fail
+denystat=fail
+consrestored=''
+if(~ $factstat ok){
+	if(bind /boot/authfeed.txt /dev/cons){
+		nl='
+'
+		ifs=$nl
+		dout=`{$B/hdebug}
+		for(l in $dout){
+			if(~ $l *'ticket request using norbert@'*){
+				echo AUTH-DEBUGOBS $l
+				p9sk1stat=ok
+			}
+		}
+# --- leg 8: the speaksfor arms (18-05 leg 2, AUTH-06/D-13) — hauthprobe
+# inside the SAME sentinel window (its readcons password reads the same
+# feed line).  Pass arm: Ticketreq hostid=bootes uid=norbert (the
+# speaks-for wire form stock auth/debug cannot send) — authsrv's
+# speaksfor() consults the baked /lib/ndb/auth rows, the reply decrypts
+# with the SPEAKER's key and carries suid=norbert -> its own
+# `authprobe: SPEAKSFOR-OK bootes for norbert' on serial (fd 1 — the
+# inherited console, not /dev/cons by path).  Deny arm, ONCE (Pitfall 4:
+# the zero-clock lockout is permanent — never loop failures): uid=sys
+# hits the baked uid=!sys deny row, authsrv scrambles the keys
+# (anti-enumeration), the reply fails to decrypt -> its own
+# `authprobe: SPEAKSFOR-DENIED sys' (the EXPECTED negative-control
+# output; the host gate counts it, exactly once).
+		if($B/hauthprobe 127.0.0.1 DEMO-harvey bootes norbert) sfstat=ok
+		if($B/hauthprobe -d 127.0.0.1 DEMO-harvey bootes sys) denystat=ok
+# --- the window's cleanup: the console restored for fresh /dev/cons
+# opens — the sentinel REPLACED by a bind of the device's own cons
+# (plain bind replaces the mount at that point; '#c' attach bypasses
+# the namespace).  secuser's getpassm (the later secstore leg) opens
+# /dev/cons ORDWR by path and sysfatals under a read-only sentinel —
+# without this restore the secstore leg is structurally dead.
+		if(bind '#c/cons' /dev/cons) consrestored=yes
+	}
+}
+if(~ $p9sk1stat ok) echo AUTH-OK p9sk1-norbert
+if not echo AUTH-FAIL p9sk1-norbert
+if(~ $sfstat ok) echo AUTH-OK speaksfor
+if not echo AUTH-FAIL speaksfor
+if(~ $denystat ok) echo AUTH-OK speaksfor-deny
+if not echo AUTH-FAIL speaksfor-deny
+if(~ $consrestored yes) echo AUTH-CONSOLEOBS restored
+if not echo AUTH-CONSOLEOBS sentinel-still-bound
+
 # --- the terminal marker (AUTH-DONE only on a fully-green sweep) -----
 sweepstat=ok
 if(! ~ $pairfail '') sweepstat=fail
@@ -281,6 +368,10 @@ if(! ~ $lststat ok) sweepstat=fail
 if(! ~ $secstat ok) sweepstat=fail
 if(! ~ $csstat ok) sweepstat=fail
 if(! ~ $factstat ok) sweepstat=fail
+if(! ~ $p9sk1stat ok) sweepstat=fail
+if(! ~ $sfstat ok) sweepstat=fail
+if(! ~ $denystat ok) sweepstat=fail
+if(! ~ $consrestored yes) sweepstat=fail
 if(~ $sweepstat ok) echo AUTH-DONE
 if not echo AUTH-FAIL sweep
 exit

@@ -17,7 +17,10 @@
 #   the sweep's verdicts (AUTH-OK/AUTH-FAIL keyfs) →
 #   (18-04 Task 2/3 append: the listener topology's verdicts +
 #   secstored's ANNOUNCE + the hostfwd-5670 host-side observation +
-#   the cs + factotum verdicts) →
+#   the cs + factotum verdicts) ->
+#   (18-05 append: auth/debug's own p9sk1 success line as norbert
+#   (the filtered AUTH-DEBUGOBS echo) + hauthprobe's SPEAKSFOR-OK +
+#   the three probe verdicts + the console-restore observation) ->
 #   AUTH-DONE → the %  prompt (the interactive shell the sweep's
 #   termrc execs) →
 #   the whole-capture post-passes: zero AUTH-FAIL, the exact getpass
@@ -26,7 +29,9 @@
 #   keyfs and a valid five-sum nvram keeps the happy path prompt-free
 #   by construction; its presence means the boot is wedged behind an
 #   interactive prompt), the PAIRED banner with the DEMO label
-#   present.
+#   present, the deny control exactly once (SPEAKSFOR-DENIED x1),
+#   tr-ok present (AUTH-07's real-exchange evidence), and the deny
+#   exchange's tr-fail 'no speaks for' line (the fail-closed path).
 #
 #   exit 0 only when EVERY stage + post-pass passed; a failure exits 1
 #   and names the failed stage on stderr — never a bare
@@ -263,6 +268,27 @@ stage secstored-verdict      {AUTH-OK secstored}
 stage cs-verdict       {AUTH-OK cs}
 stage factotum-verdict {AUTH-OK factotum}
 
+# 5c. the 18-05 probe legs (AUTH-06/D-13) — in the sweep's emission
+#     order: leg 1's OWN success line first (the filtered AUTH-DEBUGOBS
+#     echo of auth/debug's `ticket request using norbert@...' — the
+#     sweep captures auth/debug's output and echoes ONLY the matching
+#     line, T-18-13: the noise leg's prompt text never reaches the
+#     wire; the echo keeps auth/debug's leading TAB, so the pattern is
+#     whitespace-class tolerant), then leg 2's speaksfor marker
+#     (hauthprobe's own line — the hostid=bootes/uid=norbert request
+#     whose reply decrypts with the SPEAKER's key and carries
+#     suid=norbert), then the three verdicts + the console-restore
+#     observation (the '#c/cons' re-bind that clears the sentinel for
+#     the secstore leg's getpassm).  The deny arm's SPEAKSFOR-DENIED
+#     line is asserted EXACTLY ONCE in the post-pass below (zero = the
+#     control is gone, more = a failure loop — Pitfall 4).
+stage debug-success        {AUTH-DEBUGOBS[ \t]+ticket request using norbert@}
+stage speaksfor-ok         {authprobe: SPEAKSFOR-OK bootes for norbert}
+stage p9sk1-norbert-verdict {AUTH-OK p9sk1-norbert}
+stage speaksfor-verdict     {AUTH-OK speaksfor}
+stage speaksfor-deny-verdict {AUTH-OK speaksfor-deny}
+stage console-restored      {AUTH-CONSOLEOBS restored}
+
 # 6. the terminal sweep marker
 stage sweep-done {AUTH-DONE}
 
@@ -307,6 +333,46 @@ if {![string match "*ANNOUNCE*" $whole]} {
 }
 puts stderr "smoke-r9-auth-x64: stage ok — secstored ANNOUNCE line present (the syslog console fallback carrying AUTH-07)"
 
-puts stderr "smoke-r9-auth-x64: ALL STAGES PASS — chain boot, hostfwd-5670 observed host-side, D-02 boot pairing (DEMO label), non-interactive keyfs (N keys read), AUTH-OK keyfs, loopback up, authsrv connect-accept on 567, secstored announced on 5356, cs answering authdom from the baked local, factotum carrying the p9sk1 key, AUTH-DONE, ANNOUNCE on serial, nvram-prompt-absent, zero AUTH-FAIL"
+# the 18-05 probe post-passes (AUTH-06/AUTH-07): the deny control's
+# count (exactly one — the netsoak count_occurrences shape), the
+# speaksfor marker, the debug success line, and AUTH-07's REAL
+# exchange evidence (at least one tr-ok syslog token from authsrv -d
+# through the #c/cons fallback, plus the deny exchange's own
+# `no speaks for' tr-fail line — the fail-closed path armed, Pitfall
+# 11).  Message tokens only, never the syslog date prefix.
+proc count_occurrences {haystack needle} {
+    set n 0
+    set pos 0
+    while {1} {
+        set idx [string first $needle $haystack $pos]
+        if {$idx < 0} {
+            break
+        }
+        incr n
+        set pos [expr {$idx + [string length $needle]}]
+    }
+    return $n
+}
+set deny_count [count_occurrences $whole "SPEAKSFOR-DENIED"]
+if {$deny_count != 1} {
+    puts stderr "smoke-r9-auth-x64: SPEAKSFOR-DENIED COUNT FAILED — got $deny_count, want exactly 1 (zero means the negative control is gone; more means a failure loop — Pitfall 4)"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9-auth-x64: post-pass ok — SPEAKSFOR-DENIED x $deny_count (the deny control fired exactly once)"
+if {![string match "*tr-ok*" $whole]} {
+    puts stderr "smoke-r9-auth-x64: no tr-ok token in the capture — AUTH-07 needs REAL ticket exchanges on serial (authsrv -d's syslog line through the #c/cons fallback)"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9-auth-x64: post-pass ok — tr-ok present (authsrv -d's per-exchange syslog line: AUTH-07's real-exchange evidence)"
+if {![string match "*no speaks for*" $whole]} {
+    puts stderr "smoke-r9-auth-x64: the deny exchange's tr-fail 'no speaks for' line absent — the fail-closed path is not armed (Pitfall 11: the /lib/ndb/auth uid=! row must bite)"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9-auth-x64: post-pass ok — the deny control's tr-fail 'no speaks for' line present (the fail-closed speaksfor gate proven)"
+
+puts stderr "smoke-r9-auth-x64: ALL STAGES PASS — chain boot, hostfwd-5670 observed host-side, D-02 boot pairing (DEMO label), non-interactive keyfs (N keys read), AUTH-OK keyfs, loopback up, authsrv connect-accept on 567, secstored announced on 5356, cs answering authdom from the baked local, factotum carrying the p9sk1 key, auth/debug's p9sk1 success as norbert, hauthprobe's SPEAKSFOR-OK (bootes for norbert), the deny control (SPEAKSFOR-DENIED x1 + 'no speaks for'), console restored, AUTH-DONE, ANNOUNCE on serial, tr-ok present, nvram-prompt-absent, zero AUTH-FAIL"
 cleanup
 exit 0
