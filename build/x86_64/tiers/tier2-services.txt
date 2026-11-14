@@ -50,6 +50,7 @@
 # exportfs, dial, mntgen + the probe clients) below with per-entry
 # provenance.
 cmd/aux:listen		# USPACE-07/D-02: the services listener; its loopback-announce probe lands 15-02 (k10t1) / 15-03 (r9)
+cmd/aux:listen1		# 18-04/AUTH-04/D-09: the flags-carrying per-connection runner (listen1 -t tcp!*!567 /amd64/bin/authsrv -d — the auth gate's listener; aux/listen execs staged copies bare and cannot pass -d, RESEARCH Pitfall 7)
 
 # --- the services daemons + their probe clients (USPACE-07; D-02's
 #     functional-probe semantics — the probes land 15-02/15-03, this

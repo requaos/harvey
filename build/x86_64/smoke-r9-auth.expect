@@ -152,6 +152,40 @@ proc stage {name re} {
     }
 }
 
+# --- the hostfwd listener observation (18-04 Task 2, D-09) --------------
+# The spawn's slirp argv carries the D-04 hostfwd pair (host 5670 ->
+# guest 567 — Phase 19's drawterm entry), and qemu binds the loopback
+# listener EAGERLY at netdev init — a failed bind aborts qemu itself
+# (the backstop).  This stage makes the POSITIVE observation explicit
+# while the booted guest runs: read the HOST's listening table (exec
+# ss -tln, netstat fallback — a host-side exec, never the guest's
+# pty) and assert the 5670 entry present — the 16-D-04 pair landing
+# on a real listener day one (the authsrv listener announces the
+# guest side in the same boot).  LOOPBACK ONLY.  exec does not touch
+# the spawn's pty: the boot output accumulates in expect's buffer and
+# the next stage consumes it.  The port token is anchored with a
+# trailing whitespace-or-EOL so 5670 can never match a longer port.
+proc host_listeners {} {
+    if {![catch {exec ss -tln} out]} { return $out }
+    if {![catch {exec netstat -tln} out]} { return $out }
+    return ""
+}
+proc hostfwd_stage {port} {
+    set listeners [host_listeners]
+    if {$listeners eq ""} {
+        puts stderr "smoke-r9-auth-x64: FAILED at stage: hostfwd-$port-listening — no host listening-table tool produced output (ss/netstat both missing?)"
+        cleanup
+        exit 1
+    }
+    if {![regexp "127\\.0\\.0\\.1:${port}( |\$)" $listeners]} {
+        puts stderr "smoke-r9-auth-x64: FAILED at stage: hostfwd-$port-listening — no 127.0.0.1:$port loopback entry in the host listening table (the slirp hostfwd bind is missing); table follows:"
+        puts stderr $listeners
+        cleanup
+        exit 1
+    }
+    puts stderr "smoke-r9-auth-x64: stage ok — hostfwd-$port-listening (127.0.0.1:$port present in the host listening table)"
+}
+
 # fast-fail on kernel panic markers anywhere in the boot (the net
 # gate's rule; the real-chain "syscall 10 unimplemented" notes are NOT
 # panics — the 14-06 gate's documented exemption class) — and on the
@@ -180,6 +214,13 @@ stage banner    {r9 from the Internet}
 stage paqfs     {paqfs\.\.\.}
 stage version   {version\.\.\.}
 
+# 1b. the hostfwd-5670 listener observation, host-side while the guest
+#     boots (the emitter's slirp argv carries the D-04 pair; qemu's
+#     eager-bind abort is the backstop — the procs above carry the
+#     reasoning; 17010 rides the same argv but is NOT this gate's
+#     seam, so it is not observed here)
+hostfwd_stage 5670
+
 # 2. the D-02 boot pairing check's verdict — either arm (the post-pass
 #    below demands the PAIRED banner with the DEMO label).  The
 #    verdict lines are the sweep's OUTPUT: `authdom: PAIRED <label>'
@@ -197,7 +238,23 @@ stage keysread {keys read}
 #    classification; the AUTH-FAIL arm already fast-aborted above)
 stage keyfs-verdict {AUTH-OK keyfs}
 
-# 5. the terminal sweep marker
+# 4b. the loopback bring-up's verdict (the listeners' prerequisite —
+#     AUTH-LOOPBACK-UP on the green arm; the AUTH-FAIL arm fast-aborts)
+stage loopback {AUTH-LOOPBACK-UP}
+
+# 5. the listener topology's verdicts, in the sweep's emission order:
+#    the connect-accept over 127.0.0.1!567 (hsvctcpecho -c through the
+#    staged listen1 -t tcp!*!567 /amd64/bin/authsrv -d listener), then
+#    secstored's 5356 announce (the sweep's port-spin observable).
+#    secstored's own ANNOUNCE syslog line lands on serial through the
+#    #c/cons fallback DURING these spins — timing-tolerant, so it is
+#    asserted in the whole-file post-pass below, never as a live stage
+#    (a stage whose text already streamed by an earlier match would
+#    wait forever — the 15-03 emission-order lesson).
+stage authsrv-listen-verdict {AUTH-OK authsrv-listen}
+stage secstored-verdict      {AUTH-OK secstored}
+
+# 6. the terminal sweep marker
 stage sweep-done {AUTH-DONE}
 
 # 6. the interactive % prompt — the shell the sweep's termrc execs
@@ -206,10 +263,12 @@ stage prompt {% }
 
 # 7. the whole-file post-pass: stop the log, read the capture, assert
 #    the never-appears contracts (T-18-08: the interactive-wedge
-#    marker must be PROVABLY unreachable on the green path) + the
+#    marker must be PROVABLY unreachable on the green path), the
 #    banner's label (D-04: the DEMO label prints — the gate is the
 #    DEMO path's by design, D-01: a developer's local authdomain.local
-#    re-keys the domain and this gate reds loudly, never silently).
+#    re-keys the domain and this gate reds loudly, never silently),
+#    and secstored's ANNOUNCE syslog line (the message TOKEN, never
+#    the syslog date prefix — AUTH-07's day-one serial evidence).
 log_file                           ;# stop + flush before the whole-file scan
 set fh [open $env(R9_SMOKE_LOG) r]
 set whole [read $fh]
@@ -232,7 +291,13 @@ if {![string match "*authdom: PAIRED DEMO*" $whole]} {
     exit 1
 }
 puts stderr "smoke-r9-auth-x64: stage ok — pairing banner `authdom: PAIRED DEMO' present"
+if {![string match "*ANNOUNCE*" $whole]} {
+    puts stderr "smoke-r9-auth-x64: secstored's ANNOUNCE syslog line absent from the capture (the #c/cons fallback is AUTH-07's serial mechanism — Pitfall 6: no writable /sys/log may ever be staged)"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9-auth-x64: stage ok — secstored ANNOUNCE line present (the syslog console fallback carrying AUTH-07)"
 
-puts stderr "smoke-r9-auth-x64: ALL STAGES PASS — chain boot, D-02 boot pairing (DEMO label), non-interactive keyfs (N keys read), AUTH-OK keyfs, AUTH-DONE, nvram-prompt-absent, zero AUTH-FAIL"
+puts stderr "smoke-r9-auth-x64: ALL STAGES PASS — chain boot, hostfwd-5670 observed host-side, D-02 boot pairing (DEMO label), non-interactive keyfs (N keys read), AUTH-OK keyfs, loopback up, authsrv connect-accept on 567, secstored announced on 5356, AUTH-DONE, ANNOUNCE on serial, nvram-prompt-absent, zero AUTH-FAIL"
 cleanup
 exit 0

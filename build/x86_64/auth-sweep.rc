@@ -158,10 +158,82 @@ if(~ $pairfail ''){
 if(~ $keyfsstat ok) echo AUTH-OK keyfs
 if not echo AUTH-FAIL keyfs
 
+# --- leg 3: the loopback bring-up (the 14-09 netip-loopback shape) ----
+# The services sweep's bring-up block verbatim (its own measured
+# findings ride): bind #I at /net (r9's sys_bind needs the mount point,
+# staged empty), then ONE loopback ipifc — a transient clone read for
+# the conv number, per-write ctl opens by path (the medium binding
+# persists across ctl closes; NO fd-dup machinery anywhere) — carrying
+# 127.0.0.1 plus a SECOND non-loopback probe address (libip's myipaddr
+# skips 127.0.0.0/8 and never falls back; a later consumer measured
+# sysfatal on a loopback-only venue).  Raw ctl writes: no ipconfig in
+# this image, none needed.  The bind must precede every daemon below
+# (cs's netlist scan, the listeners' announces).
+authlo=''
+if(bind -a '#I' /net){
+	authlo=bound
+}
+if(~ $authlo bound){
+	lconv=`{$B/hcat /net/ipifc/clone}
+	if(~ $#lconv 1){
+		if($B/htest -e /net/ipifc/$lconv/ctl){
+			if($B/hecho bind loopback > /net/ipifc/$lconv/ctl){
+				if($B/hecho add 127.0.0.1 255.0.0.0 > /net/ipifc/$lconv/ctl){
+					if($B/hecho add 192.168.237.1 255.255.255.255 > /net/ipifc/$lconv/ctl){
+						authlo=up
+					}
+				}
+			}
+		}
+	}
+}
+if(~ $authlo up) echo AUTH-LOOPBACK-UP
+if not echo AUTH-FAIL loopback
+
+# --- leg 4: the listener topology (D-09/D-10) -------------------------
+# listen1 -t tcp!*!567 /amd64/bin/authsrv -d: -t is the TRUSTED arm —
+# listen1.c's becomenone() (a #c/user write + newns("none")) would
+# strip the namespace authsrv needs (/mnt/keys, /lib/ndb/auth); flags
+# ride via listen1's exec(argv[1], argv+1) — the staged-copy listener
+# (aux/listen) execs bare binaries and CANNOT pass -d (Pitfall 7).
+# Without -v listen1 parks its own stdout on /dev/null — fine: the
+# AUTH-07 visibility is authsrv -d's syslog lines (tr-ok/tr-fail
+# family), which reach serial through libc syslog's #c/cons fallback
+# (read-only paqfs makes /sys/log/auth unopenable — never create one,
+# Pitfall 6).  secstored -v announces tcp!*!5356 self-contained and
+# stays foreground-verbose inside the background rc job; its own
+# syslog ANNOUNCE line lands on serial the same way.  The probes:
+# bounded port spins over /net/tcp/*/local, then the connect-accept —
+# hsvctcpecho -c dials 127.0.0.1!567 (the accept is the proof; the
+# per-connection authsrv sees EOF and exits cleanly; a dial without a
+# working cs falls back to the direct clone call — dial.c's
+# no-connection-server path, so leg 4 runs before cs exists).
+lststat=fail
+secstat=fail
+if(~ $authlo up){
+	$B/hlisten1 -t 'tcp!*!567' /amd64/bin/authsrv -d &
+	$B/hsecstored -v &
+	svc_waitport 10 567
+	if(! ~ $svcportfound ''){
+		lout=`{$B/hsvctcpecho -c 'tcp!127.0.0.1!567'}
+		echo AUTH-LISTENOBS $"lout
+		if(~ $"lout connected*) lststat=ok
+	}
+	svc_waitport 10 5356
+	if(! ~ $svcportfound '') secstat=ok
+}
+if(~ $lststat ok) echo AUTH-OK authsrv-listen
+if not echo AUTH-FAIL authsrv-listen
+if(~ $secstat ok) echo AUTH-OK secstored
+if not echo AUTH-FAIL secstored
+
 # --- the terminal marker (AUTH-DONE only on a fully-green sweep) -----
 sweepstat=ok
 if(! ~ $pairfail '') sweepstat=fail
 if(! ~ $keyfsstat ok) sweepstat=fail
+if(! ~ $authlo up) sweepstat=fail
+if(! ~ $lststat ok) sweepstat=fail
+if(! ~ $secstat ok) sweepstat=fail
 if(~ $sweepstat ok) echo AUTH-DONE
 if not echo AUTH-FAIL sweep
 exit

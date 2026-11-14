@@ -1263,7 +1263,7 @@ AUTH_IMAGE="$OUT/bootfs-auth.paq"
 [ -f "$HARVEY/build/x86_64/auth-termrc" ] || err "build/x86_64/auth-termrc missing (the auth image's termrc override)"
 AUTH_T2="$HARVEY/build/x86_64/tiers/tier2-services.txt"
 AUTH_T1D="$HARVEY/build/x86_64/tiers/tier1-cmds.txt"
-for e in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv \
+for e in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv cmd/aux:listen1 \
 	cmd/auth/as cmd/auth/authsrv cmd/auth/changeuser cmd/auth/debug \
 	cmd/auth/keyfs cmd/auth/secstore; do
 	"$GREP" -qE "^$e([[:space:]]|#|$)" "$AUTH_T2" \
@@ -1290,7 +1290,7 @@ auth_stage() {
 	fi
 	echo "$_h $_src" >> "$AUTH_HLIST"
 }
-for entry in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv \
+for entry in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv cmd/aux:listen1 \
 	cmd/auth/as cmd/auth/authsrv cmd/auth/changeuser cmd/auth/debug \
 	cmd/auth/keyfs cmd/auth/secstore; do
 	case "$entry" in
@@ -1340,7 +1340,7 @@ _nauth=$(wc -l < "$AUTH_HLIST" | tr -d ' ')
 [ "$_nauth" -ge 1 ] || err "the auth-suite h* staging set is empty — the tier data parse failed"
 # every sweep subject must be in the computed set (hfactotum rides the
 # tier-1 helper leg at 14c/14i, not this list)
-for h in hmntgen hcs hcsquery hkeyfs hauthsrv hsecstored; do
+for h in hmntgen hcs hcsquery hkeyfs hauthsrv hsecstored hlisten1; do
 	"$GREP" -q "^$h " "$AUTH_HLIST" || err "auth bake: sweep subject $h missing from the computed auth-suite set (the resolver lost it)"
 done
 
@@ -1463,6 +1463,20 @@ cp "$BIN/auth/authsrv" "$STAGE8/amd64/bin/authsrv"
 magic=$(od -An -tx1 -N4 "$STAGE8/amd64/bin/authsrv" | tr -d ' \n')
 [ "$magic" = "00008a97" ] || err "authsrv exec-path copy: bad magic $magic (want 00008a97)"
 
+# 14i2. hsvctcpecho — the connect-only client (the 11k host-side 6c/6l
+#       build copied verbatim: the sweep's authsrv-listen probe dials
+#       127.0.0.1!567 and proves the accept — a dial to an announced
+#       port is accepted while an unannounced one refuses; authsrv
+#       itself stays handshake-silent by design, 18-05's exchanges are
+#       the ticket traffic)
+(	cd "$HARVEY" && \
+	"$SVC_NS_HBIN/6c" -FTVw -o "$STAGE8/.svctcpecho.6" -Isys/include -Iamd64/include build/x86_64/svctcpecho.c && \
+	"$SVC_NS_HBIN/6l" -o "$STAGE8/amd64/bin/hsvctcpecho" -L "$HARVEY/amd64/lib" "$STAGE8/.svctcpecho.6" && \
+	rm -f "$STAGE8/.svctcpecho.6"
+) || err "hsvctcpecho host-side build failed (auth)"
+magic=$(od -An -tx1 -N4 "$STAGE8/amd64/bin/hsvctcpecho" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "hsvctcpecho: bad magic $magic (want 00008a97)"
+
 # 14j. the sweep at /lib + the termrc OVERRIDE (the 11l rule: the auth
 #      image runs the sweep from the boot flow, no typed interaction)
 #      + the bake-time verbatim copies (the chain bake's 11n rule)
@@ -1476,7 +1490,7 @@ cp "$HARVEY/adm/timezone/local" "$STAGE8/adm/timezone/local"
 #      gate's evidence — the plan's verify greps these lines)
 for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
-	amd64/bin/bind amd64/bin/authsrv \
+	amd64/bin/bind amd64/bin/authsrv amd64/bin/hsvctcpecho \
 	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
 	usr/glenda/lib/profile adm/nvram adm/keys adm/domain.manifest \
 	lib/ndb/auth lib/auth-sweep.rc; do
