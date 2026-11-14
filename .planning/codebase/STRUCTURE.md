@@ -46,7 +46,7 @@ harvey/                          # repo root — doubles as the Plan 9 namespace
 ../r9/  (sibling repo — Rust kernel, flake input)  [NOT part of this git tree]
 ├── Cargo.toml            # workspace: aarch64, x86_64, port, riscv64, xtask (+ check-cfg lints)
 ├── port/src/             # arch-neutral kernel: namec.rs, pgrp.rs, dev*.rs, devip/, virtio.rs, paqfs.rs
-├── x86_64/src/           # l.S, main.rs, platform/q35/, proc.rs, syscall.rs, exec.rs, usermem.rs
+├── x86_64/src/           # l.S, main.rs, platform/q35/, proc.rs, syscall.rs, exec.rs, usermem.rs, entropy.rs (18-01 RandomHooks: CPUID-gated RDRAND/RDSEED + TSC jitter)
 ├── x86_64/lib/           # config_q35*.toml boot profiles, grub.cfg, kernel.ld
 ├── aarch64/ riscv64/     # aarch64 frozen at v2.0 pin; riscv64 upstream vestige
 ├── xtask/src/            # build/qemu/boot-test/ureg-check harness; bin/r9-netdev-args.rs
@@ -73,12 +73,12 @@ harvey/                          # repo root — doubles as the Plan 9 namespace
 - `port/` (112 portable files), `9sys/` (syscall wrappers: `open.c`, `mount.c`, `rfork.c`, `convM2S.c`), `9syscall/sys.h` (THE syscall number table — shared kernel↔user), `fmt/`, per-arch dirs (`amd64/`, `386/`, `aarch64/`, `arm/`, `riscv/`, …) with `main9.s`, `memcpy.s`, `tas.s`
 
 **`build/x86_64/` (v2.1 delivery venue):**
-- `mkimage.sh` — the bake: 12+ sections producing `out/bootfs{,-chain,-tier,-net,-services}.paq` from `root-tree/` + built binaries; every contract documented in the file header; manifest asserts fail the bake
+- `mkimage.sh` — the bake: 12+ sections producing `out/bootfs{,-chain,-tier,-net,-services,-substrate}.paq` (§13 substrate: randread as /amd64/init, the 18-01 q35auth gate image) from `root-tree/` + built binaries; every contract documented in the file header; manifest asserts fail the bake
 - `stage-build.sh` — namespace userland build driver (objtype=amd64) → `out/` (chain) + `smoke-out/` (marker)
 - `tiers/` — `tier0-libs.txt`, `tier1-cmds.txt`, `tier2-services.txt`, `tier3-gui.txt`, `tier4-tail.txt` (append-only DATA)
 - `root-tree/` — committed bake skeleton (`rc/bin/termrc`, `lib/namespace`, `lib/netaddr.rc`, `lib/netip-*.rc`, `lib/ndb/local.template`, `usr/glenda/lib/profile`)
 - Gates: `smoke-r9.expect`, `smoke-r9-net.expect`, `tier1-r9.expect` (aarch64 template), `services-r9.expect`, `churn-r9.expect`, `netsoak-r9.expect`, `stress-r9.expect` (+ retained `*.log` captures)
-- Fixtures/helpers: `churncats.c`, `churnmark.c`, `churnsem.c`, `netblast.c`, `drawsmoke.c`, `smokesleep.c`, `replay-{rio,acme,sam}.rc` (donor syscall replays), `services-sweep.rc`, `services-termrc`, `bootfs-payload.txt` (DESK-03 manifest), `coverage-sweep.sh` + `dir-coverage.txt`
+- Fixtures/helpers: `churncats.c`, `churnmark.c`, `churnsem.c`, `randread.c` (18-01 substrate driver), `netblast.c`, `drawsmoke.c`, `smokesleep.c`, `replay-{rio,acme,sam}.rc` (donor syscall replays), `services-sweep.rc`, `services-termrc`, `bootfs-payload.txt` (DESK-03 manifest), `coverage-sweep.sh` + `dir-coverage.txt`
 - `README.md` — the venue's how-to
 
 **`nix/` (flake app bodies):**
