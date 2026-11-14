@@ -227,6 +227,51 @@ if not echo AUTH-FAIL authsrv-listen
 if(~ $secstat ok) echo AUTH-OK secstored
 if not echo AUTH-FAIL secstored
 
+# --- leg 5: cs answers authdom->auth from the baked local (AUTH-05) ---
+# cs runs with its DEFAULT database — the baked /lib/ndb/local, no -f
+# (OQ3's resolution; ndbopen(nil) opens /lib/ndb/local).  The query is
+# cs's generic pair form: `!authdom=DEMO-harvey auth=*' answers
+# STRAIGHT from the ndb (dns never intercepts non-dom/ip keys —
+# cs.c's genquery), and the AUTH-05 proof is the ANSWER carrying the
+# composed auth=127.0.0.1 (a real client interaction through /net/cs,
+# never file-presence).  The single-quoted =-bearing argv is the 15-02
+# proven form; the assert pattern avoids bare `=' (the lexer rule).
+csstat=fail
+if(~ $authlo up){
+	$B/hcs &
+	if(svc_waitpath 10 /net/cs){
+		qout=`{$B/hcsquery /net/cs '!authdom=DEMO-harvey auth=*'}
+		echo AUTH-CSOBS $"qout
+		if(~ $"qout *127.0.0.1*) csstat=ok
+	}
+}
+if(~ $csstat ok) echo AUTH-OK cs
+if not echo AUTH-FAIL cs
+
+# --- leg 6: factotum carrying norbert's p9sk1 key (the 18-05 substrate)
+# hfactotum -s factotum posts /srv/factotum and mounts MBEFORE at /mnt
+# (the sweep-proven shape).  The key write: proto=p9sk1 user=norbert
+# dom=DEMO-harvey + the DEMO-shared password from the baked sentinel
+# feed (/boot/authfeed.txt — single line, the generator's own last-user
+# copy; the ^ concatenation keeps the = inside the single-quoted part,
+# the 15-02/15-07 measured rule).  The read-back assert: the ctl
+# listing carries the p9sk1 key (factotum masks the !password — the
+# proto/user/dom trio is the observable).
+factstat=fail
+authpw=`{$B/hcat /boot/authfeed.txt}
+if(~ $#authpw 1){
+	if($B/hfactotum -s factotum){
+		if(svc_waitpath 10 /mnt/factotum/ctl){
+			$B/hecho 'key proto=p9sk1 user=norbert dom=DEMO-harvey !password='^$authpw > /mnt/factotum/ctl
+			kout=`{$B/hcat /mnt/factotum/ctl}
+			echo AUTH-FACTOBS $"kout
+			if(~ $"kout *proto*p9sk1*) factstat=ok
+		}
+	}
+}
+if(~ $factstat ok) echo AUTH-OK factotum
+if not echo AUTH-FAIL factotum
+
 # --- the terminal marker (AUTH-DONE only on a fully-green sweep) -----
 sweepstat=ok
 if(! ~ $pairfail '') sweepstat=fail
@@ -234,6 +279,8 @@ if(! ~ $keyfsstat ok) sweepstat=fail
 if(! ~ $authlo up) sweepstat=fail
 if(! ~ $lststat ok) sweepstat=fail
 if(! ~ $secstat ok) sweepstat=fail
+if(! ~ $csstat ok) sweepstat=fail
+if(! ~ $factstat ok) sweepstat=fail
 if(~ $sweepstat ok) echo AUTH-DONE
 if not echo AUTH-FAIL sweep
 exit

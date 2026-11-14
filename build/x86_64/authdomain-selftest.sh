@@ -73,6 +73,13 @@ KB=$(wc -c < demo/keys | tr -d ' ')
 # GUEST-consuming size)
 [ "$NB" = "112" ] || fail "nvram is $NB bytes, want 112 (Nvrsafe 109 + the 6c guest-ABI tail pad)"
 [ "$KB" = "227" ] || fail "keys is $KB bytes, want 227 (KEYDBOFF + 3*KEYDBLEN)"
+# the feed artifact (18-04): the LAST user's password, one
+# newline-terminated line — the /boot/authfeed.txt source
+FL=$(wc -l < demo/feed | tr -d ' ')
+[ "$FL" = "1" ] || fail "feed is $FL lines, want exactly 1"
+[ -s demo/feed ] || fail "feed is empty"
+[ "$(tail -c 1 demo/feed | od -An -tx1 | tr -d ' \n')" = "0a" ] \
+	|| fail "feed is not newline-terminated"
 
 grep -q '^label DEMO$' demo/manifest || fail "manifest lacks the 'label DEMO' row"
 grep -q '^users 3$' demo/manifest || fail "manifest lacks the 'users 3' row"

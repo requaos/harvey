@@ -545,6 +545,13 @@ _stray=$("$GREP" -rn '10\.0\.2\.' "$ROOT_TREE/lib/" 2>/dev/null | "$GREP" -v 'ne
 [ -z "$_stray" ] || err "venue address literal outside netaddr.rc (the D-11 seam violated): $_stray"
 _stray=$("$GREP" -rn '192\.168\.122\.' "$ROOT_TREE/lib/" 2>/dev/null | "$GREP" -v 'netaddr\.rc' || true)
 [ -z "$_stray" ] || err "venue address literal outside netaddr.rc (the D-11 seam violated): $_stray"
+# 18-04 (AUTH-05, 15-D-16 carried): the NIC MAC class joins the seam
+# grep — the qemu-default 52:54:00:* prefix may live ONLY in
+# netaddr.rc's ether key (local.template's ether=@ETHER@ token is
+# token-pure; a copied literal anywhere else in the fixtures reds the
+# bake)
+_stray=$("$GREP" -rn '52:54:00' "$ROOT_TREE/lib/" 2>/dev/null | "$GREP" -v 'netaddr\.rc' || true)
+[ -z "$_stray" ] || err "NIC MAC literal outside netaddr.rc (the D-11 seam violated — the 18-04 ether key is the single home): $_stray"
 
 STAGE4="$TMPD/root-net"
 mkdir -p "$STAGE4"
@@ -687,21 +694,37 @@ stage_payload() {
 	#      root-tree/lib stays clean by construction — and the
 	#      substituted output is asserted BOTH ways (T-15-20): the
 	#      seam's values present, zero leftover tokens.
+	#      18-04 (AUTH-05) made the template two-consumer: it now also
+	#      carries the auth composition row (ipnet=... authdom=
+	#      @AUTHDOM@ auth=127.0.0.1) + the host tuple's ether=@ETHER@.
+	#      THIS path (the services image) has NO auth domain — an
+	#      authdom row without keys behind it would be a lie — so the
+	#      auth row is STRIPPED (the only literal-keyed line: the row
+	#      is identified by its unsubstituted @AUTHDOM@ token BEFORE
+	#      substitution, never by renumbering) and the ether token
+	#      substitutes from the seam's new ether key like every other
+	#      venue constant.  The strip is asserted BOTH ways: zero
+	#      authdom= in the output, zero leftover tokens.
 	_ndbt="$ROOT_TREE/lib/ndb/local.template"
 	[ -s "$_ndbt" ] || err "$_ndbt missing — the committed ndb token template (15-08, D-16)"
 	. "$ROOT_TREE/lib/netaddr.rc"
 	[ -n "${slirp_guestv4:-}" ] && [ -n "${slirp_maskv4:-}" ] && [ -n "${slirp_gwv4:-}" ] \
 		|| err "netaddr.rc lacks a slirp_guestv4/slirp_maskv4/slirp_gwv4 seam key (the ndb substitution source)"
+	[ -n "${ether:-}" ] || err "netaddr.rc lacks an ether seam key (the 18-04 NIC MAC's single home — the @ETHER@ substitution source)"
 	mkdir -p "$_ps/lib/ndb"
-	sed -e "s/@GUESTV4@/$slirp_guestv4/g" -e "s/@MASKV4@/$slirp_maskv4/g" \
-		-e "s/@GWV4@/$slirp_gwv4/g" "$_ndbt" > "$_ps/lib/ndb/local"
+	sed -e "/authdom=@AUTHDOM@/d" \
+		-e "s/@GUESTV4@/$slirp_guestv4/g" -e "s/@MASKV4@/$slirp_maskv4/g" \
+		-e "s/@GWV4@/$slirp_gwv4/g" -e "s/@ETHER@/$ether/g" "$_ndbt" > "$_ps/lib/ndb/local"
 	if "$GREP" -q '@' "$_ps/lib/ndb/local"; then
 		err "payload: /lib/ndb/local carries an unsubstituted token (the template names a token the seam substitution does not know)"
 	fi
-	for _v in "$slirp_guestv4" "$slirp_maskv4" "$slirp_gwv4"; do
+	for _v in "$slirp_guestv4" "$slirp_maskv4" "$slirp_gwv4" "$ether"; do
 		"$GREP" -qF "$_v" "$_ps/lib/ndb/local" || err "payload: /lib/ndb/local lacks the seam value $_v (a template token went missing)"
 	done
-	echo "payload manifest: /lib/ndb/local substituted from lib/ndb/local.template (the netaddr seam's slirp leg) [$_pl]"
+	if "$GREP" -v '^#' "$_ps/lib/ndb/local" | "$GREP" -q 'authdom='; then
+		err "payload: /lib/ndb/local carries an authdom= data row (the services image has no auth domain — the 18-04 auth-row strip failed; comment prose mentioning authdom= is fine)"
+	fi
+	echo "payload manifest: /lib/ndb/local substituted from lib/ndb/local.template (the netaddr seam's slirp leg + ether; the 18-04 auth row stripped — no domain in this image) [$_pl]"
 
 	# P3. [paths]: every listed path present + non-empty in the staged
 	#     tree (a directory entry is a tree entry — it must carry a
@@ -1427,6 +1450,47 @@ fi
 	|| err "auth bake: the D-02 pairing assert REFUSED the staged copies (authdomain-gen -V nonzero — the bake refuses)"
 echo "== auth pairing verified over the staged copies (authdomain-gen -V over the bake's own scratch twin)"
 
+# 14f2. the DEMO sentinel feed: the generator's LAST user's password
+#       (D-12's plain probe user — DEMO's norbert), a single
+#       newline-terminated line the bake stages read-only at
+#       /boot/authfeed.txt — 18-05's interactive prompt feeds consume
+#       it (the generator's manifest deliberately carries no
+#       passwords; this is the same run's convenience copy, NOT a
+#       pairing member).  Single line + trailing newline, asserted.
+mkdir -p "$STAGE8/boot"
+[ -s "$AUTHDOM_STAGE/feed" ] || err "auth bake: the generator emitted no feed artifact (the 18-05 sentinel feed)"
+_feedlines=$(wc -l < "$AUTHDOM_STAGE/feed" | tr -d ' ')
+[ "$_feedlines" -eq 1 ] || err "auth bake: the feed artifact is $_feedlines lines, want exactly 1"
+[ "$(tail -c 1 "$AUTHDOM_STAGE/feed" | od -An -tx1 | tr -d ' \n')" = "0a" ] \
+	|| err "auth bake: the feed artifact is not newline-terminated (the Brdline discipline)"
+cp "$AUTHDOM_STAGE/feed" "$STAGE8/boot/authfeed.txt"
+
+# 14f3. /lib/ndb/local — the AUTH-05 composition through the seam: the
+#       committed token template's FIVE tokens substitute at bake —
+#       the four seam-owned ones (@GUESTV4@/@MASKV4@/@GWV4@/@ETHER@)
+#       from netaddr.rc and @AUTHDOM@ from THIS generator run's own -i
+#       output (never a seam value: the domain is per-bake paired
+#       material — a seam key would be a second source violating
+#       D-02's pairing).  Asserted both ways (zero leftover tokens,
+#       every value present) + the trailing newline (libndb's Brdline
+#       drops an unterminated final line whole).
+AUTHDOM_VAL=$( ("$AUTH_GEN" -i "$AUTHDOM_STAGE") 2>/dev/null | awk '$1 == "authdom:" { print $2 }' )
+[ -n "$AUTHDOM_VAL" ] || err "auth bake: authdomain-gen -i printed no authdom token (the @AUTHDOM@ substitution source)"
+. "$ROOT_TREE/lib/netaddr.rc"
+[ -n "${ether:-}" ] || err "netaddr.rc lacks an ether seam key (the @ETHER@ substitution source)"
+sed -e "s/@GUESTV4@/$slirp_guestv4/g" -e "s/@MASKV4@/$slirp_maskv4/g" \
+	-e "s/@GWV4@/$slirp_gwv4/g" -e "s/@ETHER@/$ether/g" \
+	-e "s/@AUTHDOM@/$AUTHDOM_VAL/g" "$ROOT_TREE/lib/ndb/local.template" > "$STAGE8/lib/ndb/local"
+if "$GREP" -q '@' "$STAGE8/lib/ndb/local"; then
+	err "auth bake: /lib/ndb/local carries an unsubstituted token (the template names a token the auth substitution does not know)"
+fi
+for _v in "$slirp_guestv4" "$slirp_maskv4" "$slirp_gwv4" "$ether" "$AUTHDOM_VAL" "127.0.0.1"; do
+	"$GREP" -qF "$_v" "$STAGE8/lib/ndb/local" || err "auth bake: /lib/ndb/local lacks the value $_v (a template token went missing)"
+done
+[ "$(tail -c 1 "$STAGE8/lib/ndb/local" | od -An -tx1 | tr -d ' \n')" = "0a" ] \
+	|| err "auth bake: /lib/ndb/local is not newline-terminated (libndb's Brdline drops an unterminated final line whole)"
+echo "== auth ndb: /lib/ndb/local composed from local.template (the seam's four tokens + @AUTHDOM@=$AUTHDOM_VAL from the generator run)"
+
 # 14g. empty mount-point dirs + staging parents (the chain set + the
 #      domain's /adm + the /lib/ndb home)
 mkdir -p "$STAGE8/root" "$STAGE8/env" "$STAGE8/proc" "$STAGE8/dev" "$STAGE8/srv" \
@@ -1493,7 +1557,7 @@ for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	amd64/bin/bind amd64/bin/authsrv amd64/bin/hsvctcpecho \
 	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
 	usr/glenda/lib/profile adm/nvram adm/keys adm/domain.manifest \
-	lib/ndb/auth lib/auth-sweep.rc; do
+	lib/ndb/auth lib/ndb/local lib/auth-sweep.rc boot/authfeed.txt; do
 	[ -f "$STAGE8/$p" ] || err "auth manifest: $p missing from staged tree"
 	echo "auth manifest: /$p staged"
 done

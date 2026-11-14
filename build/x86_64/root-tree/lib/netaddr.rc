@@ -60,3 +60,17 @@ tap_gwv4=192.168.122.1
 # with the sweep owning the host-side echo listener; the x64 gate bakes
 # the binary this phase, the soak itself joins with the Phase-16 legs).
 blastport=7777
+
+# --- NIC hardware identity (18-04, AUTH-05/D-12 — OQ4's resolved home) --
+# The guest NIC's MAC: qemu's DEFAULT for an unspecified -device mac
+# (52:54:00:12:34:56 — the qemu virtio-net IAID-OUI default; the kernel
+# prints it per boot: `#l0: virtio: ... 52:54:00:12:34:56').  THIS is
+# the value's SINGLE HOME (the netaddr seam owns it like every other
+# venue constant): local.template's `ether=@ETHER@' token substitutes
+# from here, and mkimage's venue-literal grep extends over the
+# 52:54:00 prefix so a copy anywhere else in root-tree/lib reds the
+# bake (15-D-16's discipline).  Un-prefixed key: NIC hardware data,
+# not per-leg addressing — every leg's NIC carries the same default
+# unless a future leg pins its own (which would grow a leg-prefixed
+# key HERE, never a literal elsewhere).
+ether=52:54:00:12:34:56

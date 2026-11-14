@@ -35,6 +35,12 @@
  *			internal-consistency proof.  The auth image is NOT
  *			byte-reproducible across bakes (D-01); no gate may
  *			ever assert cross-bake byte identity.
+ *	feed		the LAST user's password (D-12's plain probe user —
+ *			DEMO's norbert), a single newline-terminated line:
+ *			the bake's /boot/authfeed.txt sentinel source, the
+ *			18-05 prompt feeds' substrate.  NOT a manifest
+ *			member (the manifest is the crypto pairing; this is
+ *			the same run's convenience copy).
  *
  * D-04 label venues: the label lands in the nvram authdom (as part of
  * the authdom token), the ndb header comment, and every manifest row
@@ -455,6 +461,7 @@ generate(Domain *d, char *dir)
 	uchar nvbuf[Nvramfile];
 	uchar *buf, *chk;
 	char ndb[512], manifest[8192], hex[SHA1dlen*2+1];
+	char feed[Maxpw+2];
 	int i, buflen, n, ndblen, manlen;
 	User *u;
 	struct stat st;
@@ -568,6 +575,16 @@ generate(Domain *d, char *dir)
 	if(manlen >= sizeof manifest)
 		sysfatal("manifest too long");
 	writefile(dir, "manifest", manifest, manlen, 0644);
+
+	/* feed: the last user's password + newline — the 18-04 bake's
+	 * /boot/authfeed.txt (the 18-05 prompt feeds).  The generator's
+	 * manifest deliberately carries no passwords; this convenience
+	 * copy rides the same run (the DEMO users share one password, and
+	 * D-12's plain probe user is the LAST — norbert on the DEMO path) */
+	memset(feed, 0, sizeof feed);
+	strcpy(feed, d->users[d->nu-1].pw);
+	feed[strlen(feed)] = '\n';
+	writefile(dir, "feed", feed, strlen(feed), 0444);
 	free(buf);
 
 	print("authdomain-gen: generated %s: label=%s authdom=%s authid=%s users=%d\n",

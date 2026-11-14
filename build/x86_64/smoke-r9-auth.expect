@@ -254,6 +254,15 @@ stage loopback {AUTH-LOOPBACK-UP}
 stage authsrv-listen-verdict {AUTH-OK authsrv-listen}
 stage secstored-verdict      {AUTH-OK secstored}
 
+# 5b. the cs + factotum verdicts (18-04 Task 3, AUTH-05's live proof +
+#     the 18-05 substrate): cs answers `!authdom=DEMO-harvey auth=*'
+#     from the baked /lib/ndb/local through /net/cs (the ANSWER
+#     carrying auth=127.0.0.1 — a real client interaction, never
+#     file-presence), and factotum's ctl read-back carries the p9sk1
+#     key written from the baked sentinel feed.
+stage cs-verdict       {AUTH-OK cs}
+stage factotum-verdict {AUTH-OK factotum}
+
 # 6. the terminal sweep marker
 stage sweep-done {AUTH-DONE}
 
@@ -298,6 +307,6 @@ if {![string match "*ANNOUNCE*" $whole]} {
 }
 puts stderr "smoke-r9-auth-x64: stage ok — secstored ANNOUNCE line present (the syslog console fallback carrying AUTH-07)"
 
-puts stderr "smoke-r9-auth-x64: ALL STAGES PASS — chain boot, hostfwd-5670 observed host-side, D-02 boot pairing (DEMO label), non-interactive keyfs (N keys read), AUTH-OK keyfs, loopback up, authsrv connect-accept on 567, secstored announced on 5356, AUTH-DONE, ANNOUNCE on serial, nvram-prompt-absent, zero AUTH-FAIL"
+puts stderr "smoke-r9-auth-x64: ALL STAGES PASS — chain boot, hostfwd-5670 observed host-side, D-02 boot pairing (DEMO label), non-interactive keyfs (N keys read), AUTH-OK keyfs, loopback up, authsrv connect-accept on 567, secstored announced on 5356, cs answering authdom from the baked local, factotum carrying the p9sk1 key, AUTH-DONE, ANNOUNCE on serial, nvram-prompt-absent, zero AUTH-FAIL"
 cleanup
 exit 0

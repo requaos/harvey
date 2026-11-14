@@ -8,6 +8,9 @@
 #   @GUESTV4@  <- slirp_guestv4   the guest's own address
 #   @MASKV4@   <- slirp_maskv4    the leg's mask
 #   @GWV4@     <- slirp_gwv4      the leg's gateway
+#   @ETHER@    <- ether           the NIC MAC (netaddr.rc's own
+#                                 18-04 AUTH-05 key — the qemu-default
+#                                 MAC's single home)
 # The bake asserts the substituted file carries the seam's values and
 # ZERO leftover tokens; this template itself carries NO venue address
 # literal by construction (the bake's seam grep over root-tree/lib
@@ -16,10 +19,32 @@
 # Content model: the baked host entry is the same ip=/dom=/sys= tuple
 # shape the 15-02 services probes measured cs answering from
 # (`!ipinfo dom=host attr').  The mask and gateway ride as their own
-# attribute tuples for the Phase-18 domain generator to compose into
-# ipnet= blocks (authdom/auth entries) when a plan owns that layer.
+# attribute tuples, and since 18-04 (AUTH-05) the Phase-18 extension
+# point named in the old header has LANDED as the ipnet= row below:
+# the auth composition (`!authdom=X auth=*' answers straight from the
+# ndb — cs.c's generic pair parser; dns never intercepts non-dom/ip
+# keys) + the host tuple's ether= attribute.  The auth row's tokens
+# (prose names them WITHOUT the at-sign delimiters — the bake's
+# zero-leftover-token assert greps the WHOLE file and comment prose
+# counts too, the 15-07 lesson):
+#   AUTHDOM  <- the authdomain-gen run's own authdom (the bake's
+#               generator -i output — DEMO-harvey on the DEMO path,
+#               never a seam value: the domain is PER-BAKE paired
+#               material, and a seam key would be a second source
+#               violating D-02's pairing)
+#   auth=127.0.0.1  the loopback CONSTANT — template-legal (the only
+#                 numeric literal in this file's AUTH-05 rows; not a
+#                 venue address, the loopback probe's own address)
+#
+# 18-04's split: the AUTH bake (mkimage §14) substitutes ALL five
+# tokens; the services bake (section P) substitutes the seam's four
+# and STRIPS the auth row (its image has no domain — an authdom row
+# without keys behind it would be a lie), asserting the strip BOTH
+# ways (no authdom= in its output, zero leftover tokens).  Additive
+# rows only — the services path's existing rows are byte-untouched.
 #
 
-ip=@GUESTV4@ sys=harvey dom=harvey.local
+ip=@GUESTV4@ sys=harvey dom=harvey.local ether=@ETHER@
 ipmask=@MASKV4@
 ipgw=@GWV4@
+ipnet=harveynet ipmask=@MASKV4@ ipgw=@GWV4@ authdom=@AUTHDOM@ auth=127.0.0.1
