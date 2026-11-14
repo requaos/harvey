@@ -231,7 +231,7 @@ Plans:
   3. keyfs starts non-interactively over the baked `/adm/keys`, authsrv listens on tcp/567, and the guest domain's ndb content (authdom, hostid, sys, ether) is staged in the image (AUTH-04, AUTH-05)
   4. The in-guest loopback p9sk1 probe is green BEFORE any drawterm attempt: auth/debug completes a full handshake over loopback, the non-hostowner speaksfor gate passes, and serial-visible auth logging has been present since day one (AUTH-06, AUTH-07)
   5. secstore is available for persistent key storage beyond the baked keys, and the writable-`/adm` + nvram-substitute scoping is decided and documented (in-phase decision: baked+paired for CI; host-9P `/adm` mount for real use) (AUTH-08, AUTH-09)
-**Plans**: 5/5 plans executed
+**Plans**: 5 executed + 3 gap-closure planned
 
 Plans:
 **Wave 1**
@@ -246,6 +246,11 @@ Plans:
 
 **Wave 4** *(blocked on Wave 3 completion)*
 - [x] 18-05-PLAN.md — probe legs (auth/debug full p9sk1 + speaksfor C probe + negative control) + secstore round-trip + CI leg + AUTH-09 docs (AUTH-06, AUTH-07, AUTH-08, AUTH-09)
+
+**Gap closure** *(waves 5-7 — from 18-VERIFICATION.md gaps_found: CR-01 eve-gate bypass, CR-02 entropy mis-wiring, AUTH-08 devip two-write; ONE FOD cycle across all gap kernel bytes)*
+- [ ] 18-06-PLAN.md — CR-01: iseve gate + donor bound on the #c/hostowner write + refusal pins + randread HOSTOWNER-REFUSED leg; CR-02: cpuid(1,0) rebind + scripted-cpuid seam + probe-wiring pins; pushed, no FOD (AUTH-02, AUTH-03)
+- [ ] 18-07-PLAN.md — devip two-write TCP delivery: mechanism record + RED pin + fix + live working-tree re-proof + q35net regression, pushed, no FOD (AUTH-08 kernel half)
+- [ ] 18-08-PLAN.md — the ONE FOD pass (two-derivation proof → re-wire → push → lock-only pin advance → net-smoke re-green) + secstore round-trip legs restored + gate flipped to presence demands + green twice + records closed (AUTH-01..09)
 
 ### Phase 19: CPU Service + Drawterm + rio Desktop
 **Goal**: The milestone's payoff — `nix run .#boot-r9` remains the ONE command on x86_64 and now brings up the full system (net + auth + cpu listener); `nix run .#drawterm` connects from the host, authenticates, and lands the user in an interactive rio desktop session — on the flush-out-hardened kernel. **Work spans both repos plus the flake glue.**
