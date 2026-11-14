@@ -55,7 +55,7 @@ Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reprod
 
 Milestone v2.1 headline scope (decomposed into REQ-IDs in REQUIREMENTS.md; v2.0's delivered Phases 6–8 are recorded in Validated below):
 
-- [ ] Inherited v2.0 payoff on x86_64: host net modes, services/GUI tiers + bootfs payload (delivered Phases 15–16), in-guest p9sk1 auth (Phase 18), cpu + drawterm + rio (Phase 19) — phases 18–19 remain
+- [ ] Inherited v2.0 payoff on x86_64: host net modes, services/GUI tiers + bootfs payload (delivered Phases 15–16), in-guest p9sk1 auth (delivered Phase 18 — verified 9/9 2026-11-14, incl. the gap-closure round: CR-01/CR-02/AUTH-08 closed at r9 pin 9103522), cpu + drawterm + rio (Phase 19) — phase 19 remains
 
 Carried over from v1.0:
 
@@ -102,6 +102,7 @@ Carried over from v1.0:
 | Decision | Rationale | Outcome |
 |----------|-----------|---------|
 | Nix flake for devshell + build apps | Reproducible toolchain across darwin/linux without Docker-on-EOL-Ubuntu | ✓ Good |
+| Phase 18 gap-closure round (2026-11-14): all three verifier gaps closed at the source — CR-01 hostowner iseve gate + donor 1..=127 bound, CR-02 cpuid(1,0) ECX rebind, AUTH-08 devip donor-TCP (Nagle off, ACK immediate) — one FOD pass over all gap bytes together, pin advanced lock-only to r9 9103522 | The verifier independently reproduced every live claim (9/9 must-haves); the reviewer-confirmed CR-03 (accept-pool sockets keep smoltcp stock defaults — >2048 B into announced connections hangs; gate green only because the DEMO object is 401 B) is new-scope with no failing test, recorded open in 18-REVIEW-DISPOSITION with Phase 19's cpu/exportfs path as the natural reopener | ✓ Verified 9/9; CR-03 + WR-01..04 + IN-02..07 open as advisories in the ledger |
 | CR-07/WINDOWS #66 closed by maintainer-ratified explicit disposition, not cure (Phase 17 terminus, 2026-11-13) | The ~8%/run 8-way-transfer triple-fault class is live but venue-blocked: KVM capture ceiling + TCG×slirp avenue both exhausted (N=10 NO-FIRE-IN-SERIES), strongest-candidate fix refuted at the fix pin; the goal's letter accepts "explicitly dispositioned with rationale" — waived with 3-part D-15 rationale (Neil Skinner, 2026-11-13T14:42:08Z), reopener conditions + `boot-r9-stress-x64` instrument committed | ✓ Waived-with-reopener (FLUSH-01 closed via disposition arm; reopens on a context-reaching venue or non-healing instrumentation) |
 | Vendor 9-cc `iar` subset in-repo (`sys/src/cmd/unix/9cc/`) | External dep kept failing on aarch64 hosts (C23/glibc collisions); in-repo code we control | ✓ Good |
 | VM build rsyncs to guest-local disk | virtiofs subdirectory bind-mounts silently return empty trees — namespace build cannot run on the shared mount | ✓ Good |
@@ -178,4 +179,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-13 after Phase 17 (r9 Kernel Flush-Out complete — FLUSH-01..04 verified 6/6, CR-07/#66 maintainer-ratified disposition; v2.1 phases 13-17 of 13-19 done, 18-19 remain)*
+*Last updated: 2026-11-14 after Phase 18 (In-Guest p9sk1 Auth Domain complete — verified 9/9 incl. gap closure at r9 pin 9103522; CR-03 open advisory in the disposition ledger; v2.1 phases 13-18 of 13-19 done, 19 remains)*

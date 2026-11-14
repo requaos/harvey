@@ -23,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-13)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
-**Current focus:** Phase 18 — In-Guest p9sk1 Auth Domain
+**Current focus:** Phase 19 — cpu + drawterm + rio (next; needs /gsd:phase to enter the ROADMAP — the planned set ends at 18)
 
 ## Current Position
 
@@ -32,7 +32,7 @@ Plan: Not started
 Status: All phases complete
 Last activity: 2026-11-14 — Phase 18 complete
 
-Progress: [███████░░░] 71% (v2.1: 5/7 phases — 13-17 complete, 18-19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phases 18-19)
+Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
 ## Performance Metrics
 
@@ -263,7 +263,8 @@ None yet.
 - raspi3b-on-qemu-11.1.2 boot defect — accepted (pre-existing, A/B-proven not-a-regression); tracked in PROJECT.md Active
 - 14-06 RESOLVED (cycle 4, r9@8aa9ba2): the "scheduler corruption" was sched_loop's diverging trap_return resume arm leaving SCHED_CONTEXT stale against a stack slot the intervening scheduler iterations reused — wild execution explains every prior symptom (the "lying panic" with merged cold-block locations, the H2-class garbage parent, the apparent paqfs death: it never died, it was readied and never resumed); the devpipe/qreopen suspicion was run live and ELIMINATED (pid-keyed rings: no EOF/err/reopen in the whole run); q35shell green twice consecutively, full regression battery green at r9@8aa9ba2
 - CR-07/WINDOWS #66 DISPOSITIONED (waived) at the 17-08 terminus: the 8-way-transfer triple-fault class stays live ~8%/run but the cure is venue-blocked — KVM capture ceiling + TCG×slirp avenue (N=10, NO-FIRE-IN-SERIES) both exhausted, strongest-candidate fix refuted at the fix pin; maintainer-ratified waiver (Neil Skinner, 2026-11-13T14:42:08Z) with 3-part D-15 rationale; reopener conditions + the committed boot-r9-stress-x64 instrument in 17-CR07-ROOTCAUSE sections 8-9
-- 18-05/AUTH-08 RESOLVED (18-07/18-08): the devip two-write defect was tcp_socket's stock smoltcp defaults (Nagle ON + 10ms delayed ACK holding every sub-MSS follow-up write for a post-deadline drive a fully-parked venue can never run) — fixed donor-faithfully at r9 ab4cb66 (Nagle off, ACK immediate; ack_delay(None) also unblocks >2048-byte bulk writes); 18-08's FOD pass pinned the bytes (r9 9103522, Harvey flake.lock advanced lock-only), restored the sweep's 9d legs (-s 127.0.0.1 — the $attr cs class reds on r9, the literal-loopback idiom instead), and flipped the gate to presence demands — the round-trip is green twice at the pin with the bytes-back AUTH-SECOBS (evidence 18-08-auth-{a,b}.log, redacted); the AUTH-SKIP arm is retired; no residual
+- 18-05/AUTH-08 RESOLVED (18-07/18-08): the devip two-write defect was tcp_socket's stock smoltcp defaults (Nagle ON + 10ms delayed ACK holding every sub-MSS follow-up write for a post-deadline drive a fully-parked venue can never run) — fixed donor-faithfully at r9 ab4cb66 (Nagle off, ACK immediate — connect-path sockets only; CR-03: accept-pool sockets keep stock defaults so >2048-byte writes into ANNOUNCED connections still hang, open in the disposition ledger); 18-08's FOD pass pinned the bytes (r9 9103522, Harvey flake.lock advanced lock-only), restored the sweep's 9d legs (-s 127.0.0.1 — the $attr cs class reds on r9, the literal-loopback idiom instead), and flipped the gate to presence demands — the round-trip is green twice at the pin with the bytes-back AUTH-SECOBS (evidence 18-08-auth-{a,b}.log, redacted); the AUTH-SKIP arm is retired; no residual
+- 18-gap-review CR-03 OPEN (advisory, non-blocking per the #3304 evidence gate): the 18-07 TCP fix covers only connect-path sockets — AcceptPool::spawn_listener (r9 stack.rs) keeps smoltcp stock Nagle + 10ms delayed ACK, and x86_64 never calls tick_check, so a >2048-byte write into an ANNOUNCED connection (a secstore PUT of any real file) parks forever; the auth gate is green twice only because the committed DEMO object is 401 bytes. Fix is two set_* calls at the pool site + WR-04 pin legs; natural reopener: Phase 19 cpu/exportfs (needs exactly this class). Recorded open in 18-REVIEW-DISPOSITION with WR-03/WR-04/IN-06/IN-07
 
 ## Deferred Items
 
@@ -276,6 +277,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T17:05:34.719Z
-Stopped at: Phase 18 complete — all phases complete
+Last session: 2026-11-14T17:55:00.000Z
+Stopped at: Phase 18 complete (gap-closure verified 9/9), ready for Phase 19
 Resume file: None
