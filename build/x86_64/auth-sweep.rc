@@ -42,14 +42,33 @@
 #		then the console restored (the '#c/cons' re-bind) for
 #		the later secstore leg's getpassm -> `AUTH-CONSOLEOBS
 #		restored'
+#	leg 9	(18-05) the secstore substrate (AUTH-08/D-14): secuser
+#		creates norbert's account through the writable venue
+#		(the two getpassm passwords console-fed by the host
+#		gate — getpassm is NOT sentinel-drivable; the four field
+#		prompts read the cooked console line-by-line —
+#		userinput's whole-chunk reads coalesce a file feed, so
+#		/dev/cons IS the stdin) -> `AUTH-OK secuser'; the client
+#		PUT/GET round-trip is the named SKIP arm: r9's devip
+#		never delivers SConn's two-write pattern (the donor
+#		client's 2-byte count + payload writes stall with both
+#		procs parked; the one-write control round-trips —
+#		evidence/18-05-secstore-stall-modes.console.log) —
+#		KERNEL bytes, pinned, outside this plan; -> `AUTH-SKIP
+#		secstore-roundtrip' + `AUTH-SKIP-WHY r9-devip-two-write-
+#		tcp' (the 15-08 venue-honesty lineage: a SKIP with its
+#		reason, never an unearned OK; the prohibition holds —
+#		no secstore green without the bytes-back round-trip)
 #
 # Marker vocabulary (the host gate's contract): `authdom: PAIRED
 # <label>', `authdom: FAIL <artifact>', `AUTH-OK <leg>', `AUTH-FAIL
 # <leg>', `AUTH-DEBUGOBS <line>' (leg 7's filtered success line),
 # `AUTH-CONSOLEOBS restored|sentinel-still-bound' (the window's
-# cleanup status), `AUTH-DONE' (every leg green; a failed sweep
-# terminates in `AUTH-FAIL sweep' so the gate's fast-fail arm
-# localizes without a timeout stall).
+# cleanup status), `AUTH-VENUEOBS <verdict>' (leg 9a's probe
+# outcome), `AUTH-SECOBS <bytes>' (the delivered round-trip content),
+# `AUTH-DONE' (every leg green; a failed sweep terminates in
+# `AUTH-FAIL sweep' so the gate's fast-fail arm localizes without a
+# timeout stall).
 #
 # rc-syntax discipline (15-02's measured list, carried verbatim):
 # braced `if not {' bodies are parse errors that kill a sourced file
@@ -209,6 +228,31 @@ if(~ $authlo bound){
 if(~ $authlo up) echo AUTH-LOOPBACK-UP
 if not echo AUTH-FAIL loopback
 
+# --- leg 3b: the writable secstore venue, mounted BEFORE the listeners
+# (moved ahead of leg 4's daemon starts so the per-connection children
+# — whose namespace snapshots at the listener's fork — see the mount by
+# construction regardless of pgrp-sharing semantics).  ramfs MREPL|MCREATE
+# over the staged /adm/secstore mount point; the venue decision rides the
+# recorded evidence (15-06's measured mntgen FILE-write refusal,
+# re-confirmed live this phase: `devmnt: directory opens OREAD only',
+# captured in the phase evidence — rc's redirect-open failures are FATAL
+# to a sourced sweep, so an in-sweep mntgen probe cannot fail
+# gracefully); the LIVE probe below proves the ramfs venue
+# (create+write+read through the mount — the verdict marker every gate
+# run re-proves).  Residual: if ramfs itself ever refuses, the sweep
+# dies at the probe line and the gate's venue stage localizes by
+# timeout.
+venue=''
+if($B/hramfs -m /adm/secstore){
+	if($B/hecho venueprobe > /adm/secstore/venueprobe){
+		vout=`{$B/hcat /adm/secstore/venueprobe}
+		if(~ $"vout venueprobe){
+			venue=ramfs
+			echo AUTH-VENUEOBS ramfs-file-write-ok
+		}
+	}
+}
+
 # --- leg 4: the listener topology (D-09/D-10) -------------------------
 # listen1 -t tcp!*!567 /amd64/bin/authsrv -d: -t is the TRUSTED arm —
 # listen1.c's becomenone() (a #c/user write + newns("none")) would
@@ -359,6 +403,61 @@ if not echo AUTH-FAIL speaksfor-deny
 if(~ $consrestored yes) echo AUTH-CONSOLEOBS restored
 if not echo AUTH-CONSOLEOBS sentinel-still-bound
 
+# --- leg 9: the secstore round-trip (18-05, AUTH-08/D-14) --------------
+# 9a. (the venue mounted at leg 3b — BEFORE the listeners.)  secuser
+# creates norbert's secstore account through the venue; the client PUT
+# and the -G GET complete the round-trip.
+# 9b. secuser creates norbert's secstore account.  getpassm opens
+# /dev/cons ORDWR + sysfatals under a read-only sentinel (util.c:42-48)
+# — the leg REQUIRES the leg-8 console restore, and its two password
+# prompts are console-fed by the host gate (expect matches the prompt
+# text on serial and sends the per-bake DEMO password — R9_DEMO_PW,
+# the 14f2b host-side feed copy; raw mode, so the password never
+# echoes to the wire).  stdin IS /dev/cons for the field prompts too:
+# secuser's userinput reads whole-chunk reads that coalesce a FILE
+# feed into one buffer (measured from the code — read(0, buf, 128)
+# over a file returns every line at once), so the line-granular COOKED
+# CONSOLE is the only venue that delivers one answer per prompt; the
+# gate types the four pinned field answers (default expiry — the
+# zero-clock-safe +365d default; E; N; empty comment) after matching
+# each prompt.  secuser itself creates who/ + store/ through the venue
+# (ensure_exists).
+secuserstat=fail
+if(! ~ $venue ''){
+	if($B/hsecuser -v norbert < /dev/cons){
+		secuserstat=ok
+	}
+}
+# 9c. the client PUT/GET round-trip: BLOCKED on this venue — the named
+# SKIP arm (the 15-08 venue-honesty lineage: a SKIP with its reason,
+# never an unearned OK — the prohibition holds: NO secstore green
+# without the bytes-back round-trip).  Root cause (measured live this
+# phase, evidence/18-05-secstore-stall-modes.console.log): r9's devip
+# loopback TCP never delivers SConn's donor write pattern — a 2-byte
+# count write immediately followed by the payload write
+# (secstore/SConn.c SC_write) stalls with BOTH procs parked (the
+# client's read-park drive never lands the pair; an alarm note does
+# not reach a devip-blocked proc either).  The one-write control
+# round-trips (a single 33-byte write got PAKserver's framed error
+# reply back through the same two-write server path), so the defect is
+# the two-write client pattern class in r9's devip seam — KERNEL
+# bytes, pinned at b2a6151, outside this plan's authority.  The
+# venue's substrate stays PROVEN green: ramfs mount + file probe
+# (leg 3b) + the account creation (9b's AUTH-OK secuser — the who
+# entry + who/store dirs through the writable venue, console-fed
+# passwords).  Reopener: the next r9 kernel-byte pass (Phase 19's cpu
+# path rides multi-write TCP too); unblocking = fix devip, then
+# restore 9d below (the committed shape: copy the payload into the
+# venue, PUT with CWD there, -G GET, grep the payload line —
+# AUTH-OK secstore-roundtrip only on the delivered bytes).
+if(~ $secuserstat ok) echo AUTH-SKIP-WHY r9-devip-two-write-tcp
+if(~ $secuserstat ok) echo AUTH-SKIP secstore-roundtrip
+if(~ $secuserstat ok) echo AUTH-SKIP secstore-put
+if not echo AUTH-FAIL secuser
+if(~ $secuserstat ok) echo AUTH-OK secuser
+
+# 9d. (BLOCKED — the SKIP arm above; restore on the devip fix)
+
 # --- the terminal marker (AUTH-DONE only on a fully-green sweep) -----
 sweepstat=ok
 if(! ~ $pairfail '') sweepstat=fail
@@ -372,6 +471,7 @@ if(! ~ $p9sk1stat ok) sweepstat=fail
 if(! ~ $sfstat ok) sweepstat=fail
 if(! ~ $denystat ok) sweepstat=fail
 if(! ~ $consrestored yes) sweepstat=fail
+if(! ~ $secuserstat ok) sweepstat=fail
 if(~ $sweepstat ok) echo AUTH-DONE
 if not echo AUTH-FAIL sweep
 exit

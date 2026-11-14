@@ -59,6 +59,7 @@ cmd/ndb			# whole dir: cs+dns (the resolver pair, D-02's query subjects) + csque
 cmd/exportfs		# the 9P export server; the srv -e probe mounts through it (mkone, installs to /amd64/bin/exportfs)
 cmd/dial		# whole dir: the dial helper family — pass/expect are the probe topology's clients (at/drain ride along; installs to /amd64/bin/dial/*)
 cmd/mntgen		# the synthetic-mount scratch server (the 15-02/15-06 writable-/tmp provider); single .c
+cmd/ramfs		# 18-05/AUTH-08/D-14: the writable /adm/secstore venue (mntgen file-writes measured read-only, STATE 15-06 — ramfs mounts MREPL|MCREATE, the named alternative the probe falls back to); single .c
 cmd/srv			# the /srv registrar: `srv -e` launches+posts+mounts the exportfs probe (the write-flow/srv class the ancestor names)
 cmd/import		# the import client (pairs with exportfs/listen over a connection)
 

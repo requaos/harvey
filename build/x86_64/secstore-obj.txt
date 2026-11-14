@@ -1,0 +1,7 @@
+auth secstore round-trip object — the 18-05 PUT payload (AUTH-08/D-14)
+staged read-only at /boot/secstore-obj.txt by mkimage's auth contract;
+the sweep copies it into the writable venue, PUTs it as secstore-obj.txt,
+and greps the unique payload line below out of the -G GET's delivered
+bytes (test-delivery-not-counters: the marker fires only on the bytes
+coming back).
+AUTH-ROUNDTRIP-PAYLOAD-18-05

@@ -193,6 +193,20 @@ sh "$HARVEY/build/x86_64/mkimage.sh" || err "bootfs bake failed"
 AUTH_PAQ="$HARVEY/build/x86_64/out/bootfs-auth.paq"
 [ -s "$AUTH_PAQ" ] || err "$AUTH_PAQ missing/empty after the bake (mkimage's auth section)"
 
+# --- step 2b: the per-bake DEMO password for the gate's console feeds --
+# The bake's host-side feed copy (mkimage 14f2b): secuser's two getpassm
+# prompts are the secstore leg's ONLY typed surface (getpassm opens
+# /dev/cons ORDWR and is not sentinel-drivable), and the gate must send
+# the SAME per-bake password the sentinel feeds the other probes.  This
+# is gitignored build scratch ($OUT; the paq itself carries the feed);
+# the gate never prints it and redacts it from the retained capture
+# (T-18-13).
+R9_DEMO_PW_FILE="$HARVEY/build/x86_64/out/authfeed.txt"
+[ -s "$R9_DEMO_PW_FILE" ] || err "$R9_DEMO_PW_FILE missing/empty after the bake (mkimage 14f2b's host-side feed copy — the secuser console feeds need it)"
+R9_DEMO_PW=$(tr -d '\n\r' < "$R9_DEMO_PW_FILE")
+[ -n "$R9_DEMO_PW" ] || err "the feed copy carried no password line"
+export R9_DEMO_PW
+
 # --- step 3: compose the ISO -------------------------------------------
 
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/smoke-r9-auth-x64.XXXXXX")

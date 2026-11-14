@@ -1286,7 +1286,7 @@ AUTH_IMAGE="$OUT/bootfs-auth.paq"
 [ -f "$HARVEY/build/x86_64/auth-termrc" ] || err "build/x86_64/auth-termrc missing (the auth image's termrc override)"
 AUTH_T2="$HARVEY/build/x86_64/tiers/tier2-services.txt"
 AUTH_T1D="$HARVEY/build/x86_64/tiers/tier1-cmds.txt"
-for e in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv cmd/aux:listen1 \
+for e in cmd/mntgen cmd/ramfs cmd/ndb cmd/exportfs cmd/srv cmd/aux:listen1 \
 	cmd/auth/as cmd/auth/authsrv cmd/auth/changeuser cmd/auth/debug \
 	cmd/auth/keyfs cmd/auth/secstore; do
 	"$GREP" -qE "^$e([[:space:]]|#|$)" "$AUTH_T2" \
@@ -1313,7 +1313,7 @@ auth_stage() {
 	fi
 	echo "$_h $_src" >> "$AUTH_HLIST"
 }
-for entry in cmd/mntgen cmd/ndb cmd/exportfs cmd/srv cmd/aux:listen1 \
+for entry in cmd/mntgen cmd/ramfs cmd/ndb cmd/exportfs cmd/srv cmd/aux:listen1 \
 	cmd/auth/as cmd/auth/authsrv cmd/auth/changeuser cmd/auth/debug \
 	cmd/auth/keyfs cmd/auth/secstore; do
 	case "$entry" in
@@ -1363,8 +1363,9 @@ _nauth=$(wc -l < "$AUTH_HLIST" | tr -d ' ')
 [ "$_nauth" -ge 1 ] || err "the auth-suite h* staging set is empty — the tier data parse failed"
 # every sweep subject must be in the computed set (hfactotum rides the
 # tier-1 helper leg at 14c/14i, not this list; hdebug is the 18-05
-# leg-7 subject, hauthprobe is the 14i3 host-side build)
-for h in hmntgen hcs hcsquery hkeyfs hauthsrv hsecstored hlisten1 hdebug; do
+# leg-7 subject, hauthprobe is the 14i3 host-side build, hramfs is the
+# 18-05 leg-9 writable-venue fallback)
+for h in hmntgen hcs hcsquery hkeyfs hauthsrv hsecstored hlisten1 hdebug hramfs; do
 	"$GREP" -q "^$h " "$AUTH_HLIST" || err "auth bake: sweep subject $h missing from the computed auth-suite set (the resolver lost it)"
 done
 
@@ -1465,6 +1466,36 @@ _feedlines=$(wc -l < "$AUTHDOM_STAGE/feed" | tr -d ' ')
 [ "$(tail -c 1 "$AUTHDOM_STAGE/feed" | od -An -tx1 | tr -d ' \n')" = "0a" ] \
 	|| err "auth bake: the feed artifact is not newline-terminated (the Brdline discipline)"
 cp "$AUTHDOM_STAGE/feed" "$STAGE8/boot/authfeed.txt"
+# 14f2b. the host-side feed copy: the driver (nix/smoke-r9-auth-x64.sh)
+#        reads it after the bake and exports it to the expect gate as
+#        R9_DEMO_PW — secuser's two getpassm prompts are console-fed
+#        (the ONLY sanctioned typed-input surface; getpassm is not
+#        sentinel-drivable, util.c:42-48) and the gate must type the
+#        SAME per-bake password the sentinel feeds the other probes.
+#        $OUT is gitignored build scratch (the paq itself carries the
+#        feed); the gate redacts the password from the retained
+#        capture (T-18-13) so it never reaches a committed log.
+#        The generator emits the feed read-only (0444 — the staged
+#        copy's discipline), so a stale copy from an earlier bake
+#        would refuse the overwrite: rm first (the paqs' own rule).
+rm -f "$OUT/authfeed.txt"
+cp "$AUTHDOM_STAGE/feed" "$OUT/authfeed.txt"
+
+# 14f4. the secstore round-trip object (18-05 Task 2, AUTH-08/D-14):
+#       the committed payload staged read-only at /boot/secstore-obj.txt
+#       — the sweep copies it into the writable venue and PUTs it as
+#       the simple name secstore-obj.txt (secstore's validatefile
+#       rejects path-bearing names, util.c), then greps the unique
+#       payload line out of the -G GET's delivered bytes.  The payload
+#       line is a committed fixed token (the bytes assert never
+#       matches an incidental string); newline-terminated (the
+#       userinput/getpassm read discipline).
+[ -f "$HARVEY/build/x86_64/secstore-obj.txt" ] || err "build/x86_64/secstore-obj.txt missing (the committed 18-05 round-trip payload)"
+"$GREP" -q '^AUTH-ROUNDTRIP-PAYLOAD-18-05$' "$HARVEY/build/x86_64/secstore-obj.txt" \
+	|| err "secstore-obj.txt lacks the fixed payload line AUTH-ROUNDTRIP-PAYLOAD-18-05 (the round-trip bytes assert's needle)"
+[ "$(tail -c 1 "$HARVEY/build/x86_64/secstore-obj.txt" | od -An -tx1 | tr -d ' \n')" = "0a" ] \
+	|| err "secstore-obj.txt is not newline-terminated (the read discipline)"
+cp "$HARVEY/build/x86_64/secstore-obj.txt" "$STAGE8/boot/secstore-obj.txt"
 
 # 14f3. /lib/ndb/local — the AUTH-05 composition through the seam: the
 #       committed token template's FIVE tokens substitute at bake —
@@ -1504,12 +1535,13 @@ printf 'tcp=ticket port=567\n' >> "$STAGE8/lib/ndb/local"
 echo "== auth ndb: /lib/ndb/local composed from local.template (the seam's four tokens + @AUTHDOM@=$AUTHDOM_VAL from the generator run + the tcp=ticket service row for the probe dials)"
 
 # 14g. empty mount-point dirs + staging parents (the chain set + the
-#      domain's /adm + the /lib/ndb home)
+#      domain's /adm + the /lib/ndb home + the secstore venue's mount
+#      point — the 18-05 writable-/adm/secstore probe mounts over it)
 mkdir -p "$STAGE8/root" "$STAGE8/env" "$STAGE8/proc" "$STAGE8/dev" "$STAGE8/srv" \
 	"$STAGE8/fd" "$STAGE8/bin" "$STAGE8/tmp" "$STAGE8/mnt" \
 	"$STAGE8/net" "$STAGE8/boot" "$STAGE8/amd64/bin" \
 	"$STAGE8/rc/lib" "$STAGE8/rc/bin" "$STAGE8/adm/timezone" "$STAGE8/adm" \
-	"$STAGE8/lib/ndb"
+	"$STAGE8/adm/secstore" "$STAGE8/lib/ndb"
 
 # 14h. the chain binaries from THIS build's products (the 9e/11g
 #      discipline: BIN + /amd64/init + out/boot, never a stale out/
@@ -1585,7 +1617,8 @@ for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	amd64/bin/hauthprobe \
 	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
 	usr/glenda/lib/profile adm/nvram adm/keys adm/domain.manifest \
-	lib/ndb/auth lib/ndb/local lib/auth-sweep.rc boot/authfeed.txt; do
+	lib/ndb/auth lib/ndb/local lib/auth-sweep.rc boot/authfeed.txt \
+	boot/secstore-obj.txt; do
 	[ -f "$STAGE8/$p" ] || err "auth manifest: $p missing from staged tree"
 	echo "auth manifest: /$p staged"
 done
@@ -1595,7 +1628,7 @@ while read -r _h _src; do
 	_nh=$((_nh + 1))
 done < "$AUTH_HLIST"
 echo "auth manifest: ${_nh} h* sweep binaries staged (the auth-suite set computed from tiers/tier2-services.txt + the tier-1 helpers: $_nauth tier-2 members)"
-for p in root env proc dev srv fd bin tmp mnt net; do
+for p in root env proc dev srv fd bin tmp mnt net adm/secstore; do
 	[ -d "$STAGE8/$p" ] || err "auth manifest: mount-point dir /$p missing"
 done
 

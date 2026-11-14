@@ -20,7 +20,10 @@
 #   the cs + factotum verdicts) ->
 #   (18-05 append: auth/debug's own p9sk1 success line as norbert
 #   (the filtered AUTH-DEBUGOBS echo) + hauthprobe's SPEAKSFOR-OK +
-#   the three probe verdicts + the console-restore observation) ->
+#   the three probe verdicts + the console-restore observation +
+#   the secstore substrate — the venue verdict, secuser's console
+#   feeds, and the client round-trip's NAMED SKIP (r9-devip-two-
+#   write-tcp, the post-pass holds the skip structural)) ->
 #   AUTH-DONE → the %  prompt (the interactive shell the sweep's
 #   termrc execs) →
 #   the whole-capture post-passes: zero AUTH-FAIL, the exact getpass
@@ -30,8 +33,10 @@
 #   by construction; its presence means the boot is wedged behind an
 #   interactive prompt), the PAIRED banner with the DEMO label
 #   present, the deny control exactly once (SPEAKSFOR-DENIED x1),
-#   tr-ok present (AUTH-07's real-exchange evidence), and the deny
-#   exchange's tr-fail 'no speaks for' line (the fail-closed path).
+#   tr-ok present (AUTH-07's real-exchange evidence), the deny
+#   exchange's tr-fail 'no speaks for' line (the fail-closed path),
+#   and the secstore round-trip verdict PROVABLY absent (the named
+#   SKIP's teeth — no unearned OK).
 #
 #   exit 0 only when EVERY stage + post-pass passed; a failure exits 1
 #   and names the failed stage on stderr — never a bare
@@ -85,12 +90,17 @@ match_max 1048576                  ;# the whole sweep's output rides one buffer 
 # progress; the stage lines name it on stderr.
 
 # --- required env (loud, before any spawn) -------------------------------
-foreach v {R9_ISO R9_SMOKE_LOG R9_NETDEV_ARGV} {
+foreach v {R9_ISO R9_SMOKE_LOG R9_NETDEV_ARGV R9_DEMO_PW} {
     if {![info exists env($v)]} {
         puts stderr "smoke-r9-auth-x64: \$$v unset — run via the flake app (nix run .#boot-r9-auth-x64)"
         exit 2
     }
 }
+# R9_DEMO_PW — the per-bake DEMO password (the driver's read of the
+# bake's host-side feed copy, mkimage 14f2b).  It reaches ONLY the
+# secuser console feeds below (raw-mode sends, never echoed to the
+# wire) and the T-18-13 redaction pass at the end; it is never printed
+# by this gate.
 set QEMU [expr {[info exists env(R9_QEMU)] ? $env(R9_QEMU) : "qemu-system-x86_64"}]
 set run_tag [expr {[info exists env(R9_RUN_TAG)] ? $env(R9_RUN_TAG) : "r9x64auth-[pid]-[clock seconds]"}]
 
@@ -154,6 +164,20 @@ proc stage {name re} {
         -re $re { puts stderr "smoke-r9-auth-x64: stage ok — $name" }
         timeout { puts stderr "smoke-r9-auth-x64: TIMEOUT at stage: $name"; cleanup; exit 1 }
         eof { puts stderr "smoke-r9-auth-x64: qemu exited (EOF) at stage: $name"; cleanup; exit 1 }
+    }
+}
+
+# feedstage — a console-feed stage (the 18-05 secstore leg's ONLY
+# typed-input surface): match the program's own prompt text on serial,
+# then send the answer.  The two getpassm password prompts run RAW
+# (getpassm's own rawon), so the sent password never echoes to the
+# wire — the capture carries no password bytes from this path (the
+# noise-leg syslog line is the redaction pass's business at the end).
+proc feedstage {name re sendstr} {
+    expect {
+        -re $re { send -- $sendstr; puts stderr "smoke-r9-auth-x64: feed ok — $name" }
+        timeout { puts stderr "smoke-r9-auth-x64: TIMEOUT at feed stage: $name"; cleanup; exit 1 }
+        eof { puts stderr "smoke-r9-auth-x64: qemu exited (EOF) at feed stage: $name"; cleanup; exit 1 }
     }
 }
 
@@ -247,6 +271,14 @@ stage keyfs-verdict {AUTH-OK keyfs}
 #     AUTH-LOOPBACK-UP on the green arm; the AUTH-FAIL arm fast-aborts)
 stage loopback {AUTH-LOOPBACK-UP}
 
+# 4b2. the writable secstore venue's verdict (18-05 leg 3b: ramfs
+#      MREPL|MCREATE over /adm/secstore + the live file create/write/
+#      read probe — mounted BEFORE the listeners so the per-connection
+#      children see it by construction; the mntgen alternative was
+#      refused live this phase and rc's fatal redirect semantics
+#      decided the in-sweep probe shape)
+stage venue-verdict {AUTH-VENUEOBS ramfs-file-write-ok}
+
 # 5. the listener topology's verdicts, in the sweep's emission order:
 #    the connect-accept over 127.0.0.1!567 (hsvctcpecho -c through the
 #    staged listen1 -t tcp!*!567 /amd64/bin/authsrv -d listener), then
@@ -288,6 +320,32 @@ stage p9sk1-norbert-verdict {AUTH-OK p9sk1-norbert}
 stage speaksfor-verdict     {AUTH-OK speaksfor}
 stage speaksfor-deny-verdict {AUTH-OK speaksfor-deny}
 stage console-restored      {AUTH-CONSOLEOBS restored}
+
+# 5d. the 18-05 secstore substrate (AUTH-08/D-14; the venue verdict
+#     already staged at 4b2): secuser's console-fed prompts IN PROMPT
+#     ORDER (the two getpassm passwords — the R9_DEMO_PW sends; then
+#     the four field prompts — userinput reads the cooked console
+#     line-by-line, so every answer is typed after its prompt
+#     matches: default expiry, E, N, empty comment), secuser's own
+#     success line and verdict.  The client PUT/GET round-trip is the
+#     NAMED SKIP (the 15-08 venue-honesty lineage): r9's devip never
+#     delivers SConn's donor two-write pattern (the 2-byte count +
+#     payload writes stall with both procs parked; the one-write
+#     control round-trips — evidence/18-05-secstore-stall-modes
+#     .console.log) — kernel bytes, pinned, outside this plan.  The
+#     post-pass below makes the skip STRUCTURAL: AUTH-OK
+#     secstore-roundtrip may never appear until the devip fix lands.
+set pw $env(R9_DEMO_PW)
+feedstage secuser-password1 {norbert password: } "$pw\r"
+feedstage secuser-password2 {retype password: } "$pw\r"
+feedstage secuser-expires   {expires .DDMMYYYY} "\r"
+feedstage secuser-enabled   {Enabled or Disabled} "E\r"
+feedstage secuser-sta       {require STA} "N\r"
+feedstage secuser-comments  {comments .default} "\r"
+stage secuser-written {change written}
+stage secuser-skip-why {AUTH-SKIP-WHY r9-devip-two-write-tcp}
+stage secuser-skip-roundtrip {AUTH-SKIP secstore-roundtrip}
+stage secuser-verdict {AUTH-OK secuser}
 
 # 6. the terminal sweep marker
 stage sweep-done {AUTH-DONE}
@@ -373,6 +431,41 @@ if {![string match "*no speaks for*" $whole]} {
 }
 puts stderr "smoke-r9-auth-x64: post-pass ok — the deny control's tr-fail 'no speaks for' line present (the fail-closed speaksfor gate proven)"
 
-puts stderr "smoke-r9-auth-x64: ALL STAGES PASS — chain boot, hostfwd-5670 observed host-side, D-02 boot pairing (DEMO label), non-interactive keyfs (N keys read), AUTH-OK keyfs, loopback up, authsrv connect-accept on 567, secstored announced on 5356, cs answering authdom from the baked local, factotum carrying the p9sk1 key, auth/debug's p9sk1 success as norbert, hauthprobe's SPEAKSFOR-OK (bootes for norbert), the deny control (SPEAKSFOR-DENIED x1 + 'no speaks for'), console restored, AUTH-DONE, ANNOUNCE on serial, tr-ok present, nvram-prompt-absent, zero AUTH-FAIL"
+# the secstore round-trip SKIP post-pass (AUTH-08/D-14, the named
+# blocker's structural teeth): the round-trip verdict may NEVER appear
+# until r9's devip carries the two-write pattern — an unearned OK
+# would violate the phase's own prohibition (no secstore green
+# without the bytes-back round-trip).  The unblock checklist (the
+# committed sweep's 9d comment carries the restore shape): fix devip
+# -> restore the PUT/GET legs -> these asserts flip to presence
+# demands (`secstore: saved', AUTH norbert, \[norbert\] PUT/GET).
+if {[string match "*AUTH-OK secstore-roundtrip*" $whole]} {
+    puts stderr "smoke-r9-auth-x64: AUTH-OK secstore-roundtrip PRESENT without the round-trip legs — the skip arm was bypassed (an unearned OK; the devip blocker must close first)"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9-auth-x64: post-pass ok — the secstore round-trip verdict stays ABSENT (the named SKIP holds: r9-devip-two-write-tcp)"
+
+# the T-18-13 redaction (LAST, after every assert ran over the true
+# capture): auth/debug's noise leg answers its cpu-server-owner prompt
+# with the sentinel line, and authsrv -d's tr-ok for that exchange
+# logs tr->authid verbatim — so the per-bake DEMO password can sit in
+# ONE syslog line on the wire.  It is throwaway host-random material
+# (the image itself carries the feed in cleartext, D-01), but the
+# RETAINED capture must not carry it: rewrite the log with every
+# occurrence mapped to a fixed marker.  Mechanical, applied by THIS
+# committed gate — never by hand (the 15-07 evidence-discipline
+# family: the tool that asserts is the tool that redacts).
+if {[string first $pw $whole] >= 0} {
+    set redacted [string map [list $pw "<demo-pw-redacted>"] $whole]
+    set fh [open $env(R9_SMOKE_LOG) w]
+    puts -nonewline $fh $redacted
+    close $fh
+    puts stderr "smoke-r9-auth-x64: post-pass ok — the per-bake DEMO password redacted from the retained capture (T-18-13; asserts ran over the true capture first)"
+} else {
+    puts stderr "smoke-r9-auth-x64: post-pass ok — the capture carried no DEMO password bytes (nothing to redact)"
+}
+
+puts stderr "smoke-r9-auth-x64: ALL STAGES PASS — chain boot, hostfwd-5670 observed host-side, D-02 boot pairing (DEMO label), non-interactive keyfs (N keys read), AUTH-OK keyfs, loopback up, the writable secstore venue (ramfs, live file probe), authsrv connect-accept on 567, secstored announced on 5356, cs answering authdom from the baked local, factotum carrying the p9sk1 key, auth/debug's p9sk1 success as norbert, hauthprobe's SPEAKSFOR-OK (bootes for norbert), the deny control (SPEAKSFOR-DENIED x1 + 'no speaks for'), console restored, secuser's account through the venue, the secstore round-trip NAMED-SKIPPED (r9-devip-two-write-tcp; the verdict structurally absent), AUTH-DONE, ANNOUNCE on serial, tr-ok present, nvram-prompt-absent, zero AUTH-FAIL, the capture redacted"
 cleanup
 exit 0
