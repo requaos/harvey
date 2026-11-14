@@ -72,6 +72,81 @@ KB=$(wc -c < demo/keys | tr -d ' ')
 grep -q '^label DEMO$' demo/manifest || fail "manifest lacks the 'label DEMO' row"
 grep -q '^users 3$' demo/manifest || fail "manifest lacks the 'users 3' row"
 
+echo "== label discipline (D-04): the DEMO token in the artifacts"
+# nvram: the authdom span inside the 109 bytes carries the token
+if grep -a -q 'DEMO-harvey' demo/nvram; then
+	echo "LABEL-IN-NVRAM-OK"
+else
+	fail "nvram authdom span does not carry the DEMO token"
+fi
+if grep -a -q 'DEMO' demo/manifest && grep -q '^label DEMO$' demo/manifest; then
+	echo "LABEL-IN-MANIFEST-OK"
+else
+	fail "manifest does not carry the DEMO label"
+fi
+# the keys file carries no label bytes by design (the keyfs byte
+# contract; owner-ratified manifest-row substitution) — nothing to
+# assert there beyond its hash row above
+
+echo "== info mode: the parsed fields without binary tools"
+./gen -i demo >info.log 2>&1 || { cat info.log; fail "-i exited nonzero"; }
+grep -q '^authid: bootes$' info.log || fail "-i lacks authid"
+grep -q '^authdom: DEMO-harvey$' info.log || fail "-i lacks authdom"
+grep -q '^label: DEMO$' info.log || fail "-i lacks label"
+grep -q '^users: 3$' info.log || fail "-i lacks the user count"
+grep -q '^names: glenda bootes norbert$' info.log || fail "-i lacks the decrypted names"
+grep -q '^keys: decrypt-ok under nvram machkey$' info.log \
+	|| fail "-i lacks the pairing identity line"
+
+echo "== verify-mode teeth: doctored-input negative controls"
+# each class must refuse with a nonzero exit; the marker below is the
+# self-test's own class receipt, the refusal line is quoted for triage
+
+# (1) nvram: flip authdom[0] ('D' at offset 60) to NUL — always a real
+# mutation on the DEMO path, and it breaks the sum, the sha1, and the
+# label token at once
+cp -r demo n1
+head -c 60 demo/nvram > n1/nvram
+printf '\000' >> n1/nvram
+tail -c +62 demo/nvram >> n1/nvram
+if ./gen -V n1 >v1.log 2>&1; then
+	fail "verify ACCEPTED a doctored nvram"
+else
+	echo "NEG-CONTROL-REFUSED-nvram: $(tail -1 v1.log)"
+fi
+
+# (2) keys: flip the first record byte ('g' of glenda at KEYDBOFF=8)
+# to NUL — always a real mutation on the DEMO path
+cp -r demo n2
+head -c 8 demo/keys > n2/keys
+printf '\000' >> n2/keys
+tail -c +10 demo/keys >> n2/keys
+if ./gen -V n2 >v2.log 2>&1; then
+	fail "verify ACCEPTED a doctored keys file"
+else
+	echo "NEG-CONTROL-REFUSED-keys: $(tail -1 v2.log)"
+fi
+
+# (3) manifest: replace the nvram row's first hex digit with 'g' —
+# never a sha1 character, so the recomputation can never agree
+cp -r demo n3
+sed '3s/^[0-9a-f]/g/' demo/manifest > n3/manifest
+if ./gen -V n3 >v3.log 2>&1; then
+	fail "verify ACCEPTED a doctored manifest row"
+else
+	echo "NEG-CONTROL-REFUSED-manifest: $(tail -1 v3.log)"
+fi
+
+# (4) truncated keys: ten bytes short — the length-vs-user-count check
+# (and the sha1) must both refuse
+cp -r demo n4
+head -c 217 demo/keys > n4/keys
+if ./gen -V n4 >v4.log 2>&1; then
+	fail "verify ACCEPTED a truncated keys file"
+else
+	echo "NEG-CONTROL-REFUSED-truncated: $(tail -1 v4.log)"
+fi
+
 echo "== gitignore: /authdomain.local must stay out of git"
 (cd "$HARVEY" && git check-ignore -q authdomain.local) \
 	|| fail "authdomain.local is not gitignored (T-18-06)"
