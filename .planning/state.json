@@ -86,12 +86,12 @@
     {
       "number": "17",
       "name": "r9 Kernel Flush-Out",
-      "status": "in_progress"
+      "status": "complete"
     },
     {
       "number": "18",
       "name": "In-Guest p9sk1 Auth Domain",
-      "status": "pending"
+      "status": "in_progress"
     },
     {
       "number": "19",
@@ -101,8 +101,8 @@
   ],
   "next": {
     "command": "/gsd-progress --next",
-    "label": "Advance to the next step (verify)",
-    "reason": "Phase 17 (12 of 19 roadmap phases complete) · ready to verify"
+    "label": "Advance to the next step",
+    "reason": "Phase 17 (13 of 19 roadmap phases complete) · executing"
   },
-  "updated_at": "2026-11-13T15:05:26.888Z"
+  "updated_at": "2026-11-14T03:54:20.831Z"
 }
