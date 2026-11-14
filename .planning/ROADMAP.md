@@ -262,7 +262,33 @@ Plans:
   3. The flake drawterm app exists (`nix run .#drawterm`) with its provenance decision recorded; the wrapper pins `-O`, scrubs `$cpu`/`$auth`/`$PASS`, prints the exact connect line — and the `-G` text-mode interop gate is green in CI via hostfwd (scripted login → shell marker) (DESK-01, DESK-06)
   4. rio starts only in-session: profile `case cpu` binds /mnt/term/dev over /dev and execs rio (a serial marker proves rio did NOT start at boot); plumb runs in the drawterm session; and r9 devssl `#D` (rc4_256/sha1) is available for encrypted sessions via pushssl, with `-e clear` as the documented fallback (DESK-02, DESK-04, DESK-05)
   5. The graphical leg is human-accepted on linux AND darwin (drawterm is host-side; the darwin leg connects to the linux-hosted guest); boot-r9-smoke is extended to the full chain; the r9 flake.lock pin advances via push-before-pin as its OWN commit with a fresh hosted CI run (never bundled); and the full v2.1 chain reproduces from clean checkouts on linux-x86_64 (darwin documented-manual) (DESK-07, INT-05, INT-06, INT-07)
-**Plans**: TBD
+**Plans**: 10 plans
+Plans:
+**Wave 1**
+- [ ] 19-01-PLAN.md — service=cpu bootconf tracer: mb2 cmdline to ROOT env seed + the append seam (grub.cfg/iso-builder/xtask) + §15 seed + q35cpu boot profile green twice (CPU-02)
+- [ ] 19-06-PLAN.md — drawterm vendor -G/-O + gui-none backend + nix package + scrubbing wrapper + flake app + README recipes (DESK-01)
+
+**Wave 2** *(r9 serialization: after 19-01)*
+- [ ] 19-02-PLAN.md — CR-03 AcceptPool TCP fix (the two set_* calls + WR-04 pin legs, RED-proven) + proactive tick_check wiring (D-08, D-10)
+
+**Wave 3**
+- [ ] 19-03-PLAN.md — kernel hash-bang exec (donor argv order) + WSTAT/FWSTAT/REMOVE DISPATCH arms + ring-3 profile legs (CPU-01, CPU-03)
+
+**Wave 4**
+- [ ] 19-04-PLAN.md — devssl #D: rc4_256/sha1 donor port + the device with pushssl-protocol round-trip pins + registry wiring (DESK-04)
+
+**Wave 5** *(all kernel bytes in)*
+- [ ] 19-05-PLAN.md — the one FOD re-wire pass (two-derivation proof) + pin advance as its OWN lock-only commit + fresh hosted CI + composed gates re-green (INT-06)
+
+**Wave 6** *(at the advanced pin)*
+- [ ] 19-07-PLAN.md — §15 seventh contract full: re-keyed cpurc (pairing→keyfs→authsrv→factotum→trusted aux/listen) + tcp17010 + cmd/cpu tier + D-12 creds emission + in-session-only profile + bring-up probe green twice (CPU-02, CPU-03, DESK-02, DESK-05)
+
+**Wave 7** *(parallel)*
+- [ ] 19-08-PLAN.md — the -G interop gate: pty-driven scripted drawterm session over hostfwd, encrypted default, green twice on local KVM (DESK-06, CPU-04, DESK-04 live)
+- [ ] 19-09-PLAN.md — boot-r9-x64 --system=cpu full-system mode + full-chain smoke extension + README (INT-05)
+
+**Wave 8**
+- [ ] 19-10-PLAN.md — human legs (linux graphical row + darwin -G row, blocking-human checkpoints) + darwin graphical deferral records + clean-checkout proof of v2.1 (DESK-07 as owner-resolved, INT-07)
 **UI hint**: yes
 
 ## Progress
