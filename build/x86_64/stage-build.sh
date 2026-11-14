@@ -41,8 +41,10 @@ OUT="$HARVEY/build/x86_64/smoke-out"
 # 1400-deep loop cannot afford) and churnsem (CR-03's RFMEM
 # semacquire/semrelease contender) — staged beside init/smokesleep in
 # the MARKER image (the additive rule; /amd64/init's meaning is
-# untouched).
-STAGE_SRCS="smokesleep churnmark churnsem churncats"
+# untouched).  18-01 adds randread (the q35auth substrate driver — the
+# /dev/random distinctness marker; mkimage's substrate bake stages it
+# as THAT image's /amd64/init, the D-08 leg-1 rule per-image).
+STAGE_SRCS="smokesleep churnmark churnsem churncats randread"
 
 err() { echo "error: $*" >&2; exit 1; }
 
@@ -98,7 +100,7 @@ set -e
 
 fail() { echo "STAGE-BUILD-FAIL: $1" >&2; exit 1; }
 
-STAGE_SRCS="smokesleep churnmark churnsem churncats"
+STAGE_SRCS="smokesleep churnmark churnsem churncats randread"
 STAGE="$HARVEY/build/x86_64/smoke-out"
 
 echo "== stage build provenance (Harvey's vendored toolchain):"

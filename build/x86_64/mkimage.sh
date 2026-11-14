@@ -7,7 +7,10 @@
 # net-gate payload: the ip-container binaries + the 6c C helpers + the
 # /lib fixtures), and, since 15-03,
 # build/x86_64/out/bootfs-services.paq (the SERVICES image — the chain
-# tree + the tier-2 services sweep payload for the r9-x64 venue), the
+# tree + the tier-2 services sweep payload for the r9-x64 venue), and,
+# since 18-01, build/x86_64/out/bootfs-substrate.paq (the SUBSTRATE
+# image — the marker-image shape with randread as /amd64/init, the
+# q35auth random substrate gate's own leg-1 marker), the
 # paqfs root
 # images for the r9 x86_64 boots (D-04:
 # the byte format carried VERBATIM from aarch64 — same header magic
@@ -1143,3 +1146,72 @@ trailer6=$(od -An -tx1 -j $((sz6 - 28)) -N 4 "$CHURN_IMAGE" | tr -d ' \n')
 [ "$trailer6" = "6b46e688" ] || err "$CHURN_IMAGE: bad trailer magic $trailer6 (want 6b46e688)"
 
 echo "== PASS: baked $CHURN_IMAGE ($sz6 bytes; chain + test/dc + churncats + /lib/churn-cats.rc; header $magic6 trailer $trailer6; KERNDATE $KERNDATE)"
+
+# ------------------------------------------------------------------
+# 13. the SUBSTRATE bake (18-01, AUTH-02/D-05+D-07): the MARKER-image
+#     shape (§1-6's construction verbatim — committed skeleton minus
+#     the chain-only /rc+/usr subtrees, empty mount points, ONE
+#     marker at /amd64/init, factotum-absence, KERNDATE determinism)
+#     with randread as THIS image's /amd64/init — the D-08 leg-1 rule
+#     applied per-image: the q35exec image's marker stays smokesleep
+#     (untouched, §3-4a above), the substrate image's marker is the
+#     entropy-read driver.  The r9 q35auth profile boots this paq; the
+#     first ring-3 exec reads /dev/random twice and prints the D-07
+#     distinctness evidence (`random: READS-OK`, `substrate: DONE`)
+#     the xtask gate asserts beside the boot-facts armed-source line.
+#     Purely additive (Pitfall 7): every earlier contract untouched.
+SUBSTRATE_IMAGE="$OUT/bootfs-substrate.paq"
+
+# 13a. input (stage-build.sh is the producer — named loudly when
+#      absent) + the identity guards BEFORE any staging spend.
+[ -s "$STAGE_SRC/randread" ] || err "$STAGE_SRC/randread missing — run sh build/x86_64/stage-build.sh first (the substrate marker)"
+"$GREP" -q "random: READS-OK" "$STAGE_SRC/randread" \
+	|| err "smoke-out/randread does not carry its marker string (re-run sh build/x86_64/stage-build.sh)"
+"$GREP" -q "substrate: DONE" "$STAGE_SRC/randread" \
+	|| err "smoke-out/randread does not carry its terminal marker (re-run sh build/x86_64/stage-build.sh)"
+"$GREP" -q "init: starting /bin/rc" "$STAGE_SRC/randread" \
+	&& err "smoke-out/randread carries the REAL init's signature (stage-build staged the wrong binary)"
+
+STAGE7="$TMPD/root-substrate"
+mkdir -p "$STAGE7"
+
+# 13b. the committed skeleton, the chain-only subtrees stripped (the
+#      marker tree's own §1 shape) + the empty mount-point dirs
+(cd "$ROOT_TREE" && tar -cf - .) | (cd "$STAGE7" && tar -xf -)
+rm -rf "$STAGE7/rc" "$STAGE7/usr"
+mkdir -p "$STAGE7/root" "$STAGE7/env" "$STAGE7/proc" "$STAGE7/dev" "$STAGE7/srv" \
+	"$STAGE7/fd" "$STAGE7/bin" "$STAGE7/tmp" "$STAGE7/mnt" \
+	"$STAGE7/net" "$STAGE7/amd64"
+
+# 13c. the marker (the image's whole payload: randread IS /amd64/init)
+cp "$STAGE_SRC/randread" "$STAGE7/amd64/init"
+
+# 13d. pre-bake manifest + the leg-1 identity + factotum absence (the
+#      marker-image contract's own guard classes)
+for p in amd64/init; do
+	[ -f "$STAGE7/$p" ] || err "substrate manifest: $p missing from staged tree"
+done
+for p in root env proc dev srv fd bin tmp mnt net; do
+	[ -d "$STAGE7/$p" ] || err "substrate manifest: mount-point dir /$p missing"
+done
+"$GREP" -q "random: READS-OK" "$STAGE7/amd64/init" \
+	|| err "substrate: amd64/init is not the randread marker (re-run sh build/x86_64/stage-build.sh)"
+[ ! -e "$STAGE7/boot/factotum" ] || err "substrate manifest: /boot/factotum present — auth-stub-by-absence violated"
+
+# 13e. determinism + bake (the marker bake's rule; the per-file cap
+#      assert rides too — the 15-07 measured hazard)
+_maxf7=$(find "$STAGE7" -type f -printf '%s\n' | sort -n | tail -1)
+[ "$_maxf7" -le 4194304 ] || err "substrate bake: a staged file of $_maxf7 bytes exceeds mkpaqfs's 4194304-byte per-file cap"
+find "$STAGE7" -exec touch -h -d "@$KERNDATE" {} +
+rm -f "$SUBSTRATE_IMAGE"
+KERNDATE="$KERNDATE" "$MKPAQFS" -o "$SUBSTRATE_IMAGE" "$STAGE7" || err "mkpaqfs failed (substrate)"
+[ -s "$SUBSTRATE_IMAGE" ] || err "$SUBSTRATE_IMAGE missing/empty after mkpaqfs"
+
+# 13f. the byte-format contract (same header/trailer magic checks)
+magic7=$(od -An -tx1 -N4 "$SUBSTRATE_IMAGE" | tr -d ' \n')
+[ "$magic7" = "529ab12b" ] || err "$SUBSTRATE_IMAGE: bad header magic $magic7 (want 529ab12b)"
+sz7=$(wc -c < "$SUBSTRATE_IMAGE" | tr -d ' ')
+trailer7=$(od -An -tx1 -j $((sz7 - 28)) -N 4 "$SUBSTRATE_IMAGE" | tr -d ' \n')
+[ "$trailer7" = "6b46e688" ] || err "$SUBSTRATE_IMAGE: bad trailer magic $trailer7 (want 6b46e688)"
+
+echo "== PASS: baked $SUBSTRATE_IMAGE ($sz7 bytes; skeleton + randread as /amd64/init; header $magic7 trailer $trailer7; KERNDATE $KERNDATE)"
