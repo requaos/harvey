@@ -63,7 +63,7 @@
 
 ### CPU Service (CPU — continuing)
 
-- [ ] **CPU-01**: r9 `#!` exec (tcp17010 is literally `#!/bin/cpu -R`, execl'd by listen)
+- [x] **CPU-01**: r9 `#!` exec (tcp17010 is literally `#!/bin/cpu -R`, execl'd by listen)
 - [ ] **CPU-02**: `service=cpu` bootconf path: plan9.ini delivered via the x86_64 boot-protocol equivalent of DTB `/chosen/bootargs` → cpurc runs instead of termrc (re-keyed)
 - [ ] **CPU-03**: aux/listen + tcp17010 live at boot; exportfs served; r9 implements WSTAT/FWSTAT/REMOVE
 - [ ] **CPU-04**: Full `cpu -R` remoteside flow verified end-to-end: p9any→p9sk1 → auth_chuid → client exportfs at /mnt/term → stdio from /mnt/term/dev/cons → rc -li
@@ -153,7 +153,7 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | AUTH-07 | Phase 18 | Complete |
 | AUTH-08 | Phase 18 | Complete |
 | AUTH-09 | Phase 18 | Complete |
-| CPU-01 | Phase 19 | Pending |
+| CPU-01 | Phase 19 | Complete |
 | CPU-02 | Phase 19 | Pending |
 | CPU-03 | Phase 19 | Pending |
 | CPU-04 | Phase 19 | Pending |

@@ -262,7 +262,7 @@ Plans:
   3. The flake drawterm app exists (`nix run .#drawterm`) with its provenance decision recorded; the wrapper pins `-O`, scrubs `$cpu`/`$auth`/`$PASS`, prints the exact connect line — and the `-G` text-mode interop gate is green in CI via hostfwd (scripted login → shell marker) (DESK-01, DESK-06)
   4. rio starts only in-session: profile `case cpu` binds /mnt/term/dev over /dev and execs rio (a serial marker proves rio did NOT start at boot); plumb runs in the drawterm session; and r9 devssl `#D` (rc4_256/sha1) is available for encrypted sessions via pushssl, with `-e clear` as the documented fallback (DESK-02, DESK-04, DESK-05)
   5. The graphical leg is human-accepted on linux AND darwin (drawterm is host-side; the darwin leg connects to the linux-hosted guest); boot-r9-smoke is extended to the full chain; the r9 flake.lock pin advances via push-before-pin as its OWN commit with a fresh hosted CI run (never bundled); and the full v2.1 chain reproduces from clean checkouts on linux-x86_64 (darwin documented-manual) (DESK-07, INT-05, INT-06, INT-07)
-**Plans**: 3/10 plans executed
+**Plans**: 4/10 plans executed
 Plans:
 **Wave 1**
 - [x] 19-01-PLAN.md — service=cpu bootconf tracer: mb2 cmdline to ROOT env seed + the append seam (grub.cfg/iso-builder/xtask) + §15 seed + q35cpu boot profile green twice (CPU-02)
@@ -272,7 +272,7 @@ Plans:
 - [x] 19-02-PLAN.md — CR-03 AcceptPool TCP fix (the two set_* calls + WR-04 pin legs, RED-proven) + proactive tick_check wiring (D-08, D-10)
 
 **Wave 3**
-- [ ] 19-03-PLAN.md — kernel hash-bang exec (donor argv order) + WSTAT/FWSTAT/REMOVE DISPATCH arms + ring-3 profile legs (CPU-01, CPU-03)
+- [x] 19-03-PLAN.md — kernel hash-bang exec (donor argv order) + WSTAT/FWSTAT/REMOVE DISPATCH arms + ring-3 profile legs (CPU-01, CPU-03)
 
 **Wave 4**
 - [ ] 19-04-PLAN.md — devssl #D: rc4_256/sha1 donor port + the device with pushssl-protocol round-trip pins + registry wiring (DESK-04)
@@ -318,7 +318,7 @@ Plans:
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | 8/8 | Complete    | 2026-11-12 |
 | 17. r9 Kernel Flush-Out | v2.1 | 8/8 | Complete    | 2026-11-13 |
 | 18. In-Guest p9sk1 Auth Domain | v2.1 | 8/8 | Complete    | 2026-11-14 |
-| 19. CPU Service + Drawterm + rio Desktop | v2.1 | 3/10 | In Progress | - |
+| 19. CPU Service + Drawterm + rio Desktop | v2.1 | 4/10 | In Progress | - |
 
 ## Backlog
 

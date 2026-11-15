@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
 status: executing
-stopped_at: Completed 19-02-PLAN.md (CR-03 AcceptPool TCP fix + q35 tick_check; r9 pushed df9ada8)
-last_updated: "2026-11-14T23:38:11.720Z"
+stopped_at: "Completed 19-03-PLAN.md (#! exec pre-pass + WSTAT/FWSTAT/REMOVE arms + the §15 live legs; r9 pushed f691914)"
+last_updated: "2026-11-15T00:29:23.553Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 19 execution started
-state_head: b8c544f4474fdfc6e0e13dcb133b66e6f8820ad9
+state_head: 83ae3939278c4194575d15b94f7e67f19e091568
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 58
-  completed_plans: 51
+  completed_plans: 52
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 19 (CPU Service + Drawterm + rio Desktop) — EXECUTING
-Plan: 4 of 10
+Plan: 6 of 10
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 19 execution started
 
@@ -111,6 +111,8 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 19 P01 | 32 min | 3 tasks | 9 files |
 | Phase 19 P06 | 32 min | 3 tasks | 12 files |
 | Phase 19 P02 | 20 min | 3 tasks | 4 files |
+| Phase 19 P03 | 47 min | 3 tasks | 6 files |
+| Phase 19 P03 | 47 min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -261,6 +263,9 @@ Recent decisions affecting current work:
 - [Phase 19]: [19-06] the wrapper (nix run .#drawterm) scrubs $cpu/$auth/$PASS/$USER, pins cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda, prints the encrypted-default connect lines (windowed primary + -G text form; -e clear is debug-only wording, never a printed line), and execs — headless venues run the -G line loudly; the x64 hasAttr gate list stayed byte-unchanged
 - [Phase 19]: [19-02] CR-03 closed at spawn_listener: pool members are the accepted connection's socket for life, so the donor TCP shape (Nagle off, no 10ms delayed ACK — tcp_socket's 18-07 calls mirrored exactly) set at the SPAWN site covers every announced connection end-to-end; the WR-04 bulk-drain leg's writer is the CLIENT (the draining ACK comes from the peer — the pool member's delayed ACK is what parks a client bulk write, the exportfs/secstore direction)
 - [Phase 19]: [19-02] D-10 wired: q35 tick()'s dev_exec block carries cfg(dev_ip) tick_check (the aarch64 virt precedent verbatim, no poll/alloc in IRQ context); compile-shape proven by nm symbol contrast (dev_ip kernel exports tick_check, non-dev_ip has zero references) + q35shell boot; 19-08's long-lived session is the named live consumer; the harness gained the ON_BLOCK seam fix (a green pin's un-fired park bound leaked into later-blocking siblings)
+- [Phase 19]: [19-03] The #! argv order is donor-verbatim [elem, #!tokens[1..], file, caller.argv[1..]] — sysproc.c substitutes progarg[0] with elem and drops the caller's argv[0]; the plan's bracket shorthand named [interp, script-path, caller-argv], its prohibition clause (the donor's 282-324 shape) is the authority (CPU-01)
+- [Phase 19]: [19-03] All five CPU-03 slots carry real semantics including _WSTAT(26)/_FWSTAT(27) — the 9k donor retires them as "old wstat - recompile" stubs, but the plan's must-have mandates named arms routing to per-device semantics or loud refusals; Harvey's libc emits wstat/fwstat against 44/45, the load-bearing pair
+- [Phase 19]: [19-03] The §15 legs live: cpurc is a REAL #! rc script (the kernel pre-pass re-execs it — the first live #! proof) carrying SHEBANG-OK (the #! token reaching /amd64/bin/echo, the argv order live) + REMOVE-OK (rm #¤/caphash through the ported devcap arm + test -e absence); service files stage under rc/bin/service (the plain /bin bind REPLACES — the rc tree's -a append surfaces them), fixtures need 755 (paqfs refuses OEXEC on 644)
 
 ### Pending Todos
 
@@ -286,6 +291,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-14T23:38:10.774Z
-Stopped at: Completed 19-02-PLAN.md (CR-03 AcceptPool TCP fix + q35 tick_check; r9 pushed df9ada8)
+Last session: 2026-11-15T00:29:22.774Z
+Stopped at: Completed 19-03-PLAN.md (#! exec pre-pass + WSTAT/FWSTAT/REMOVE arms + the §15 live legs; r9 pushed f691914)
 Resume file: None
