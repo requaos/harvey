@@ -28,8 +28,13 @@
 #       raw pty does no translation), then assert presence-only:
 #       the remote shell prompt, a fed command (echo with a unique
 #       per-run marker) and its echoed output marker, and the session
-#       teardown (rc exit -> connection drop -> drawterm's gconsexit
-#       `goodbye').
+#       teardown (rc exit -> the service tree dies -> the connection
+#       hangs up -> drawterm's exportfs read fails `eof: n=-1' and the
+#       process dies — re-keyed live: the vendored drawterm's sysfatal
+#       routes through kern/panic's Unix exit, never cpu.c's exits()
+#       override, so `goodbye' is unreachable in the -G session end
+#       against ANY server; the exportfs hangup line is the
+#       deterministic teardown marker).
 #
 #   The `-s ''` flag is LOAD-BEARING on this venue: without a -s
 #   value drawterm defaults secstoreserver to the authserver, and
@@ -372,17 +377,31 @@ send -- "echo $dt_marker\r"
 stage fed-echo $dt_marker
 
 # --- 7. session teardown on exit: feed rc's exit, watch the session
-#        die end-to-end — rc exits -> the listener's service process
-#        exits -> the connection drops -> drawterm's exportfs returns
-#        -> gconsexit prints `goodbye' (the deterministic -G exit
-#        line) and the process exits.  A bounded eof wait follows;
-#        either way cleanup reaps the subtree.
+#        die end-to-end — rc exits -> rmtnoteproc's waiter kills the
+#        noteproc -> the service tree exits -> the pgrp dies -> the
+#        mounted session's Drop closes the ssl conv -> the TCP
+#        connection hangs up -> drawterm's exportfs read fails
+#        (exportfs.c's unconditional fatal: `eof: n=-1 ... i/o on
+#        hungup channel') and the process dies through panic->exit —
+#        the PTY EOF.  (Re-keyed live: the pass-1 design expected
+#        gconsexit's `goodbye' here; the live teardown falsified it —
+#        sysfatal never reaches cpu.c's exits() override, so `goodbye'
+#        is unreachable in the -G session end against ANY server.  The
+#        exportfs hangup line is the deterministic end marker.)  A
+#        bounded eof wait follows; either way cleanup reaps the
+#        subtree.
 send -- "exit\r"
-stage session-exit {goodbye}
+expect {
+	-re {eof: n=-1} {
+		puts stderr "drawterm-gate: stage ok — session-exit (the connection hangup reached the client's exportfs; the fed exit tore the session down end-to-end)"
+	}
+	timeout { puts stderr "drawterm-gate: TIMEOUT at stage: session-exit (no exportfs hangup line — the teardown chain did not fire)"; cleanup; exit 1 }
+	eof { puts stderr "drawterm-gate: process exited (EOF) at stage: session-exit WITHOUT the exportfs hangup line (an abrupt death — the teardown chain did not fire)"; cleanup; exit 1 }
+}
 set timeout 15
 expect {
-	eof { puts stderr "drawterm-gate: stage ok — drawterm EOF after goodbye (clean session teardown)" }
-	timeout { puts stderr "drawterm-gate: note — no EOF within 15s of goodbye (continuing; cleanup reaps the drawterm subtree)" }
+	eof { puts stderr "drawterm-gate: stage ok — drawterm EOF after the hangup (clean session teardown)" }
+	timeout { puts stderr "drawterm-gate: note — no EOF within 15s of the hangup (continuing; cleanup reaps the drawterm subtree)" }
 }
 set timeout 600
 
@@ -398,7 +417,12 @@ set drain_n 0
 while {$drain_n < 40} {
 	incr drain_n
 	expect {
-		-re {[\s\S]+} { }
+		# The drain's catch-all: the plain GLOB `*` (expect's default
+		# pattern kind matches any non-empty chunk incl. newlines) —
+		# the pass-1 `[\s\S]+` RE was a PCRE-ism glibc's POSIX regcomp
+		# rejects ("invalid escape"); this loop was never exercised
+		# before the teardown first went green.
+		* { }
 		timeout { break }
 		eof {
 			puts stderr "drawterm-gate: qemu exited (EOF) during the serial drain — continuing to the post-pass (the capture holds what streamed)"
@@ -421,12 +445,18 @@ if {[string first "cpurc: FAIL" $whole] >= 0} {
 	exit 1
 }
 puts stderr "drawterm-gate: post-pass ok — zero cpurc: FAIL in the capture"
-if {[string first "panic" $whole] >= 0} {
+# The panic scan excludes drawterm's OWN deterministic exit pair: the
+# vendored drawterm's teardown dies through kern/panic ->
+# `panic: sysfatal' (re-keyed live — the expected client-side session
+# end, never a Harvey kernel panic; the kernel's panic vocabulary
+# never prints that literal).  Any OTHER panic marker still fails.
+regsub -all {panic: sysfatal} $whole "" whole_nopanic
+if {[string first "panic" $whole_nopanic] >= 0} {
 	puts stderr "drawterm-gate: a panic marker is present in the capture"
 	cleanup
 	exit 1
 }
-puts stderr "drawterm-gate: post-pass ok — zero panic markers in the capture"
+puts stderr "drawterm-gate: post-pass ok — zero kernel panic markers in the capture (drawterm's own sysfatal exit pair excluded)"
 # the session markers, whole-capture (DESK-06's contract + CPU-04's
 # evidence): the password prompt (user@ anchored — the creds user the
 # gate fed), the shell prompt, the fed command's marker, the teardown
@@ -446,8 +476,8 @@ if {[string first $dt_marker $whole] < 0} {
 	puts stderr "drawterm-gate: session marker absent — the fed command's echo marker '$dt_marker' is not in the capture"
 	incr sess_missing
 }
-if {[string first "goodbye" $whole] < 0} {
-	puts stderr "drawterm-gate: session marker absent — drawterm's teardown line 'goodbye' is not in the capture"
+if {[string first "eof: n=-1" $whole] < 0} {
+	puts stderr "drawterm-gate: session marker absent — drawterm's exportfs hangup line 'eof: n=-1' is not in the capture (the teardown marker, re-keyed live)"
 	incr sess_missing
 }
 if {[string first "tr-ok" $whole] < 0} {
@@ -488,7 +518,7 @@ puts $fh "\ndrawterm-gate: redaction contract held — <demo-pw-redacted> ($pw_c
 close $fh
 puts stderr "drawterm-gate: post-pass ok — the per-bake DEMO password redacted from the retained capture ($pw_count occurrence(s) mapped; T-18-13)"
 
-puts stderr "drawterm-gate: ALL STAGES PASS — §15 cpu boot through the cpurc ladder (PAIR-OK, KEYFS-OK, AUTHSRV-LISTEN, FACTOTUM-OK, LISTEN-17010, DONE), the hostfwd pair observed host-side (17010 + 5670), drawterm -G on a pty through the committed pair, the p9any -> p9sk1 password feedstage, the encrypted rc4_256 sha1 session (no -e flag — D-15), the remote shell prompt, the fed command's echo, the session teardown (goodbye), the serial drain carrying tr-ok, zero FAIL, zero panic, the capture redacted"
+puts stderr "drawterm-gate: ALL STAGES PASS — §15 cpu boot through the cpurc ladder (PAIR-OK, KEYFS-OK, AUTHSRV-LISTEN, FACTOTUM-OK, LISTEN-17010, DONE), the hostfwd pair observed host-side (17010 + 5670), drawterm -G on a pty through the committed pair, the p9any -> p9sk1 password feedstage, the encrypted rc4_256 sha1 session (no -e flag — D-15), the remote shell prompt, the fed command's echo, the session teardown (the exportfs hangup line + pty EOF), the serial drain carrying tr-ok, zero FAIL, zero kernel panic (drawterm's own sysfatal exit pair excluded), the capture redacted"
 
 cleanup
 exit 0
