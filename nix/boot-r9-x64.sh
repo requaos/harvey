@@ -45,6 +45,26 @@
 # doctor's per-issue remediations print inline in the failure, never
 # auto-applied).
 #
+# System discipline (Phase 19, 19-09 — INT-05/the OQ-4 settlement):
+# --system=cpu|terminal selects WHAT the ONE command boots, the same
+# single-accepted-form discipline as --net (duplicate = error; the =
+# form only; an unknown mode is a usage error naming exactly terminal
+# and cpu — never a silent downgrade, never a fall-through to a default
+# venue).  terminal (the DEFAULT, and the behavior with no flag at
+# all) keeps the chain path byte-untouched: the chain paq, the
+# no-append ISO compose — every existing gate rides it unchanged.
+# cpu is the FULL system: the §15 image (mkimage's seventh contract —
+# chain + the 18 auth suite + cmd/cpu + aux/listen + the real cpurc +
+# tcp17010 + the font payload + §15's own bake-time p9sk1 domain) with
+# the bootconf append (init=/amd64/init -c through the 19-01 iso-builder
+# seam), so one command brings up net + auth + the cpu listener
+# together (cpurc's fail-loud ladder: pairing -> ether -> keyfs ->
+# authsrv -> factotum -> aux/listen).  cpu mode additionally runs the
+# tier build (subset-build.sh) in step 1 — the §15 bake's named input
+# producer — so the full system is genuinely ONE command off a clean
+# checkout.  The frozen aarch64 boot-r9 app is NOT touched: the
+# full-system mode lands here, on boot-r9-x64, only.
+#
 # Env contract:
 #   R9_KERNEL_X64_PKG  REQUIRED — the r9 kernel-x64 package's store
 #                     path; the flake app exports it from
@@ -76,6 +96,10 @@
 #                     slirp|tap|vmnet (default slirp).  The flag wins
 #                     over the env (the R9_ACCEL machine-contract
 #                     precedent); venue-validated at parse.
+#   R9_SYSTEM         default system mode when no --system flag:
+#                     terminal|cpu (default terminal).  The flag wins
+#                     over the env (the --net precedent); cpu is the
+#                     full-system venue (19-09, INT-05).
 #   R9_SKIP_BUILD     =1 skips step 1 (iteration hatch; see above).
 #   KERNDATE          pinned-build timestamp override; derived from
 #                     the HARVEY checkout's git log otherwise.
@@ -88,7 +112,7 @@
 # binutils on linux (the namespace build's transport).  Standalone use
 # needs the same tools on PATH.
 #
-# usage: nix run .#boot-r9-x64 [-- --net=slirp|tap|vmnet]   (from the repo root; default slirp)
+# usage: nix run .#boot-r9-x64 [-- --net=slirp|tap|vmnet] [-- --system=terminal|cpu]   (from the repo root; defaults slirp/terminal — cpu is the full system: net + auth + cpu listener)
 
 set -e
 
@@ -142,16 +166,22 @@ case "$(uname -s)" in
 	*) err "uname $(uname -s): unsupported venue for --net (want linux|darwin)" ;;
 esac
 
-# the script's ONLY argument surface: --net=<mode>, the = form alone
-# (--net tap is NOT accepted — one accepted form, no ambiguity)
+# the script's argument surface: --net=<mode> and --system=<mode>, the
+# = forms alone (--net tap / --system cpu are NOT accepted — one
+# accepted form per flag, no ambiguity; duplicates are errors)
 NET_FLAG=
+SYSTEM_FLAG=
 for ARG in "$@"; do
 	case "$ARG" in
 	--net=*)
 		[ -z "$NET_FLAG" ] || err "duplicate --net ('$ARG' after '$NET_FLAG') — one net mode per boot"
 		NET_FLAG="$ARG"
 		;;
-	*) err "unknown argument '$ARG' — the accepted form is --net=<mode> (usage: nix run .#boot-r9-x64 -- --net=slirp|tap|vmnet)" ;;
+	--system=*)
+		[ -z "$SYSTEM_FLAG" ] || err "duplicate --system ('$ARG' after '$SYSTEM_FLAG') — one system mode per boot"
+		SYSTEM_FLAG="$ARG"
+		;;
+	*) err "unknown argument '$ARG' — the accepted forms are --net=<mode> and --system=<mode> (usage: nix run .#boot-r9-x64 -- --net=slirp|tap|vmnet --system=terminal|cpu)" ;;
 	esac
 done
 
@@ -170,6 +200,26 @@ case "$NET_MODE" in
 		[ "$VENUE" = darwin ] || err "--net=vmnet on $VENUE: cross-venue (vmnet is darwin's manual leg, HNET-04; $VENUE's valid net modes: slirp tap)"
 		;;
 	*) err "--net/R9_NET=$NET_MODE: want slirp|tap|vmnet (the valid net modes)" ;;
+esac
+
+# --- step 0d: system mode selection (--system flag > R9_SYSTEM > terminal)
+
+# 19-09 (INT-05, the OQ-4 settlement): cpu boots the FULL system off
+# the §15 image with the bootconf append; terminal — the default, and
+# the no-flag behavior — keeps the chain path byte-untouched.  The
+# --net discipline verbatim: the = form only, duplicates already
+# rejected at parse, unknown modes are usage errors NAMING THE VALID
+# SET — no silent downgrade, no fall-through to a default venue.
+if [ -n "$SYSTEM_FLAG" ]; then
+	SYSTEM_MODE="${SYSTEM_FLAG#--system=}"
+else
+	SYSTEM_MODE="${R9_SYSTEM:-terminal}"
+fi
+
+case "$SYSTEM_MODE" in
+	terminal)	;;
+	cpu)	;;
+	*) err "--system/R9_SYSTEM=$SYSTEM_MODE: want terminal|cpu (the valid system modes)" ;;
 esac
 
 # the netdev argv comes ONLY from r9's emitter (D-05) — the contract
@@ -205,6 +255,12 @@ echo "   kernel:     $R9_KERNEL"
 echo "   iso-builder: $R9_ISO_BUILDER"
 echo "   netdev emitter: $R9_NETDEV_EMITTER"
 echo "   shape:      q35 accel=$R9_ACCEL cpu=$R9_CPU net=$NET_MODE"
+echo "   system:     $SYSTEM_MODE"
+if [ "$SYSTEM_MODE" = cpu ]; then
+	echo "   full system: net + auth + cpu listener together (the §15 image + the bootconf append; cpurc's ladder brings the listeners up — D-07's session recipe can dial 127.0.0.1:17010/5670 once LISTEN-17010 prints)"
+else
+	echo "   terminal:   the chain image, no append (the existing gates' path)"
+fi
 
 # --- provenance (KERNDATE; the boot-r9.sh discipline) ------------------
 # Pinned build timestamp; override with KERNDATE=<epoch>.  Derived
@@ -227,14 +283,44 @@ if [ "${R9_SKIP_BUILD:-0}" = "1" ]; then
 else
 	echo "== step 1/3: amd64 userland build (build/x86_64/stage-build.sh)"
 	sh "$HARVEY/build/x86_64/stage-build.sh" || err "userland build failed"
+	if [ "$SYSTEM_MODE" = cpu ]; then
+		# cpu's §15 bake consumes the tier outputs (cmd/cpu,
+		# aux/listen, sed, ipconfig — mkimage names subset-build.sh
+		# as their producer); without this the full system is two
+		# commands off a clean checkout, not ONE
+		echo "== step 1/3b: amd64 tier build (build/x86_64/subset-build.sh — the §15 bake's input producer)"
+		sh "$HARVEY/build/x86_64/subset-build.sh" || err "tier build failed"
+	fi
 fi
 
-# --- step 2: bake the bootfs images ------------------------------------
+# --- step 2: bake the bootfs images + select by system mode -------------
 
-echo "== step 2/3: bake bootfs.paq + bootfs-chain.paq (build/x86_64/mkimage.sh)"
-sh "$HARVEY/build/x86_64/mkimage.sh" || err "bootfs bake failed"
+# THE IMAGE-SELECTION SEAM (19-09): every mkimage run bakes ALL
+# contracts (§15's bootfs-cpu.paq included); the system mode picks
+# WHICH paq becomes this boot's /boot/bootfs.paq.  cpu additionally
+# asserts §15's manifest PASS line from the bake log (the drawterm
+# gate's tee discipline: the grep is the teeth — a failed bake prints
+# no §15 PASS line, and the pipeline rc alone would not catch it under
+# the tee); terminal keeps the bake invocation byte-identical to the
+# pre-19-09 shape (the rc propagates directly, no tee).
 CHAIN_PAQ="$HARVEY/build/x86_64/out/bootfs-chain.paq"
-[ -s "$CHAIN_PAQ" ] || err "$CHAIN_PAQ missing/empty after the bake (mkimage's chain section)"
+CPU_PAQ="$HARVEY/build/x86_64/out/bootfs-cpu.paq"
+if [ "$SYSTEM_MODE" = cpu ]; then
+	BAKE_LOG=$(mktemp "${TMPDIR:-/tmp}/boot-r9-x64-bake.XXXXXX")
+	echo "== step 2/3: bake the bootfs images (build/x86_64/mkimage.sh — log tee'd to $BAKE_LOG; §15's bootfs-cpu.paq is the selection)"
+	# shellcheck disable=SC2312  # the rc rides the ||: a bake failure is caught by the §15 PASS-line grep below (tee masks the pipeline rc — the drawterm-gate discipline)
+	sh "$HARVEY/build/x86_64/mkimage.sh" 2>&1 | tee "$BAKE_LOG" || true
+	grep -q 'PASS: baked.*bootfs-cpu.paq' "$BAKE_LOG" \
+		|| { rm -f "$BAKE_LOG"; err "the bake log names no §15 bootfs-cpu.paq PASS line (the §15 bake did not complete its cpu contract — the bake output is above; the §15 manifest lines are the image's own content record)"; }
+	rm -f "$BAKE_LOG"
+	[ -s "$CPU_PAQ" ] || err "$CPU_PAQ missing/empty after the bake (mkimage's §15 cpu section — the full-system image)"
+	BOOT_PAQ="$CPU_PAQ"
+else
+	echo "== step 2/3: bake bootfs.paq + bootfs-chain.paq (build/x86_64/mkimage.sh)"
+	sh "$HARVEY/build/x86_64/mkimage.sh" || err "bootfs bake failed"
+	[ -s "$CHAIN_PAQ" ] || err "$CHAIN_PAQ missing/empty after the bake (mkimage's chain section)"
+	BOOT_PAQ="$CHAIN_PAQ"
+fi
 
 # --- step 3: compose the ISO + launch qemu -----------------------------
 
@@ -245,9 +331,20 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "== step 3/3: composing the ISO (r9's iso-builder: kernel + bootfs-chain.paq as /boot/bootfs.paq)"
-"$R9_ISO_BUILDER" "$R9_KERNEL" "$TMPD" "$CHAIN_PAQ" bootfs.paq \
-	|| err "iso-builder failed (the kernel/builder contract is r9's; R9_KERNEL_X64_PKG/R9_ISO_BUILDER name this run's inputs)"
+if [ "$SYSTEM_MODE" = cpu ]; then
+	# the bootconf append (19-01's seam): GRUB's -append carries
+	# init=/amd64/init -c, the kernel's bootconf parse seeds it into
+	# the ROOT env group, boot(8)'s execinit honors it, init -c runs
+	# the real cpurc — the service=cpu identity arrives through the
+	# BOOT PROTOCOL, never file content
+	echo "== step 3/3: composing the ISO (r9's iso-builder: kernel + bootfs-cpu.paq as /boot/bootfs.paq + the bootconf append init=/amd64/init -c)"
+	"$R9_ISO_BUILDER" "$R9_KERNEL" "$TMPD" --append="init=/amd64/init -c" "$BOOT_PAQ" bootfs.paq \
+		|| err "iso-builder failed (the kernel/builder contract is r9's; R9_KERNEL_X64_PKG/R9_ISO_BUILDER name this run's inputs)"
+else
+	echo "== step 3/3: composing the ISO (r9's iso-builder: kernel + bootfs-chain.paq as /boot/bootfs.paq)"
+	"$R9_ISO_BUILDER" "$R9_KERNEL" "$TMPD" "$BOOT_PAQ" bootfs.paq \
+		|| err "iso-builder failed (the kernel/builder contract is r9's; R9_KERNEL_X64_PKG/R9_ISO_BUILDER name this run's inputs)"
+fi
 ISO="$TMPD/boot.iso"
 [ -s "$ISO" ] || err "$ISO missing/empty after the iso-builder"
 
@@ -265,8 +362,9 @@ set -- qemu-system-x86_64 \
 	-nographic
 
 # always print the assembled argv so captured gate logs are
-# self-describing (run-r9.sh's discipline)
-echo "== launching qemu — interactive on stdio (ctrl-a x to quit)"
+# self-describing (run-r9.sh's discipline); the launching line names
+# the selected system so a human terminal shows which venue is up
+echo "== launching qemu — system=$SYSTEM_MODE, interactive on stdio (ctrl-a x to quit)"
 echo "== qemu argv: $*"
 
 set +e
