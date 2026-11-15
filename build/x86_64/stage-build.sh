@@ -181,7 +181,10 @@ cp /amd64/bin/paqfs "$CHAIN_OUT/paqfs" || fail "harvest paqfs to out/"
 # plan).  The outer script's cp does the harvest instead.  Prior plans
 # never hit this: init is special-cased in cmd/mkfile, rc/paqfs are
 # mkone dirs with working recipes.
-for cmd in ls cat echo ps; do
+# 19-03 adds rm + test (the §15 cpu image's shebang/remove legs: the
+# REMOVE round-trip and the -e absence assert — mkmany link-only targets
+# like the rest).
+for cmd in ls cat echo ps rm test; do
 	echo "== chain: $cmd (the smoke sweep set)"
 	(cd /sys/src/cmd && objtype=amd64 mk 6.$cmd) || fail "link $cmd"
 	cp "/sys/src/cmd/6.$cmd" "$CHAIN_OUT/$cmd" || fail "harvest $cmd to out/"
@@ -197,7 +200,7 @@ done
 # its COMMITTED generated tables (rgbv.h/ycbcr.h — the Phase-6
 # in-tree workaround for the broken oc path; measured this plan, both
 # restored from git after the first run)
-(cd /sys/src/cmd && rm -f 6.ls ls.6 6.cat cat.6 6.echo echo.6 6.ps ps.6 ._ls ._cat ._echo ._ps ._cp) || fail "cmd sweep-set droppings"
+(cd /sys/src/cmd && rm -f 6.ls ls.6 6.cat cat.6 6.echo echo.6 6.ps ps.6 6.rm rm.6 6.test test.6 ._ls ._cat ._echo ._ps ._cp ._rm ._test) || fail "cmd sweep-set droppings"
 (cd /sys/src/cmd/paqfs && objtype=amd64 mk paqfs.clean) || fail "paqfs clean"
 (cd /sys/src/cmd/rc && objtype=amd64 mk clean && rm -f x.tab.h) || fail "rc clean"
 

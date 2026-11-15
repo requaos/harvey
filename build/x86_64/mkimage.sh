@@ -156,7 +156,7 @@ done
 # the boot chain's home, the aarch64 separation; the marker owns
 # smoke-out/init and the real init must never overwrite it)
 CHAIN_OUT="$HARVEY/build/x86_64/out"
-for f in boot init rc paqfs ls cat echo ps; do
+for f in boot init rc paqfs ls cat echo ps rm test; do
 	[ -s "$CHAIN_OUT/$f" ] || err "$CHAIN_OUT/$f missing — run sh build/x86_64/stage-build.sh first (the boot-chain section)"
 done
 [ -f "$HARVEY/rc/lib/rcmain" ] || err "rc/lib/rcmain missing (ships verbatim)"
@@ -1683,46 +1683,73 @@ echo "== PASS: baked $AUTH_IMAGE ($sz8 bytes; chain + auth suite + the paired p9
 #     daemon sequence (keyfs/authsrv/listeners) replaces the fixture
 #     body below — the tier-computed cpu suite (cmd/cpu, exportfs,
 #     aux/listen) joins the payload — and the §14-style seam asserts
-#     arrive with it.  Until 19-02 lands kernel #! exec, the fixture is
-#     a MARKER BINARY, not a script: rcmain eval's $cflag as a command
-#     word (rc/plan9.c Execute) and rc exec's /rc/bin/cpurc DIRECTLY
-#     (searchpath's absolute-path arm) — a text file needs kernel #!
-#     handling to run (19-02's CPU-01); the binary prints its marker
-#     and PARKS forever so init's terminal fallback loop never runs
-#     (the zero `init: starting /bin/rc` truth — one print of that line
-#     is init's normal post-cpurc behavior, so the fixture must not
-#     return).  Purely additive: every earlier contract untouched.
+#     arrive with it.  Since 19-03 the fixture is a REAL #! rc SCRIPT
+#     (the kernel #! pre-pass re-execs it through /amd64/bin rc —
+#     rcmain eval's $cflag, rc exec's /rc/bin/cpurc, the kernel sniffs
+#     the #! head) carrying the two ring-3 legs: the hash-bang exec
+#     round-trip (SHEBANG-OK) and the REMOVE/sys_remove round-trip over
+#     the ported devcap arm (REMOVE-OK).  The script RETURNS (rcmain's
+#     exit $status) — the one-proc chain then hits the all-exited park,
+#     a clean end state; the `init: starting /bin/rc` loop print stays
+#     prohibited (init was exec'd away before cpurc ran).  Purely
+#     additive: every earlier contract untouched.
 CPU_IMAGE="$OUT/bootfs-cpu.paq"
 
-# 15a. the fixture's host-side build (the 14i2 hsvctcpecho precedent:
-#      inline 6c/6l over a generated source — the committed-file form
-#      is unnecessary while the body is five lines).  The print is the
-#      fixture's OWN write syscall from ring 3 (the D-09 marker
-#      discipline); the park is the smokesleep sleep() precedent.
-cat > "$TMPD/cpurc-fixture.c" <<'EOF'
-/* cpurc-fixture.c — the 19-01 §15 cpu-image seed marker.  Replaced by
- * the real /rc/bin/cpurc script when 19-02 lands kernel #! exec (a
- * script cannot run here: rc exec's this file directly).
- */
-#include <u.h>
-#include <libc.h>
-
-void
-main(void)
-{
-	print("cpurc: RAN\n");
-	for(;;)
-		sleep(1000);
+# 15a. the fixture scripts (19-03: the 19-01 marker BINARY replaced by
+#      a REAL #! rc script — the kernel #! pre-pass (19-03 CPU-01)
+#      makes scripts executable, so cpurc itself is now the first live
+#      proof; a binary fixture could never carry rc legs).  Two files:
+#      the cpurc script (the marker + the two ring-3 legs) and the
+#      service-shaped #! script leg 1 execs (the donor tcp17010 home
+#      shape: /bin/service/<name>).  Guards replace the binary's magic
+#      checks: the #! head bytes and the marker vocabulary in the text.
+#      rc dialect: the auth-sweep flat ladders verbatim (same-line
+#      if(cmd){...} bodies, `if not cmd`, whole-word assignments alone
+#      on their line — no braced if-not, no bare =, no fd-dup).
+cat > "$TMPD/cpurc" <<'EOF'
+#!/amd64/bin/rc
+# cpurc — the §15 cpu-image fixture (19-03).  The 19-01 marker binary
+# replaced by a real #! script: the kernel exec pre-pass re-execs this
+# file through /amd64/bin/rc, proving #! at the cpurc point itself.
+# Two legs prove the new syscall surface live from ring 3:
+#   leg 1: exec the service-shaped #! script (interpreter echo, one
+#          token) — the token on serial is the argv-order proof
+#          end-to-end (#! tokens lead, script path, caller argv)
+#   leg 2: rm the #¤/caphash device file (the ported remove arm's
+#          named consumer, 19-03 CPU-03) then test -e its absence
+/amd64/bin/echo cpurc: RAN
+shebstat=fail
+if(/bin/service/shebangecho){
+	shebstat=ok
 }
+rmstat=ok
+/amd64/bin/rm '#¤/caphash'
+if(/amd64/bin/test -e '#¤/caphash'){
+	rmstat=fail
+}
+if(~ $shebstat ok) /amd64/bin/echo SHEBANG-OK
+if not /amd64/bin/echo SHEBANG-FAIL
+if(~ $rmstat ok) /amd64/bin/echo REMOVE-OK
+if not /amd64/bin/echo REMOVE-FAIL
 EOF
-(	cd "$HARVEY" && \
-	"$SVC_NS_HBIN/6c" -FTVw -o "$TMPD/.cpurc-fixture.6" -Isys/include -Iamd64/include "$TMPD/cpurc-fixture.c" && \
-	"$SVC_NS_HBIN/6l" -o "$TMPD/cpurc-fixture.bin" -L "$HARVEY/amd64/lib" "$TMPD/.cpurc-fixture.6"
-) || err "cpurc-fixture host-side build failed (the §15 marker binary)"
-magic=$(od -An -tx1 -N4 "$TMPD/cpurc-fixture.bin" | tr -d ' \n')
-[ "$magic" = "00008a97" ] || err "cpurc-fixture: bad magic $magic (want 00008a97)"
-"$GREP" -q "cpurc: RAN" "$TMPD/cpurc-fixture.bin" \
-	|| err "cpurc-fixture: the marker binary does not carry its print string"
+[ "$(head -c 2 "$TMPD/cpurc")" = '#!' ] || err "cpurc script: missing the #! marker bytes"
+for m in "cpurc: RAN" "SHEBANG-OK" "REMOVE-OK" "shebangecho"; do
+	"$GREP" -q "$m" "$TMPD/cpurc" || err "cpurc script: the marker '$m' missing from the fixture body"
+done
+cat > "$TMPD/shebangecho" <<'EOF'
+#!/amd64/bin/echo SHEBANG-OK
+EOF
+[ "$(head -c 2 "$TMPD/shebangecho")" = '#!' ] || err "shebangecho: missing the #! marker bytes"
+# Executable modes: rc's exec opens the service file OEXEC and paqfs
+# checks the bit — the heredoc's 644 default refuses ("permission
+# denied", measured live on the first gate run; the 9k k10 root stages
+# tcp17010 through its own mkroot machinery, so this venue sets the bit
+# itself).  cpurc itself is only ever READ (rc interprets it as its
+# script file), but ships 755 for the same shape.
+chmod 755 "$TMPD/cpurc" "$TMPD/shebangecho"
+[ "$(wc -c < "$TMPD/shebangecho")" -le 32 ] \
+	|| err "shebangecho: the #! line exceeds the donor's 32-byte bound"
+"$GREP" -q "SHEBANG-OK" "$TMPD/shebangecho" || err "shebangecho: the token missing"
 
 STAGE9="$TMPD/root-cpu"
 mkdir -p "$STAGE9"
@@ -1749,8 +1776,19 @@ cp "$CHAIN_OUT/ls" "$STAGE9/amd64/bin/ls"
 cp "$CHAIN_OUT/cat" "$STAGE9/amd64/bin/cat"
 cp "$CHAIN_OUT/echo" "$STAGE9/amd64/bin/echo"
 cp "$CHAIN_OUT/ps" "$STAGE9/amd64/bin/ps"
-# ... and the fixture itself: cpustart's exec target
-cp "$TMPD/cpurc-fixture.bin" "$STAGE9/rc/bin/cpurc"
+# 19-03: the legs' binaries — rm (the REMOVE round-trip) and test (the
+# -e absence assert); both mkmany link-only targets, same as above
+cp "$CHAIN_OUT/rm" "$STAGE9/amd64/bin/rm"
+cp "$CHAIN_OUT/test" "$STAGE9/amd64/bin/test"
+# ... and the fixtures: cpustart's exec target + leg 1's service script.
+# The service script stages under rc/bin/service (the donor k10root
+# shape: namespace's `bind /root/$cputype/bin /bin` REPLACES /bin, then
+# `bind -a /root/rc/bin /bin` appends the rc tree — a paq-local
+# /bin/service would be shadowed by the replace; /rc/bin/service/...
+# surfaces at /bin/service/... through the union).
+cp "$TMPD/cpurc" "$STAGE9/rc/bin/cpurc"
+mkdir -p "$STAGE9/rc/bin/service"
+cp "$TMPD/shebangecho" "$STAGE9/rc/bin/service/shebangecho"
 
 # 15e. bake-time verbatim copies (the 8e set — rcmain: the rc-main
 #      whose `eval $cflag` runs the fixture; timezone: init's cpenv)
@@ -1761,7 +1799,8 @@ cp "$HARVEY/adm/timezone/local" "$STAGE9/adm/timezone/local"
 #      gate's evidence; later gates grep the section)
 for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
-	rc/lib/rcmain rc/bin/cpurc rc/bin/termrc lib/namespace \
+	amd64/bin/rm amd64/bin/test \
+	rc/lib/rcmain rc/bin/cpurc rc/bin/service/shebangecho rc/bin/termrc lib/namespace \
 	adm/timezone/local usr/glenda/lib/profile; do
 	[ -f "$STAGE9/$p" ] || err "cpu manifest (§15): $p missing from staged tree"
 	echo "cpu manifest (§15): /$p staged"
@@ -1793,4 +1832,4 @@ sz9=$(wc -c < "$CPU_IMAGE" | tr -d ' ')
 trailer9=$(od -An -tx1 -j $((sz9 - 28)) -N 4 "$CPU_IMAGE" | tr -d ' \n')
 [ "$trailer9" = "6b46e688" ] || err "$CPU_IMAGE: bad trailer magic $trailer9 (want 6b46e688)"
 
-echo "== PASS: baked $CPU_IMAGE ($sz9 bytes; chain + the §15 cpurc fixture (seed form — 19-07 expands); header $magic9 trailer $trailer9; KERNDATE $KERNDATE)"
+echo "== PASS: baked $CPU_IMAGE ($sz9 bytes; chain + the §15 cpurc #! script fixture + the shebang/remove legs' binaries; header $magic9 trailer $trailer9; KERNDATE $KERNDATE)"
