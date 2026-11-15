@@ -5,11 +5,11 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
 status: executing
-stopped_at: Completed 19-09-PLAN.md (--system mode + the full-chain smoke leg green twice + README; 19-10 remains)
-last_updated: "2026-11-15T14:36:31.052Z"
+stopped_at: "19-10 checkpoint: DESK-07 human legs pending (linux graphical row + darwin -G row unsigned, blocking-human) — all automatable work done (scaffold, deferral records, INT-07 clean-checkout proof GREEN both gates); resume = /gsd:execute-phase 19 continuation after the owner signs the rows in 19-EVIDENCE.md"
+last_updated: "2026-11-15T14:46:32.190Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 19 execution started
-state_head: e4001b38352fb92fc53ff8accf19f529e6ef08b2
+state_head: 4f54e8c6c56a6ff12c6997d66add3d434e013cad
 progress:
   total_phases: 7
   completed_phases: 2
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 Phase: 19 (CPU Service + Drawterm + rio Desktop) — EXECUTING
 Plan: 10 of 10
-Status: Ready to execute
+Status: CHECKPOINT — DESK-07 human legs pending (blocking-human): the linux graphical row and the darwin -G row in 19-EVIDENCE.md await the owner's sessions + signatures; all automatable 19-10 work is done and committed (INT-07 clean-checkout proof GREEN, both gates)
 Last activity: 2026-11-14 — Phase 19 execution started
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
@@ -319,6 +319,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-15T14:28:56.630Z
-Stopped at: Completed 19-09-PLAN.md (--system mode + the full-chain smoke leg green twice + README; 19-10 remains)
+Last session: 2026-11-15T14:46:31.224Z
+Stopped at: 19-10 checkpoint: DESK-07 human legs pending (linux graphical row + darwin -G row unsigned, blocking-human) — all automatable work done (scaffold, deferral records, INT-07 clean-checkout proof GREEN both gates); resume = /gsd:execute-phase 19 continuation after the owner signs the rows in 19-EVIDENCE.md
 Resume file: None
