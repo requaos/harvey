@@ -9,7 +9,7 @@
 | Repo | SHA | Role |
 |------|-----|------|
 | r9 (`requaos/r9`, flake input `r9`, type github) | `df4ad78d0177b60b48603e00fd9ba786e2d3c69f` | the flake.lock pin every session and gate below rides; `== origin/main` (pushed, verified 2026-11-15). The clean-checkout proof consumes r9 through this pin only — nix fetches the locked commit itself; no sibling clone participates. |
-| harvey | `e39585500392c203237e3b9fcf56feefab0800c7` | the tree at scaffold time (19-09's docs head); the clean-checkout runs record their own clone SHAs below |
+| harvey | `e4001b38352fb92fc53ff8accf19f529e6ef08b2` | the scaffold commit — the SHA both clean-checkout proof clones rode (the INT-07 record below) |
 
 ## DESK-07 human-acceptance rows (D-13 — one signed row + one screenshot per leg)
 
@@ -74,9 +74,35 @@ signed first.
 
 ## INT-07 — the clean-checkout proof of the v2.1 chain (linux-x86_64)
 
-*(To be recorded by the automated run: the fresh-clone SHA, the r9 locked rev,
-the commands, the verdicts. If the clean checkout misses anything, that is a
-real defect: fix the packaging/composition, never note-around it.)*
+**GREEN — both gates, from fresh clones, on 2026-11-15.** The v2.1 chain
+reproduces from nothing but a git clone of harvey at HEAD: no sibling r9
+checkout, no untracked working-tree state, no manual prerequisites (cpu mode
+runs §15's own named producers — the ONE command holds off a clean checkout).
+
+| Leg | Command (from the fresh clone) | Clone SHA | Verdict |
+|-----|-------------------------------|-----------|---------|
+| full-chain smoke | `nix run .#boot-r9-smoke-x64` | `e4001b38352fb92fc53ff8accf19f529e6ef08b2` | **exit 0 — CLEAN-SMOKE-GREEN** — ALL STAGES PASS, both legs: the chain leg (boot, typed+answered echo, empty-line safety, ls/ps/cat sweep, DEL safety, restart, pid-warning-absent, nic-bind) + the cpu-chain leg (§15 boot with the bootconf append, the hostfwd pair observed host-side 17010+5670, the cpurc ladder in order PAIR-OK → ETHER-OK → KEYFS-OK → AUTHSRV-LISTEN → FACTOTUM-OK → LISTEN-17010 → DONE, zero `cpurc: FAIL`, zero panic, zero desktop font-line markers) |
+| drawterm -G interop | `nix run .#drawterm-gate-x64` | `e4001b38352fb92fc53ff8accf19f529e6ef08b2` (a second, independent fresh clone) | **exit 0 — CLEAN-GATE-GREEN** — ALL STAGES PASS: the §15 cpu boot through the ladder, drawterm `-G` on a pty through the committed hostfwd pair, p9any→p9sk1, the encrypted rc4_256 sha1 session (no `-e` flag — D-15), the remote shell prompt, the fed command's echo, the teardown (exportfs hangup + pty EOF), tr-ok on the serial drain, zero FAIL, zero kernel panic, the capture redacted |
+
+**The r9 locked rev:** `df4ad78d0177b60b48603e00fd9ba786e2d3c69f` — consumed
+solely through the clone's `flake.lock` github pin (the r9 input is type
+github; nix fetched the locked commit itself). No sibling r9 clone
+participated in either leg; nothing outside the clone's committed files was
+read (T-19-SC: the clean-checkout nix runs evaluate committed files only).
+
+**Retained artifacts** (driver consoles; both verified to carry **zero**
+occurrences of their bakes' DEMO passwords before retention — T-19-24/T-18-13):
+
+| File | What it is |
+|------|------------|
+| `evidence/19-10-clean-smoke.console` | the smoke leg's full driver console (149140 bytes): tier-build + bake lines, both boots' stage-ok sequence, ALL STAGES PASS |
+| `evidence/19-10-clean-gate.console` | the -G gate leg's full driver console (144396 bytes): bake, session stages, the redaction post-pass, ALL STAGES PASS |
+
+Provenance note: the proof clones rode HEAD `e4001b383` (the scaffold commit —
+the record you are reading lands in the commit after it, which is the normal
+ordering for a run-and-record proof). The DEMO domain bakes green on clean
+checkouts by design (18-D-01) — per-bake ephemeral material, correctly labeled,
+is what both legs exercised.
 
 ---
 *Phase: 19-cpu-service-drawterm-rio-desktop*

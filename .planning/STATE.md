@@ -6,10 +6,10 @@ current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
 status: executing
 stopped_at: Completed 19-09-PLAN.md (--system mode + the full-chain smoke leg green twice + README; 19-10 remains)
-last_updated: "2026-11-15T14:28:57.589Z"
+last_updated: "2026-11-15T14:36:31.052Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 19 execution started
-state_head: f58ff7f81cae9f37134295f2b62d94e34ef5ec51
+state_head: e4001b38352fb92fc53ff8accf19f529e6ef08b2
 progress:
   total_phases: 7
   completed_phases: 2
@@ -289,6 +289,9 @@ Recent decisions affecting current work:
 - [Phase 19]: [19-09] boot-r9-x64 --system=cpu|terminal landed as flag > R9_SYSTEM env > terminal default (the R9_NET precedent verbatim): cpu boots §15's image with the bootconf append (the ONE command = net + auth + cpu listener), terminal's bake/compose stay byte-identical (default-path smoke green); cpu mode also runs subset-build.sh — §15's named producer — so the ONE command holds off a clean checkout
 - [Phase 19]: [19-09] the standing smoke is now a TWO-leg composed gate: the chain leg untouched + a cpu leg carried from cpu-bringup's vocabulary (one vocabulary, two drivers) asserting the bootconf seed line, the host-side hostfwd observation, the ladder incl. ETHER-OK through LISTEN-17010/DONE, zero FAIL, and DESK-02's desktop-absent proof — green twice consecutively (3 total green runs, distinct per-bake domains)
 - [Phase 19]: [19-09] the smoke app's R9_NETDEV_EMITTER export + iproute2/procps ride the EXISTING hasAttr-gated x64 block — the frozen gate list stays byte-untouched (netdev-args gated the whole block since 16-04; no pin-advance choreography); cpu-mode's bake assert greps §15's PASS line from a tee'd log (the grep is the teeth under the tee-masked pipeline rc) while terminal's bake stays rc-direct
+- [Phase 19]: [19-10 close-out] D-03 amended (owner decision 2026-11-14): darwin is -G text-only this milestone (gui-none backend — no Carbon, no XQuartz); the darwin GRAPHICAL rio leg is deferred with the named reopener (a future milestone porting a 64-bit Cocoa/AppKit backend of the 9front gui-cocoa class into sys/src/cmd/unix/drawterm); XQuartz considered and rejected — recorded in REQUIREMENTS DESK-07, STATE Deferred Items, and 19-EVIDENCE.md
+- [Phase 19]: [19-10 close-out] D-10/D-14 user overrides executed as locked: tick_check wired proactively (19-02 — q35 tick's dev_exec block) and carried by 19-08's long-lived authenticated -G sessions; the -G gate's required witness is local KVM green-twice (D-14) with hosted CI observed SUCCESS best-effort at both pushed HEADs (runs 43711744441, 43717790664)
+- [Phase 19]: [19-10 close-out] OQ settlements on record: OQ-2 the -O comma grammar with argv as the single connection source (19-06); OQ-3 aux/listen -t /bin/service tcp in cpurc with listen1 -t retained for flags-carrying authsrv (19-07); OQ-4 --system=cpu|terminal flag over R9_SYSTEM over the terminal default (19-09)
 
 ### Pending Todos
 
@@ -310,6 +313,7 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
+| darwin | DESK-07 darwin graphical rio leg — port a 64-bit Cocoa/AppKit backend (9front gui-cocoa class) into sys/src/cmd/unix/drawterm; XQuartz considered and rejected; darwin is -G-only (gui-none) this milestone | Open (owner decision 2026-11-14, amended D-03) | 2026-11-14 | v2.1 → future milestone |
 | CI | harvey.yml nix rewrite — hosted green run pending first push (backlog 999.1) | Open | 2026-11-05 | v2.0 → v2.1 carry |
 | aarch64 | Re-activation of the aarch64 target | Frozen at v2.0 pin; re-derivable | 2026-11-06 | v2.1 |
 

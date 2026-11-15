@@ -76,13 +76,13 @@
 - [x] **DESK-04**: r9 devssl `#D` (rc4_256/sha1) for encrypted sessions via pushssl; `-e clear` documented fallback (stronger crypto is PROTOCOL-blocked — the hardening milestone)
 - [x] **DESK-05**: plumb/plumber runs in the drawterm session
 - [x] **DESK-06**: `-G` text-mode drawterm interop gate in CI via hostfwd (scripted login → shell marker)
-- [ ] **DESK-07**: Human-accepted graphical rio leg on linux AND darwin (drawterm is host-side; the darwin leg connects to the linux-hosted guest)
+- [ ] **DESK-07**: Human-accepted graphical rio leg on linux AND darwin (drawterm is host-side; the darwin leg connects to the linux-hosted guest) <!-- 19-10 scope per the amended D-03 (owner decision 2026-11-14): the linux GRAPHICAL row + the darwin -G TEXT row are this phase's legs (signed rows + screenshots in 19-EVIDENCE.md, D-13); the darwin GRAPHICAL row is deferred 2026-11-14 by owner decision — reopener: a future milestone porting a 64-bit Cocoa/AppKit backend (9front gui-cocoa class) into sys/src/cmd/unix/drawterm; XQuartz considered and rejected. Not silently marked complete: the checkbox flips only when both human rows are signed (pending as of 2026-11-15) -->
 
 ### Integration (INT — continuing)
 
 - [x] **INT-05**: `nix run .#boot-r9` remains the ONE command on x86_64 — brings up the full system (net + auth + cpu listener); boot-r9-smoke extended to the new chain
 - [x] **INT-06**: r9 flake.lock pin advances via push-before-pin as its OWN commit + fresh hosted CI run (never bundled)
-- [ ] **INT-07**: Clean-checkout proof of the full v2.1 chain on linux-x86_64 (darwin documented-manual)
+- [ ] **INT-07**: Clean-checkout proof of the full v2.1 chain on linux-x86_64 (darwin documented-manual) <!-- 19-10 GREEN 2026-11-15: two independent fresh clones of harvey at e4001b383 (r9 solely via the flake.lock github pin df4ad78 — no sibling clone): nix run .#boot-r9-smoke-x64 exit 0 ALL STAGES PASS (chain + cpu legs) and nix run .#drawterm-gate-x64 exit 0 ALL STAGES PASS (the -G session end-to-end, capture redacted); record in 19-EVIDENCE.md (clone SHA, locked rev, verdicts, retained consoles) -->
 
 ## Future Requirements
 
