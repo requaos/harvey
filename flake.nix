@@ -195,10 +195,21 @@
           # proof (D-06: the composed-system gate lives Harvey-side,
           # where the composed ISO exists).  boot-r9-x64's behavior is
           # untouched; smokeR9Pkg's shape (expect in runtimeInputs).
+          # 19-09 (INT-05): the gate gained the cpu-chain leg (the §15
+          # image under the emitter's slirp argv — the D-04 hostfwd
+          # pair rides the pinned TOML data, the auth/net gates' idiom;
+          # the attr is already in the x64 block's hasAttr gate list
+          # since 16-04, so the frozen list stays byte-untouched).
+          # iproute2 is the leg's `exec ss' hostfwd observation;
+          # procps makes the EXIT trap's pkill survivor sweep real
+          # over the TWO spawns the gate now owns (the net gate's
+          # always-listed-dep rule: the 2>/dev/null || true must mask
+          # a failed sweep, never a missing binary).
           smokeR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-smoke-x64" ./nix/smoke-r9-x64.sh ''
             export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
             export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
+            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.iproute2 pkgs.procps ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
           # 14-08 (XEXEC-04's r9 gate): the tier-1 sweep — the SAME
           # pipeline as boot-r9-smoke-x64 but the build is the TIER
