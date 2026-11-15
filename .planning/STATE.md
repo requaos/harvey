@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
 status: executing
-stopped_at: "Completed 19-04-PLAN.md (devssl #D rc4_256/sha1 donor-verbatim + registry wiring; r9 pushed 07889e2)"
-last_updated: "2026-11-15T01:12:32.495Z"
+stopped_at: Completed 19-05-PLAN.md (FOD pass + lock-only pin 0a4b853 + first-green hosted CI + gates re-green; r9 pushed 0a4b853)
+last_updated: "2026-11-15T02:00:23.052Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 19 execution started
-state_head: cd2f3c3cf424ad1ff884319bc0f3bc67873c6498
+state_head: f52f9cd73aea09d628a63afc09c8ca2ad85c4411
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 58
-  completed_plans: 53
+  completed_plans: 54
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 19 (CPU Service + Drawterm + rio Desktop) — EXECUTING
-Plan: 7 of 10
+Plan: 8 of 10
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 19 execution started
 
@@ -114,6 +114,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 19 P03 | 47 min | 3 tasks | 6 files |
 | Phase 19 P03 | 47 min | 3 tasks | 6 files |
 | Phase 19 P04 | 37 min | 3 tasks | 8 files |
+| Phase 19 P19-05 | 42 min | 2 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -269,6 +270,8 @@ Recent decisions affecting current work:
 - [Phase 19]: [19-03] The §15 legs live: cpurc is a REAL #! rc script (the kernel pre-pass re-execs it — the first live #! proof) carrying SHEBANG-OK (the #! token reaching /amd64/bin/echo, the argv order live) + REMOVE-OK (rm #¤/caphash through the ported devcap arm + test -e absence); service files stage under rc/bin/service (the plain /bin bind REPLACES — the rc tree's -a append surfaces them), fixtures need 755 (paqfs refuses OEXEC on 644)
 - [Phase 19]: [19-04] #D registers UNCONDITIONALLY in the namec registry (no dev_ssl cfg key, no boot profile joins — the plan's own instruction): the donor carries devssl in every standard k10 CONF, the module is self-contained, and the evidence split is the registry-level pin + 19-08's live encrypted -G gate; the "fd N" verb resolves through devssl::set_fd_resolve_hook(proc::current_fd_resolve) — the devsrv set_resolve_hook idiom (r9 07889e2)
 - [Phase 19]: [19-04] devssl's secrets are dec64 (u64.c verbatim, skip-not-stop '=' quirk) of mksecret-shaped 20-char uppercase-hex strings -> 15-byte rc4 keys (hex's 10 bytes would break both arms silently); the SSL-format framing (|0x80 2-byte header counting digest+payload, sha1(secret||msg||mid) digest INSIDE the encrypted body) pinned byte-exact over a REAL pipe pair with wire inspection + a corruption leg + the unswapped-secrets negative proving srvp9auth's swap load-bearing (r9 3737fd1..270fdbf)
+- [Phase 19]: [19-05] The phase's one FOD pass covered ALL 19-01..19-04 kernel bytes together (two-derivation byte-identity proof: A plain 07889e2 + B marker clone fbc5ac2, NAR sha256-Xlth4P… three-way-agreed with the FOD's own got-value), r9 pushed at 0a4b853, Harvey flake.lock 9103522 -> 0a4b853 lock-only (f52f9cd73)
+- [Phase 19]: [19-05] The hosted CI witness is REAL green for the first time: r9's boot-test-x86-64 leg had never passed since 13-06 (35 consecutive reds — the workflow never provided R9_HARVEY_DIR for the ureg-check gate); fixed push-before-pin at r9 9d0b225 (harvey checkout + env + mtools), observed green at the pushed HEAD (run 43663178433) BEFORE the pin-advance commit landed; all six composed gates green at the pin, auth twice; services stays honestly blocked-pre-existing (#68)
 
 ### Pending Todos
 
@@ -294,6 +297,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-15T01:12:31.720Z
-Stopped at: Completed 19-04-PLAN.md (devssl #D rc4_256/sha1 donor-verbatim + registry wiring; r9 pushed 07889e2)
+Last session: 2026-11-15T02:00:22.291Z
+Stopped at: Completed 19-05-PLAN.md (FOD pass + lock-only pin 0a4b853 + first-green hosted CI + gates re-green; r9 pushed 0a4b853)
 Resume file: None

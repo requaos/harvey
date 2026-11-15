@@ -81,7 +81,7 @@
 ### Integration (INT — continuing)
 
 - [ ] **INT-05**: `nix run .#boot-r9` remains the ONE command on x86_64 — brings up the full system (net + auth + cpu listener); boot-r9-smoke extended to the new chain
-- [ ] **INT-06**: r9 flake.lock pin advances via push-before-pin as its OWN commit + fresh hosted CI run (never bundled)
+- [x] **INT-06**: r9 flake.lock pin advances via push-before-pin as its OWN commit + fresh hosted CI run (never bundled)
 - [ ] **INT-07**: Clean-checkout proof of the full v2.1 chain on linux-x86_64 (darwin documented-manual)
 
 ## Future Requirements
@@ -164,7 +164,7 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | DESK-06 | Phase 19 | Pending |
 | DESK-07 | Phase 19 | Pending |
 | INT-05 | Phase 19 | Pending |
-| INT-06 | Phase 19 | Pending |
+| INT-06 | Phase 19 | Complete |
 | INT-07 | Phase 19 | Pending |
 
 **Coverage:**
