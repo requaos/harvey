@@ -462,6 +462,7 @@ generate(Domain *d, char *dir)
 	uchar *buf, *chk;
 	char ndb[512], manifest[8192], hex[SHA1dlen*2+1];
 	char feed[Maxpw+2];
+	char creds[Maxpw+ANAMELEN+16];
 	int i, buflen, n, ndblen, manlen;
 	User *u;
 	struct stat st;
@@ -585,6 +586,20 @@ generate(Domain *d, char *dir)
 	strcpy(feed, d->users[d->nu-1].pw);
 	feed[strlen(feed)] = '\n';
 	writefile(dir, "feed", feed, strlen(feed), 0444);
+
+	/* auth-creds: the demo user + password as two key=value lines —
+	 * 19-07's D-12 creds artifact (the 19-08 -G gate reads the bake's
+	 * host-side copy out/auth-creds.txt post-bake; the exact line
+	 * shape below IS that parse contract: `user=<name>' then
+	 * `password=<secret>', both newline-terminated).  Same material as
+	 * the feed (the LAST user — the DEMO shared password makes it the
+	 * hostowner's too), second artifact, same 0444 read-only
+	 * discipline; 18-D-01's ephemeral-DEMO contract is untouched. */
+	memset(creds, 0, sizeof creds);
+	if(snprint(creds, sizeof creds, "user=%s\npassword=%s\n",
+	    d->users[d->nu-1].name, d->users[d->nu-1].pw) >= sizeof creds)
+		sysfatal("auth-creds artifact too long");
+	writefile(dir, "auth-creds", creds, strlen(creds), 0444);
 	free(buf);
 
 	print("authdomain-gen: generated %s: label=%s authdom=%s authid=%s users=%d\n",

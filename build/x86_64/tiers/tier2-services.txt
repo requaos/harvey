@@ -147,3 +147,9 @@ cmd/auth/secstore	# dir; secstore/secstored/secuser/aescbc to /amd64/bin/auth
 #                      seeded target)
 #   cmd/auth/lib       internal archive (lib.$O.a), built as a prereq
 #                      of the singles — never a data member
+
+# --- the cpu-server suite (19-07, CPU-01/CPU-03: the §15 cpu image's
+#     service binaries; the per-tier gate is the bring-up probe over
+#     the composed image — cpu-bringup's ladder proves the listener +
+#     the #! exec live at boot) ---
+cmd/cpu			# 19-07/CPU-01/CPU-03: the remoteside server (tcp17010's #! interpreter — /amd64/bin/cpu -R; mkone single-file, A2's resolution)

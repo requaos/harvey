@@ -1484,6 +1484,26 @@ cp "$AUTHDOM_STAGE/feed" "$STAGE8/boot/authfeed.txt"
 #        would refuse the overwrite: rm first (the paqs' own rule).
 rm -f "$OUT/authfeed.txt"
 cp "$AUTHDOM_STAGE/feed" "$OUT/authfeed.txt"
+# 14f2c. the host-side creds copy (19-07, D-12): the generator's
+#        auth-creds artifact — `user=<demo-user>' then
+#        `password=<secret>', two newline-terminated key=value lines —
+#        copied rm-before-cp to the gitignored $OUT (the 14f2b shape
+#        verbatim; 0444 source, so a stale copy would refuse the
+#        overwrite).  THIS exact line shape is the 19-08 -G gate's
+#        parse contract (R9_CREDS_FILE / out/auth-creds.txt read
+#        post-bake); asserted here so a generator drift reds the BAKE,
+#        never the gate.  The LAST §15 cpu bake's copy is the one that
+#        survives a full run (§15 re-copies its own per-bake pair) —
+#        matching the image 19-08 dials.
+[ -s "$AUTHDOM_STAGE/auth-creds" ] || err "auth bake: the generator emitted no auth-creds artifact (the D-12 creds emission)"
+_credl=$(wc -l < "$AUTHDOM_STAGE/auth-creds" | tr -d ' ')
+[ "$_credl" -eq 2 ] || err "auth bake: the auth-creds artifact is $_credl lines, want exactly 2 (user= then password=)"
+"$GREP" -q '^user=[A-Za-z0-9_.-]*$' "$AUTHDOM_STAGE/auth-creds" \
+	|| err "auth bake: the auth-creds user= line is malformed (the 19-08 parse contract)"
+"$GREP" -q '^password=[A-Za-z0-9_.-]*$' "$AUTHDOM_STAGE/auth-creds" \
+	|| err "auth bake: the auth-creds password= line is malformed (the 19-08 parse contract)"
+rm -f "$OUT/auth-creds.txt"
+cp "$AUTHDOM_STAGE/auth-creds" "$OUT/auth-creds.txt"
 
 # 14f4. the secstore round-trip object (18-05 Task 2, AUTH-08/D-14):
 #       the committed payload staged read-only at /boot/secstore-obj.txt
