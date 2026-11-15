@@ -1,0 +1,62 @@
+# authdomain.local.EXAMPLE — how to build your own authdomain.local.
+#
+# Copy this file to <repo-root>/authdomain.local (same directory this
+# EXAMPLE sits in) and edit the values:
+#
+#	cp authdomain.local.EXAMPLE authdomain.local
+#
+# authdomain-gen (build/x86_64/authdomain-gen.c, the 18-03 venue)
+# reads ./authdomain.local from the repo root when no -f is given —
+# which is how the bakes invoke it — so BOTH the §14 auth image and
+# the §15 cpu image bake from YOUR domain when the file is present.
+# Place it BEFORE booting (the bake consumes it at image-build time;
+# adding it later changes nothing until the next bake).  The canonical
+# committed interface is build/x86_64/authdomain.example — this root
+# file mirrors it; when the two disagree, that one wins.
+#
+# The gitignore rule: /authdomain.local (the repo-root path only) is
+# gitignored — real key material never lands in git history (T-18-06).
+# Never commit a filled-in copy.  This EXAMPLE file carries CHANGE-ME
+# placeholders only.
+#
+# ABSENT authdomain.local => the bake generates an ephemeral DEMO
+# domain: label DEMO, authdom DEMO-harvey, users glenda/bootes/norbert
+# sharing one random password.  Its credentials are emitted host-side
+# at build/x86_64/out/auth-creds.txt (two lines: user= and password=,
+# the D-12 emission, regenerated on every bake) — that file is where
+# you find the DEMO password after booting without authdomain.local.
+# `nix run .#drawterm` (pinned user=glenda) authenticates with that
+# shared password.  DEMO material is throwaway by construction.
+#
+# Interface contract: flat KEY=VALUE lines, no spaces around '=',
+# '#' comments, blank lines ok.
+
+# label — the loud token embedded in the nvram authdom, the ndb-auth
+# header, and every manifest row set (D-04).  Default when omitted: DEMO.
+label=CHANGE-ME-label
+
+# authdom — the p9sk1 authentication domain string, at most 47
+# printable chars.  The label must appear inside it.
+# Default: DEMO-harvey
+authdom=CHANGE-ME-label-harvey
+
+# machine_password — derives the nvram machkey, which is ALSO the
+# /adm/keys master key (getauthkey.c:14).  When omitted: fresh random.
+# Keep it secret; never reuse a real one outside your local file.
+machine_password=CHANGE-ME-machine
+
+# secstore_password — lands in the nvram config field (the secstore
+# client's -n source); at most 13 chars (the CONFIGLEN=14 field).
+# When omitted: fresh random.
+secstore_password=CHANGE-ME-sec
+
+# users — one `user <name> <password>' line per user.  Names: at most
+# 27 printable chars, no spaces or '/'.  Distinct passwords are fine
+# (the shared-password form is a DEMO-path convenience only, for
+# sentinel-fed probes).  No user lines at all => the three-user DEMO
+# membership (glenda, bootes, norbert).  authid (the speaksfor row's
+# hostid and the nvram authid) is fixed: bootes.  The drawterm wrapper
+# pins user=glenda, so keep a glenda row for the leg recipes.
+user glenda CHANGE-ME-glenda
+user bootes CHANGE-ME-bootes
+user norbert CHANGE-ME-norbert
