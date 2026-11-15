@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
 status: executing
-stopped_at: "Completed 19-08-PLAN.md (pass 3: the concurrency chain landed + the choreography x2 + the gate green twice + TCG; 19-09/19-10 remain)"
-last_updated: "2026-11-15T13:50:30.174Z"
+stopped_at: Completed 19-09-PLAN.md (--system mode + the full-chain smoke leg green twice + README; 19-10 remains)
+last_updated: "2026-11-15T14:28:57.589Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 19 execution started
-state_head: 4ceb275de0320d9f2be13de5105c9a8f4c99e24f
+state_head: f58ff7f81cae9f37134295f2b62d94e34ef5ec51
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 58
-  completed_plans: 56
+  completed_plans: 57
 ---
 
 # Project State
@@ -119,6 +119,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 19 P08 | 120 min | 2 tasks | 13 files |
 | Phase 19 P08 | 280 min continuation (4h45m across both passes; 6 kernel fix cycles) | 2 tasks | 9 files |
 | Phase 19 P08 | 205 min continuation (5h30m across all three passes; 5 kernel fixes + the choreography x2) | 3 tasks | 16 files |
+| Phase 19 P09 | 24 min | 3 tasks | 11 files |
 
 ## Accumulated Context
 
@@ -285,6 +286,9 @@ Recent decisions affecting current work:
 - [Phase 19]: [19-08 pass 3]: The session-exit deadlock closed by a FIVE-layer chain (all push-before-pin, r9 22d40fb..56acaea): the devssl direction split (BusyCell cells per direction, io dups per side — a parked read never blocks writes), the devmnt tag-mux (the donor's mountio/mountmux: queue + tag slots + a transferable reader BusyCell spanning whole-message framing — the two named boot-race suspects eliminated STRUCTURALLY: no mid-frame release window exists and no MCS lock is ever held across a park), the session-teardown Drop (MntIo::close_chan + Mnt::drop — the donor mntdec cclose; the ssl conv finally hangs its TCP wire up), the note-interrupt fix (push_note's ready(p) + the notepending probe at the block arms — the teardown's run-to-run variance), and devpipe's BLOCKING write on full (the tier1 gate's paqfs root death: under the mux, concurrent rpcs let server replies pile up while owners park between polls — error-on-full killed ramfs-class servers)
 - [Phase 19]: [19-08 pass 3]: The gate's session-end marker re-keyed to the LIVE-OBSERVED teardown: the vendored drawterm's exportfs fatal routes through kern/panic's Unix exit(1), NEVER cpu.c's exits() override — 'goodbye' is unreachable in the -G session end against ANY server; the deterministic end marker is the exportfs hangup line + pty EOF. Never-exercised assertion code is unverified code (the [\s\S] drain regex was a PCRE-ism glibc regcomp rejects; the panic scan now excludes drawterm's own exit pair)
 - [Phase 19]: [19-08 pass 3]: The pin choreography ran TWICE (kernel bytes changed twice): FOD probe -> two-derivation proof (plain + fresh marker-clone kernels, cmp-clean ISOs, three-way NAR agreement) -> re-wire (flake.nix only) -> push -> hosted CI observed SUCCESS at the pushed HEAD (43711744441, 43717790664) -> lock-only advance (0a4b853 -> aa55a27 -> df4ad78). The -G gate then green TWICE on KVM + the TCG leg GREEN + REDACTION-OK at the final pin — DESK-06/CPU-04/DESK-04 closed
+- [Phase 19]: [19-09] boot-r9-x64 --system=cpu|terminal landed as flag > R9_SYSTEM env > terminal default (the R9_NET precedent verbatim): cpu boots §15's image with the bootconf append (the ONE command = net + auth + cpu listener), terminal's bake/compose stay byte-identical (default-path smoke green); cpu mode also runs subset-build.sh — §15's named producer — so the ONE command holds off a clean checkout
+- [Phase 19]: [19-09] the standing smoke is now a TWO-leg composed gate: the chain leg untouched + a cpu leg carried from cpu-bringup's vocabulary (one vocabulary, two drivers) asserting the bootconf seed line, the host-side hostfwd observation, the ladder incl. ETHER-OK through LISTEN-17010/DONE, zero FAIL, and DESK-02's desktop-absent proof — green twice consecutively (3 total green runs, distinct per-bake domains)
+- [Phase 19]: [19-09] the smoke app's R9_NETDEV_EMITTER export + iproute2/procps ride the EXISTING hasAttr-gated x64 block — the frozen gate list stays byte-untouched (netdev-args gated the whole block since 16-04; no pin-advance choreography); cpu-mode's bake assert greps §15's PASS line from a tee'd log (the grep is the teeth under the tee-masked pipeline rc) while terminal's bake stays rc-direct
 
 ### Pending Todos
 
@@ -311,6 +315,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-15T13:50:29.270Z
-Stopped at: Completed 19-08-PLAN.md (pass 3: the concurrency chain landed + the choreography x2 + the gate green twice + TCG; 19-09/19-10 remain)
+Last session: 2026-11-15T14:28:56.630Z
+Stopped at: Completed 19-09-PLAN.md (--system mode + the full-chain smoke leg green twice + README; 19-10 remains)
 Resume file: None
