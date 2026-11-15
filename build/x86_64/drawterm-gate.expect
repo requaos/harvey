@@ -331,13 +331,19 @@ feedstage dt-password "${dt_user}@.* password: " "$dt_pw\r"
 #        through p9any -> p9sk1 (authsrv tickets) -> auth_chuid -> the
 #        client exportfs mounted at /mnt/term -> cons stdio from
 #        /mnt/term/dev/cons -> rc -li: the rcmain default prompt.
-#        (rcmain sources $home/lib/profile only when /bin/test -r
-#        succeeds; the §15 session image carries no /bin/test and the
-#        creds user has no staged home, so the profile's cpu case —
-#        and its cpu% prompt — never runs on this venue: the default
-#        prompt IS the login shell's evidence.)  Fast-fail arms name
-#        the two failure shapes: a rejected password re-prompts (the
-#        mismatch line), a dead session prints goodbye.
+#        (Re-keyed 19-10: /bin/test NOW rides the §15 image — rcmain's
+#        login-profile guard needs it for the DESKTOP leg, where
+#        glenda's staged $home/lib/profile carries the cpu case.  This
+#        gate's user is the §15 creds user (the DEMO domain's probe
+#        user, norbert), who has NO staged home: the guard now RUNS,
+#        fails cleanly on the missing /usr/norbert/lib/profile, and no
+#        profile is sourced — the default `% ' prompt remains this
+#        gate's login-shell evidence, unchanged, and the desktop suite
+#        stays provably inert in -G sessions.  No assert was weakened:
+#        the prompt shape and every marker are the same contract.)
+#        Fast-fail arms name the two failure shapes: a rejected
+#        password re-prompts (the mismatch line), a dead session
+#        prints goodbye.
 expect {
 	-re {password mismatch} {
 		puts stderr "drawterm-gate: FAILED at stage: session-prompt — the auth exchange rejected the password (mismatch line on the pty)"

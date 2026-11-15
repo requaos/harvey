@@ -566,10 +566,11 @@ Observed live: the no-guest dial refusal (`cpu: can't dial:
 
 Two terminals, zero extra machinery:
 
-1. **Boot the guest** — `nix run .#boot-r9-x64` (default slirp) in
-   one terminal; leave it running. The hostfwd pair is listening on
-   `127.0.0.1:17010` (cpu) and `127.0.0.1:5670` (auth) once the guest
-   brings the listeners up.
+1. **Boot the guest** — `nix run .#boot-r9-x64 -- --system=cpu`
+   (default slirp) in one terminal; leave it running. The cpu system
+   boots the §15 image through cpurc's ladder (`cpurc: DONE` on the
+   serial console); the hostfwd pair is listening on `127.0.0.1:17010`
+   (cpu) and `127.0.0.1:5670` (auth) once `cpurc: LISTEN-17010` prints.
 2. **Connect** — `nix run .#drawterm` in the other terminal. With a
    display you get the rio-capable windowed session; headless you get
    the `-G` stdio session. In an interactive bash shell, quote the
@@ -577,14 +578,31 @@ Two terminals, zero extra machinery:
    history-expansion character): `drawterm -G -s '' -O 'cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda'`.
 3. **Log in** — the password prompt is drawterm's own console
    (`readcons`; no echo). Phase 18's baked users apply (18-D-12).
-4. **Teardown** — exit the remote shell: the session ends and
-   drawterm exits (`goodbye`, status propagated). Then `ctrl-a x` the
-   qemu terminal.
+4. **The in-session desktop (windowed, 19-10)** — with the client
+   serving draw, glenda's staged profile sources: rcmain's guard
+   (`/bin/test -r $home/lib/profile`) passes, the cpu case binds
+   /mnt/term/dev over /dev, starts the in-session plumber, and
+   `exec rio` takes the drawterm window — the grey desktop;
+   button-3 opens the menu, `New` opens a window with a plain `% ` rc
+   (rio's windows run `rc -i`, never the login profile — no nested
+   desktop). Two console lines are expected and benign: the guest
+   serial prints one `syscall 10 unimplemented` (FAUTH — libauth's
+   namespace-mount auth probe; r9 keeps FAUTH unimplemented by design
+   and the mount proceeds unauthenticated), and the session prints
+   `cpu: failed to chdir to '<your cwd>'` when the client's cwd does
+   not exist in the guest (cpu falls back to `$home` — donor cpu(1)
+   behavior). A `-G` session (no draw device) stays a plain `cpu% `
+   shell — the profile's draw-presence guard holds (DESK-02).
+5. **Teardown** — exit the remote shell: the session ends and
+   drawterm exits (`goodbye`, status propagated). In rio, exit the
+   windows then button-3 `Exit`. Then `ctrl-a x` the qemu terminal.
 
 Venue honesty: the pieces proven on the primary host are the builds,
 the wrapper's scrub/pin/print/dial, and the flag surface; the full
 interactive login→shell-marker loop over hostfwd is 19-08's `-G`
-interop gate (green-twice on local KVM per D-14).
+interop gate (green-twice on local KVM per D-14); the windowed desktop
+leg is driven under Xvfb with screenshots as 19-10's Leg-1 substrate
+evidence.
 
 ### The darwin page — DOCUMENTED-MANUAL, `-G` only (amended D-03, D-05/D-06)
 
