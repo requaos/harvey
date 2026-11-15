@@ -262,7 +262,7 @@ Plans:
   3. The flake drawterm app exists (`nix run .#drawterm`) with its provenance decision recorded; the wrapper pins `-O`, scrubs `$cpu`/`$auth`/`$PASS`, prints the exact connect line — and the `-G` text-mode interop gate is green in CI via hostfwd (scripted login → shell marker) (DESK-01, DESK-06)
   4. rio starts only in-session: profile `case cpu` binds /mnt/term/dev over /dev and execs rio (a serial marker proves rio did NOT start at boot); plumb runs in the drawterm session; and r9 devssl `#D` (rc4_256/sha1) is available for encrypted sessions via pushssl, with `-e clear` as the documented fallback (DESK-02, DESK-04, DESK-05)
   5. The graphical leg is human-accepted on linux AND darwin (drawterm is host-side; the darwin leg connects to the linux-hosted guest); boot-r9-smoke is extended to the full chain; the r9 flake.lock pin advances via push-before-pin as its OWN commit with a fresh hosted CI run (never bundled); and the full v2.1 chain reproduces from clean checkouts on linux-x86_64 (darwin documented-manual) (DESK-07, INT-05, INT-06, INT-07)
-**Plans**: 7/10 plans executed
+**Plans**: 8/10 plans executed
 Plans:
 **Wave 1**
 - [x] 19-01-PLAN.md — service=cpu bootconf tracer: mb2 cmdline to ROOT env seed + the append seam (grub.cfg/iso-builder/xtask) + §15 seed + q35cpu boot profile green twice (CPU-02)
@@ -284,7 +284,7 @@ Plans:
 - [x] 19-07-PLAN.md — §15 seventh contract full: re-keyed cpurc (pairing→keyfs→authsrv→factotum→trusted aux/listen) + tcp17010 + cmd/cpu tier + D-12 creds emission + in-session-only profile + bring-up probe green twice (CPU-02, CPU-03, DESK-02, DESK-05)
 
 **Wave 7**
-- [ ] 19-08-PLAN.md — the -G interop gate: pty-driven scripted drawterm session over hostfwd, encrypted default, green twice on local KVM (DESK-06, CPU-04, DESK-04 live)
+- [x] 19-08-PLAN.md — the -G interop gate: pty-driven scripted drawterm session over hostfwd, encrypted default, green twice on local KVM (DESK-06, CPU-04, DESK-04 live)
 
 **Wave 8** *(serialized after 19-08: both gates bake out/bootfs-cpu.paq and bind the 127.0.0.1:17010/5670 hostfwd pair)*
 - [ ] 19-09-PLAN.md — boot-r9-x64 --system=cpu full-system mode + full-chain smoke extension + README (INT-05)
@@ -318,7 +318,7 @@ Plans:
 | 16. Host Net Modes + Networking Exit Gate | v2.1 | 8/8 | Complete    | 2026-11-12 |
 | 17. r9 Kernel Flush-Out | v2.1 | 8/8 | Complete    | 2026-11-13 |
 | 18. In-Guest p9sk1 Auth Domain | v2.1 | 8/8 | Complete    | 2026-11-14 |
-| 19. CPU Service + Drawterm + rio Desktop | v2.1 | 7/10 | In Progress | - |
+| 19. CPU Service + Drawterm + rio Desktop | v2.1 | 8/10 | In Progress | - |
 
 ## Backlog
 

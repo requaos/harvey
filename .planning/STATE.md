@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
 status: executing
-stopped_at: Completed 19-07-PLAN.md (§15 full contract + real cpurc + tcp17010 + creds emission; cpu-bringup green twice at the 0a4b853 pin)
-last_updated: "2026-11-15T02:45:31.861Z"
+stopped_at: Halted 19-08-PLAN.md at the kernel boundary (Tasks 1-2 committed; the -G session proven to the password feedstage + tr-ok at pushed r9 9704b2e; green-twice blocked on the auth_chuid stretch — see 19-08-SUMMARY Issues)
+last_updated: "2026-11-15T05:01:06.504Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 19 execution started
-state_head: 8cc749bcab6d9a39b5bc576f6801994175654a52
+state_head: 03a11d6737cf2d7a71e7fda3d15a3ba553f43ef7
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 58
-  completed_plans: 55
+  completed_plans: 56
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 19 (CPU Service + Drawterm + rio Desktop) — EXECUTING
-Plan: 9 of 10
+Plan: 10 of 10
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 19 execution started
 
@@ -116,6 +116,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 19 P04 | 37 min | 3 tasks | 8 files |
 | Phase 19 P19-05 | 42 min | 2 tasks | 3 files |
 | Phase 19 P07 | 24 min | 3 tasks | 7 files |
+| Phase 19 P08 | 120 min | 2 tasks | 13 files |
 
 ## Accumulated Context
 
@@ -277,6 +278,7 @@ Recent decisions affecting current work:
 - [Phase 19]: [19-07] §15 stages §14's computed AUTH_HLIST by reference (one resolver) with cpu at /amd64/bin/cpu and listen at the donor's /amd64/bin/aux/listen; tcp17010 stages at BOTH bin/service (the paq path) and rc/bin/service (the union copy that makes cpurc's bind /root/bin/service target resolve — r9 sys_bind needs an existing target; the 19-03 shadowing finding)
 - [Phase 19]: [19-07] the 19-03 cpurc fixture legs (cpurc: RAN/SHEBANG-OK/REMOVE-OK) retired with the fixture body — the #! exec is load-bearing at the tcp17010 service point itself; the r9-side q35cpu boot profile's expectations re-key in the next r9-touching plan (windows ledger append blocked by a pre-existing count drift; recorded in the SUMMARY)
 - [Phase 19]: [19-07] the witness manifest re-pin reproduced the 38 members byte-for-byte (digest unchanged 695dbf28…) — the fresh per-entry tier builds are deterministic; and a UTF-8 § inside a BRE \( \) group no-matches under expect's exec grep locale (probe needles are parens/§-free)
+- [Phase 19]: [19-08] The -G interop gate halted at a root-caused kernel chain: the image's missing NIC address (fixed: cpurc's ether leg + §15 ipconfig staging, one medium per boot — the loopback leg retired) and the listen park path's missing ingress drive (fixed + PUSHED at r9 9704b2e, deliberately UNPINNED — the pin advance + FOD re-wire are the next r9-touching pass's own choreography); the remaining blocker is cpu -R's post-auth death in auth_chuid's mount/newns stretch (srvauth: namec does not exist) — the next pass's first item, with the q35cpu re-key
 
 ### Pending Todos
 
@@ -290,6 +292,7 @@ None yet.
 - CR-07/WINDOWS #66 DISPOSITIONED (waived) at the 17-08 terminus: the 8-way-transfer triple-fault class stays live ~8%/run but the cure is venue-blocked — KVM capture ceiling + TCG×slirp avenue (N=10, NO-FIRE-IN-SERIES) both exhausted, strongest-candidate fix refuted at the fix pin; maintainer-ratified waiver (Neil Skinner, 2026-11-13T14:42:08Z) with 3-part D-15 rationale; reopener conditions + the committed boot-r9-stress-x64 instrument in 17-CR07-ROOTCAUSE sections 8-9
 - 18-05/AUTH-08 RESOLVED (18-07/18-08): the devip two-write defect was tcp_socket's stock smoltcp defaults (Nagle ON + 10ms delayed ACK holding every sub-MSS follow-up write for a post-deadline drive a fully-parked venue can never run) — fixed donor-faithfully at r9 ab4cb66 (Nagle off, ACK immediate — connect-path sockets only; CR-03: accept-pool sockets keep stock defaults so >2048-byte writes into ANNOUNCED connections still hang, open in the disposition ledger); 18-08's FOD pass pinned the bytes (r9 9103522, Harvey flake.lock advanced lock-only), restored the sweep's 9d legs (-s 127.0.0.1 — the $attr cs class reds on r9, the literal-loopback idiom instead), and flipped the gate to presence demands — the round-trip is green twice at the pin with the bytes-back AUTH-SECOBS (evidence 18-08-auth-{a,b}.log, redacted); the AUTH-SKIP arm is retired; no residual
 - 18-gap-review CR-03 OPEN (advisory, non-blocking per the #3304 evidence gate): the 18-07 TCP fix covers only connect-path sockets — AcceptPool::spawn_listener (r9 stack.rs) keeps smoltcp stock Nagle + 10ms delayed ACK, and x86_64 never calls tick_check, so a >2048-byte write into an ANNOUNCED connection (a secstore PUT of any real file) parks forever; the auth gate is green twice only because the committed DEMO object is 401 bytes. Fix is two set_* calls at the pool site + WR-04 pin legs; natural reopener: Phase 19 cpu/exportfs (needs exactly this class). Recorded open in 18-REVIEW-DISPOSITION with WR-03/WR-04/IN-06/IN-07
+- 19-08 HALTED (kernel boundary): the -G drawterm session dies post-auth at cpu -R's auth_chuid mount/newns stretch ("cpu: srvauth: namec: does not exist" + two factotum not-found walk errors) — after two landed fixes (the cpurc ether reception leg, harvey-side; the listen-park ingress drive, r9 9704b2e PUSHED but UNPINNED). The next r9-touching pass owns: the auth_chuid fix, the pin advance + FOD re-wire for 9704b2e, the q35cpu profile re-key, the battery re-green, and this gate's green-twice re-run (19-08 re-summarized complete after). DESK-06/CPU-04/DESK-04 stay open.
 
 ## Deferred Items
 
@@ -302,6 +305,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-15T02:45:16.757Z
-Stopped at: Completed 19-07-PLAN.md (§15 full contract + real cpurc + tcp17010 + creds emission; cpu-bringup green twice at the 0a4b853 pin)
+Last session: 2026-11-15T05:00:45.788Z
+Stopped at: Halted 19-08-PLAN.md at the kernel boundary (Tasks 1-2 committed; the -G session proven to the password feedstage + tr-ok at pushed r9 9704b2e; green-twice blocked on the auth_chuid stretch — see 19-08-SUMMARY Issues)
 Resume file: None
