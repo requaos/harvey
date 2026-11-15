@@ -107,6 +107,7 @@ script assembles a netdev token.
 nix run .#boot-r9-x64                      # the hermetic slirp default
 nix run .#boot-r9-x64 -- --net=slirp|tap|vmnet
 R9_NET=tap nix run .#boot-r9-x64           # env sets the default
+nix run .#boot-r9-x64 -- --system=cpu      # the FULL system (see the Phase-19 section below)
 ```
 
 - **Selection chain (D-01, the R9_ACCEL precedent):** `--net=<mode>`
@@ -331,7 +332,7 @@ pointing here.
 
 | Surface | Contract |
 |---------|----------|
-| `nix run .#boot-r9-x64` (`nix/boot-r9-x64.sh`) | the one-command interactive boot. Argv: `--net=slirp\|tap\|vmnet` (the `=` form only) — flag over `R9_NET` over the slirp default, venue-validated at parse. Env: `R9_KERNEL_X64_PKG` + `R9_ISO_BUILDER` + `R9_NETDEV_EMITTER` (required), `R9_NET_DOCTOR` (required for `--net=tap` only — the D-03 gate), `R9_ACCEL`/`R9_CPU`, `R9_SKIP_BUILD`, `KERNDATE`. The qemu netdev+device argv is the emitter's output for the selected mode — no netdev literal in the script. |
+| `nix run .#boot-r9-x64` (`nix/boot-r9-x64.sh`) | the one-command interactive boot. Argv: `--net=slirp\|tap\|vmnet` (the `=` form only) — flag over `R9_NET` over the slirp default, venue-validated at parse; and `--system=terminal\|cpu` (19-09) — flag over `R9_SYSTEM` over the terminal default; cpu boots the full system off §15's image with the bootconf append (see the Phase-19 section). Env: `R9_KERNEL_X64_PKG` + `R9_ISO_BUILDER` + `R9_NETDEV_EMITTER` (required), `R9_NET_DOCTOR` (required for `--net=tap` only — the D-03 gate), `R9_SYSTEM` (default system mode), `R9_ACCEL`/`R9_CPU`, `R9_SKIP_BUILD`, `KERNDATE`. The qemu netdev+device argv is the emitter's output for the selected mode — no netdev literal in the script. |
 | `nix run .#net-doctor` (`nix/net-doctor.sh`) | the read-only host-state doctor. `--mode slirp\|tap\|vmnet\|all` (default `all`). 12 checks (slirp 3, tap 8, vmnet 1 — the committed list; extending it is a new decision, not a silent patch). Every FAIL prints the exact remediation (NixOS-declarative first when `/run/current-system` exists, generic imperatives otherwise). **Exit semantics:** exit 0 iff zero FAILs (final line `DOCTOR-OK`); WARN-class findings NEVER gate the exit — the root-gated masquerade read degrades to a loud WARN carrying the exact sudo commands. Never fixes anything (D-14). |
 | `R9_NET=tap nix run .#boot-r9-net-soak-x64` (`nix/soak-r9-net-x64.sh`) | the NETIP-08 soak gate. **Refuses slirp outright** — `slirp evidence not accepted … refusing before any bake or boot` at parse time, the hermetic default included, BEFORE the doctor preflight (a doctor-first order would make the refusal unreachable on wrong-allow hosts). Gate data (committed in the expect driver): baseline 2048 rounds + burst 8×512 (`rc /lib/netip-tap.rc 2048 8` — one typed line, the fixture owns the legs). One soak at a time (the peer's blastport bind + one br0 leg). |
 | `host-echo` (`nix/host-echo.c` → flake `hostEchoX64Pkg`) | the soak's host-side echo peer (D-12): argv `host-echo <bindaddr> <port>` (the gate passes the seam's `tap_gwv4` + `blastport` — binds the literal bridge address, NEVER the wildcard). poll()-concurrent (the listener and every accepted fd in one loop — the anti-serialization shape; 8 simultaneously-open tcpblast connections are the burst). Markers: `hostecho: listening <addr>:<port>`, `hostecho: conn <n>`, `hostecho: closed <n> <bytes-in> <bytes-out>`. Runs as the gate's own child, SIGTERM teardown — no daemon, no systemd, dies with the gate. |
@@ -624,6 +625,65 @@ over the hostfwd pair on a pty, green-twice on local KVM — that gate
 is **19-08's** (`boot-r9` interop compose; D-12's credentials file,
 D-14's venue verdict). This page's `-G` material is the client-side
 surface that gate drives.
+
+## The full-system boot (Phase 19: INT-05, the OQ-4 settlement)
+
+The ONE command now means the whole system. `--system` selects what
+`nix run .#boot-r9-x64` boots:
+
+```
+nix run .#boot-r9-x64 -- --system=cpu     # the FULL system: net + auth + cpu listener
+nix run .#boot-r9-x64                     # --system=terminal, the default (the chain shell)
+R9_SYSTEM=cpu nix run .#boot-r9-x64       # env sets the default (the R9_NET precedent)
+```
+
+| Mode | Image | ISO compose | What comes up |
+|------|-------|-------------|---------------|
+| `--system=cpu` | §15's `bootfs-cpu.paq` (the seventh contract: chain tree + the 18 auth suite + `cmd/cpu` + `aux/listen` + the real `#!` cpurc + the tcp17010 service file + the font payload + §15's own bake-time p9sk1 domain) | WITH the bootconf append `init=/amd64/init -c` (the 19-01 iso-builder seam — the `service=cpu` identity arrives through the boot protocol, never file content) | cpurc's fail-loud ladder in order: the pairing check, the ether leg (`cpurc: ETHER-OK` — the hostfwd reception seam), keyfs, the authsrv listener (guest tcp/567, host-side `127.0.0.1:5670`), factotum, and the cpu listener (`cpurc: LISTEN-17010` — host-side `127.0.0.1:17010`) |
+| `--system=terminal` (default; also the no-flag behavior) | the chain paq | no append — byte-identical to the pre-19-09 compose | the interactive rc shell (every existing gate rides this path untouched) |
+
+- **The cpu mode also runs the tier build** (`subset-build.sh`) before
+  the bake — §15's named input producer — so the full system is
+  genuinely one command off a clean checkout, not one command plus a
+  prerequisite.
+- **D-07's session recipe starts here:** once `cpurc: LISTEN-17010`
+  prints, `nix run .#drawterm` (or its `-G` line) connects through the
+  committed hostfwd pair; the boot banner names the venue
+  (`system: cpu` + the full-system line) so a human terminal always
+  shows which system is up.
+- **Fail-loud rules (the `--net` discipline verbatim):** the `=` form
+  only (`--system cpu` is a usage error); a duplicate `--system` is an
+  error; an unknown mode is a usage error naming exactly
+  `terminal|cpu` — no silent downgrade, no fall-through to a default
+  venue.
+- **The frozen aarch64 app is untouched:** the full-system mode lives
+  on `boot-r9-x64` only; `nix/boot-r9.sh` (aarch64, frozen at the
+  v2.0 pin) has no `--system` surface and gains none.
+
+### The full-chain smoke leg (the standing gate)
+
+`nix run .#boot-r9-smoke-x64` now asserts the whole bring-up in ONE
+composed gate — green twice consecutively, per the standing
+discipline. The existing chain leg (boot → echo round-trip → the
+ls/ps/cat sweep → DEL safety → init restart → the post-passes) is
+untouched; the gate ADDS a second boot in the same run: the §15 image
+under the emitter's slirp argv (the D-04 hostfwd pair as pinned TOML
+data), asserting the bootconf seed line
+(`devenv: bootconf init=/amd64/init -c`), the host-side loopback
+hostfwd observation (`127.0.0.1:17010` + `127.0.0.1:5670` in the host
+listening table), the cpurc ladder in emission order through
+`cpurc: LISTEN-17010` and `cpurc: DONE`, zero `cpurc: FAIL`, and the
+desktop-absent-at-boot proof (zero `latin1.8.font` markers — DESK-02's
+backstop living in the standing gate). Presence-only, timing-tolerant,
+expect_before fast-fail on the panic + FAIL vocabularies.
+
+**Scope boundary (one gate, one concern):** the smoke leg proves
+BRING-UP — the listeners standing — not an interactive session. The
+scripted login → shell-marker round-trip is 19-08's `-G` interop gate
+(`nix run .#drawterm-gate-x64`); the two gates compose, neither
+subsumes the other. The desktop itself is proven only in-session (the
+draw-guarded profile; the font-line marker count proves the NEGATIVE
+at boot).
 
 ## The timer chain
 
