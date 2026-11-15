@@ -64,17 +64,17 @@
 ### CPU Service (CPU — continuing)
 
 - [x] **CPU-01**: r9 `#!` exec (tcp17010 is literally `#!/bin/cpu -R`, execl'd by listen)
-- [ ] **CPU-02**: `service=cpu` bootconf path: plan9.ini delivered via the x86_64 boot-protocol equivalent of DTB `/chosen/bootargs` → cpurc runs instead of termrc (re-keyed)
-- [ ] **CPU-03**: aux/listen + tcp17010 live at boot; exportfs served; r9 implements WSTAT/FWSTAT/REMOVE
+- [x] **CPU-02**: `service=cpu` bootconf path: plan9.ini delivered via the x86_64 boot-protocol equivalent of DTB `/chosen/bootargs` → cpurc runs instead of termrc (re-keyed)
+- [x] **CPU-03**: aux/listen + tcp17010 live at boot; exportfs served; r9 implements WSTAT/FWSTAT/REMOVE
 - [ ] **CPU-04**: Full `cpu -R` remoteside flow verified end-to-end: p9any→p9sk1 → auth_chuid → client exportfs at /mnt/term → stdio from /mnt/term/dev/cons → rc -li
 
 ### Drawterm + rio Desktop (DESK — continuing)
 
 - [x] **DESK-01**: Flake drawterm app: provenance decision recorded; wrapper pins `-O`, scrubs `$cpu`/`$auth`/`$PASS`, prints the exact connect line
-- [ ] **DESK-02**: profile `case cpu` binds /mnt/term/dev over /dev and execs rio (serial marker proves rio did NOT start at boot)
+- [x] **DESK-02**: profile `case cpu` binds /mnt/term/dev over /dev and execs rio (serial marker proves rio did NOT start at boot)
 - [x] **DESK-03**: `/lib/font/bit/*` + glenda-style lib/profile + `/lib/ndb/local` template staged in bootfs with manifest assertions
 - [ ] **DESK-04**: r9 devssl `#D` (rc4_256/sha1) for encrypted sessions via pushssl; `-e clear` documented fallback (stronger crypto is PROTOCOL-blocked — the hardening milestone)
-- [ ] **DESK-05**: plumb/plumber runs in the drawterm session
+- [x] **DESK-05**: plumb/plumber runs in the drawterm session
 - [ ] **DESK-06**: `-G` text-mode drawterm interop gate in CI via hostfwd (scripted login → shell marker)
 - [ ] **DESK-07**: Human-accepted graphical rio leg on linux AND darwin (drawterm is host-side; the darwin leg connects to the linux-hosted guest)
 
@@ -154,13 +154,13 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | AUTH-08 | Phase 18 | Complete |
 | AUTH-09 | Phase 18 | Complete |
 | CPU-01 | Phase 19 | Complete |
-| CPU-02 | Phase 19 | Pending |
-| CPU-03 | Phase 19 | Pending |
+| CPU-02 | Phase 19 | Complete |
+| CPU-03 | Phase 19 | Complete |
 | CPU-04 | Phase 19 | Pending |
 | DESK-01 | Phase 19 | Complete |
-| DESK-02 | Phase 19 | Pending |
+| DESK-02 | Phase 19 | Complete |
 | DESK-04 | Phase 19 | Pending |
-| DESK-05 | Phase 19 | Pending |
+| DESK-05 | Phase 19 | Complete |
 | DESK-06 | Phase 19 | Pending |
 | DESK-07 | Phase 19 | Pending |
 | INT-05 | Phase 19 | Pending |

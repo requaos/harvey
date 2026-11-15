@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
 status: executing
-stopped_at: Completed 19-05-PLAN.md (FOD pass + lock-only pin 0a4b853 + first-green hosted CI + gates re-green; r9 pushed 0a4b853)
-last_updated: "2026-11-15T02:00:23.052Z"
+stopped_at: Completed 19-07-PLAN.md (§15 full contract + real cpurc + tcp17010 + creds emission; cpu-bringup green twice at the 0a4b853 pin)
+last_updated: "2026-11-15T02:45:31.861Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 19 execution started
-state_head: f52f9cd73aea09d628a63afc09c8ca2ad85c4411
+state_head: 8cc749bcab6d9a39b5bc576f6801994175654a52
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 58
-  completed_plans: 54
+  completed_plans: 55
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 19 (CPU Service + Drawterm + rio Desktop) — EXECUTING
-Plan: 8 of 10
+Plan: 9 of 10
 Status: Ready to execute
 Last activity: 2026-11-14 — Phase 19 execution started
 
@@ -115,6 +115,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 19 P03 | 47 min | 3 tasks | 6 files |
 | Phase 19 P04 | 37 min | 3 tasks | 8 files |
 | Phase 19 P19-05 | 42 min | 2 tasks | 3 files |
+| Phase 19 P07 | 24 min | 3 tasks | 7 files |
 
 ## Accumulated Context
 
@@ -272,6 +273,10 @@ Recent decisions affecting current work:
 - [Phase 19]: [19-04] devssl's secrets are dec64 (u64.c verbatim, skip-not-stop '=' quirk) of mksecret-shaped 20-char uppercase-hex strings -> 15-byte rc4 keys (hex's 10 bytes would break both arms silently); the SSL-format framing (|0x80 2-byte header counting digest+payload, sha1(secret||msg||mid) digest INSIDE the encrypted body) pinned byte-exact over a REAL pipe pair with wire inspection + a corruption leg + the unswapped-secrets negative proving srvp9auth's swap load-bearing (r9 3737fd1..270fdbf)
 - [Phase 19]: [19-05] The phase's one FOD pass covered ALL 19-01..19-04 kernel bytes together (two-derivation byte-identity proof: A plain 07889e2 + B marker clone fbc5ac2, NAR sha256-Xlth4P… three-way-agreed with the FOD's own got-value), r9 pushed at 0a4b853, Harvey flake.lock 9103522 -> 0a4b853 lock-only (f52f9cd73)
 - [Phase 19]: [19-05] The hosted CI witness is REAL green for the first time: r9's boot-test-x86-64 leg had never passed since 13-06 (35 consecutive reds — the workflow never provided R9_HARVEY_DIR for the ureg-check gate); fixed push-before-pin at r9 9d0b225 (harvey checkout + env + mtools), observed green at the pushed HEAD (run 43663178433) BEFORE the pin-advance commit landed; all six composed gates green at the pin, auth twice; services stays honestly blocked-pre-existing (#68)
+- [Phase 19]: [19-07] plan9port-class sed silently no-ops \( \) capture-group substitutions (measured host-side: the authdom \1 extraction returned empty) — in-guest sed parses are GROUP-FREE by discipline (comment-delete, line-select, strip-to-token, strip-tail; proven identical on plan9 + GNU sed)
+- [Phase 19]: [19-07] §15 stages §14's computed AUTH_HLIST by reference (one resolver) with cpu at /amd64/bin/cpu and listen at the donor's /amd64/bin/aux/listen; tcp17010 stages at BOTH bin/service (the paq path) and rc/bin/service (the union copy that makes cpurc's bind /root/bin/service target resolve — r9 sys_bind needs an existing target; the 19-03 shadowing finding)
+- [Phase 19]: [19-07] the 19-03 cpurc fixture legs (cpurc: RAN/SHEBANG-OK/REMOVE-OK) retired with the fixture body — the #! exec is load-bearing at the tcp17010 service point itself; the r9-side q35cpu boot profile's expectations re-key in the next r9-touching plan (windows ledger append blocked by a pre-existing count drift; recorded in the SUMMARY)
+- [Phase 19]: [19-07] the witness manifest re-pin reproduced the 38 members byte-for-byte (digest unchanged 695dbf28…) — the fresh per-entry tier builds are deterministic; and a UTF-8 § inside a BRE \( \) group no-matches under expect's exec grep locale (probe needles are parens/§-free)
 
 ### Pending Todos
 
@@ -297,6 +302,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-15T02:00:22.291Z
-Stopped at: Completed 19-05-PLAN.md (FOD pass + lock-only pin 0a4b853 + first-green hosted CI + gates re-green; r9 pushed 0a4b853)
+Last session: 2026-11-15T02:45:16.757Z
+Stopped at: Completed 19-07-PLAN.md (§15 full contract + real cpurc + tcp17010 + creds emission; cpu-bringup green twice at the 0a4b853 pin)
 Resume file: None
