@@ -1,0 +1,260 @@
+#!/amd64/bin/rc
+# cpurc — the cpu server's boot script (19-07, the §15 cpu image's
+# real body; CPU-02's composed half + CPU-03's letter), re-keyed from
+# the three-layer analogs: the auth-sweep's flat-ladder legs (18-04/05,
+# proven on this venue), the auth-termrc fail-loud ordering (the
+# pairing check gates every daemon leg — a bad bake never wedges behind
+# an interactive prompt), and the donor k10root.rc's trusted-listener
+# block (`aux/listen -t' — sys/src/9k/k10/root/k10root.rc:97-110).
+# Runs from the boot flow: the ISO append seam carries
+# init=/amd64/init -c (the bootconf), boot(8)'s execinit tokenizes it
+# verbatim, init -c's cpustart execs /bin/rc -c /rc/bin/cpurc, and the
+# kernel #! pre-pass (19-03) re-execs this file through
+# /amd64/bin/rc.
+#
+# Ladder (fail-loud; each leg gated on its predecessor's success):
+#	pairing	check the D-02 domain manifest BEFORE any daemon —
+#		a failed check skips every later leg (never an
+#		interactive nvram/keyfs wedge)
+#	loopback bind #I + one loopback ipifc + the second non-loopback
+#		probe address (myipaddr never falls back) — the
+#		listeners' prerequisite; no marker of its own, its
+#		failure cascades to FAIL loopback
+#	keyfs	mntgen /mnt + the nvram= env path (readnvram's
+#		getenv, prompt-free on a valid five-sum nvram) +
+#		keyfs -m /mnt/keys
+#	authsrv	listen1 -t 'tcp!*!567' /amd64/bin/authsrv -d — the
+#		TRUSTED, flags-carrying arm (aux/listen execs staged
+#		copies bare and cannot pass -d); -t skips becomenone so
+#		authsrv's child keeps /mnt/keys + /lib/ndb/auth
+#	factotum hfactotum -s factotum + the hostowner's p9sk1 key
+#		ctl-written from the baked feed (/boot/authfeed.txt —
+#		the sentinel-read; the dom token parsed from the baked
+#		/lib/ndb/local, the pairing's own artifact): no console
+#		prompt can wedge boot (T-19-17)
+#	listen	bind the service dir (the donor's own bind — the
+#		namespace's plain /bin bind shadows paq-local
+#		/bin/service, the 19-03 finding) then
+#		/amd64/bin/aux/listen -t /bin/service tcp — the TRUSTED
+#		arm (Pattern 1: the untrusted arm's becomenone would
+#		strip /mnt/factotum and the per-connection service
+#		would die mid-auth); listen rforks its announce loop and
+#		returns, the per-conn exec of tcp17010 rides the kernel
+#		#! pre-pass -> /amd64/bin/cpu -R
+#
+# Intentionally absent (discretion recorded): cs (every dial here is
+# numeric loopback — the 18-05 idiom; cs's $attr translation reds on
+# this venue anyway) and secstored (off the drawterm path).  No
+# venue-literal dials: announces are wildcard-numeric (tcp!*!567) and
+# the loopback adds are 127.0.0.1-class only.
+#
+# Marker vocabulary (the bring-up gate's contract, EMISSION order):
+#	cpurc: PAIR-OK  cpurc: KEYFS-OK  cpurc: AUTHSRV-LISTEN
+#	cpurc: FACTOTUM-OK  cpurc: LISTEN-17010  cpurc: DONE
+# plus the per-leg failure markers `cpurc: FAIL <leg>' the gates
+# negative-grep.  A second announce of an already-bound port fails
+# loudly inside listen (its `address in use' child exit) — the
+# idempotency backstop.
+#
+# rc dialect: the auth-sweep flat ladders verbatim (15-02/18-05's
+# measured rules) — same-line if() bodies and `if not cmd', a braced
+# TRUE arm for multi-line bodies, whole-word assignments alone on
+# their line, single-quoted =-bearing argv, no fd-dup, no unguarded
+# output-redirect opens.
+
+B=/bin
+
+# svc_waitpath <iters> <path> — bounded existence spin (1s sleeps),
+# the auth-sweep's shape; the counter rides a LIST append ($#n),
+# immune to the empty-substitution cascade.
+fn svc_waitpath {
+	n=()
+	while(! $B/htest -e $2 && $B/htest $#n -lt $1){
+		n=($n x)
+		$B/hsleep 1
+	}
+	$B/htest -e $2
+}
+
+# svc_waitport <iters> <port> — bounded spin for an announced tcp
+# listener conv (any /net/tcp/N/local carrying !<port>), the 14-09
+# port-discovery shape.  Sets svcportfound (nonempty = found).
+svcportfound=''
+fn svc_waitport {
+	n=()
+	svcportfound=''
+	while($B/htest $#n -lt $1 && ~ $svcportfound ''){
+		for(d in /net/tcp/[0-9]*){
+			loc=`{$B/hcat $d/local >[2]/dev/null}
+			if(~ $"loc *!^$2)
+				svcportfound=$d
+		}
+		if(~ $svcportfound ''){
+			n=($n x)
+			$B/hsleep 1
+		}
+	}
+}
+
+# --- leg 1: the D-02 pairing check (BEFORE keyfs — always) -----------
+# The manifest's own 5-row shape (ten words split by hcat); flat
+# ladder, one compare per artifact — ANY mismatch names the artifact
+# and every later leg's guard fails closed.
+man=`{$B/hcat /adm/domain.manifest}
+pairfail=''
+if(! ~ $#man 10) pairfail=manifest
+if(~ $pairfail ''){
+	if(! ~ $man(1) label) pairfail=manifest
+}
+if(~ $pairfail ''){
+	if(! ~ $man(3) users) pairfail=manifest
+}
+if(~ $pairfail ''){
+	if(! ~ $man(6) nvram) pairfail=manifest
+}
+if(~ $pairfail ''){
+	if(! ~ $man(8) keys) pairfail=manifest
+}
+if(~ $pairfail ''){
+	if(! ~ $man(10) ndb-auth) pairfail=manifest
+}
+if(~ $pairfail ''){
+	sumnv=`{$B/hsha1sum /adm/nvram}
+	if(! ~ $sumnv(1) $man(5)) pairfail=nvram
+}
+if(~ $pairfail ''){
+	sumkeys=`{$B/hsha1sum /adm/keys}
+	if(! ~ $sumkeys(1) $man(7)) pairfail=keys
+}
+if(~ $pairfail ''){
+	sumndb=`{$B/hsha1sum /lib/ndb/auth}
+	if(! ~ $sumndb(1) $man(9)) pairfail=ndb-auth
+}
+if(~ $pairfail '') echo cpurc: PAIR-OK
+if(! ~ $pairfail '') echo cpurc: FAIL pairing
+
+# --- leg 2: the net loopback bring-up (the auth-sweep leg shape) -----
+# bind #I at /net (r9's sys_bind needs the mount point, staged empty),
+# one transient clone read for the conv number, per-write ctl opens by
+# path — 127.0.0.1 plus the SECOND non-loopback probe address
+# (libip's myipaddr skips 127.0.0.0/8 and never falls back).  Must
+# precede every daemon below (the listeners' announces).
+authlo=''
+if(~ $pairfail ''){
+	if(bind -a '#I' /net){
+		authlo=bound
+	}
+}
+if(~ $authlo bound){
+	lconv=`{$B/hcat /net/ipifc/clone}
+	if(~ $#lconv 1){
+		if($B/htest -e /net/ipifc/$lconv/ctl){
+			if($B/hecho bind loopback > /net/ipifc/$lconv/ctl){
+				if($B/hecho add 127.0.0.1 255.0.0.0 > /net/ipifc/$lconv/ctl){
+					if($B/hecho add 192.168.237.1 255.255.255.255 > /net/ipifc/$lconv/ctl){
+						authlo=up
+					}
+				}
+			}
+		}
+	}
+}
+if(! ~ $authlo up) echo cpurc: FAIL loopback
+
+# --- leg 3: mntgen + the nvram= env + NON-interactive keyfs ----------
+# mntgen mounts /mnt FIRST (the mount walk materializes /mnt/keys);
+# nvram= is a PLAIN whole-word assignment alone on its own line (the
+# 15-02 lexer rule) and MUST precede keyfs — the server's rfork
+# carries RFENVG, so the child sees a COPY of the env at fork time.
+# NO -p flag: the nvram path is readnvram -> getenv("nvram") -> the
+# plain 112-byte file, prompt-free on a paired five-sum nvram.
+keyfsstat=fail
+if(~ $authlo up){
+	if($B/hmntgen /mnt){
+		nvram=/adm/nvram
+		if($B/hkeyfs -m /mnt/keys /adm/keys){
+			if(svc_waitpath 10 /mnt/keys) keyfsstat=ok
+		}
+	}
+}
+if(~ $keyfsstat ok) echo cpurc: KEYFS-OK
+if not echo cpurc: FAIL keyfs
+
+# --- leg 4: authsrv behind listen1 -t (the trusted flags-carrying
+#     arm) — the 18-04 proven shape; without -v listen1 parks its own
+#     stdout on /dev/null, authsrv -d's syslog tr-* lines reach serial
+#     through the #c/cons fallback (no writable /sys/log is ever
+#     staged) --------------------------------------------------------
+lststat=fail
+if(~ $keyfsstat ok){
+	$B/hlisten1 -t 'tcp!*!567' /amd64/bin/authsrv -d &
+	svc_waitport 10 567
+	if(! ~ $svcportfound '') lststat=ok
+}
+if(~ $lststat ok) echo cpurc: AUTHSRV-LISTEN
+if not echo cpurc: FAIL authsrv-listen
+
+# --- leg 5: factotum + the hostowner's p9sk1 key (A3) -----------------
+# The dom token parsed from the BAKED /lib/ndb/local (the ipnet row's
+# authdom= — the pairing's own composed artifact, never a hardcoded
+# DEMO literal); the password read from the baked feed (the
+# sentinel-read isolation idiom — the DEMO users share one password,
+# so the feed line IS the hostowner's); the owner read from #c/user
+# (boot's glenda() set it).  The key write is a direct ctl write — no
+# console prompt exists on this path.  The sed shape is GROUP-FREE:
+# this lineage's sed does not honor \( \) capture groups in
+# substitutions (measured on plan9port's — they silently no-op), so
+# the parse is comment-delete, line-select, strip-to-token,
+# strip-tail — proven identical on plan9 and GNU sed host-side.
+factstat=fail
+if(~ $lststat ok){
+	authdom=`{$B/hsed -n -e '/^#/d' -e '/authdom=/!d' -e 's/.*authdom=//' -e 's/ .*//' -e p /lib/ndb/local}
+	authpw=`{$B/hcat /boot/authfeed.txt}
+	owner=`{$B/hcat /dev/user}
+	if(~ $#authdom 1){
+		if(~ $#authpw 1){
+			if(~ $#owner 1){
+				if($B/hfactotum -s factotum){
+					if(svc_waitpath 10 /mnt/factotum/ctl){
+						$B/hecho 'key proto=p9sk1 user='^$"owner^' dom='^$"authdom^' !password='^$authpw > /mnt/factotum/ctl
+						kout=`{$B/hcat /mnt/factotum/ctl}
+						if(~ $"kout *proto*p9sk1*) factstat=ok
+					}
+				}
+			}
+		}
+	}
+}
+if(~ $factstat ok) echo cpurc: FACTOTUM-OK
+if not echo cpurc: FAIL factotum
+
+# --- leg 6: bind the service dir + aux/listen -t (CPU-03's letter) ---
+# The namespace's `bind /root/$cputype/bin /bin' REPLACES /bin, so the
+# paq-local bin/service is shadowed; the donor's own fix binds it back
+# over the name (the rc/bin/service union copy §15 stages makes the
+# target name resolve).  aux/listen runs TRUSTED (-t): the untrusted
+# arm's becomenone would strip /mnt/factotum and the service would die
+# mid-auth (Pattern 1).  listen rforks its announce loop and returns;
+# the bounded port spin proves the tcp17010 announce.
+l17010stat=fail
+if(~ $factstat ok){
+	if(bind /root/bin/service /bin/service){
+		/amd64/bin/aux/listen -t /bin/service tcp
+		svc_waitport 10 17010
+		if(! ~ $svcportfound '') l17010stat=ok
+	}
+}
+if(~ $l17010stat ok) echo cpurc: LISTEN-17010
+if not echo cpurc: FAIL listen-17010
+
+# --- the terminal verdict (DONE only on a fully-green ladder) --------
+sweepstat=ok
+if(! ~ $pairfail '') sweepstat=fail
+if(! ~ $authlo up) sweepstat=fail
+if(! ~ $keyfsstat ok) sweepstat=fail
+if(! ~ $lststat ok) sweepstat=fail
+if(! ~ $factstat ok) sweepstat=fail
+if(! ~ $l17010stat ok) sweepstat=fail
+if(~ $sweepstat ok) echo cpurc: DONE
+if not echo cpurc: FAIL sweep
+exit

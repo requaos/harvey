@@ -10,11 +10,14 @@
 # tree + the tier-2 services sweep payload for the r9-x64 venue), and,
 # since 18-01, build/x86_64/out/bootfs-substrate.paq (the SUBSTRATE
 # image — the marker-image shape with randread as /amd64/init, the
-# q35auth random substrate gate's own leg-1 marker), and, since 19-01,
-# build/x86_64/out/bootfs-cpu.paq (the CPU image's §15 seed — the
-# chain tree + the cpurc fixture at /rc/bin/cpurc; the service=cpu
-# identity itself arrives through the boot protocol, NOT file content:
-# the ISO append seam's init=/amd64/init -c bootconf), the
+# q35auth random substrate gate's own leg-1 marker), and, since 19-01
+# (the seed) / 19-07 (the FULL seventh contract),
+# build/x86_64/out/bootfs-cpu.paq (the CPU image — the chain tree + the
+# 18 auth suite + cmd/cpu + aux/listen + the real #! cpurc + the
+# tcp17010 service file + the font payload + §15's own bake-time p9sk1
+# domain; the service=cpu identity itself arrives through the boot
+# protocol, NOT file content: the ISO append seam's
+# init=/amd64/init -c bootconf), the
 # paqfs root
 # images for the r9 x86_64 boots (D-04:
 # the byte format carried VERBATIM from aarch64 — same header magic
@@ -669,9 +672,17 @@ payload_block() {
 }
 
 stage_payload() {
-	# stage_payload <staged-tree> <contract-label>
+	# stage_payload <staged-tree> <contract-label> [authdom]
+	# The optional third arg (19-07, the §15 cpu contract) selects the
+	# AUTH ndb arm: @AUTHDOM@ substitutes from the caller's OWN
+	# generator run (the §14f3 rule verbatim — per-bake paired
+	# material, never a seam value) and the authdom= row STAYS,
+	# asserted present both ways.  The two-arg form (the services
+	# contract) is byte-identical to the 15-08 shape: the row strips,
+	# the strip asserted both ways.
 	_ps=$1
 	_pl=$2
+	_pad=${3:-}
 	[ -s "$PAYLOAD_MANIFEST" ] || err "$PAYLOAD_MANIFEST missing — the committed DESK-03 payload manifest (15-08)"
 	[ -d "$HARVEY/lib/font/bit" ] || err "lib/font/bit missing (the D-14 font payload source)"
 
@@ -709,6 +720,12 @@ stage_payload() {
 	#      substitutes from the seam's new ether key like every other
 	#      venue constant.  The strip is asserted BOTH ways: zero
 	#      authdom= in the output, zero leftover tokens.
+	#      19-07 (§15, the cpu contract) made the function TWO-ARMED:
+	#      with the third arg the authdom row STAYS — @AUTHDOM@
+	#      substitutes from the caller's OWN generator run (the §14f3
+	#      rule verbatim: per-bake paired material, never a seam value)
+	#      and the row's presence is asserted — cpurc's factotum key
+	#      write parses the authdom= value out of THIS file.
 	_ndbt="$ROOT_TREE/lib/ndb/local.template"
 	[ -s "$_ndbt" ] || err "$_ndbt missing — the committed ndb token template (15-08, D-16)"
 	. "$ROOT_TREE/lib/netaddr.rc"
@@ -716,19 +733,32 @@ stage_payload() {
 		|| err "netaddr.rc lacks a slirp_guestv4/slirp_maskv4/slirp_gwv4 seam key (the ndb substitution source)"
 	[ -n "${ether:-}" ] || err "netaddr.rc lacks an ether seam key (the 18-04 NIC MAC's single home — the @ETHER@ substitution source)"
 	mkdir -p "$_ps/lib/ndb"
-	sed -e "/authdom=@AUTHDOM@/d" \
-		-e "s/@GUESTV4@/$slirp_guestv4/g" -e "s/@MASKV4@/$slirp_maskv4/g" \
-		-e "s/@GWV4@/$slirp_gwv4/g" -e "s/@ETHER@/$ether/g" "$_ndbt" > "$_ps/lib/ndb/local"
+	if [ -n "$_pad" ]; then
+		sed -e "s/@GUESTV4@/$slirp_guestv4/g" -e "s/@MASKV4@/$slirp_maskv4/g" \
+			-e "s/@GWV4@/$slirp_gwv4/g" -e "s/@ETHER@/$ether/g" \
+			-e "s/@AUTHDOM@/$_pad/g" "$_ndbt" > "$_ps/lib/ndb/local"
+	else
+		sed -e "/authdom=@AUTHDOM@/d" \
+			-e "s/@GUESTV4@/$slirp_guestv4/g" -e "s/@MASKV4@/$slirp_maskv4/g" \
+			-e "s/@GWV4@/$slirp_gwv4/g" -e "s/@ETHER@/$ether/g" "$_ndbt" > "$_ps/lib/ndb/local"
+	fi
 	if "$GREP" -q '@' "$_ps/lib/ndb/local"; then
 		err "payload: /lib/ndb/local carries an unsubstituted token (the template names a token the seam substitution does not know)"
 	fi
 	for _v in "$slirp_guestv4" "$slirp_maskv4" "$slirp_gwv4" "$ether"; do
 		"$GREP" -qF "$_v" "$_ps/lib/ndb/local" || err "payload: /lib/ndb/local lacks the seam value $_v (a template token went missing)"
 	done
-	if "$GREP" -v '^#' "$_ps/lib/ndb/local" | "$GREP" -q 'authdom='; then
-		err "payload: /lib/ndb/local carries an authdom= data row (the services image has no auth domain — the 18-04 auth-row strip failed; comment prose mentioning authdom= is fine)"
+	if [ -n "$_pad" ]; then
+		if ! "$GREP" -v '^#' "$_ps/lib/ndb/local" | "$GREP" -q "authdom=$_pad"; then
+			err "payload: /lib/ndb/local lacks the authdom=$_pad data row (the auth-arm substitution dropped the 18-04 row — the cpu image's cpurc parses it for factotum's key write)"
+		fi
+		echo "payload manifest: /lib/ndb/local substituted from lib/ndb/local.template (the seam's four tokens + authdom=$_pad from the caller's own generator run — the 19-07 auth arm, row KEPT) [$_pl]"
+	else
+		if "$GREP" -v '^#' "$_ps/lib/ndb/local" | "$GREP" -q 'authdom='; then
+			err "payload: /lib/ndb/local carries an authdom= data row (the services image has no auth domain — the 18-04 auth-row strip failed; comment prose mentioning authdom= is fine)"
+		fi
+		echo "payload manifest: /lib/ndb/local substituted from lib/ndb/local.template (the netaddr seam's slirp leg + ether; the 18-04 auth row stripped — no domain in this image) [$_pl]"
 	fi
-	echo "payload manifest: /lib/ndb/local substituted from lib/ndb/local.template (the netaddr seam's slirp leg + ether; the 18-04 auth row stripped — no domain in this image) [$_pl]"
 
 	# P3. [paths]: every listed path present + non-empty in the staged
 	#     tree (a directory entry is a tree entry — it must carry a
@@ -1688,106 +1718,154 @@ trailer8=$(od -An -tx1 -j $((sz8 - 28)) -N 4 "$AUTH_IMAGE" | tr -d ' \n')
 echo "== PASS: baked $AUTH_IMAGE ($sz8 bytes; chain + auth suite + the paired p9sk1 domain; header $magic8 trailer $trailer8; KERNDATE $KERNDATE)"
 
 # ------------------------------------------------------------------
-# 15. the CPU bake (19-01, CPU-02 — the SEVENTH contract's seed form:
-#     the skeleton the full contract in 19-07 expands): the chain tree
-#     + the cpurc fixture at /rc/bin/cpurc — out/bootfs-cpu.paq.  The
-#     cpu image is DELIVERED its service identity through the boot
-#     protocol, never file content: the ISO's append seam carries
-#     init=/amd64/init -c (the q35cpu profile's [dist] append key ->
-#     grub.cfg @R9-APPEND@ -> the mb2 tag-1 cmdline -> the kernel's
-#     bootconf pairs -> the seeded ROOT env group), boot(8)'s execinit
-#     consumes the multi-word init value verbatim (boot.c:208-214,
-#     getenv("init") honored FIRST), and init -c's cpustart runs
-#     rc -c /rc/bin/cpurc.  EXPANSION POINTS (19-07's full contract):
-#     the real cpurc re-keyed from cfg/example/cpurc + 18's proven
-#     daemon sequence (keyfs/authsrv/listeners) replaces the fixture
-#     body below — the tier-computed cpu suite (cmd/cpu, exportfs,
-#     aux/listen) joins the payload — and the §14-style seam asserts
-#     arrive with it.  Since 19-03 the fixture is a REAL #! rc SCRIPT
-#     (the kernel #! pre-pass re-execs it through /amd64/bin rc —
-#     rcmain eval's $cflag, rc exec's /rc/bin/cpurc, the kernel sniffs
-#     the #! head) carrying the two ring-3 legs: the hash-bang exec
-#     round-trip (SHEBANG-OK) and the REMOVE/sys_remove round-trip over
-#     the ported devcap arm (REMOVE-OK).  The script RETURNS (rcmain's
-#     exit $status) — the one-proc chain then hits the all-exited park,
-#     a clean end state; the `init: starting /bin/rc` loop print stays
-#     prohibited (init was exec'd away before cpurc ran).  Purely
-#     additive: every earlier contract untouched.
+# 15. the CPU bake (19-01's seed, EXPANDED by 19-07 into the SEVENTH
+#     contract's full form — CPU-02's composed half + CPU-03's letter):
+#     the chain tree + the 18 auth suite (§14's computed h* set — ONE
+#     resolver, never a second list) + cmd/cpu at its #! interpreter
+#     path + aux/listen at the donor's /amd64/bin/aux path + the
+#     re-keyed cpurc (the committed root-tree/rc/bin/cpurc, staged by
+#     the skeleton tar — a REAL #! rc script since 19-03) + the
+#     tcp17010 service file + the DESK-03 font payload (stage_payload,
+#     the auth-arm ndb compose) + §15's OWN bake-time p9sk1 domain —
+#     out/bootfs-cpu.paq.
+#
+#     The service identity still arrives through the BOOT PROTOCOL,
+#     never file content: the ISO append seam carries
+#     init=/amd64/init -c (19-01), boot(8)'s execinit tokenizes it
+#     verbatim, init -c's cpustart runs rc -c /rc/bin/cpurc, and cpurc
+#     walks the fail-loud ladder (pairing -> loopback -> keyfs ->
+#     listen1 -t authsrv -> factotum -> aux/listen -t /bin/service tcp)
+#     with the cpurc: marker vocabulary the bring-up gate asserts —
+#     secstored and cs intentionally NOT started (numeric dials only,
+#     secstore off the drawterm path).  The desktop is in-session only:
+#     the profile's cpu case guards its window-manager exec on the
+#     client's draw device (DESK-02/05) and never runs at boot.
+#
+#     The 19-03 fixture legs (SHEBANG-OK/REMOVE-OK/cpurc: RAN) are
+#     RETIRED with the fixture body: the #! exec they proved is now
+#     LOAD-BEARING at the tcp17010 service point itself (every
+#     per-connection exec of the service file rides the same kernel
+#     pre-pass), and the r9-side q35cpu boot profile's expectations
+#     re-key in the next r9-touching plan (this plan's authority is
+#     harvey-side only).
 CPU_IMAGE="$OUT/bootfs-cpu.paq"
 
-# 15a. the fixture scripts (19-03: the 19-01 marker BINARY replaced by
-#      a REAL #! rc script — the kernel #! pre-pass (19-03 CPU-01)
-#      makes scripts executable, so cpurc itself is now the first live
-#      proof; a binary fixture could never carry rc legs).  Two files:
-#      the cpurc script (the marker + the two ring-3 legs) and the
-#      service-shaped #! script leg 1 execs (the donor tcp17010 home
-#      shape: /bin/service/<name>).  Guards replace the binary's magic
-#      checks: the #! head bytes and the marker vocabulary in the text.
-#      rc dialect: the auth-sweep flat ladders verbatim (same-line
-#      if(cmd){...} bodies, `if not cmd`, whole-word assignments alone
-#      on their line — no braced if-not, no bare =, no fd-dup).
-cat > "$TMPD/cpurc" <<'EOF'
-#!/amd64/bin/rc
-# cpurc — the §15 cpu-image fixture (19-03).  The 19-01 marker binary
-# replaced by a real #! script: the kernel exec pre-pass re-execs this
-# file through /amd64/bin/rc, proving #! at the cpurc point itself.
-# Two legs prove the new syscall surface live from ring 3:
-#   leg 1: exec the service-shaped #! script (interpreter echo, one
-#          token) — the token on serial is the argv-order proof
-#          end-to-end (#! tokens lead, script path, caller argv)
-#   leg 2: rm the #¤/caphash device file (the ported remove arm's
-#          named consumer, 19-03 CPU-03) then test -e its absence
-/amd64/bin/echo cpurc: RAN
-shebstat=fail
-if(/bin/service/shebangecho){
-	shebstat=ok
-}
-rmstat=ok
-/amd64/bin/rm '#¤/caphash'
-if(/amd64/bin/test -e '#¤/caphash'){
-	rmstat=fail
-}
-if(~ $shebstat ok) /amd64/bin/echo SHEBANG-OK
-if not /amd64/bin/echo SHEBANG-FAIL
-if(~ $rmstat ok) /amd64/bin/echo REMOVE-OK
-if not /amd64/bin/echo REMOVE-FAIL
-EOF
-[ "$(head -c 2 "$TMPD/cpurc")" = '#!' ] || err "cpurc script: missing the #! marker bytes"
-for m in "cpurc: RAN" "SHEBANG-OK" "REMOVE-OK" "shebangecho"; do
-	"$GREP" -q "$m" "$TMPD/cpurc" || err "cpurc script: the marker '$m' missing from the fixture body"
+# 15a. tier-entry asserts (the 14a discipline): §14's own 14a greps
+#      cover the auth suite this bake re-uses (AUTH_HLIST); §15 asserts
+#      ITS additions — cmd/cpu (the #! interpreter binary) and
+#      cmd/aux:listen (the service-dir listener) — plus the tier-1
+#      sed line cpurc's authdom parse runs (not in §14's helper set)
+for e in cmd/cpu cmd/aux:listen; do
+	"$GREP" -qE "^$e([[:space:]]|#|$)" "$AUTH_T2" \
+		|| err "cpu bake: tier-2 data lacks the cpu-suite entry $e (the bake's staging set and the tier data diverged)"
 done
-cat > "$TMPD/shebangecho" <<'EOF'
-#!/amd64/bin/echo SHEBANG-OK
-EOF
-[ "$(head -c 2 "$TMPD/shebangecho")" = '#!' ] || err "shebangecho: missing the #! marker bytes"
-# Executable modes: rc's exec opens the service file OEXEC and paqfs
-# checks the bit — the heredoc's 644 default refuses ("permission
-# denied", measured live on the first gate run; the 9k k10 root stages
-# tcp17010 through its own mkroot machinery, so this venue sets the bit
-# itself).  cpurc itself is only ever READ (rc interprets it as its
-# script file), but ships 755 for the same shape.
-chmod 755 "$TMPD/cpurc" "$TMPD/shebangecho"
-[ "$(wc -c < "$TMPD/shebangecho")" -le 32 ] \
-	|| err "shebangecho: the #! line exceeds the donor's 32-byte bound"
-"$GREP" -q "SHEBANG-OK" "$TMPD/shebangecho" || err "shebangecho: the token missing"
+"$GREP" -qE "^cmd/sed([[:space:]]|#|$)" "$AUTH_T1D" \
+	|| err "cpu bake: tier-1 data lacks cmd/sed (cpurc's authdom parse helper)"
+
+# 15b. inputs + shape guards (named loudly, before any staging spend):
+#      the cpu binaries at their exec paths, the committed cpurc + the
+#      service file with their pinned heads/markers/exec bits
+for f in cpu listen sed; do
+	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first (tier-2 cmd/cpu, cmd/aux:listen; tier-1 cmd/sed)"
+done
+CPURC_SRC="$ROOT_TREE/rc/bin/cpurc"
+SVC17010_SRC="$ROOT_TREE/bin/service/tcp17010"
+[ -f "$CPURC_SRC" ] || err "$CPURC_SRC missing — the committed real cpurc (19-07)"
+[ -f "$SVC17010_SRC" ] || err "$SVC17010_SRC missing — the committed service file (19-07)"
+[ "$(head -c 2 "$CPURC_SRC")" = '#!' ] || err "cpurc: missing the #! marker bytes"
+for m in "cpurc: PAIR-OK" "cpurc: KEYFS-OK" "cpurc: AUTHSRV-LISTEN" \
+	"cpurc: FACTOTUM-OK" "cpurc: LISTEN-17010" "cpurc: DONE" \
+	"aux/listen -t /bin/service tcp" "listen1 -t"; do
+	"$GREP" -q "$m" "$CPURC_SRC" || err "cpurc: the marker/shape '$m' missing from the committed body"
+done
+[ -x "$CPURC_SRC" ] || err "cpurc: not executable (paqfs refuses OEXEC on 644 — the 19-03 measured rule)"
+[ "$(head -1 "$SVC17010_SRC")" = '#!/amd64/bin/cpu -R' ] \
+	|| err "tcp17010: the first line is not the pinned authenticated hash-bang (#!/amd64/bin/cpu -R — no -N, per CONTEXT)"
+[ "$(wc -c < "$SVC17010_SRC")" -le 32 ] \
+	|| err "tcp17010: the #! line exceeds the donor's 32-byte bound"
+[ -x "$SVC17010_SRC" ] || err "tcp17010: not executable (listen's per-conn exec opens OEXEC)"
+
+# 15c. the bake-time p9sk1 domain — §15's OWN generate run (§14's
+#      compiled generator reused; per-bake paired material, so the §14
+#      and §15 images carry DIFFERENT domains by design — one image
+#      per gate), the authdom token captured for the ndb compose, the
+#      paired unit staged at its guest homes, then the D-02 pairing
+#      assert over the STAGED COPIES (the 14f discipline verbatim)
+CPU_DOM="$TMPD/cpudom-stage"
+(cd "$HARVEY" && "$AUTH_GEN" -o "$CPU_DOM") \
+	|| err "cpu bake: authdomain-gen -o failed (the bake-time domain generate)"
+CPU_AUTHDOM_VAL=$( ("$AUTH_GEN" -i "$CPU_DOM") 2>/dev/null | awk '$1 == "authdom:" { print $2 }' )
+[ -n "$CPU_AUTHDOM_VAL" ] || err "cpu bake: authdomain-gen -i printed no authdom token (the @AUTHDOM@ substitution source)"
 
 STAGE9="$TMPD/root-cpu"
 mkdir -p "$STAGE9"
 
-# 15b. the committed skeleton (the chain bake's 8b shape — termrc rides
-#      it INERT: the cpu path never reads it, and 19-07's real cpurc
-#      replaces the fixture without touching it)
+# 15d. the committed skeleton (the chain bake's 8b shape — the REAL
+#      cpurc rides it at rc/bin/cpurc; termrc rides INERT: the cpu
+#      path never reads it; the service file rides it at
+#      bin/service/tcp17010, the paq path the manifest asserts)
 (cd "$ROOT_TREE" && tar -cf - .) | (cd "$STAGE9" && tar -xf -)
 
-# 15c. empty mount-point dirs + staging parents (the chain bake's 8c
-#      fixed-order set)
-mkdir -p "$STAGE9/root" "$STAGE9/env" "$STAGE9/proc" "$STAGE9/dev" "$STAGE9/srv" \
-	"$STAGE9/fd" "$STAGE9/bin" "$STAGE9/tmp" "$STAGE9/mnt" \
-	"$STAGE9/net" "$STAGE9/boot" "$STAGE9/amd64/bin" \
-	"$STAGE9/rc/lib" "$STAGE9/rc/bin" "$STAGE9/adm/timezone"
+# 15e. the DESK-03 font payload, DECLARED with the AUTH ndb arm (19-07):
+#      the whole lib/font/bit tree + /lib/ndb/local composed with the
+#      authdom row KEPT (cpurc's factotum leg parses it) + the manifest
+#      and profile-shape asserts over the staged tree (section P)
+stage_payload "$STAGE9" cpu "$CPU_AUTHDOM_VAL"
 
-# 15d. the chain binaries (the 8d set verbatim — the cpu image runs the
-#      SAME chain as the terminal image; only the bootconf differs)
+# 15f. empty mount-point dirs + staging parents (the chain set + the
+#      domain's /adm + the /lib/ndb home + the donor proto's /mnt/term
+#      mount point — cpu -R's remoteside mounts the client's exportfs
+#      there, the 19-08 dial's target; the donor k10root.proto stages
+#      the same dir)
+mkdir -p "$STAGE9/root" "$STAGE9/env" "$STAGE9/proc" "$STAGE9/dev" "$STAGE9/srv" \
+	"$STAGE9/fd" "$STAGE9/bin" "$STAGE9/tmp" "$STAGE9/mnt/term" \
+	"$STAGE9/net" "$STAGE9/boot" "$STAGE9/amd64/bin/aux" \
+	"$STAGE9/rc/lib" "$STAGE9/rc/bin/service" "$STAGE9/adm/timezone" "$STAGE9/adm" \
+	"$STAGE9/lib/ndb"
+
+# 15g. the domain staging + the pairing assert (the 14f shape over
+#      §15's own run): nvram at its 112-byte guest-ABI size, keys, the
+#      manifest, the speaksfor ndb rows — then authdomain-gen -V over a
+#      scratch twin of the STAGED copies (the bake REFUSES on mismatch)
+mkdir -p "$STAGE9/adm" "$STAGE9/lib/ndb"
+cp "$CPU_DOM/nvram" "$STAGE9/adm/nvram"
+cp "$CPU_DOM/keys" "$STAGE9/adm/keys"
+cp "$CPU_DOM/manifest" "$STAGE9/adm/domain.manifest"
+cp "$CPU_DOM/ndb-auth" "$STAGE9/lib/ndb/auth"
+_nb=$(wc -c < "$STAGE9/adm/nvram" | tr -d ' ')
+[ "$_nb" -eq 112 ] || err "cpu bake: staged /adm/nvram is $_nb bytes, want 112 (the 109-byte Nvrsafe + the 6c guest-ABI tail pad)"
+[ -s "$STAGE9/adm/keys" ] || err "cpu bake: staged /adm/keys is empty"
+[ -s "$STAGE9/adm/domain.manifest" ] || err "cpu bake: staged /adm/domain.manifest is empty"
+[ -s "$STAGE9/lib/ndb/auth" ] || err "cpu bake: staged /lib/ndb/auth is empty"
+CPU_VDIR="$TMPD/cpu-auth-verify"
+mkdir -p "$CPU_VDIR"
+cp "$STAGE9/adm/nvram" "$CPU_VDIR/nvram"
+cp "$STAGE9/adm/keys" "$CPU_VDIR/keys"
+cp "$STAGE9/lib/ndb/auth" "$CPU_VDIR/ndb-auth"
+cp "$STAGE9/adm/domain.manifest" "$CPU_VDIR/manifest"
+"$AUTH_GEN" -V "$CPU_VDIR" \
+	|| err "cpu bake: the D-02 pairing assert REFUSED the staged copies (authdomain-gen -V nonzero — the bake refuses)"
+echo "== cpu pairing verified over the staged copies (authdomain-gen -V over the bake's own scratch twin)"
+
+# 15h. the DEMO feed (cpurc's factotum sentinel-read source) + the
+#      host-side creds copy (§15's run is the SURVIVING out/auth-creds
+#      copy — §15 bakes after §14, and 19-08 dials THIS image; the
+#      14f2b/14f2c shape verbatim)
+mkdir -p "$STAGE9/boot"
+[ -s "$CPU_DOM/feed" ] || err "cpu bake: the generator emitted no feed artifact (cpurc's factotum leg)"
+_feedlines=$(wc -l < "$CPU_DOM/feed" | tr -d ' ')
+[ "$_feedlines" -eq 1 ] || err "cpu bake: the feed artifact is $_feedlines lines, want exactly 1"
+[ "$(tail -c 1 "$CPU_DOM/feed" | od -An -tx1 | tr -d ' \n')" = "0a" ] \
+	|| err "cpu bake: the feed artifact is not newline-terminated (the Brdline discipline)"
+cp "$CPU_DOM/feed" "$STAGE9/boot/authfeed.txt"
+[ -s "$CPU_DOM/auth-creds" ] || err "cpu bake: the generator emitted no auth-creds artifact (the D-12 creds emission)"
+rm -f "$OUT/auth-creds.txt"
+cp "$CPU_DOM/auth-creds" "$OUT/auth-creds.txt"
+
+# 15i. the chain binaries (the 8d set minus the retired 19-03 leg
+#      binaries rm/test — the cpu image runs the SAME chain as the
+#      terminal image; only the bootconf differs; echo stays: rc has
+#      no builtin echo and the in-session shell needs /bin/echo)
 cp "$CHAIN_OUT/boot" "$STAGE9/boot/boot"
 cp "$CHAIN_OUT/paqfs" "$STAGE9/boot/paqfs"
 cp "$CHAIN_OUT/init" "$STAGE9/amd64/init"
@@ -1796,45 +1874,82 @@ cp "$CHAIN_OUT/ls" "$STAGE9/amd64/bin/ls"
 cp "$CHAIN_OUT/cat" "$STAGE9/amd64/bin/cat"
 cp "$CHAIN_OUT/echo" "$STAGE9/amd64/bin/echo"
 cp "$CHAIN_OUT/ps" "$STAGE9/amd64/bin/ps"
-# 19-03: the legs' binaries — rm (the REMOVE round-trip) and test (the
-# -e absence assert); both mkmany link-only targets, same as above
-cp "$CHAIN_OUT/rm" "$STAGE9/amd64/bin/rm"
-cp "$CHAIN_OUT/test" "$STAGE9/amd64/bin/test"
-# ... and the fixtures: cpustart's exec target + leg 1's service script.
-# The service script stages under rc/bin/service (the donor k10root
-# shape: namespace's `bind /root/$cputype/bin /bin` REPLACES /bin, then
-# `bind -a /root/rc/bin /bin` appends the rc tree — a paq-local
-# /bin/service would be shadowed by the replace; /rc/bin/service/...
-# surfaces at /bin/service/... through the union).
-cp "$TMPD/cpurc" "$STAGE9/rc/bin/cpurc"
-mkdir -p "$STAGE9/rc/bin/service"
-cp "$TMPD/shebangecho" "$STAGE9/rc/bin/service/shebangecho"
 
-# 15e. bake-time verbatim copies (the 8e set — rcmain: the rc-main
-#      whose `eval $cflag` runs the fixture; timezone: init's cpenv)
+# 15j. the auth-suite payload (§14's computed AUTH_HLIST verbatim — one
+#      resolver) + the tier-1 helper vocabulary (the cpurc additions:
+#      sed for the authdom parse rides beside cat/echo/ls/test/sleep/
+#      sha1sum/factotum) + the unprefixed exec-path supply (bind: the
+#      loopback bring-up's own call; authsrv: the listen1 exec target
+#      cpurc names by absolute path) + the cpu suite at the donor's
+#      exec paths (cpu: tcp17010's #! interpreter; aux/listen: the
+#      k10root.proto's own /amd64/bin/aux home)
+while read -r _h _src; do
+	cp "$_src" "$STAGE9/amd64/bin/$_h"
+done < "$AUTH_HLIST"
+for rel in cat echo ls test sleep sha1sum sed auth/factotum; do
+	[ -f "$BIN/$rel" ] || err "$BIN/$rel missing — run sh build/x86_64/subset-build.sh first (the cpurc helper set)"
+	cp "$BIN/$rel" "$STAGE9/amd64/bin/h${rel##*/}"
+done
+cp "$BIN/bind" "$STAGE9/amd64/bin/bind"
+cp "$BIN/auth/authsrv" "$STAGE9/amd64/bin/authsrv"
+magic=$(od -An -tx1 -N4 "$STAGE9/amd64/bin/authsrv" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "cpu bake: authsrv exec-path copy: bad magic $magic (want 00008a97)"
+cp "$BIN/cpu" "$STAGE9/amd64/bin/cpu"
+magic=$(od -An -tx1 -N4 "$STAGE9/amd64/bin/cpu" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "cpu bake: cpu exec-path copy: bad magic $magic (want 00008a97)"
+cp "$BIN/listen" "$STAGE9/amd64/bin/aux/listen"
+magic=$(od -An -tx1 -N4 "$STAGE9/amd64/bin/aux/listen" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "cpu bake: aux/listen exec-path copy: bad magic $magic (want 00008a97)"
+
+# 15k. the service file's GUEST-side surfacing: the paq-local
+#      bin/service is SHADOWED by the namespace's plain /bin bind (the
+#      19-03 finding), so cpurc binds it back over the name — and the
+#      bind target must RESOLVE first (r9's sys_bind requires an
+#      existing target): the rc/bin/service staged copy surfaces at
+#      /bin/service through the `bind -a /root/rc/bin /bin' union (the
+#      donor k10root.proto stages its service files there for exactly
+#      this reason; the shebangecho fixture proved the union path live)
+cp "$SVC17010_SRC" "$STAGE9/rc/bin/service/tcp17010"
+
+# 15l. bake-time verbatim copies (the 8e set — rcmain: the rc-main
+#      whose `eval $cflag' runs cpurc; timezone: init's cpenv)
 cp "$HARVEY/rc/lib/rcmain" "$STAGE9/rc/lib/rcmain"
 cp "$HARVEY/adm/timezone/local" "$STAGE9/adm/timezone/local"
 
-# 15f. pre-bake manifest — PRINTED naming §15 (the bake log is the
-#      gate's evidence; later gates grep the section)
+# 15m. pre-bake manifest — PRINTED naming §15 (the bake log is the
+#      gate's evidence; the bring-up probe greps these lines)
 for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
-	amd64/bin/rm amd64/bin/test \
-	rc/lib/rcmain rc/bin/cpurc rc/bin/service/shebangecho rc/bin/termrc lib/namespace \
-	adm/timezone/local usr/glenda/lib/profile; do
+	amd64/bin/bind amd64/bin/authsrv amd64/bin/cpu \
+	amd64/bin/aux/listen \
+	rc/lib/rcmain rc/bin/cpurc rc/bin/service/tcp17010 \
+	bin/service/tcp17010 rc/bin/termrc lib/namespace lib/netaddr.rc \
+	lib/ndb/auth lib/ndb/local adm/timezone/local adm/nvram adm/keys \
+	adm/domain.manifest boot/authfeed.txt usr/glenda/lib/profile; do
 	[ -f "$STAGE9/$p" ] || err "cpu manifest (§15): $p missing from staged tree"
 	echo "cpu manifest (§15): /$p staged"
 done
-for p in root env proc dev srv fd bin tmp mnt net; do
+_nh=0
+while read -r _h _src; do
+	[ -f "$STAGE9/amd64/bin/$_h" ] || err "cpu manifest (§15): amd64/bin/$_h missing from staged tree"
+	_nh=$((_nh + 1))
+done < "$AUTH_HLIST"
+echo "cpu manifest (§15): ${_nh} h* sweep binaries staged (§14's computed auth-suite set + the tier-1 helpers incl. hfactotum/hsed)"
+for p in root env proc dev srv fd bin tmp mnt/term net; do
 	[ -d "$STAGE9/$p" ] || err "cpu manifest (§15): mount-point dir /$p missing"
 done
 
-# 15g. /boot/factotum ABSENCE (auth-stub-by-absence — the same D-02
-#      rule as every bake above) + rcmain byte-verbatim (the 8h guard)
+# 15n. /boot/factotum ABSENCE (the D-02 rule; hfactotum is the sweep
+#      payload, NOT the boot auth stub) + NO writable /sys/log (the
+#      14l rule: syslog's #c/cons fallback is the serial-visibility
+#      mechanism) + rcmain byte-verbatim (the 8h guard)
 [ ! -e "$STAGE9/boot/factotum" ] || err "cpu manifest (§15): /boot/factotum present — auth-stub-by-absence violated"
+[ ! -e "$STAGE9/sys/log" ] || err "cpu manifest (§15): a /sys/log tree is staged — Pitfall 6 (the syslog console fallback IS the serial-visibility mechanism)"
 cmp -s "$HARVEY/rc/lib/rcmain" "$STAGE9/rc/lib/rcmain" || err "staged rcmain diverges from rc/lib/rcmain (cpu)"
+cmp -s "$SVC17010_SRC" "$STAGE9/bin/service/tcp17010" || err "staged bin/service/tcp17010 diverges from the committed skeleton copy"
+cmp -s "$SVC17010_SRC" "$STAGE9/rc/bin/service/tcp17010" || err "staged rc/bin/service/tcp17010 diverges from the committed skeleton copy"
 
-# 15h. determinism + bake (the 14n rule: the per-file cap assert — the
+# 15o. determinism + bake (the 14n rule: the per-file cap assert — the
 #      15-07 measured hazard; the mkpaqfs failure itself is the
 #      fail-on-any-diagnostic backstop)
 _maxf9=$(find "$STAGE9" -type f -printf '%s\n' | sort -n | tail -1)
@@ -1844,7 +1959,7 @@ rm -f "$CPU_IMAGE"
 KERNDATE="$KERNDATE" "$MKPAQFS" -o "$CPU_IMAGE" "$STAGE9" || err "mkpaqfs failed (cpu)"
 [ -s "$CPU_IMAGE" ] || err "$CPU_IMAGE missing/empty after mkpaqfs"
 
-# 15i. the byte-format contract (the 14o rule: same header/trailer
+# 15p. the byte-format contract (the 14o rule: same header/trailer
 #      magic checks)
 magic9=$(od -An -tx1 -N4 "$CPU_IMAGE" | tr -d ' \n')
 [ "$magic9" = "529ab12b" ] || err "$CPU_IMAGE: bad header magic $magic9 (want 529ab12b)"
@@ -1852,4 +1967,4 @@ sz9=$(wc -c < "$CPU_IMAGE" | tr -d ' ')
 trailer9=$(od -An -tx1 -j $((sz9 - 28)) -N 4 "$CPU_IMAGE" | tr -d ' \n')
 [ "$trailer9" = "6b46e688" ] || err "$CPU_IMAGE: bad trailer magic $trailer9 (want 6b46e688)"
 
-echo "== PASS: baked $CPU_IMAGE ($sz9 bytes; chain + the §15 cpurc #! script fixture + the shebang/remove legs' binaries; header $magic9 trailer $trailer9; KERNDATE $KERNDATE)"
+echo "== PASS: baked $CPU_IMAGE ($sz9 bytes; chain + the auth suite + cmd/cpu + aux/listen + the real cpurc + tcp17010 + the font payload + the §15 p9sk1 domain; header $magic9 trailer $trailer9; KERNDATE $KERNDATE)"

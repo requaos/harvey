@@ -13,8 +13,13 @@
 #     exists on the serial image and a failed redirect RAISES in rc
 #     (the 15-02 measured dialect) — a future draw-terminal venue
 #     re-derives its own mouse/plumbing bring-up
-#   - the cpu case stays INTACT verbatim (the /mnt/term binds, the
-#     latin1.8 font, exec rio) — Phase 19 consumes it unchanged
+#   - the cpu case stays INTACT except two GUARDED 19-07 additions
+#     (DESK-02/DESK-05): the window-manager exec sits behind a
+#     draw-presence guard (test -e /mnt/term/dev/draw — a text-mode
+#     -G session has no draw device and stays a plain cpu% shell
+#     instead of dying at the exec; boot never runs the profile at
+#     all, so the desktop is provably in-session only), and plumber
+#     starts in-session before it under the same guard
 bind -a $home/bin/rc /bin
 bind -a $home/bin/$cputype /bin
 bind -c tmp /tmp
@@ -39,7 +44,10 @@ case cpu
 	fn cpu%{ $* }
 	if (! test -e /mnt/term/mnt/wsys) {	# cpu call from drawterm
 		font=/lib/font/bit/pelm/latin1.8.font
-		exec rio
+		if (test -e /mnt/term/dev/draw) {	# the client serves draw — the in-session desktop (DESK-02: guarded, so a text-mode -G session stays a plain cpu% shell instead of dying at the exec)
+			plumber	# in-session plumbing before the window manager (DESK-05)
+			exec rio
+		}
 	}
 case con
 	prompt=('cpu% ' '	')
