@@ -11,6 +11,10 @@
 #   - the local-file interface path (Task 3): a filled-in copy of the
 #     committed authdomain.example drives its own label/authdom/users
 #     with distinct passwords; a requested-but-missing -f refuses
+#   - the authid-creds artifact (19-10): the AUTHID's own name+password
+#     in the creds line shape — pinned BY VALUE on the local-file leg
+#     (the authid's password, never another user's) — and the authid
+#     membership rule: a user list without bootes refuses loud
 #   - verify-mode teeth (Task 2): four doctored-input classes each
 #     refuse with a nonzero exit and their own marker
 #   - label discipline (Task 2): the DEMO token in the nvram authdom
@@ -80,6 +84,21 @@ FL=$(wc -l < demo/feed | tr -d ' ')
 [ -s demo/feed ] || fail "feed is empty"
 [ "$(tail -c 1 demo/feed | od -An -tx1 | tr -d ' \n')" = "0a" ] \
 	|| fail "feed is not newline-terminated"
+
+# the authid-creds artifact (19-10): the AUTHID's own name+password in
+# the creds line shape — the §15 cpu bake's /boot/authid-creds.txt
+# source (cpurc's factotum leg, the p9sk1 SERVER key).  The user= line
+# is assertable exactly (bootes, public); the password= line is random
+# on the DEMO path — assert its shape + non-emptiness (the local-file
+# leg below pins the VALUE with the known test material)
+AL=$(wc -l < demo/authid-creds | tr -d ' ')
+[ "$AL" = "2" ] || fail "authid-creds is $AL lines, want exactly 2"
+grep -q '^user=bootes$' demo/authid-creds \
+	|| fail "authid-creds user= line is not the fixed authid bootes"
+grep -q '^password=..*$' demo/authid-creds \
+	|| fail "authid-creds password= line is empty/malformed"
+[ "$(tail -c 1 demo/authid-creds | od -An -tx1 | tr -d ' \n')" = "0a" ] \
+	|| fail "authid-creds is not newline-terminated"
 
 grep -q '^label DEMO$' demo/manifest || fail "manifest lacks the 'label DEMO' row"
 grep -q '^users 3$' demo/manifest || fail "manifest lacks the 'users 3' row"
@@ -193,7 +212,29 @@ fi
 grep -q '^users: 3$' info2.log || fail "local-file unit lost the user count"
 grep -q '^names: glenda bootes norbert$' info2.log || fail "local-file unit lost the names"
 grep -q '^label: SELFTEST$' info2.log || fail "local-file unit lost its label in -i"
+# the authid-creds VALUE pin (19-10): the artifact must carry the
+# AUTHID's OWN password — bootes's selftest-pw-two, NOT another user's
+# (glenda's -one / norbert's -three).  This is the tooth that would
+# have reds'd the 19-10 Leg-1 defect's generator side: any LAST-user
+# or hostowner substitution fails here.
+grep -q '^user=bootes$' d2/authid-creds \
+	|| fail "local-file authid-creds user= line is not bootes"
+grep -q '^password=selftest-pw-two$' d2/authid-creds \
+	|| fail "local-file authid-creds carries the WRONG password — want the authid's own (selftest-pw-two)"
 echo "LOCALFILE-PATH-OK"
+
+echo "== authid membership: a user list without the authid refuses loud"
+# (19-10) the cpu server's p9sk1 key derives from the authid's own
+# password; a domain whose authid has no user row is unusable for cpu
+# sessions by construction — generate must refuse, naming the fix
+grep -v '^user bootes ' self.local > nobootes.local
+if ./gen -o d5 -f nobootes.local >nb.log 2>&1; then
+	fail "generate ACCEPTED a user list without the authid (bootes) — the baked cpu image would carry an unusable server key"
+else
+	grep -q "authid bootes is not in the user list" nb.log \
+		|| fail "the no-bootes refusal is not loud about the authid remediation"
+	echo "NO-BOOTES-REFUSED"
+fi
 
 echo "== missing -f: a requested-but-missing file refuses loud"
 # silent fallback to DEMO when a file was EXPLICITLY requested is the

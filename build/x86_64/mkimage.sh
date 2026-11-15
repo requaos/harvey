@@ -1854,17 +1854,23 @@ cp "$STAGE9/adm/domain.manifest" "$CPU_VDIR/manifest"
 	|| err "cpu bake: the D-02 pairing assert REFUSED the staged copies (authdomain-gen -V nonzero — the bake refuses)"
 echo "== cpu pairing verified over the staged copies (authdomain-gen -V over the bake's own scratch twin)"
 
-# 15h. the DEMO feed (cpurc's factotum sentinel-read source) + the
-#      host-side creds copy (§15's run is the SURVIVING out/auth-creds
-#      copy — §15 bakes after §14, and 19-08 dials THIS image; the
-#      14f2b/14f2c shape verbatim)
+# 15h. the p9sk1 SERVER key material (cpurc's factotum leg source —
+#      the authid's OWN name+password; re-keyed 19-10: the original
+#      feed+hostowner load was DEMO-blind, see cpurc leg 5's comment)
+#      + the host-side creds copy (§15's run is the SURVIVING
+#      out/auth-creds copy — §15 bakes after §14, and 19-08 dials THIS
+#      image; the 14f2b/14f2c shape verbatim)
 mkdir -p "$STAGE9/boot"
-[ -s "$CPU_DOM/feed" ] || err "cpu bake: the generator emitted no feed artifact (cpurc's factotum leg)"
-_feedlines=$(wc -l < "$CPU_DOM/feed" | tr -d ' ')
-[ "$_feedlines" -eq 1 ] || err "cpu bake: the feed artifact is $_feedlines lines, want exactly 1"
-[ "$(tail -c 1 "$CPU_DOM/feed" | od -An -tx1 | tr -d ' \n')" = "0a" ] \
-	|| err "cpu bake: the feed artifact is not newline-terminated (the Brdline discipline)"
-cp "$CPU_DOM/feed" "$STAGE9/boot/authfeed.txt"
+[ -s "$CPU_DOM/authid-creds" ] || err "cpu bake: the generator emitted no authid-creds artifact (cpurc's factotum leg — the authid's own p9sk1 server-key material)"
+_aicl=$(wc -l < "$CPU_DOM/authid-creds" | tr -d ' ')
+[ "$_aicl" -eq 2 ] || err "cpu bake: the authid-creds artifact is $_aicl lines, want exactly 2 (user= then password=)"
+"$GREP" -q '^user=[A-Za-z0-9_.-]*$' "$CPU_DOM/authid-creds" \
+	|| err "cpu bake: the authid-creds user= line is malformed (the 14f2c line class)"
+"$GREP" -q '^password=[A-Za-z0-9_.-]*$' "$CPU_DOM/authid-creds" \
+	|| err "cpu bake: the authid-creds password= line is malformed (the 14f2c line class — a space-bearing password reds HERE, fail-loud, never in the guest)"
+[ "$(tail -c 1 "$CPU_DOM/authid-creds" | od -An -tx1 | tr -d ' \n')" = "0a" ] \
+	|| err "cpu bake: the authid-creds artifact is not newline-terminated (the Brdline discipline)"
+cp "$CPU_DOM/authid-creds" "$STAGE9/boot/authid-creds.txt"
 [ -s "$CPU_DOM/auth-creds" ] || err "cpu bake: the generator emitted no auth-creds artifact (the D-12 creds emission)"
 rm -f "$OUT/auth-creds.txt"
 cp "$CPU_DOM/auth-creds" "$OUT/auth-creds.txt"
@@ -1937,7 +1943,7 @@ for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	rc/lib/rcmain rc/bin/cpurc rc/bin/service/tcp17010 \
 	bin/service/tcp17010 rc/bin/termrc lib/namespace lib/netaddr.rc \
 	lib/ndb/auth lib/ndb/local adm/timezone/local adm/nvram adm/keys \
-	adm/domain.manifest boot/authfeed.txt usr/glenda/lib/profile; do
+	adm/domain.manifest boot/authid-creds.txt usr/glenda/lib/profile; do
 	[ -f "$STAGE9/$p" ] || err "cpu manifest (§15): $p missing from staged tree"
 	echo "cpu manifest (§15): /$p staged"
 done

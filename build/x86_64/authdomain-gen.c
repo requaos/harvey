@@ -41,6 +41,25 @@
  *			18-05 prompt feeds' substrate.  NOT a manifest
  *			member (the manifest is the crypto pairing; this is
  *			the same run's convenience copy).
+ *	authid-creds	the AUTHID's own name+password in the creds line
+ *			shape (`user=<authid>' then `password=<the
+ *			authid's password>', both newline-terminated) —
+ *			the §15 cpu bake stages it at /boot/authid-creds.txt
+ *			and cpurc's factotum leg loads it as the domain's
+ *			p9sk1 SERVER key: factotum derives the advertised
+ *			tr.authid from the KEY's user attr (factotum
+ *			p9sk1.c), and authsrv encrypts the server-half
+ *			ticket under findkey(tr.authid), so the attr must
+ *			BE the authid and the bits must be the authid's
+ *			own — never the hostowner's name with another
+ *			user's feed password (the DEMO domain's shared
+ *			password made that shape look right; 19-10's
+ *			Leg-1 requaos report — distinct passwords —
+ *			surfaced it as the srvauth session death).  NOT a
+ *			manifest member (passwords never hash into the
+ *			manifest; the authid itself is public — the nvram
+ *			and ndb-auth carry it).  The authid MUST be in
+ *			the user list: generate refuses loud otherwise.
  *
  * D-04 label venues: the label lands in the nvram authdom (as part of
  * the authdom token), the ndb header comment, and every manifest row
@@ -473,6 +492,21 @@ generate(Domain *d, char *dir)
 	}else if(mkdir(dir, 0755) < 0)
 		sysfatal("can't mkdir %s: %s", dir, strerror(errno));
 
+	/* the authid MUST be a member: its own password derives the p9sk1
+	 * SERVER key (the authid-creds artifact below — cpurc's factotum
+	 * leg), and authsrv encrypts every server-half ticket under
+	 * findkey(authid) — a domain whose authid has no key record is
+	 * unusable for cpu sessions by construction (the ticket would ride
+	 * a made-up random key nobody holds).  Refuse loud with the
+	 * remediation instead of baking a broken image. */
+	for(i = 0; i < d->nu; i++)
+		if(strcmp(d->users[i].name, d->authid) == 0)
+			break;
+	if(i == d->nu)
+		sysfatal("authid %s is not in the user list — add a `user %s <password>' line "
+			"(the cpu image's p9sk1 server key derives from the authid's own password)",
+			d->authid, d->authid);
+
 	/* every user's key derives now, donor code, generate-time */
 	for(i = 0; i < d->nu; i++){
 		u = &d->users[i];
@@ -600,6 +634,30 @@ generate(Domain *d, char *dir)
 	    d->users[d->nu-1].name, d->users[d->nu-1].pw) >= sizeof creds)
 		sysfatal("auth-creds artifact too long");
 	writefile(dir, "auth-creds", creds, strlen(creds), 0444);
+
+	/* authid-creds: the AUTHID's own name+password, the same creds
+	 * line shape — the §15 cpu bake's /boot/authid-creds.txt source.
+	 * cpurc's factotum leg loads it as the domain's p9sk1 server key:
+	 * the key's user attr IS the advertised tr.authid, and the bits
+	 * must match authsrv's findkey(authid) — see the header.  The
+	 * membership is proven above; re-locate the record here so this
+	 * block stays self-contained against later edits. */
+	{
+		int ai;
+		User *au;
+
+		for(ai = 0; ai < d->nu; ai++)
+			if(strcmp(d->users[ai].name, d->authid) == 0)
+				break;
+		if(ai == d->nu)
+			sysfatal("authid %s lost from the user list mid-generate", d->authid);
+		au = &d->users[ai];
+		memset(creds, 0, sizeof creds);
+		if(snprint(creds, sizeof creds, "user=%s\npassword=%s\n",
+		    d->authid, au->pw) >= sizeof creds)
+			sysfatal("authid-creds artifact too long");
+		writefile(dir, "authid-creds", creds, strlen(creds), 0444);
+	}
 	free(buf);
 
 	print("authdomain-gen: generated %s: label=%s authdom=%s authid=%s users=%d\n",

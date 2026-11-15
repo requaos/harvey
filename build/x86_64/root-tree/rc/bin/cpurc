@@ -30,11 +30,12 @@
 #		TRUSTED, flags-carrying arm (aux/listen execs staged
 #		copies bare and cannot pass -d); -t skips becomenone so
 #		authsrv's child keeps /mnt/keys + /lib/ndb/auth
-#	factotum hfactotum -s factotum + the hostowner's p9sk1 key
-#		ctl-written from the baked feed (/boot/authfeed.txt —
-#		the sentinel-read; the dom token parsed from the baked
-#		/lib/ndb/local, the pairing's own artifact): no console
-#		prompt can wedge boot (T-19-17)
+#	factotum hfactotum -s factotum + the DOMAIN'S p9sk1 server key
+#		(the AUTHID's own name+password, ctl-written from the baked
+#		/boot/authid-creds.txt — the generator's authid artifact;
+#		the dom token parsed from the baked /lib/ndb/local, the
+#		pairing's own artifact): no console prompt can wedge boot
+#		(T-19-17)
 #	listen	bind the service dir (the donor's own bind — the
 #		namespace's plain /bin bind shadows paq-local
 #		/bin/service, the 19-03 finding) then
@@ -219,29 +220,45 @@ if(~ $keyfsstat ok){
 if(~ $lststat ok) echo cpurc: AUTHSRV-LISTEN
 if not echo cpurc: FAIL authsrv-listen
 
-# --- leg 5: factotum + the hostowner's p9sk1 key (A3) -----------------
-# The dom token parsed from the BAKED /lib/ndb/local (the ipnet row's
+# --- leg 5: factotum + the domain's p9sk1 SERVER key (A3, re-keyed
+#     19-10: the authid's own material, never the hostowner's) ----------
+# The p9sk1 server key must carry the DOMAIN'S AUTHID (the fixed
+# bootes — the nvram authid, the ndb speaksfor hostid) as BOTH the
+# key's user attr AND its key bits: factotum derives the advertised
+# tr.authid from the key's user attr (factotum p9sk1.c's server init),
+# and authsrv encrypts every server-half ticket under
+# findkey(tr.authid) — any other name/bits pair fails the server-half
+# decrypt at SNeedTicket and the session dies at srvauth.  The
+# original hostowner+feed shape was DEMO-blind: the DEMO domain's
+# three users share one password, so user=<hostowner>
+# !password=<last-user's feed> carried bits that matched every
+# findkey; the first user domain with distinct passwords (19-10's
+# Leg-1 requaos report) surfaced it as `cpu: srvauth: ...' with
+# factotum logging `failure auth server protocol botch'.  The dom
+# token still comes from the BAKED /lib/ndb/local (the ipnet row's
 # authdom= — the pairing's own composed artifact, never a hardcoded
-# DEMO literal); the password read from the baked feed (the
-# sentinel-read isolation idiom — the DEMO users share one password,
-# so the feed line IS the hostowner's); the owner read from #c/user
-# (boot's glenda() set it).  The key write is a direct ctl write — no
-# console prompt exists on this path.  The sed shape is GROUP-FREE:
-# this lineage's sed does not honor \( \) capture groups in
-# substitutions (measured on plan9port's — they silently no-op), so
-# the parse is comment-delete, line-select, strip-to-token,
-# strip-tail — proven identical on plan9 and GNU sed host-side.
+# DEMO literal); the name+password come from the baked
+# /boot/authid-creds.txt (the generator's authid artifact — the
+# authid's OWN password, not another user's feed line).  The key
+# write is a direct ctl write — no console prompt exists on this
+# path.  The sed shape is GROUP-FREE: this lineage's sed does not
+# honor \( \) capture groups in substitutions (measured on
+# plan9port's — they silently no-op), so the parse is
+# comment-delete, line-select, strip-to-token, strip-tail — proven
+# identical on plan9 and GNU sed host-side.  The one-word guards
+# fail loud on any multi-word parse (a space-bearing password — the
+# example's interface note).
 factstat=fail
 if(~ $lststat ok){
 	authdom=`{$B/hsed -n -e '/^#/d' -e '/authdom=/!d' -e 's/.*authdom=//' -e 's/ .*//' -e p /lib/ndb/local}
-	authpw=`{$B/hcat /boot/authfeed.txt}
-	owner=`{$B/hcat /dev/user}
+	srvuser=`{$B/hsed -n -e '/^user=/!d' -e 's/^user=//' -e p /boot/authid-creds.txt}
+	srvpw=`{$B/hsed -n -e '/^password=/!d' -e 's/^password=//' -e p /boot/authid-creds.txt}
 	if(~ $#authdom 1){
-		if(~ $#authpw 1){
-			if(~ $#owner 1){
+		if(~ $#srvuser 1){
+			if(~ $#srvpw 1){
 				if($B/hfactotum -s factotum){
 					if(svc_waitpath 10 /mnt/factotum/ctl){
-						$B/hecho 'key proto=p9sk1 user='^$"owner^' dom='^$"authdom^' !password='^$authpw > /mnt/factotum/ctl
+						$B/hecho 'key proto=p9sk1 user='^$"srvuser^' dom='^$"authdom^' !password='^$srvpw > /mnt/factotum/ctl
 						kout=`{$B/hcat /mnt/factotum/ctl}
 						if(~ $"kout *proto*p9sk1*) factstat=ok
 					}

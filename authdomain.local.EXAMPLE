@@ -53,10 +53,16 @@ secstore_password=CHANGE-ME-sec
 # users — one `user <name> <password>' line per user.  Names: at most
 # 27 printable chars, no spaces or '/'.  Distinct passwords are fine
 # (the shared-password form is a DEMO-path convenience only, for
-# sentinel-fed probes).  No user lines at all => the three-user DEMO
+# sentinel-fed probes) — keep passwords space-free: the cpu image's
+# boot-time key parse is one-word per line, and the bake reds loud on
+# a space-bearing one.  No user lines at all => the three-user DEMO
 # membership (glenda, bootes, norbert).  authid (the speaksfor row's
-# hostid and the nvram authid) is fixed: bootes.  The drawterm wrapper
-# pins user=glenda, so keep a glenda row for the leg recipes.
+# hostid and the nvram authid) is fixed: bootes — and bootes MUST
+# carry a user row of their own: the cpu server's p9sk1 key derives
+# from the AUTHID's own password (the generator emits it as the
+# authid-creds artifact the cpu image boots from, and refuses loud
+# when bootes is missing from the list).  The drawterm wrapper pins
+# user=glenda, so keep a glenda row for the leg recipes.
 user glenda CHANGE-ME-glenda
 user bootes CHANGE-ME-bootes
 user norbert CHANGE-ME-norbert
