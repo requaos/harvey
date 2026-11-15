@@ -412,6 +412,37 @@
             export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.iproute2 pkgs.procps pkgs.stdenv.cc ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
+          # 19-08 (DESK-06/CPU-04/DESK-04, D-14/D-15): the -G interop
+          # gate — the auth pipeline re-keyed onto the §15 cpu image
+          # (bake ALL contracts; §15's out/auth-creds.txt read loudly
+          # post-bake; compose WITH the init append via 19-01's seam)
+          # and build/x86_64/drawterm-gate.expect driving a REAL
+          # scripted drawterm -G -O session end-to-end through the
+          # committed hostfwd pair: the bootconf boot ladder to
+          # cpurc: LISTEN-17010, both hostfwd listeners observed
+          # host-side, the pty password feedstage through p9any ->
+          # p9sk1 against the §15 domain, the ENCRYPTED rc4_256 sha1
+          # session (no -e flag — D-15, the gate IS the probe), the
+          # remote shell prompt, a fed command's echoed marker, and
+          # the session teardown.  The required green witness is
+          # LOCAL KVM green-twice (D-14, user override — hosted CI
+          # best-effort).  runtimeInputs are the auth gate's verbatim
+          # (expect + iproute2 for the driver's hostfwd ss
+          # observation + procps for the survivor sweep + stdenv.cc
+          # for the authdomain-gen host build inside the bake +
+          # util-linux for the namespace build transport); the ONE
+          # addition is the 19-06 drawterm package exported as
+          # DRAWTERM_BIN (the expect spawns it on a pty — linux-only
+          # beside the package itself).
+          drawtermGateX64Pkg = mkScriptApp pkgs "harvey-drawterm-gate-x64" ./nix/drawterm-gate-x64.sh ''
+            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
+            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
+            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
+            ${nixpkgs.lib.optionalString isLinux ''
+              export DRAWTERM_BIN="${self.packages.${system}.drawterm}/bin/drawterm"
+            ''}
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.iproute2 pkgs.procps pkgs.stdenv.cc ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
@@ -465,6 +496,12 @@
           # kernel-x64, iso-builder, netdev-args — the emitter feeds
           # the driver's slirp argv with the D-04 hostfwd pair).
           boot-r9-auth-x64 = mkApp authSmokeR9X64Pkg;
+          # 19-08: the -G interop gate — rides the SAME x64 block and
+          # the SAME hasAttr gate list (its attrs are identical to the
+          # auth gate's: kernel-x64, iso-builder, netdev-args; the
+          # drawterm package is a Harvey-side self attr, never an r9
+          # attr — the frozen gate list stays byte-untouched).
+          drawterm-gate-x64 = mkApp drawtermGateX64Pkg;
         }
         # 16-03 (HNET-05/D-14): the doctor app — linux-only in its OWN
         # optionalAttrs gate (the checks are linux's; darwin's vmnet
