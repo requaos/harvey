@@ -56,7 +56,7 @@ amended-D-03 gui-none build — no Carbon, no XQuartz):
 git clone <harvey> && cd harvey/sys/src/cmd/unix/drawterm
 make CONF=osx GUI=none
 ssh -L 17010:127.0.0.1:17010 -L 5670:127.0.0.1:5670 user@linuxhost
-./drawterm -G -O 'cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda'
+./drawterm -G -s '' -O 'cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda'
 ```
 
 ## The darwin graphical deferral (owner decision — recorded, not a this-phase leg)

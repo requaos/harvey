@@ -536,7 +536,7 @@ darwin is the documented-manual venue below).
 | `-e` | Encryption/hash algorithms. **The default is `rc4_256 sha1` (encrypted)** — devssl `#D` via `pushssl`, D-15: ordinary sessions are encrypted by construction. `-e clear` clears encryption and is the **DEBUG fallback only** — it never appears in any wrapper-printed line or committed recipe. |
 | `-a <authserver>` / `-c <cpusererver>` | The legacy per-argument connection flags (no-`-O` path only — with `-O` the env reads AND these lose to the spec). |
 | `-u <user>` | Username (no-`-O` path; `-O user=` otherwise). |
-| `-s <secstore>` | Secstore server (default: the auth server). |
+| `-s <secstore>` | Secstore server (default: the auth server). `-s ''` (empty) skips the default: `secdial` falls to its `$auth` parse (host-only, port 5356) — the standard no-reachable-secstore behavior, and **load-bearing on this venue**: with the 3-part auth address a default probe dials the AUTH port and mutual-parks against authsrv's `readn` (the recorded 19-08 finding; every wrapper line and recipe below carries `-s ''` before `-O`, the 19-08 gate's exact form). |
 | `-k <keyspec>`, `-r <root>`, `-C <cmd…>`, `-d` | Existing vendor flags: factotum keyspec, devroot base, remote command form, debug. |
 
 The `-O`/`-G` surface is pinned by `sys/src/cmd/unix/drawterm/flagtest.sh`
@@ -549,10 +549,14 @@ anything (the connection-hijack surface, Pitfall 3), accepts **no
 arguments**, pins the seam-derived spec
 (`cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda` — the Phase-16
 D-04 hostfwd pair's loopback side, host 17010→guest 17010 and host
-5670→guest 567; the 18-05 literal-idiom form), prints the exact
-connect lines (windowed primary + the `-G` text form; **no `-e` flag
-anywhere**), and execs the package binary. With `DISPLAY` set it runs
-the windowed line; headless it runs the `-G` stdio line **loudly**
+5670→guest 567; the 18-05 literal-idiom form), pins `-s ''` before
+`-O` (the no-secstore venue fact: the default probe would dial the
+AUTH port with the 3-part address and mutual-park against authsrv's
+`readn` — the 19-08 gate's load-bearing flag, see the `-s` row
+above), prints the exact connect lines (windowed primary + the `-G`
+text form, both carrying `-s ''`; **no `-e` flag anywhere**), and
+execs the package binary. With `DISPLAY` set it runs the windowed
+line; headless it runs the `-G` stdio line **loudly**
 (`DISPLAY unset — headless venue: …`, never a silent downgrade).
 Observed live: the no-guest dial refusal (`cpu: can't dial:
 127.0.0.1: Connection refused`, exit 1) and the hostile-env scrub
@@ -570,7 +574,7 @@ Two terminals, zero extra machinery:
    display you get the rio-capable windowed session; headless you get
    the `-G` stdio session. In an interactive bash shell, quote the
    spec when typing it by hand (the `!` in the auth address is a
-   history-expansion character): `drawterm -G -O 'cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda'`.
+   history-expansion character): `drawterm -G -s '' -O 'cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda'`.
 3. **Log in** — the password prompt is drawterm's own console
    (`readcons`; no echo). Phase 18's baked users apply (18-D-12).
 4. **Teardown** — exit the remote shell: the session ends and
@@ -610,7 +614,7 @@ ssh -L 17010:127.0.0.1:17010 -L 5670:127.0.0.1:5670 user@linuxhost
 then, on the mac against its own forwarded loopback:
 
 ```
-./drawterm -G -O 'cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda'
+./drawterm -G -s '' -O 'cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda'
 ```
 
 Not executed by construction this phase (no darwin runner — the same

@@ -17,6 +17,21 @@
 # The auth address carries its service, so netmkaddr passes it through
 # as-is.  user=glenda is the Phase-18 baked demo user (18-D-12).
 #
+# Secstore: every line this wrapper prints or execs carries `-s ''`
+# BEFORE -O — the same load-bearing flag the 19-08 gate spawns with
+# (drawterm-gate.expect; the recorded 19-08 cross-plan finding,
+# landed here after the owner's first Leg-1 attempt parked on an
+# empty console).  Without a -s value drawterm defaults
+# secstoreserver to the authserver, and the 3-part auth address
+# above passes through netmkaddr AS-IS: the secstore probe dials the
+# AUTH port, where authsrv's readn(TICKREQLEN) waits for more bytes
+# while the probe waits for its reply — a mutual park neither side's
+# timers heal (no password prompt ever prints).  `-s ''` makes
+# secdial fall to its $auth parse (host-only -> port 5356), which
+# the committed hostfwd pair does NOT forward: the dial is refused
+# instantly and the probe is skipped — the standard drawterm
+# behavior on a host with no reachable secstore.
+#
 # Encryption: the DEFAULT is encrypted (devssl #D rc4_256 sha1 via
 # pushssl — D-15).  No -e flag appears in any line this wrapper
 # prints; `-e clear` is the documented DEBUG fallback only (see
@@ -63,13 +78,16 @@ SPEC="cpu=$DT_CPU,auth=$DT_AUTH,user=$DT_USER"
 # the ! in the auth address wants single quotes around the spec — the
 # README recipes show that form).
 echo "== drawterm: connect line (windowed default, encrypted rc4_256 sha1):"
-echo "   $DRAWTERM_BIN -O $SPEC"
+echo "   $DRAWTERM_BIN -s '' -O $SPEC"
 echo "== text form (-G: no window, stdio session):"
-echo "   $DRAWTERM_BIN -G -O $SPEC"
+echo "   $DRAWTERM_BIN -G -s '' -O $SPEC"
 
 # --- exec --------------------------------------------------------------
+# The `-s ''` rides BEFORE -O on BOTH lines — the gate's exact form
+# (the no-secstore pin above; without it the probe parks on the AUTH
+# port before the password prompt ever prints).
 if [ -z "${DISPLAY:-}" ]; then
 	echo "== DISPLAY unset — headless venue: running the -G stdio session (the windowed line needs a display; this is the loud fallback, never a silent downgrade)"
-	exec "$DRAWTERM_BIN" -G -O "$SPEC"
+	exec "$DRAWTERM_BIN" -G -s '' -O "$SPEC"
 fi
-exec "$DRAWTERM_BIN" -O "$SPEC"
+exec "$DRAWTERM_BIN" -s '' -O "$SPEC"
