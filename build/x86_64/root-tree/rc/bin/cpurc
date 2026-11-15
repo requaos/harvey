@@ -16,10 +16,13 @@
 #	pairing	check the D-02 domain manifest BEFORE any daemon —
 #		a failed check skips every later leg (never an
 #		interactive nvram/keyfs wedge)
-#	loopback bind #I + one loopback ipifc + the second non-loopback
-#		probe address (myipaddr never falls back) — the
-#		listeners' prerequisite; no marker of its own, its
-#		failure cascades to FAIL loopback
+#	ether	bind #I + #l0 + the slirp NIC's address from the D-11
+#		 seam via the REAL ipconfig (19-08: the hostfwd pair's
+#		reception leg — without it the guest drops dest-NIC
+#		packets and the -G session black-holes; it REPLACED
+#		19-07's loopback leg — one medium per boot is the
+#		era's r9 limit, and nothing on this image dials
+#		in-guest)
 #	keyfs	mntgen /mnt + the nvram= env path (readnvram's
 #		getenv, prompt-free on a valid five-sum nvram) +
 #		keyfs -m /mnt/keys
@@ -49,8 +52,9 @@
 # the loopback adds are 127.0.0.1-class only.
 #
 # Marker vocabulary (the bring-up gate's contract, EMISSION order):
-#	cpurc: PAIR-OK  cpurc: KEYFS-OK  cpurc: AUTHSRV-LISTEN
-#	cpurc: FACTOTUM-OK  cpurc: LISTEN-17010  cpurc: DONE
+#	cpurc: PAIR-OK  cpurc: ETHER-OK  cpurc: KEYFS-OK
+#	cpurc: AUTHSRV-LISTEN  cpurc: FACTOTUM-OK  cpurc: LISTEN-17010
+#	cpurc: DONE
 # plus the per-leg failure markers `cpurc: FAIL <leg>' the gates
 # negative-grep.  A second announce of an already-bound port fails
 # loudly inside listen (its `address in use' child exit) — the
@@ -133,33 +137,54 @@ if(~ $pairfail ''){
 if(~ $pairfail '') echo cpurc: PAIR-OK
 if(! ~ $pairfail '') echo cpurc: FAIL pairing
 
-# --- leg 2: the net loopback bring-up (the auth-sweep leg shape) -----
-# bind #I at /net (r9's sys_bind needs the mount point, staged empty),
-# one transient clone read for the conv number, per-write ctl opens by
-# path — 127.0.0.1 plus the SECOND non-loopback probe address
-# (libip's myipaddr skips 127.0.0.0/8 and never falls back).  Must
-# precede every daemon below (the listeners' announces).
-authlo=''
+# --- leg 2: the net ETHER bring-up (19-08's re-key of the loopback
+#     leg — the hostfwd reception seam) ----------------------------------
+# The committed D-04 hostfwd pair (host 127.0.0.1:17010/5670) lands on
+# the guest at the slirp NIC's address — the -G drawterm session dials
+# it from the host.  19-07's loopback leg (127.0.0.1 + the second
+# probe address — the auth-sweep's in-guest-dial shape, a vestige
+# here: nothing on the cpu image dials in-guest) left the guest
+# unable to RECEIVE: measured live, /net/ipifc held just loopback0 and
+# incoming hostfwd connections black-holed — the IP layer dropped
+# dest-NIC packets for want of a local address, and the listeners'
+# accepts never fired.
+#
+# ONE medium per boot is the era's r9 limit, so the ETHER REPLACES the
+# loopback leg outright: the medium registry pins one medium per conv,
+# and the clone open hands the lowest idle conv back out — a second
+# bind from any one-shot caller collides with `interface already
+# bound' (measured: rc-ctl writes AND ipconfig both).  The donor-
+# faithful kernel fix (clone allocation that skips medium-owning
+# convs) is the named r9-side follow-up; until then this image runs
+# ether-only, which also serves the wildcard announces (nothing needs
+# loopback).
+#
+# bind #I (r9's sys_bind needs the mount point, staged empty) and #l0
+# (the ether medium's device — the namespace deliberately omits it;
+# the cpu path is the first consumer), then the REAL ipconfig does the
+# whole static flow itself (binddevice's clone-open HELD across the
+# medium bind + the adds + the -g default route — the netip-static
+# fixture's proven shape).  Addresses come ONLY from the D-11 seam —
+# . /lib/netaddr.rc (staged by the §15 manifest; test -e first: a
+# failed source is uncatchable) — NEVER a literal here (the seam
+# grep's discipline).
+etherstat=fail
 if(~ $pairfail ''){
 	if(bind -a '#I' /net){
-		authlo=bound
-	}
-}
-if(~ $authlo bound){
-	lconv=`{$B/hcat /net/ipifc/clone}
-	if(~ $#lconv 1){
-		if($B/htest -e /net/ipifc/$lconv/ctl){
-			if($B/hecho bind loopback > /net/ipifc/$lconv/ctl){
-				if($B/hecho add 127.0.0.1 255.0.0.0 > /net/ipifc/$lconv/ctl){
-					if($B/hecho add 192.168.237.1 255.255.255.255 > /net/ipifc/$lconv/ctl){
-						authlo=up
+		if(bind -a '#l0' /net){
+			if($B/htest -e /lib/netaddr.rc){
+				. /lib/netaddr.rc
+				if(~ $#slirp_guestv4 1){
+					if(/amd64/bin/ip/ipconfig -g $slirp_gwv4 ether /net/ether0 add $slirp_guestv4 $slirp_maskv4){
+						etherstat=ok
 					}
 				}
 			}
 		}
 	}
 }
-if(! ~ $authlo up) echo cpurc: FAIL loopback
+if(~ $etherstat ok) echo cpurc: ETHER-OK
+if not echo cpurc: FAIL ether
 
 # --- leg 3: mntgen + the nvram= env + NON-interactive keyfs ----------
 # mntgen mounts /mnt FIRST (the mount walk materializes /mnt/keys);
@@ -169,7 +194,7 @@ if(! ~ $authlo up) echo cpurc: FAIL loopback
 # NO -p flag: the nvram path is readnvram -> getenv("nvram") -> the
 # plain 112-byte file, prompt-free on a paired five-sum nvram.
 keyfsstat=fail
-if(~ $authlo up){
+if(~ $etherstat ok){
 	if($B/hmntgen /mnt){
 		nvram=/adm/nvram
 		if($B/hkeyfs -m /mnt/keys /adm/keys){
@@ -250,7 +275,7 @@ if not echo cpurc: FAIL listen-17010
 # --- the terminal verdict (DONE only on a fully-green ladder) --------
 sweepstat=ok
 if(! ~ $pairfail '') sweepstat=fail
-if(! ~ $authlo up) sweepstat=fail
+if(! ~ $etherstat ok) sweepstat=fail
 if(! ~ $keyfsstat ok) sweepstat=fail
 if(! ~ $lststat ok) sweepstat=fail
 if(! ~ $factstat ok) sweepstat=fail

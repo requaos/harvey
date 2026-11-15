@@ -1761,6 +1761,12 @@ for e in cmd/cpu cmd/aux:listen; do
 done
 "$GREP" -qE "^cmd/sed([[:space:]]|#|$)" "$AUTH_T1D" \
 	|| err "cpu bake: tier-1 data lacks cmd/sed (cpurc's authdom parse helper)"
+# 19-08 (the hostfwd reception seam): cpurc's ether leg runs the REAL
+# ipconfig (the netip-static fixture's proven shape) — the tier-1
+# entry + the built binary are both required
+"$GREP" -qE "^cmd/ip/ipconfig([[:space:]]|#|$)" "$AUTH_T1D" \
+	|| err "cpu bake: tier-1 data lacks cmd/ip/ipconfig (cpurc's ether leg — the 19-08 hostfwd reception seam)"
+[ -x "$BIN/ip/ipconfig" ] || err "$BIN/ip/ipconfig missing — run sh build/x86_64/subset-build.sh first (tier-1 cmd/ip/ipconfig, cpurc's ether leg)"
 
 # 15b. inputs + shape guards (named loudly, before any staging spend):
 #      the cpu binaries at their exec paths, the committed cpurc + the
@@ -1773,8 +1779,9 @@ SVC17010_SRC="$ROOT_TREE/bin/service/tcp17010"
 [ -f "$CPURC_SRC" ] || err "$CPURC_SRC missing — the committed real cpurc (19-07)"
 [ -f "$SVC17010_SRC" ] || err "$SVC17010_SRC missing — the committed service file (19-07)"
 [ "$(head -c 2 "$CPURC_SRC")" = '#!' ] || err "cpurc: missing the #! marker bytes"
-for m in "cpurc: PAIR-OK" "cpurc: KEYFS-OK" "cpurc: AUTHSRV-LISTEN" \
-	"cpurc: FACTOTUM-OK" "cpurc: LISTEN-17010" "cpurc: DONE" \
+for m in "cpurc: PAIR-OK" "cpurc: ETHER-OK" "cpurc: KEYFS-OK" \
+	"cpurc: AUTHSRV-LISTEN" "cpurc: FACTOTUM-OK" "cpurc: LISTEN-17010" \
+	"cpurc: DONE" ". /lib/netaddr.rc" \
 	"aux/listen -t /bin/service tcp" "listen1 -t"; do
 	"$GREP" -q "$m" "$CPURC_SRC" || err "cpurc: the marker/shape '$m' missing from the committed body"
 done
@@ -1819,7 +1826,7 @@ stage_payload "$STAGE9" cpu "$CPU_AUTHDOM_VAL"
 #      the same dir)
 mkdir -p "$STAGE9/root" "$STAGE9/env" "$STAGE9/proc" "$STAGE9/dev" "$STAGE9/srv" \
 	"$STAGE9/fd" "$STAGE9/bin" "$STAGE9/tmp" "$STAGE9/mnt/term" \
-	"$STAGE9/net" "$STAGE9/boot" "$STAGE9/amd64/bin/aux" \
+	"$STAGE9/net" "$STAGE9/boot" "$STAGE9/amd64/bin/aux" "$STAGE9/amd64/bin/ip" \
 	"$STAGE9/rc/lib" "$STAGE9/rc/bin/service" "$STAGE9/adm/timezone" "$STAGE9/adm" \
 	"$STAGE9/lib/ndb"
 
@@ -1900,6 +1907,11 @@ magic=$(od -An -tx1 -N4 "$STAGE9/amd64/bin/cpu" | tr -d ' \n')
 cp "$BIN/listen" "$STAGE9/amd64/bin/aux/listen"
 magic=$(od -An -tx1 -N4 "$STAGE9/amd64/bin/aux/listen" | tr -d ' \n')
 [ "$magic" = "00008a97" ] || err "cpu bake: aux/listen exec-path copy: bad magic $magic (want 00008a97)"
+# 19-08: ipconfig at the net image's own exec path (cpurc's ether leg —
+# the hostfwd reception seam; the §15m manifest names it)
+cp "$BIN/ip/ipconfig" "$STAGE9/amd64/bin/ip/ipconfig"
+magic=$(od -An -tx1 -N4 "$STAGE9/amd64/bin/ip/ipconfig" | tr -d ' \n')
+[ "$magic" = "00008a97" ] || err "cpu bake: ip/ipconfig exec-path copy: bad magic $magic (want 00008a97)"
 
 # 15k. the service file's GUEST-side surfacing: the paq-local
 #      bin/service is SHADOWED by the namespace's plain /bin bind (the
@@ -1921,7 +1933,7 @@ cp "$HARVEY/adm/timezone/local" "$STAGE9/adm/timezone/local"
 for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
 	amd64/bin/bind amd64/bin/authsrv amd64/bin/cpu \
-	amd64/bin/aux/listen \
+	amd64/bin/aux/listen amd64/bin/ip/ipconfig \
 	rc/lib/rcmain rc/bin/cpurc rc/bin/service/tcp17010 \
 	bin/service/tcp17010 rc/bin/termrc lib/namespace lib/netaddr.rc \
 	lib/ndb/auth lib/ndb/local adm/timezone/local adm/nvram adm/keys \

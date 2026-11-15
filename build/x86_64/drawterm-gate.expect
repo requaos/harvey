@@ -274,12 +274,16 @@ hostfwd_stage 5670
 
 # --- 3. the cpurc ladder in EMISSION order (each stage consumes the
 #        buffer to its match, so the ordered stages ARE the order
-#        assertion): pairing -> keyfs -> the listen1 -t authsrv
+#        assertion): pairing -> the ether leg (the hostfwd reception
+#        seam: the slirp NIC's seam-sourced address — without it the
+#        guest drops dest-NIC packets and the session black-holes,
+#        19-08's measured finding) -> keyfs -> the listen1 -t authsrv
 #        announce -> factotum's key write -> the aux/listen tcp17010
 #        announce -> DONE.  LISTEN-17010 is the dial gate: no drawterm
 #        spawn happens before it (a dial into an unannounced port is
 #        a refused connection, not a gate leg) ---------------------------
 stage pairing-ok	{cpurc: PAIR-OK}
+stage ether-ok		{cpurc: ETHER-OK}
 stage keyfs-ok		{cpurc: KEYFS-OK}
 stage authsrv-listen	{cpurc: AUTHSRV-LISTEN}
 stage factotum-ok	{cpurc: FACTOTUM-OK}
