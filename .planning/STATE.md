@@ -5,11 +5,11 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
 status: executing
-stopped_at: Halted 19-08-PLAN.md again at the session-exit deadlock (Tasks 1-2 committed; the -G session ALIVE through prompt + fed-echo at pushed r9 917685c — five kernel defects fixed; the devmnt tag-mux + devssl lock-split designs recorded as the next pass's first item — see 19-08-SUMMARY Deviations/Issues)
-last_updated: "2026-11-15T10:17:43.344Z"
+stopped_at: "Completed 19-08-PLAN.md (pass 3: the concurrency chain landed + the choreography x2 + the gate green twice + TCG; 19-09/19-10 remain)"
+last_updated: "2026-11-15T13:50:30.174Z"
 last_activity: 2026-11-14
 last_activity_desc: Phase 19 execution started
-state_head: 49a1fca397c84c9a5988170af6cabce433064205
+state_head: 4ceb275de0320d9f2be13de5105c9a8f4c99e24f
 progress:
   total_phases: 7
   completed_phases: 2
@@ -118,6 +118,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 19 P07 | 24 min | 3 tasks | 7 files |
 | Phase 19 P08 | 120 min | 2 tasks | 13 files |
 | Phase 19 P08 | 280 min continuation (4h45m across both passes; 6 kernel fix cycles) | 2 tasks | 9 files |
+| Phase 19 P08 | 205 min continuation (5h30m across all three passes; 5 kernel fixes + the choreography x2) | 3 tasks | 16 files |
 
 ## Accumulated Context
 
@@ -281,6 +282,9 @@ Recent decisions affecting current work:
 - [Phase 19]: [19-07] the witness manifest re-pin reproduced the 38 members byte-for-byte (digest unchanged 695dbf28…) — the fresh per-entry tier builds are deterministic; and a UTF-8 § inside a BRE \( \) group no-matches under expect's exec grep locale (probe needles are parens/§-free)
 - [Phase 19]: [19-08 pass 1] The NIC-address + listen-park layers (cpurc's ether leg harvey-side; r9 9704b2e pushed) — SUPERSEDED by the continuation row above (the auth_chuid death was the five-defect chain, fixed at 917685c)
 - [Phase 19]: [19-08 continuation]: Root cause C was a FIVE-defect kernel chain, all fixed push-before-pin at r9 917685c (unpinned — the choreography rides the gate's green): (1) q35churnshell lacked cfg(dev_cap) — factotum's caps silently nil since 18-02, invisible until the first capability consumer; (2) every /srv re-mount negotiated a fresh 9P session over the shared wire — the server's per-connection fid space collided ('duplicate fid'); the fix hosts the session on the PIPE (Pipe::mnt_session) mirroring the donor's srvopen-returns-the-same-chan semantics; (3) fversion/mount now accept DEVSSL chans (remoteside mounts the client exportfs over the encrypted session); (4) Chan::dup holds #D conversations (the io dup survives remoteside's ssl-fd close); (5) q35cpu re-keyed (+ether+ip, ladder expectations)
+- [Phase 19]: [19-08 pass 3]: The session-exit deadlock closed by a FIVE-layer chain (all push-before-pin, r9 22d40fb..56acaea): the devssl direction split (BusyCell cells per direction, io dups per side — a parked read never blocks writes), the devmnt tag-mux (the donor's mountio/mountmux: queue + tag slots + a transferable reader BusyCell spanning whole-message framing — the two named boot-race suspects eliminated STRUCTURALLY: no mid-frame release window exists and no MCS lock is ever held across a park), the session-teardown Drop (MntIo::close_chan + Mnt::drop — the donor mntdec cclose; the ssl conv finally hangs its TCP wire up), the note-interrupt fix (push_note's ready(p) + the notepending probe at the block arms — the teardown's run-to-run variance), and devpipe's BLOCKING write on full (the tier1 gate's paqfs root death: under the mux, concurrent rpcs let server replies pile up while owners park between polls — error-on-full killed ramfs-class servers)
+- [Phase 19]: [19-08 pass 3]: The gate's session-end marker re-keyed to the LIVE-OBSERVED teardown: the vendored drawterm's exportfs fatal routes through kern/panic's Unix exit(1), NEVER cpu.c's exits() override — 'goodbye' is unreachable in the -G session end against ANY server; the deterministic end marker is the exportfs hangup line + pty EOF. Never-exercised assertion code is unverified code (the [\s\S] drain regex was a PCRE-ism glibc regcomp rejects; the panic scan now excludes drawterm's own exit pair)
+- [Phase 19]: [19-08 pass 3]: The pin choreography ran TWICE (kernel bytes changed twice): FOD probe -> two-derivation proof (plain + fresh marker-clone kernels, cmp-clean ISOs, three-way NAR agreement) -> re-wire (flake.nix only) -> push -> hosted CI observed SUCCESS at the pushed HEAD (43711744441, 43717790664) -> lock-only advance (0a4b853 -> aa55a27 -> df4ad78). The -G gate then green TWICE on KVM + the TCG leg GREEN + REDACTION-OK at the final pin — DESK-06/CPU-04/DESK-04 closed
 
 ### Pending Todos
 
@@ -294,8 +298,7 @@ None yet.
 - CR-07/WINDOWS #66 DISPOSITIONED (waived) at the 17-08 terminus: the 8-way-transfer triple-fault class stays live ~8%/run but the cure is venue-blocked — KVM capture ceiling + TCG×slirp avenue (N=10, NO-FIRE-IN-SERIES) both exhausted, strongest-candidate fix refuted at the fix pin; maintainer-ratified waiver (Neil Skinner, 2026-11-13T14:42:08Z) with 3-part D-15 rationale; reopener conditions + the committed boot-r9-stress-x64 instrument in 17-CR07-ROOTCAUSE sections 8-9
 - 18-05/AUTH-08 RESOLVED (18-07/18-08): the devip two-write defect was tcp_socket's stock smoltcp defaults (Nagle ON + 10ms delayed ACK holding every sub-MSS follow-up write for a post-deadline drive a fully-parked venue can never run) — fixed donor-faithfully at r9 ab4cb66 (Nagle off, ACK immediate — connect-path sockets only; CR-03: accept-pool sockets keep stock defaults so >2048-byte writes into ANNOUNCED connections still hang, open in the disposition ledger); 18-08's FOD pass pinned the bytes (r9 9103522, Harvey flake.lock advanced lock-only), restored the sweep's 9d legs (-s 127.0.0.1 — the $attr cs class reds on r9, the literal-loopback idiom instead), and flipped the gate to presence demands — the round-trip is green twice at the pin with the bytes-back AUTH-SECOBS (evidence 18-08-auth-{a,b}.log, redacted); the AUTH-SKIP arm is retired; no residual
 - 18-gap-review CR-03 OPEN (advisory, non-blocking per the #3304 evidence gate): the 18-07 TCP fix covers only connect-path sockets — AcceptPool::spawn_listener (r9 stack.rs) keeps smoltcp stock Nagle + 10ms delayed ACK, and x86_64 never calls tick_check, so a >2048-byte write into an ANNOUNCED connection (a secstore PUT of any real file) parks forever; the auth gate is green twice only because the committed DEMO object is 401 bytes. Fix is two set_* calls at the pool site + WR-04 pin legs; natural reopener: Phase 19 cpu/exportfs (needs exactly this class). Recorded open in 18-REVIEW-DISPOSITION with WR-03/WR-04/IN-06/IN-07
-- 19-08 HALTED, PASS 1 (superseded by the pass-2 row below): the auth_chuid death was root-caused as the five-defect chain — FIXED at r9 917685c; the pass-1 items (pin advance for 9704b2e, q35cpu re-key, battery) landed or carried per the current row
-- 19-08 HALTED AGAIN (kernel concurrency boundary): the -G session is ALIVE end-to-end (password -> tr-ok -> byte-verified key exchange -> devssl both ends -> FS/OK -> fversion+mount of the client exportfs -> cons stdio rebind -> rc -li PROMPT on the drawterm pty -> the fed command's round-trip) at pushed r9 917685c — but session-exit deadlocks: devmnt allows ONE outstanding rpc with the busy flag held across the blocking reply read AND devssl::read holds the Dstate lock across the wire read (the donor splits by direction: s->in.q/s->out.q). An indefinite 9P read (cpunote, console stdin) parks the mounted session and every later rpc blocks. The donor-faithful fixes (the tag-mux with a transferable single-wire-reader token; the direction-split lock discipline) were BUILT this pass — the session went fully green through fed-echo deterministically — but a boot-time race (varying modes: paqfs 'mount write' / factotum leg / green) forced a revert to the deterministic five-fix tree. Next pass: isolate the reader-token race (prime suspects: the reader-flag release/re-take window in the framing loop; the tick-retry vs the parked io_r read), land the mux + the ssl split, then the pin advance + FOD for 9704b2e+917685c, battery re-green, green-twice, TCG leg, re-summarize 19-08 complete. DESK-06/CPU-04/DESK-04 stay OPEN.
+- 19-08 RESOLVED (pass 3, 2026-11-15): the session-exit deadlock closed by the FIVE-layer chain (r9 22d40fb..56acaea, all pushed): the devssl direction split, the devmnt tag-mux (the named boot-race suspects eliminated STRUCTURALLY — the rebuilt tree booted q35cpu PASS x5 + the profile set on its first session), the session-teardown Drop, the note-interrupt fix, and devpipe's blocking write (the tier1 gate's measured paqfs root death — a THIRD race class the rebuilt tree exposed, root-caused and fixed). The gate is GREEN TWICE on KVM + the TCG leg GREEN + REDACTION-OK at the df4ad78 pin (evidence 19-08-gate-{pin-a,pin-b,tcg}.log); hosted CI observed SUCCESS at both pushed HEADs before each lock-only advance (runs 43711744441, 43717790664). Residual (recorded, non-blocking): devip's connect/listen/write-full block arms WAKE on notes but do not yet surface the interrupt — no measured caller; the data-read pair is the -G session's whole surface. DESK-06/CPU-04/DESK-04 closed by this plan's completion
 
 ## Deferred Items
 
@@ -308,6 +311,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-15T10:17:24.679Z
-Stopped at: Halted 19-08-PLAN.md again at the session-exit deadlock (Tasks 1-2 committed; the -G session ALIVE through prompt + fed-echo at pushed r9 917685c — five kernel defects fixed; the devmnt tag-mux + devssl lock-split designs recorded as the next pass's first item — see 19-08-SUMMARY Deviations/Issues)
+Last session: 2026-11-15T13:50:29.270Z
+Stopped at: Completed 19-08-PLAN.md (pass 3: the concurrency chain landed + the choreography x2 + the gate green twice + TCG; 19-09/19-10 remain)
 Resume file: None

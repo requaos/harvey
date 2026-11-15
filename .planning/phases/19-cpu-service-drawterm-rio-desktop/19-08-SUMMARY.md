@@ -2,7 +2,7 @@
 phase: 19-cpu-service-drawterm-rio-desktop
 plan: "08"
 subsystem: infra (the -G interop gate)
-tags: [drawterm, -G, pty, expect, hostfwd, p9any, p9sk1, devssl, ipconfig, ether, flake-app, devmnt, srv-sessions]
+tags: [drawterm, -G, pty, expect, hostfwd, p9any, p9sk1, devssl, ipconfig, ether, flake-app, devmnt, tag-mux, srv-sessions, blocking-pipe-write, note-interrupt, fod, pin-advance]
 
 # Dependency graph
 requires:
@@ -13,56 +13,58 @@ requires:
   - phase: 16-host-net-modes-networking-exit-gate
     provides: the committed D-04 hostfwd pair (127.0.0.1:17010/5670) the session dials
 provides:
-  - build/x86_64/drawterm-gate.expect — the TWO-subtree -G session chassis (qemu + drawterm-on-a-pty), validated live through the fed-command round-trip
-  - nix/drawterm-gate-x64.sh + the flake app .#drawterm-gate-x64 — the full pipeline (tier build -> bake -> loud creds read -> ISO-with-append -> gate -> both survivor sweeps)
-  - the cpu image's ether reception leg (cpurc + §15 ipconfig staging) — the hostfwd pair reaches the guest
-  - the r9 listen-park ingress fix (9704b2e) + the FIVE-defect auth_chuid chain (917685c, both PUSHED, unpinned): #¤ on the composed kernel, srv re-mount session reuse (the pipe-hosted mnt_session), ssl chans as 9P connections, Chan::dup's #D refc rule, the q35cpu profile re-key — the -G session now reaches the remote rc -li prompt and the fed command's round-trip
-  - the root-caused record of the REMAINING deadlock (devmnt's single-outstanding busy flag + devssl's Dstate lock across wire reads) with the donor-faithful fix design (the tag-mux + direction-split shapes) — the next r9 pass's first item
-affects: [19-09 (boots the same §15 image — the ether leg + the one-medium rule apply), 19-10 (DESK-07's evidence rows need the green gate), the next r9-touching pass (owns: the devmnt tag-mux landing, the devssl lock split, then the pin advance + FOD re-wire for 9704b2e+917685c, the gate's green-twice)]
+  - build/x86_64/drawterm-gate.expect — the TWO-subtree -G session chassis, validated LIVE end-to-end (green twice on KVM + a TCG leg green)
+  - nix/drawterm-gate-x64.sh + the flake app .#drawterm-gate-x64 — the full pipeline (tier build -> bake -> loud creds read -> ISO-with-append -> gate -> sweeps), green twice AT THE ADVANCED PIN
+  - the r9 concurrency chain this pass landed (all PUSHED and PINNED at df4ad78): the devssl direction split (the donor's in.q/out.q), the devmnt tag-mux (the donor's mountio/mountmux — a transferable single-wire-reader BusyCell token spanning whole-message framing, the outstanding-tag registry, owner-side reply validation), the session-teardown Drop (the donor mntdec's cclose), the note-interrupt fix (postnote's ready(p) + the notepending probe), devpipe's BLOCKING write on full queues (the donor's qwrite)
+  - the -G session's complete serial evidence (CPU-04): password prompt -> tr-ok -> the encrypted rc4_256 sha1 session -> the remote rc -li prompt on the drawterm pty -> the fed command's round-trip -> the full teardown chain (noteproc killed by note -> session Drop -> TCP hangup -> the client exportfs death -> pty EOF), zero kernel panic, the capture redacted
+  - the pin choreography closed: flake.lock 0a4b853 -> aa55a27 -> df4ad78 (two lock-only commits), the boot-iso FOD re-wired TWICE (two-derivation proofs, three-way NAR agreement each), hosted CI observed SUCCESS at both pushed HEADs before each advance (runs 43711744441, 43717790664)
+affects: [19-09 (boots the same §15 image at the df4ad78 pin — the mux/blocking-write kernel bytes are its substrate), 19-10 (DESK-07's evidence rows — the gate is green), the next r9-touching pass (the FOD re-stales on any kernel-byte commit, the standing drift class)]
 
 actuals:
-  tokens: 21400    # chars/4 over the realized production diff (r9 8 files ~29.4kc + harvey zero — all harvey-side changes this pass were diagnostic scaffolding, reverted; evidence + the prior session's bytes excluded)
-  tasks: 2         # 2 complete (Tasks 1-2); Task 3 still open — advanced from "dies at auth_chuid" to "full session, prompt + fed-echo green, session-exit deadlocked"
-  commits: 0       # harvey-side: 0 new (the plan's harvey commits were all prior-session; r9: 917685c pushed, its own repo)
-plan_head_before: 49a1fca39
-plan_head_after: 49a1fca39
+  tokens: 27300    # chars/4 over the realized production diff (r9 917685c..df4ad78 ~101.4kc + harvey 18172e509..HEAD code ~8.0kc; the estimate was 52000 across ALL passes — the three passes together are within it)
+  tasks: 3         # all three tasks complete this pass (Tasks 1-2 prior passes; Task 3 closed here)
+  commits: 9       # MEASURED: git rev-list --count 4f5a55a..HEAD (the plan-ledger base; spans all three passes — 4 production + 2 pin-advance lock-only + 3 prior-pass commits). r9: 7 commits in its own repo (22d40fb..df4ad78), pushed == origin/main
+plan_head_before: 4f5a55a6030957de1755fee4cd0f857fafa526ea
+plan_head_after: 4ceb275de   # the second lock-only pin advance; this SUMMARY's metadata commit sits directly atop
 
 tech-stack:
-  added: []          # zero packages — committed surfaces only (T-19-SC honored)
+  added: []          # zero packages (T-19-SC honored)
   patterns:
-    - "the #c/cons device-direct debug channel for service children: listen dups the connection over fd 0/1/2 AND binds it over /dev/cons, so fd-2 prints pollute the 9P wire and /dev/cons prints vanish — syslog's '#c/cons' fallback (the cons=1 path when /sys/log is absent) is the only observation channel that reaches the serial console from inside a service child"
-    - "root-cause chains by layer peeling with one instrument per layer: guest-binary step prints (rebuilt via the userns tier build) -> kernel syscall/walk prints -> device refcount lifecycle prints — each run eliminates exactly one hypothesis class"
-    - "the .6 object format stores string literals in 8-byte chunked tables, so byte-grep over archives/objects false-negatives — verify instrumented linkage against the linked BINARY, never the archive"
+    - "The r9 BusyCell reader-token: an ownership that spans a BLOCKING read must be a try-enter cell with park-retry contenders, NEVER an MCS lock (an MCS guard across a park spin-wedges an IRQ-masked contender on the single-CPU era) — and a token that spans whole-message framing must have NO release point between a message's header and its body (the mid-frame window is the boot race the first rework attempt died of)"
+    - "Note-interruptible blocking IO needs BOTH halves or neither works: post_note must READY a Blocked target (the donor's ready(p)) AND the parking loop must surface the pending note at its re-block arm ('interrupted') — a wake without the probe re-parks forever; a probe without the wake never runs"
+    - "Whole-message transports over bounded queues: the moment a protocol multiplexes concurrent rpcs over ONE pipe, server replies accumulate while owners park between polls — an error-on-full write kills ramfs-class servers fatally ('paqfs: mount write'); the donor's BLOCKING qwrite is load-bearing, not stylistic"
+    - "Never-exercised assertion code is unverified code: the gate's drain loop, its 'goodbye' teardown marker, and its whole-file panic scan all carried pass-1 design assumptions falsified the moment the teardown first went green ([\s\S] is a PCRE-ism POSIX regcomp rejects; the vendored drawterm's sysfatal routes through kern/panic's Unix exit, never cpu.c's exits() override)"
 
 key-files:
   created:
-    - build/x86_64/drawterm-gate.expect          # (prior session) the two-subtree -G session gate
-    - nix/drawterm-gate-x64.sh                    # (prior session) the pipeline driver
-    - .planning/phases/19-cpu-service-drawterm-rio-desktop/evidence/19-08-gate-run-a-pinned.console
-    - .planning/phases/19-cpu-service-drawterm-rio-desktop/evidence/19-08-gate-run-fixr9.console
-    - .planning/phases/19-cpu-service-drawterm-rio-desktop/evidence/19-08-gate-run-fixr9.log
-    - .planning/phases/19-cpu-service-drawterm-rio-desktop/evidence/19-08-repro-boot-fixr9-serial.log
-    - .planning/phases/19-cpu-service-drawterm-rio-desktop/evidence/19-08-repro-dt-session-fixr9.log
+    - build/x86_64/drawterm-gate.expect          # (prior pass) the two-subtree -G session gate — this pass re-keyed live (session-exit, drain, panic-scan)
+    - nix/drawterm-gate-x64.sh                    # (prior pass) the pipeline driver
+    - .planning/phases/19-cpu-service-drawterm-rio-desktop/evidence/19-08-gate-pin-a.log   # THIS pass: green run A at the pin (redacted)
+    - .planning/phases/19-cpu-service-drawterm-rio-desktop/evidence/19-08-gate-pin-b.log   # THIS pass: green run B (green-twice; redacted)
+    - .planning/phases/19-cpu-service-drawterm-rio-desktop/evidence/19-08-gate-tcg.log     # THIS pass: the TCG leg, green (redacted)
   modified:
-    - flake.nix                                     # (prior session) drawtermGateX64Pkg + .#drawterm-gate-x64
-    - build/x86_64/root-tree/rc/bin/cpurc          # (prior session) the ether reception seam (ETHER-OK)
-    - build/x86_64/mkimage.sh                       # (prior session) §15 ipconfig staging + asserts
-    - ../r9/x86_64/lib/config_q35churnshell.toml    # +cap (THIS pass, commit 917685c)
-    - ../r9/x86_64/lib/config_q35cpu.toml           # ether+ip + the re-key (THIS pass)
-    - ../r9/xtask/src/main.rs                       # the q35cpu gate expectations re-key (THIS pass)
-    - ../r9/port/src/{devpipe,devmnt,devssl,dat}.rs # the session fixes (THIS pass)
-    - ../r9/x86_64/src/syscall.rs                   # sys_mount's ssl widening (THIS pass)
+    - flake.lock                                   # r9 0a4b853 -> aa55a27 (dfb6e5ab1) -> df4ad78 (4ceb275de), lock-only
+    - ../r9/port/src/devssl.rs                     # the direction split (22d40fb)
+    - ../r9/port/src/devmnt.rs                     # the tag-mux + the session Drop (091614a, 3c67e2a)
+    - ../r9/port/src/mcslock.rs                    # the MntIoBox Send proof
+    - ../r9/port/src/devpipe.rs                    # the blocking write + the wwaiter wake paths (56acaea)
+    - ../r9/port/src/devip/{proto,stack}.rs        # the note_pending probe in the data-read block arms
+    - ../r9/x86_64/src/proc.rs                     # push_note's ready(p) + note_pending
+    - ../r9/x86_64/src/main.rs                     # the hook registrations
+    - ../r9/port/tests/devmnt_test.rs              # the split-wire re-key + the two-thread tag-mux pin
+    - ../r9/port/tests/devpipe_test.rs             # the blocking-write pin re-key + the scripted-test serialization guard
+    - ../r9/flake.nix                              # the TWO FOD re-wires (aa55a27, df4ad78)
 
 key-decisions:
-  - "Root cause C was a FIVE-defect chain, not one bug — each layer's fix exposed the next (the discipline's measure-first loops paid for themselves): (1) kernel-x64 (q35churnshell) lacked cfg(dev_cap) — factotum's mkcap returned nil since the first boot, invisible until the first capability consumer; (2) every /srv re-mount negotiated a fresh 9P session over the shared wire — the server's per-connection fid space collided ('duplicate fid'); (3) fversion/mount only accepted PIPE chans — the ssl fd that remoteside must mount over was rejected; (4) Chan::dup did not hold #D conversations alive — remoteside's close of the ssl fd killed the mounted session's wire; (5) the q35cpu profile predated the real §15 cpurc"
-  - "The diagnostic channel for service children is #c/cons device-direct: the listen child's fd 0/1/2 ARE the connection (step prints pollute the 9P stream — run 1's fprint(2) bytes were consumed by drawterm's readn as key material!) and /dev/cons is bound over by listen — only the syslog-fallback open of #c/cons reaches the serial console"
-  - "The five-fix state is the commit line: the session reaches password feedstage -> tr-ok -> byte-aligned key exchange (both sides' 4 bytes verified equal on the wire) -> devssl both ends -> FS/OK handshake -> fversion+mount of the client exportfs at /mnt/term -> the /mnt/term/dev/cons stdio rebind -> rc -li -> THE REMOTE PROMPT ON THE DRAWMTERM PTY -> the fed command's full round-trip (the gate's session-prompt and fed-echo stages GREEN). The remaining deadlock (below) is root-caused with the donor-faithful design in hand — landing it is the next pass's first item, not a re-diagnosis"
-  - "The devmnt tag-mux rework + devssl lock split were BUILT this pass (port battery 160/160 at the rework tree, the full session reached) and then REVERTED: the rework introduced a boot-time race whose failure mode varied run-to-run (paqfs 'mount write' / factotum leg fails / full green) and could not be isolated within the session's budget. The revert keeps the deterministic five-fix tree; the design and the partial-implementation notes live in the Deviations section"
+  - "The named suspects were eliminated STRUCTURALLY rather than chased with probes: the reader token (a BusyCell) spans whole-message framing by construction (suspect a — the mid-frame release/re-take window cannot exist), and no MCS lock is ever held across a park (suspect b — the tick-retry paths hold only BusyCells and leaf locks, and BusyCell contenders park). The rebuilt rework booted q35cpu PASS x5 + shell/auth/churn on its first session — the boot race did not recur at those venues; the one residual race it exposed (tier1's paqfs root death) was a DIFFERENT defect (error-on-full pipe writes), root-caused from the capture and fixed donor-faithfully"
+  - "The session teardown needed THREE more layers past the deadlock, each root-caused from live captures before fixing (D-11's measure-first discipline): (1) the Mnt's io chans dropped without close_chan — the ssl conv never hung its TCP wire up (the donor mntdec's cclose shape, landed as Mnt::drop); (2) push_note only queued — an indefinitely-parked reader was never readied, so the kill note never landed (the donor postnote ready(p) + the notepending probe at the block arms); (3) devpipe's write ERRORED on full — under the mux, concurrent rpcs let server replies pile up while owners park between polls and the root paqfs died at its 'mount write' fatal (the donor's BLOCKING qwrite)"
+  - "The gate's session-exit stage was re-keyed to the LIVE-OBSERVED teardown: the pass-1 'goodbye' marker is unreachable in the -G session end against ANY server (the vendored drawterm's exportfs fatal routes through kern/panic's Unix exit(1), never cpu.c's exits() override); the deterministic end marker is the exportfs hangup line ('eof: n=-1 ... i/o on hungup channel') followed by the pty EOF. Same for the drain's [\s\S]+ (a PCRE-ism glibc regcomp rejects — the loop had never executed before the teardown first went green) and the panic scan (drawterm's own 'panic: sysfatal' exit pair excluded; any other panic still fails)"
+  - "The pin choreography ran TWICE (kernel bytes changed twice): FOD probe -> two-derivation proof (plain + fresh marker-clone kernel builds, cmp-clean ISOs, three-way NAR agreement with the FOD's own got-value) -> re-wire (flake.nix only) -> push -> hosted CI observed SUCCESS at the pushed HEAD -> lock-only advance. CI runs 43711744441 (aa55a27) and 43717790664 (df4ad78), both observed green BEFORE the respective advance commits landed"
 
 patterns-established:
-  - "Root-cause by discriminators on the live venue, one instrument per layer: the guest binary's step prints (a temporary #c/cons dbgprint helper, rebuilt via the unprivileged userns tier build), then kernel prints (sys_mount/sys_exec/devmnt walk/devssl refcount), then device lifecycle traces (devpipe qref) — six fix cycles, each eliminating one layer"
+  - "The two-thread host pin for kernel concurrency classes: a condvar-blocking MntIo fake whose stash knob delivers a concurrent rpc's reply BEFORE the parked reader's own — the parked reader (holding the token) must route a foreign reply and each side receives exactly its own; the -G session's exact shape at host determinism (needs the doc-hidden park-hook test seam — the kernel's contention hook has no host analogue)"
 
-requirements-completed: []   # DESK-06/CPU-04/DESK-04 stay OPEN — the gate cannot go green until the devmnt/devssl deadlock closes (see Issues)
+requirements-completed: [DESK-06, CPU-04, DESK-04]   # plan frontmatter verbatim; the shared-ID gate verb governs the actual checkbox flips
 
 coverage:
   - id: D1
@@ -70,7 +72,9 @@ coverage:
     requirement: DESK-06
     verification:
       - kind: other
-        ref: "GATE-FILE-SHAPE-OK (the plan's verify) + validated LIVE at the pushed-fix r9: 14 stages green through the dt-password feedstage"
+        ref: "GATE-FILE-SHAPE-OK (the plan's verify, pass 1) + validated LIVE green twice at the pin this pass (the file's stages all fire in 19-08-gate-pin-{a,b}.log)"
+      - kind: other
+        ref: "This pass's live re-key verified in the retained captures: the session-exit hangup marker present (2 occurrences — drawterm's prefixed + bare lines), the drain completed, the panic scan passed with drawterm's own exit pair excluded"
         status: pass
     human_judgment: false
   - id: D2
@@ -78,145 +82,157 @@ coverage:
     requirement: DESK-06
     verification:
       - kind: other
-        ref: "GATE-APP-EVAL-OK + DRIVER-SHAPE-OK (the plan's verifies) + the full app driven end-to-end twice (pinned + override runs, prior session)"
+        ref: "GATE-APP-EVAL-OK + DRIVER-SHAPE-OK (the plan's verifies, pass 2) + re-evaluated at the advanced pin; the app itself drove the green-twice runs (nix run .#drawterm-gate-x64 at df4ad78)"
         status: pass
     human_judgment: false
   - id: D3
-    description: "The ether reception seam: the cpu image can receive the committed hostfwd pair (cpurc leg + §15 ipconfig staging)"
-    verification:
-      - kind: e2e
-      ref: "cpurc: ETHER-OK in every boot capture + the accept firing (serial: 'tcp call for tcp17010') + the q35cpu boot profile PASS at the re-keyed expectations (r9 917685c)"
-      status: pass
-    human_judgment: false
-  - id: D4
-    description: "Green twice on local KVM + the redacted retained capture (Task 3's DONE, DESK-06's bar, CPU-04's consolidated evidence, DESK-04's live encrypted proof)"
+    description: "The ether reception seam: the cpu image receives the committed hostfwd pair (cpurc leg + §15 ipconfig staging)"
     requirement: DESK-06
     verification:
       - kind: e2e
-      ref: "ADVANCED BUT BLOCKED: at the five-fix r9 (917685c) the session reaches the remote rc -li prompt on the drawterm pty and the fed command's round-trip (the gate's session-prompt + fed-echo stages green, the key exchange byte-verified aligned) — but session-exit hangs: an indefinite 9P read parks devmnt's single-outstanding busy flag AND devssl's Dstate lock, deadlocking every later rpc of the mounted session (rc never reaches its next prompt). GATE-A-GREEN / GATE-GREEN-TWICE / REDACTION-OK still cannot run"
-    human_judgment: true
-    rationale: "The remaining blocker is a two-part kernel concurrency defect (root-caused, donor-faithful fix designs recorded in Deviations); no harvey-side assertion can prove the gate until the next r9 pass lands them"
+        ref: "cpurc ETHER-OK + the accept firing in every capture this pass (pin-a/pin-b/tcg: 'tcp call for tcp17010'); the q35cpu boot profile PASS at the rework trees (6 consecutive boots + the profile set)"
+        status: pass
+    human_judgment: false
+  - id: D4
+    description: "Green twice on local KVM (D-14's required venue) + the redacted retained capture + the honest TCG leg — DESK-06's bar, CPU-04's consolidated evidence, DESK-04's live encrypted proof (D-15)"
+    requirement: DESK-06
+    verification:
+      - kind: e2e
+        ref: "GATE-A-GREEN: nix run .#drawterm-gate-x64 at the df4ad78 pin exit 0, ALL STAGES PASS (evidence/19-08-gate-pin-a.log)"
+        status: pass
+      - kind: e2e
+        ref: "GATE-GREEN-TWICE: the second consecutive run exit 0, ALL STAGES PASS (evidence/19-08-gate-pin-b.log)"
+        status: pass
+      - kind: other
+        ref: "REDACTION-OK both retained captures (the <demo-pw-redacted> token present, zero real-password occurrences)"
+        status: pass
+      - kind: e2e
+        ref: "The TCG leg (R9_ACCEL=tcg) GREEN end-to-end at the pin — ALL STAGES PASS (evidence/19-08-gate-tcg.log); recorded honestly: green, not a venue limitation"
+        status: pass
+      - kind: other
+        ref: "Hosted CI (best-effort per D-14): runs 43711744441 and 43717790664 both SUCCESS at the pushed HEADs, observed before each pin advance"
+        status: pass
+    human_judgment: false
   - id: D5
-    description: "The q35cpu boot-profile re-key (19-07's carried item): the profile's dev set and the xtask gate expectations moved to the real §15 cpurc"
+    description: "The q35cpu boot-profile re-key (19-07's carried item) — re-proven at the rework trees"
+    requirement: DESK-06
     verification:
       - kind: other
-        ref: "boot-test PASS at 917685c: the six-rung ladder green to cpurc: DONE with the pairing rung, then init's post-cpustart terminal handoff — the retired fixture legs and loop-prohibition documented in the profile comments"
+        ref: "boot-test PASS x6 consecutive at the mux tree + PASS at the note-interrupt tree + PASS at the blocking-write tree (the six-rung ladder green, cpurc DONE, zero FAIL) + the profile set (shell/auth/churn) green at the final tree"
         status: pass
     human_judgment: false
 
-duration: 280 min
+duration: 205 min (this pass; 120 + 280 the two prior)
 completed: 2026-11-15
-status: halted
+status: complete
+commits_note: "harvey plan_head_before=4f5a55a (the pass-1 ledger base) plan_head_after=4ceb275de; r9 917685c..df4ad78 (7 commits, pushed == origin/main)"
 ---
 
 # Phase 19 Plan 08: The -G interop gate Summary
 
-**The -G session is ALIVE end-to-end at the five-fix r9 (917685c, PUSHED): password feedstage, tr-ok, a byte-verified key exchange, the encrypted devssl session, the FS/OK handshake, fversion+mount of the client exportfs at /mnt/term, the cons stdio rebind, and the remote rc -li prompt ON THE DRAWMTERM PTY with the fed command's round-trip — one root-caused kernel concurrency defect (devmnt's single-outstanding busy flag + devssl's lock-across-read) still deadlocks the session's teardown and with it the gate's green**
+**The -G interop gate is GREEN end-to-end and green-twice at the advanced pin (df4ad78): a scripted drawterm -G session dials through the committed hostfwd pair, authenticates p9any-to-p9sk1, rides the encrypted rc4_256 sha1 session, lands the remote rc -li prompt on the pty, round-trips a fed command, and tears down cleanly (noteproc killed by note -> session Drop -> TCP hangup -> the client exportfs death -> pty EOF) — closed by a five-layer r9 concurrency chain landed this pass (the devssl direction split, the devmnt tag-mux, the session-teardown Drop, the note-interrupt fix, the blocking pipe write), all push-before-pin with two FOD proofs and two hosted-CI observations**
 
 ## Performance
 
-- **Duration:** 280 min this continuation pass (root-cause heavy: 6 kernel fix cycles, ~20 gate/boot runs, 3 live serial-probe sessions); 120 min the prior pass
-- **Started:** 2026-11-15T05:04:08Z (continuation; the prior pass 02:58:44Z)
-- **Completed:** 2026-11-15T09:4xZ (halted again — the advanced boundary)
-- **Tasks:** 2/3 complete (Task 3 advanced from "dies at auth_chuid" to "full session, session-exit deadlocked")
-- **Files modified:** harvey 0 (all this pass's harvey-side edits were diagnostic scaffolding, reverted; the image re-baked stock); r9 8 (commit 917685c)
+- **Duration:** 205 min this pass (root-cause + five kernel fixes + the choreography ×2 + the gate legs); 120 + 280 the prior passes
+- **Started:** 2026-11-15T10:21:25Z (this continuation; the prior passes 02:58:44Z / 05:04:08Z)
+- **Completed:** 2026-11-15T13:46:28Z
+- **Tasks:** 3/3 complete (Tasks 1-2 prior passes; Task 3 closed this pass)
+- **Files modified:** r9 11 (7 commits, pushed) + harvey 2 (the gate re-key, flake.lock ×2) + 3 evidence captures
 
-## The continuation pass's root-cause chain (Task 3, the D-11 umbrella)
+## The concurrency chain that closed the session (Task 3, D-11's umbrella — each layer root-caused from a live capture)
 
-Each defect was root-caused with a live discriminator instrument before fixing; each fix exposed the next layer:
+1. **The devssl direction split** (r9 22d40fb): the conv's single Dstate lock was held across the blocking wire read, so a parked ssl read blocked every ssl write on the conv (and an MCS guard across a park spin-wedges an IRQ-masked contender). The conv became brief-op shared state + TWO BusyCell direction cells (the donor's `s->in.q`/`s->out.q`), each carrying its OWN dup of the underlying chan — a parked reader and an active writer hold separate handles. The five devssl host pins passed UNCHANGED (the public API held).
+2. **The devmnt tag-mux** (r9 091614a): the busy flag's one-outstanding-rpc limit was the root deadlock. The donor's mountio/mountmux model: every rpc queues a tag slot and sends (io_w cell); exactly ONE wire reader (the io_r BusyCell IS the donor's `m->rip`) frames whole messages and routes queued rpcs' replies into their slots; a reader parked on an indefinite rpc (cpunote, console stdin) keeps serving everyone. The token spans whole-message framing ONLY — the two named boot-race suspects eliminated structurally (no mid-frame release/re-take window exists; no MCS lock is ever held across a park). NEW two-thread host pin: a condvar-blocking fake whose stash knob delivers a concurrent rpc's reply BEFORE the parked reader's own — the -G shape at host determinism.
+3. **The session-teardown Drop** (r9 3c67e2a): with (1)+(2) the session reached prompt + fed-echo + rc's NEXT prompt, but the wire never died — the Mnt's io chans dropped without close_chan, the ssl conv's refc never reached zero, and the TCP stayed up forever (the donor mntdec's cclose). `MntIo::close_chan` + `Mnt::drop`: at refcount zero (which proves no rpc in flight — any caller holds the session Arc through its chan) both halves release their kernel reference; the chain fires: pgrp death -> mount entry -> session Arc -> Drop -> ssl conv free -> TCP dups closed -> hangup.
+4. **The note-interrupt fix** (r9 1f14a50): the teardown still varied run-to-run — `push_note` only QUEUED notes, and the tick's wake arm readies only deadline sleepers; an indefinitely-parked reader (no deadline) never saw the kill note, so the noteproc never died and (3)'s chain never fired. Two halves of the donor's note-interruptible blocking IO: push_note READIES a Blocked target (postnote's `ready(p)`), and the parking loops (devpipe read + the devip data reads) surface a pending note at their re-block arm as "interrupted".
+5. **The blocking pipe write** (r9 56acaea): the tier1 gate then died at the ROOT — `paqfs: mount write` (the root file server's fatal). The mux lets many client rpcs be outstanding, so server replies accumulate in the 4 KiB pipe while their owners park between polls — and devpipe's write ERRORED on full, which ramfs-class servers treat as fatal. The donor's qwrite BLOCKS: the write parks (register under the pipe lock, drop, block) until a draining read makes room; reads wake parked writers; the close paths wake them into their fate. The pipe-full pin re-keyed to the blocking contract.
 
-1. **The cap was empty** (`ai->cap == ""` — measured by a rebuilt instrumented auth_chuid printing to #c/cons): factotum's `mkcap` returned nil because `initcap`'s `open("#¤/caphash")` failed at factotum start — `namec: unknown # device`, measured live from a cpurc probe. **Kernel-x64 builds `--config q35churnshell` whose dev list never carried `cap`** (the 18-02 port is cfg(dev_cap)-gated; the q35auth/q35cpu substrate profiles have it, the composed venue never did — no composed gate consumed a capability before this session). FIX: q35churnshell +cap.
-2. **`duplicate fid` from factotum** (auth_chuid's re-mount of /srv/factotum): every fresh `open("/srv/X")` yields a session-less dup, so every mount negotiated a NEW 9P session (fid 1) over the SAME wire while the server's per-connection fid space still held the first session's fids. The donor's srvopen returns the registry chan OBJECT (the session survives on it); r9's value-dup loses it. FIX: `Pipe::mnt_session` (per-end) — the session lives on the shared connection; fversion consults and stores it.
-3. **`fversion: fd is not a 9P-capable connection`**: remoteside fversions/mounts the client's exportfs over the DEVSSL data fd; fversion/sys_mount/ChanIo only accepted PIPE chans. FIX: DEVSSL joins all three (ChanIo dispatches devssl read/write).
-4. **The post-mount session died with the ssl fd's close** (`inappropriate use of fd` on every /mnt/term walk): `Chan::dup` bumped pipe/ether/ip open-counts but not #D conversations — the 9P session's io dup did not hold the conv. FIX: the DEVSSL exception in Chan::dup (`devssl::ref_open`).
-5. **The fed command's exec failures were benign** (measured: `./echo` — rc's default $path tries "." first; `/bin/echo` succeeds silently; `/bin/test` is deliberately absent) — no fix needed, recorded so the next pass does not re-chase it.
+**The gate then went green end-to-end** — and exposed three never-exercised pass-1 assumptions in its own file (the re-key is its own harvey commit c1d8a09b8): the session-exit "goodbye" marker is unreachable against ANY server (drawterm's exportfs fatal routes through kern/panic's Unix exit, never cpu.c's exits() override) — the deterministic end marker is the exportfs hangup line + pty EOF; the drain's `[\s\S]+` is a PCRE-ism glibc regcomp rejects; the whole-file panic scan excludes drawterm's own "panic: sysfatal" exit pair.
 
-At this point the session's stages went green through **fed-echo** — the fed line returns through the exportfs (`Rread ... 'echo DTGATE-...'` observed from drawterm's debug build).
+## The pin choreography (ran TWICE — kernel bytes changed twice)
 
-## THE REMAINING BLOCKER (root-caused, design in hand)
-
-`session-exit` hangs: rc never reaches its next prompt after the fed command. Two compounding concurrency defects, both root-caused:
-
-- **devmnt allows ONE outstanding rpc, with the busy flag held across the blocking reply read.** The first indefinite 9P read on a mounted session — cpu -R's noteproc reading `/mnt/term/dev/cpunote`, or rc's console stdin — parks holding the session; every later rpc (rc's next prompt Twrite, the children's Tclunks) blocks forever.
-- **devssl::read holds the Dstate lock across the blocking wire read** (the donor splits by direction: `s->in.q` for reads, `s->out.q` for writes). A parked ssl read blocks all ssl writes on the conversation.
-
-**The donor-faithful fix design (built this pass, reverted for a boot race — see Deviations):** devmnt multiplexes by TAG with a transferable single-wire-reader token (every blocked reader is a potential demux reader for others' replies — the donor's model; the routed-reply queue + the outstanding-tag registry with the loud tag-mismatch check), and devssl's data read takes the Dstate lock only around state transitions, parking with the io chan taken out of the shared state. The implementation reached the full session but introduced a boot-time race (varying failure modes: paqfs `mount write`, the factotum leg, or green) that this pass could not isolate; it was reverted in favor of the deterministic five-fix tree.
+| Step | First pass (aa55a27) | Second pass (df4ad78) |
+|---|---|---|
+| FOD got-value | sha256-KhMByB5… | sha256-+0pYwTBh… |
+| Proof A (plain) | 1f14a50, cached drv | 56acaea, cached drv |
+| Proof B (fresh) | 9858748 marker clone | 3fe2807 marker clone |
+| ISO file sha256 | d1e8a9fd5de60cc1… | 9055d76e9bdcb91c… |
+| Three-way NAR | A == B == got-value, cmp clean | A == B == got-value, cmp clean |
+| Re-wire commit | r9 aa55a27 (flake.nix only) | r9 df4ad78 (flake.nix only) |
+| Hosted CI | run 43711744441 SUCCESS, observed BEFORE the advance | run 43717790664 SUCCESS, observed BEFORE the advance |
+| Pin advance | harvey dfb6e5ab1 (lock-only) | harvey 4ceb275de (lock-only) |
 
 ## Task Commits
 
-1. **Task 1: drawterm-gate.expect — the pty-driven session chassis** - `8b1b0ecd5` (feat, prior pass)
-2. **Task 2: the -G gate driver + flake app registration** - `6defbd9eb` (feat, prior pass)
-3. **[Rule 3] the cpu image's hostfwd reception seam** - `66f3e9a13` (fix, prior pass)
-4. **Task 3 evidence: the pinned + override gate runs + the repro pair** - `03a11d673` (test, prior pass)
-5. **Task 3 (continuation): the five-defect kernel chain + the q35cpu re-key** — **r9 `917685c`** (fix, PUSHED = origin/main; harvey-side: zero — the diagnostic scaffolding was fully reverted)
+1. **Task 1: drawterm-gate.expect — the pty-driven session chassis** - `8b1b0ecd5` (feat, pass 1)
+2. **Task 2: the -G gate driver + flake app registration** - `6defbd9eb` (feat, pass 1)
+3. **[Rule 3] the cpu image's hostfwd reception seam** - `66f3e9a13` (fix, pass 1)
+4. **Task 3 evidence (pass 1)** - `03a11d673` (test)
+5. **Task 3 (pass 2): the five-defect kernel chain** - r9 `917685c` (+ `9704b2e`), pushed
+6. **Task 3 (pass 3, THIS pass): the concurrency chain + the choreography** — r9 `22d40fb`, `091614a`, `3c67e2a`, `1f14a50`, `aa55a27`, `56acaea`, `df4ad78` (all pushed == origin/main); harvey `c1d8a09b8` (the gate re-key), `dfb6e5ab1` + `4ceb275de` (the two lock-only pin advances)
 
 **Plan metadata:** (this SUMMARY + STATE/ROADMAP — the docs commit follows)
 
 ## Files Created/Modified
 
-- (prior session, unchanged this pass): `build/x86_64/drawterm-gate.expect`, `nix/drawterm-gate-x64.sh`, `flake.nix`, `cpurc`, `mkimage.sh`, the five evidence files
-- (this pass, r9 917685c): `config_q35churnshell.toml` (+cap), `config_q35cpu.toml` (+ether+ip), `xtask/src/main.rs` (the gate expectations), `port/src/devpipe.rs` (mnt_session), `port/src/devmnt.rs` (fversion pipe-probe + ssl chans), `port/src/devssl.rs` (ref_open), `port/src/dat.rs` (dup's #D rule), `x86_64/src/syscall.rs` (sys_mount's ssl arm)
+- `build/x86_64/drawterm-gate.expect` — the live re-key (session-exit, drain, panic-scan)
+- `flake.lock` — r9 pin 0a4b853 -> aa55a27 -> df4ad78
+- r9 (its own repo, pushed): `port/src/devssl.rs`, `port/src/devmnt.rs`, `port/src/mcslock.rs`, `port/src/devpipe.rs`, `port/src/devip/proto.rs`, `port/src/devip/stack.rs`, `x86_64/src/proc.rs`, `x86_64/src/main.rs`, `port/tests/devmnt_test.rs`, `port/tests/devpipe_test.rs`, `port/src/devip_tests.rs`, `flake.nix`
+- Evidence: `evidence/19-08-gate-pin-a.log`, `19-08-gate-pin-b.log`, `19-08-gate-tcg.log` (all redacted)
 
 ## Decisions Made
 
-See key-decisions. Additionally: the pin advance is deliberately NOT executed this pass — kernel bytes (9704b2e + 917685c) stay pushed-but-unpinned exactly as the prior pass left 9704b2e, because the plan's own boundary ties the choreography to the gate's green ("a fix here re-opens 19-05's choreography as its own pass"); advancing now would pin bytes whose session evidence is still red.
+See key-decisions. Additionally: the carried list's "isolate the boot race against the two named suspects first" was resolved by CONSTRUCTION rather than reproduction — the rebuilt design makes suspect (a) unrepresentable (the token spans framing; there is no release point between header and body) and suspect (b) moot (no MCS lock exists on any park path). The residual tier1 race the rebuilt tree exposed was a THIRD defect class (error-on-full writes), root-caused from its capture within three gate runs.
 
 ## Deviations from Plan
 
 ### Auto-fixed Issues
 
-**1. [Rule 1 - Kernel bug, D-11 umbrella] The composed kernel lacked #¤ (root cause C, layer 1)**
-- **Found during:** Task 3 continuation (instrumented auth_chuid: `cap=0` at the cap check)
-- **Issue:** kernel-x64 = q35churnshell, dev list without `cap` — factotum's caps were silently nil since the first composed boot
-- **Fix:** q35churnshell dev += "cap" (r9 917685c)
-- **Verification:** the capuse write succeeds; auth_chuid proceeds past the cap check (live trace)
-- **Commit:** r9 917685c
+**1. [Rule 1 - Kernel concurrency] devssl's single-conv lock blocked writes across a parked read**
+- **Found during:** Task 3 (the root-caused record's named defect, layer 1)
+- **Fix:** the direction split (BusyCell cells per direction, io dups per direction) — r9 22d40fb; the five devssl pins passed unchanged
 
-**2. [Rule 1 - Kernel bug] `duplicate fid` at every /srv re-mount**
-- **Found during:** Task 3 continuation (kernel devmnt walk prints + the lib9p error string)
-- **Fix:** Pipe::mnt_session — the donor's session-survives-the-registry-chan semantics, hosted on the shared connection (r9 917685c)
-- **Verification:** the factotum re-mount's Tattach succeeds; the error line disappears from the capture
-- **Commit:** r9 917685c
+**2. [Rule 1 - Kernel concurrency] devmnt's single-outstanding busy flag deadlocked session exit**
+- **Fix:** the donor's tag-mux (queue + slots + the transferable reader token) — r9 091614a; NEW two-thread host pin for the demux class
 
-**3. [Rule 1 - Kernel bug] fversion/mount rejected the ssl fd**
-- **Fix:** DEVSSL accepted as a 9P connection in fversion, sys_mount, and ChanIo (r9 917685c)
-- **Verification:** remoteside's fversion completes ("fversion done" live trace); the /mnt/term mount's Tattach observed at drawterm's exportfs
-- **Commit:** r9 917685c
+**3. [Rule 1 - Kernel leak] the session's io chans never closed — the wire never hung up**
+- **Found during:** Task 3 (the mux-green run stalled at teardown with the whole service tree exited)
+- **Fix:** MntIo::close_chan + Mnt::drop (the donor mntdec's cclose) — r9 3c67e2a
 
-**4. [Rule 1 - Kernel bug] Chan::dup did not hold #D conversations**
-- **Fix:** the DEVSSL exception in Chan::dup (devssl::ref_open) — the devpipe/devip rule extended (r9 917685c)
-- **Verification:** the post-mount walks (dev, cons, cpunote) reach the exportfs after remoteside's close of the ssl fd
-- **Commit:** r9 917685c
+**4. [Rule 1 - Kernel defect] notes never interrupted indefinitely-parked readers (the teardown variance)**
+- **Found during:** Task 3 (the same tree tore down once, stalled the next)
+- **Fix:** push_note's ready(p) + the notepending probe at the block arms — r9 1f14a50
 
-**5. [Rule 3 - Blocking] The q35cpu profile predated the real §15 cpurc (19-07's carried item)**
-- **Fix:** ether+ip in the dev set; the xtask expectations re-keyed to the ladder markers (cpurc: PAIR-OK/DONE); the 19-03 fixture legs and the 19-01 terminal-loop prohibition retired with the reasoning recorded at each site (r9 917685c)
-- **Verification:** boot-test PASS (twice) at 917685c
-- **Commit:** r9 917685c
+**5. [Rule 1 - Kernel defect] error-on-full pipe writes killed the root paqfs under the mux**
+- **Found during:** Task 3 (the at-the-pin tier1 run: `paqfs: mount write` -> root death)
+- **Fix:** the donor's blocking qwrite + the wake paths — r9 56acaea; the pipe-full pin re-keyed
 
-**6. [Rule 1 - Kernel bug, BUILT AND REVERTED] The devmnt tag-mux + the devssl lock split**
-- **Found during:** Task 3 continuation (the session-exit hang localized by exportfs debug traces: the prompt Twrite's reply never returns while the cpunote read parks)
-- **Issue:** the two compounding lock-scope defects described above
-- **Fix:** the full donor-faithful rework was implemented (port battery 160/160 green at the rework tree, devmnt host tests re-keyed to the mux, the session reached prompt + fed-echo deterministically at first) — but a boot-time race appeared (paqfs `mount write` / the factotum leg / green, varying per run; NOT the waived triple-fault class — clean process-level failures) and could not be isolated within the fix-attempt budget. REVERTED to the deterministic five-fix tree; the design + the partial implementation's shape are recorded here and in the commit message
-- **Verification:** the revert tree: battery 160/160 + q35cpu boot PASS + the gate's prior behavior restored (session-prompt + fed-echo green, session-exit timeout)
-- **Commit:** (none — reverted; the design rides this record)
+**6. [Rule 1 - Gate defect] the gate file's three never-exercised assumptions**
+- **Fix:** the live re-key (the exportfs-hangup teardown marker, the glob drain catch-all, the panic scan's drawterm-exit exclusion) — harvey c1d8a09b8; validated by the green runs
 
 ---
 
-**Total deviations:** 6 auto-fixed (5 kernel bugs under D-11's umbrella, 1 blocking re-key; one additional fix built and deliberately reverted)
-**Impact on plan:** all six were prerequisites for the session working AT ALL; no scope creep. The revert keeps the tree at the highest DETERMINISTICALLY-VERIFIED state.
+**Total deviations:** 6 auto-fixed (5 kernel Rule-1 + 1 gate Rule-1). **Impact on plan:** all six were prerequisites for the gate's green; no scope creep.
+
+## The prior passes' halt records (preserved)
+
+### Halt 1 (pass 1, 2026-11-15): the pinned-kernel + auth_chuid boundary
+Tasks 1-2 committed; the gate's session died at the -O auth leg against the pinned kernel — superseded by pass 2's root-cause (the five-defect chain). The detail lives in git history (49a1fca39's SUMMARY record) and the pass-1 evidence files.
+
+### Halt 2 (pass 2, 2026-11-15): the session-exit deadlock
+The session ALIVE through prompt + fed-echo at pushed r9 917685c, but session-exit deadlocked: devmnt's busy flag across the parked reply read + devssl's Dstate lock across the wire read — both root-caused with donor-faithful designs recorded; the pass-2 rework attempt (tag-mux + split) had been BUILT and reverted for a boot race whose named suspects (the mid-frame release window; the tick-retry vs the parked read) this pass eliminated structurally. The five-defect chain's record: q35churnshell +cap, Pipe::mnt_session srv re-mount reuse, DEVSSL chans as 9P connections, Chan::dup's #D refc rule, the q35cpu re-key (r9 917685c).
 
 ## Issues Encountered
 
-- **THE REMAINING HALT — the session-exit deadlock (kernel, OPEN):** the two root-caused lock-scope defects (devmnt's busy-flag-across-parked-read; devssl's Dstate-lock-across-wire-read). The next r9-touching pass owns: land the tag-mux + the devssl direction split (the designs above; the partial implementation reached the full session once), THEN the pin advance + FOD re-wire for 9704b2e+917685c together (the 19-05 choreography verbatim), the battery re-green at the pin, and THIS gate's green-twice + REDACTION-OK + the honest TCG leg.
-- **The boot-flake discriminator confusion:** two boot failures during the rework bisect initially looked like the rework's regression; one was a genuine rework bug (an MCS LockNode reused across nested acquisitions — corrupting both lock queues), one was a run-to-run race that ALSO fires on the five-fix tree rarely. Both recorded; the MCS fix's lesson (one node per acquisition, always) is noted in the r9 commit.
-- **D-09 record (the waived #66/CR-07 class):** no triple-fault/capture-context firing occurred this pass; the varying boot failures above are a DIFFERENT class (clean process exits with named errstrs) and were treated as ordinary bugs, not the waiver.
-- The drawterm wrapper's `-s ''` gap (the prior pass's note) stands for 19-09/19-10's human sessions.
-- `expect` is not on the bare host PATH (the flake app's runtimeInputs carry it — unchanged).
-- cpu-bringup.expect re-greens as part of the next pass's battery (the ladder is green in every capture this pass: ETHER-OK through DONE, including the q35cpu boot-test PASS which asserts the same vocabulary).
+- **The tier1 host-build flake (1 of 4 runs):** the userns tier build DIED mid-tier3 (the log stops mid-rio; the driver's last-step report named the wrong entry). A host-side flake, not the tree — the immediate rerun was green with identical inputs. No action.
+- **The note-interrupt boundary, recorded honestly:** the OTHER blocking sites in devip (connect/listen/write-full arms) now WAKE on notes (push_note's ready(p)) but do not yet surface the interrupt at their re-block arms — pre-existing behavior for those paths, no measured caller this era; the data-read pair (tcp + icmp + devpipe read/write) is the -G session's whole surface and is fully interruptible. The boundary is documented in r9 1f14a50's commit message.
+- **D-09 record:** no triple-fault/capture-context firing occurred (the waived #66/CR-07 class never fired in any run this pass — the full 8-way concurrent bulk transfer is not this gate's shape).
+- The drawterm wrapper's `-s ''` gap (the pass-1 note) stands for 19-09/19-10's human sessions.
 
 ## Known Stubs
 
-None - no stubs, placeholders, or unwired data paths were introduced. (All diagnostic instrumentation — the #c/cons dbgprint helper in cpu.c, the drawterm/exportfs debug builds, the kernel DBG prints, the cpurc probe block — was fully reverted; the harvey tree is byte-clean and the image re-baked stock.)
+None - no stubs, placeholders, or unwired data paths were introduced.
 
 ## User Setup Required
 
@@ -224,19 +240,19 @@ None - no external service configuration required.
 
 ## Next Phase Readiness
 
-- 19-09 (--system=cpu boot mode) can proceed: it boots the SAME §15 image (the ether leg, the one-medium rule)
-- 19-10 (DESK-07 evidence) remains BLOCKED on this plan's green gate
-- THE NAMED NEXT PASS (r9-touching): (1) land the devmnt tag-mux + devssl lock split (designs in Deviations; the boot race in the partial implementation needs isolation — the varying failure modes suggest a lost-wakeup or a lock-queue hazard in the reader-token protocol, prime suspects: the reader-flag release/re-take window in the framing loop and the tick-retry's interaction with the parked io_r read); (2) the pin advance + FOD re-wire for 9704b2e+917685c; (3) the battery + composed gates re-green at the pin (incl. cpu-bringup); (4) this gate's green-twice + REDACTION-OK + the TCG leg; (5) re-summarize 19-08 complete
+- 19-09 (--system=cpu boot mode) proceeds at the df4ad78 pin — the same §15 image, and now on the concurrency-corrected kernel (the tag-mux + blocking writes are its substrate)
+- 19-10 (DESK-07 evidence) UNBLOCKED — the gate is green twice with retained captures
+- The next r9-touching pass re-runs the FOD choreography (any kernel-byte commit re-stales it — the standing drift class)
 
 ## Self-Check: PENDING (appended below after verification)
 
 ---
 *Phase: 19-cpu-service-drawterm-rio-desktop*
-*Completed: 2026-11-15 (halted at the session-exit deadlock — see Issues; the prior halt's record is preserved above in the root-cause chain)*
+*Completed: 2026-11-15 (the third pass closed the plan; the two halt records preserved above)*
 
 ## Self-Check: PASSED
 
-- Created/modified files exist: build/x86_64/drawterm-gate.expect, nix/drawterm-gate-x64.sh, the five evidence files, the SUMMARY FOUND; the harvey working tree is CLEAN apart from this SUMMARY (all diagnostic scaffolding reverted; the image re-baked stock)
-- Task commits exist: 8b1b0ecd5, 6defbd9eb, 66f3e9a13, 03a11d673 all ancestors of HEAD (49a1fca39); r9 917685c == origin/main (PUSHED, verified post-push)
-- Plan verify legs at close-out: Task 1 GATE-FILE-SHAPE-OK PASS; Task 2 GATE-APP-EVAL-OK + DRIVER-SHAPE-OK PASS (prior session); Task 3 session-prompt + fed-echo STAGES GREEN at r9 917685c (the final verification run), GATE-A-GREEN / GATE-GREEN-TWICE / REDACTION-OK BLOCKED (the session-exit deadlock — honestly recorded, coverage D4 status: fail/advanced)
-- r9 battery at the final tree: cargo xtask check + test green (port 160/160), q35cpu boot-test PASS
+- Created/modified files exist: the gate expect, the driver, flake.lock, the three retained captures (pin-a/pin-b/tcg), the SUMMARY — FOUND
+- Task commits exist: harvey 8b1b0ecd5, 6defbd9eb, 66f3e9a13, 03a11d673 (prior passes), c1d8a09b8 (the gate re-key), dfb6e5ab1 + 4ceb275de (the two lock-only pin advances) all ancestors of HEAD; r9 22d40fb, 091614a, 3c67e2a, 1f14a50, aa55a27, 56acaea, df4ad78 all ancestors of origin/main (PUSHED-CLEAN, HEAD == origin/main)
+- The pin: flake.lock r9 rev == r9 origin/main (df4ad78, LOCK-EQUALS-R9-ORIGIN-MAIN); both pin-advance commits are lock-only
+- Plan verify legs at close-out: GATE-A-GREEN + GATE-GREEN-TWICE + REDACTION-OK (both captures) + the TCG leg GREEN — all at the df4ad78 pin; hosted CI runs 43711744441 / 43717790664 SUCCESS observed before each advance; battery 224/224 + xtask check green at the final r9 tree; composed gates green (smoke/tier1×3/churn/auth + the q35cpu boot profile set)
