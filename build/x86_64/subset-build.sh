@@ -307,6 +307,28 @@ cp /sys/src/cmd/6.dd /amd64/bin/dd || fail "harvest dd"
 rm -f /sys/src/cmd/6.dd /sys/src/cmd/dd.6
 [ -s /amd64/bin/dd ] || fail "dd: no artifact /amd64/bin/dd"
 
+# 19-10 (DESK-07's Leg-1 substrate, D-11): the desktop-session helpers
+# — NOT tier members (never swept, no markers; the bind/dd precedent):
+# syscall (the staged profile's /tmp writability probe —
+# `syscall create /tmp/xxx' fails on the read-only paq exactly as on
+# the donor's cd-rom media, which is what makes the ramfs fallback
+# fire; cmd/syscall is a DIR with its own mkone mkfile, so it installs
+# normally — tier4's cmd/syscall row is coverage DATA, never a build
+# member, and the tier lists stay untouched per the append-only rule)
+# and awd (acme's cwd marker, one word of the staged profile's
+# `fn cd { builtin cd $* && awd }').  Both ride the §15 cpu image at
+# their donor exec paths /amd64/bin/{syscall,awd}.
+echo "== desktop cmd: syscall (dir install, the profile's /tmp probe)"
+rm -f /amd64/bin/syscall
+(cd /sys/src/cmd/syscall && objtype=amd64 mk install) || fail "cmd syscall"
+[ -s /amd64/bin/syscall ] || fail "syscall: no artifact /amd64/bin/syscall"
+
+echo "== desktop cmd: awd (link-only + harvest, the profile's fn cd)"
+(cd /sys/src/cmd && objtype=amd64 mk 6.awd) || fail "cmd awd (link-only)"
+cp /sys/src/cmd/6.awd /amd64/bin/awd || fail "harvest awd"
+rm -f /sys/src/cmd/6.awd /sys/src/cmd/awd.6
+[ -s /amd64/bin/awd ] || fail "awd: no artifact /amd64/bin/awd"
+
 for h in netblast tcpblast tcpecho; do
 	echo "== net helper: build/x86_64/$h.c -> out/$h (6c/6l)"
 	(cd "$HARVEY/build/x86_64" && objtype=amd64 6c -FTVw "$h.c" && objtype=amd64 6l -o "$HARVEY/build/x86_64/out/$h" "$h.6" && rm -f "$h.6") || fail "net helper $h"
@@ -625,6 +647,14 @@ done
 # 14-09: the net-gate payload spot-checks (the magic class)
 for f in ip/ping ip/udpecho dd bind; do
 	[ -x "$HARVEY/amd64/bin/$f" ] || err "amd64/bin/$f missing after the tier build (the 14-09 net section)"
+	magic=$(od -An -tx1 -N4 "$HARVEY/amd64/bin/$f" | tr -d ' \n')
+	[ "$magic" = "00008a97" ] || err "amd64/bin/$f: bad magic $magic (want 00008a97)"
+done
+# 19-10: the desktop-session helpers' host-side spot-checks (the same
+# pin class — the namespace-side artifact asserts ran inside the guest
+# script; these pin the same files through the checkout's own paths)
+for f in syscall awd; do
+	[ -x "$HARVEY/amd64/bin/$f" ] || err "amd64/bin/$f missing after the tier build (the 19-10 desktop helpers)"
 	magic=$(od -An -tx1 -N4 "$HARVEY/amd64/bin/$f" | tr -d ' \n')
 	[ "$magic" = "00008a97" ] || err "amd64/bin/$f: bad magic $magic (want 00008a97)"
 done

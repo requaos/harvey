@@ -1741,6 +1741,32 @@ echo "== PASS: baked $AUTH_IMAGE ($sz8 bytes; chain + auth suite + the paired p9
 #     the profile's cpu case guards its window-manager exec on the
 #     client's draw device (DESK-02/05) and never runs at boot.
 #
+#     19-10 (D-11, the Leg-1 substrate): the cpu session image also
+#     carries the DESKTOP suite — /amd64/bin/test RETURNS (rcmain's
+#     login-profile guard `/bin/test -r $home/lib/profile' is its one
+#     consumer on this image; 19-03's fixture pruning retired it with
+#     the fixture body and the owner's authenticated session landed
+#     rcmain's default `% ' prompt with the desktop unreachable), plus
+#     rio/plumber/plumb (the profile cpu case's exec rio + the
+#     in-session plumbing), ramfs/syscall (the profile's /tmp stanza —
+#     the paq IS the read-only media that stanza exists for), awd (the
+#     profile's fn cd), glenda's home shape (bin/rc, bin/amd64, tmp,
+#     lib/plumbing), /sys/lib/plumb's basic+fileaddr rules (plumber's
+#     include targets), and the mnt/temp|wsys|plumb mount points (rio's
+#     #| bind + fsys mount; plumber's mount — r9 refuses binds/mounts
+#     onto nonexistent targets).  The boot stays desktop-free (cpurc
+#     never touches the suite; DESK-02's boot-absence proof holds).
+#
+#     The one-per-session console line `syscall 10 unimplemented' is
+#     benign and expected: syscall 10 is FAUTH (sys.h), called by
+#     libauth's famount for the single `mount -a #s/boot /root' op in
+#     /lib/namespace (newns's nsop mount arm probes fauth before every
+#     mount); r9 keeps FAUTH loud-None by design (the measured-set
+#     rule), famount falls back to the unauthenticated mount(fd,-1),
+#     and paqfs needs no auth.  No namespace file on this image mounts
+#     an auth-requiring server, so nothing on the desktop path is
+#     load-bearing on FAUTH.
+#
 #     The 19-03 fixture legs (SHEBANG-OK/REMOVE-OK/cpurc: RAN) are
 #     RETIRED with the fixture body: the #! exec they proved is now
 #     LOAD-BEARING at the tcp17010 service point itself (every
@@ -1767,12 +1793,34 @@ done
 "$GREP" -qE "^cmd/ip/ipconfig([[:space:]]|#|$)" "$AUTH_T1D" \
 	|| err "cpu bake: tier-1 data lacks cmd/ip/ipconfig (cpurc's ether leg — the 19-08 hostfwd reception seam)"
 [ -x "$BIN/ip/ipconfig" ] || err "$BIN/ip/ipconfig missing — run sh build/x86_64/subset-build.sh first (tier-1 cmd/ip/ipconfig, cpurc's ether leg)"
+# 19-10 (DESK-07's Leg-1 substrate, D-11): the DESKTOP suite — the
+# tier members here, the subset-build insertions (syscall/awd, the
+# bind precedent — no tier row) pinned by the 15b built-binary checks.
+# test: rcmain's login-profile guard (the donor k10root.proto's own
+# amd64/bin bootstrap member — "used by k10cpu.rc to get off the
+# ground").  rio/plumb: the profile cpu case's window manager + the
+# plumber/plumb pair.  ramfs: the profile's /tmp stanza fallback.
+CPU_T3="$HARVEY/build/x86_64/tiers/tier3-gui.txt"
+for e in cmd/rio cmd/plumb; do
+	"$GREP" -qE "^$e([[:space:]]|#|$)" "$CPU_T3" \
+		|| err "cpu bake: tier-3 data lacks the desktop-suite entry $e (the bake's staging set and the tier data diverged)"
+done
+"$GREP" -qE "^cmd/ramfs([[:space:]]|#|$)" "$AUTH_T2" \
+	|| err "cpu bake: tier-2 data lacks cmd/ramfs (the profile's /tmp stanza fallback)"
+"$GREP" -qE "^cmd/test([[:space:]]|#|$)" "$AUTH_T1D" \
+	|| err "cpu bake: tier-1 data lacks cmd/test (rcmain's login-profile guard — the 19-10 desktop substrate)"
 
 # 15b. inputs + shape guards (named loudly, before any staging spend):
 #      the cpu binaries at their exec paths, the committed cpurc + the
 #      service file with their pinned heads/markers/exec bits
 for f in cpu listen sed; do
 	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first (tier-2 cmd/cpu, cmd/aux:listen; tier-1 cmd/sed)"
+done
+# 19-10: the desktop suite's built binaries — the tier members
+# (test/rio/plumber/plumb/ramfs) AND the subset-build insertions
+# (syscall/awd — pinned HERE, they carry no tier row)
+for f in test rio plumber plumb ramfs syscall awd; do
+	[ -s "$BIN/$f" ] || err "$BIN/$f missing — run sh build/x86_64/subset-build.sh first (the 19-10 desktop suite: rcmain's test guard, rio, plumber/plumb, the profile's ramfs/syscall, awd)"
 done
 CPURC_SRC="$ROOT_TREE/rc/bin/cpurc"
 SVC17010_SRC="$ROOT_TREE/bin/service/tcp17010"
@@ -1824,11 +1872,25 @@ stage_payload "$STAGE9" cpu "$CPU_AUTHDOM_VAL"
 #      mount point — cpu -R's remoteside mounts the client's exportfs
 #      there, the 19-08 dial's target; the donor k10root.proto stages
 #      the same dir)
+#      19-10 (the desktop substrate): + mnt/temp (rio's `bind("#|",
+#      "/mnt/temp", MREPL)' — the donor k10root.proto's own mnt/temp),
+#      mnt/wsys (rio's fsys `mount(..., "/mnt/wsys", MREPL, ...)'), and
+#      mnt/plumb (plumber's startfsys `mount(p[1], -1, "/mnt/plumb",
+#      MREPL, ...)' — r9 refuses binds AND mounts onto nonexistent
+#      targets, the 19-03 finding); + glenda's home dirs (bin/rc,
+#      bin/amd64, tmp — the staged profile's three home binds; the
+#      donor full-dist home shape, and the session lands there after
+#      remoteside's chdir(home)); + sys/lib/plumb's parent (the 15l
+#      rules copies)
 mkdir -p "$STAGE9/root" "$STAGE9/env" "$STAGE9/proc" "$STAGE9/dev" "$STAGE9/srv" \
 	"$STAGE9/fd" "$STAGE9/bin" "$STAGE9/tmp" "$STAGE9/mnt/term" \
 	"$STAGE9/net" "$STAGE9/boot" "$STAGE9/amd64/bin/aux" "$STAGE9/amd64/bin/ip" \
 	"$STAGE9/rc/lib" "$STAGE9/rc/bin/service" "$STAGE9/adm/timezone" "$STAGE9/adm" \
-	"$STAGE9/lib/ndb"
+	"$STAGE9/lib/ndb" \
+	"$STAGE9/mnt/temp" "$STAGE9/mnt/wsys" "$STAGE9/mnt/plumb" \
+	"$STAGE9/usr/glenda/bin/rc" "$STAGE9/usr/glenda/bin/amd64" \
+	"$STAGE9/usr/glenda/tmp" "$STAGE9/usr/glenda/lib" \
+	"$STAGE9/sys/lib/plumb"
 
 # 15g. the domain staging + the pairing assert (the 14f shape over
 #      §15's own run): nvram at its 112-byte guest-ABI size, keys, the
@@ -1919,6 +1981,27 @@ cp "$BIN/ip/ipconfig" "$STAGE9/amd64/bin/ip/ipconfig"
 magic=$(od -An -tx1 -N4 "$STAGE9/amd64/bin/ip/ipconfig" | tr -d ' \n')
 [ "$magic" = "00008a97" ] || err "cpu bake: ip/ipconfig exec-path copy: bad magic $magic (want 00008a97)"
 
+# 15j2. the DESKTOP suite at its donor exec paths (19-10, D-11 — the
+#       Leg-1 substrate): test (rcmain's `/bin/test -r
+#       $home/lib/profile' guard — the donor k10root.proto stages test
+#       in amd64/bin's own bootstrap set; retiring it in 19-03 with the
+#       fixture body left the guard's exec failing `namec: does not
+#       exist', the profile unsourced, and the desktop unreachable),
+#       rio + plumber + plumb (the profile cpu case's `exec rio' and
+#       the in-session plumbing, DESK-02/DESK-05 — the donor pair),
+#       ramfs + syscall (the profile's /tmp stanza: `syscall create
+#       /tmp/xxx' probes the read-only paq and ramfs mounts the
+#       writable /tmp — the donor's cd-rom shape, which this venue
+#       always is), awd (the profile's `fn cd { builtin cd $* && awd }'
+#       acme helper).  The namespace's `bind /root/$cputype/bin /bin'
+#       surfaces them at /bin/<name>, the names rcmain (absolute
+#       /bin/test) and the profile (path-resolved) invoke.
+for f in test rio plumber plumb ramfs syscall awd; do
+	cp "$BIN/$f" "$STAGE9/amd64/bin/$f"
+	magic=$(od -An -tx1 -N4 "$STAGE9/amd64/bin/$f" | tr -d ' \n')
+	[ "$magic" = "00008a97" ] || err "cpu bake: $f exec-path copy: bad magic $magic (want 00008a97)"
+done
+
 # 15k. the service file's GUEST-side surfacing: the paq-local
 #      bin/service is SHADOWED by the namespace's plain /bin bind (the
 #      19-03 finding), so cpurc binds it back over the name — and the
@@ -1930,9 +2013,24 @@ magic=$(od -An -tx1 -N4 "$STAGE9/amd64/bin/ip/ipconfig" | tr -d ' \n')
 cp "$SVC17010_SRC" "$STAGE9/rc/bin/service/tcp17010"
 
 # 15l. bake-time verbatim copies (the 8e set — rcmain: the rc-main
-#      whose `eval $cflag' runs cpurc; timezone: init's cpenv)
+#      whose `eval $cflag' runs cpurc; timezone: init's cpenv) +
+#      19-10's desktop DATA half: glenda's plumbing rules (plumber's
+#      DEFAULT rules file is $home/lib/plumbing — plumber.c threadmain;
+#      without it plumber dies at `can't open rules file' and DESK-05's
+#      in-session plumbing never starts) + /sys/lib/plumb's basic +
+#      fileaddr (the `include basic' resolution is /sys/lib/plumb/%s —
+#      rules.c; basic includes fileaddr)
 cp "$HARVEY/rc/lib/rcmain" "$STAGE9/rc/lib/rcmain"
 cp "$HARVEY/adm/timezone/local" "$STAGE9/adm/timezone/local"
+cp "$HARVEY/usr/glenda/lib/plumbing" "$STAGE9/usr/glenda/lib/plumbing"
+cp "$HARVEY/sys/lib/plumb/basic" "$STAGE9/sys/lib/plumb/basic"
+cp "$HARVEY/sys/lib/plumb/fileaddr" "$STAGE9/sys/lib/plumb/fileaddr"
+cmp -s "$HARVEY/usr/glenda/lib/plumbing" "$STAGE9/usr/glenda/lib/plumbing" \
+	|| err "staged usr/glenda/lib/plumbing diverges from usr/glenda/lib/plumbing (cpu — the 19-10 desktop substrate)"
+cmp -s "$HARVEY/sys/lib/plumb/basic" "$STAGE9/sys/lib/plumb/basic" \
+	|| err "staged sys/lib/plumb/basic diverges from sys/lib/plumb/basic (cpu — the 19-10 desktop substrate)"
+cmp -s "$HARVEY/sys/lib/plumb/fileaddr" "$STAGE9/sys/lib/plumb/fileaddr" \
+	|| err "staged sys/lib/plumb/fileaddr diverges from sys/lib/plumb/fileaddr (cpu — the 19-10 desktop substrate)"
 
 # 15m. pre-bake manifest — PRINTED naming §15 (the bake log is the
 #      gate's evidence; the bring-up probe greps these lines)
@@ -1940,10 +2038,13 @@ for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
 	amd64/bin/bind amd64/bin/authsrv amd64/bin/cpu \
 	amd64/bin/aux/listen amd64/bin/ip/ipconfig \
+	amd64/bin/test amd64/bin/rio amd64/bin/plumber amd64/bin/plumb \
+	amd64/bin/ramfs amd64/bin/syscall amd64/bin/awd \
 	rc/lib/rcmain rc/bin/cpurc rc/bin/service/tcp17010 \
 	bin/service/tcp17010 rc/bin/termrc lib/namespace lib/netaddr.rc \
 	lib/ndb/auth lib/ndb/local adm/timezone/local adm/nvram adm/keys \
-	adm/domain.manifest boot/authid-creds.txt usr/glenda/lib/profile; do
+	adm/domain.manifest boot/authid-creds.txt usr/glenda/lib/profile \
+	usr/glenda/lib/plumbing sys/lib/plumb/basic sys/lib/plumb/fileaddr; do
 	[ -f "$STAGE9/$p" ] || err "cpu manifest (§15): $p missing from staged tree"
 	echo "cpu manifest (§15): /$p staged"
 done
@@ -1953,7 +2054,9 @@ while read -r _h _src; do
 	_nh=$((_nh + 1))
 done < "$AUTH_HLIST"
 echo "cpu manifest (§15): ${_nh} h* sweep binaries staged (§14's computed auth-suite set + the tier-1 helpers incl. hfactotum/hsed)"
-for p in root env proc dev srv fd bin tmp mnt/term net; do
+for p in root env proc dev srv fd bin tmp mnt/term net \
+	mnt/temp mnt/wsys mnt/plumb \
+	usr/glenda/bin/rc usr/glenda/bin/amd64 usr/glenda/tmp; do
 	[ -d "$STAGE9/$p" ] || err "cpu manifest (§15): mount-point dir /$p missing"
 done
 
@@ -1985,4 +2088,4 @@ sz9=$(wc -c < "$CPU_IMAGE" | tr -d ' ')
 trailer9=$(od -An -tx1 -j $((sz9 - 28)) -N 4 "$CPU_IMAGE" | tr -d ' \n')
 [ "$trailer9" = "6b46e688" ] || err "$CPU_IMAGE: bad trailer magic $trailer9 (want 6b46e688)"
 
-echo "== PASS: baked $CPU_IMAGE ($sz9 bytes; chain + the auth suite + cmd/cpu + aux/listen + the real cpurc + tcp17010 + the font payload + the §15 p9sk1 domain; header $magic9 trailer $trailer9; KERNDATE $KERNDATE)"
+echo "== PASS: baked $CPU_IMAGE ($sz9 bytes; chain + the auth suite + cmd/cpu + aux/listen + the real cpurc + tcp17010 + the font payload + the §15 p9sk1 domain + the 19-10 desktop suite (test/rio/plumber/plumb/ramfs/syscall/awd + glenda's home + the plumb rules); header $magic9 trailer $trailer9; KERNDATE $KERNDATE)"
