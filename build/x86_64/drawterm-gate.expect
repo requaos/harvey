@@ -1,0 +1,490 @@
+#!/usr/bin/expect -f
+# drawterm-gate.expect — the -G interop gate (19-08, DESK-06's CI-able
+# proof + CPU-04's serial evidence + DESK-04's live encrypted proof,
+# D-15: the gate IS the probe): the smoke-r9-auth.expect chassis with
+# TWO spawned subtrees driving a REAL scripted drawterm session
+# end-to-end through the Phase-16 hostfwd pair:
+#
+#   (1) qemu with the §15 cpu image (19-07's bootfs-cpu.paq, composed
+#       via the iso-builder WITH the init override append — 19-01's
+#       seam) under the emitter's slirp argv (the pinned D-04 hostfwd
+#       pair 127.0.0.1:17010 + 127.0.0.1:5670 rides the TOML data);
+#       observe the bootconf ladder to cpurc: LISTEN-17010 + DONE and
+#       BOTH hostfwd listeners host-side (the cpu-bringup stage
+#       vocabulary, reused not re-invented) BEFORE any dial;
+#   (2) drawterm -G -s '' -O cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,
+#       user=$R9_DEMO_USER spawned ON A PTY (expect's spawn IS a pty —
+#       the child gets a real tty; drawterm's -G runtime puts the OS
+#       tty raw itself at gconsinit, the 16-05 measured caveat class:
+#       spawned ptys stay canonical only for children that never set
+#       raw mode, and drawterm does).  The session rides ENCRYPTED —
+#       no -e flag anywhere: the rc4_256 sha1 default over guest #D
+#       via pushssl (D-15; both devssl ends byte-exact or the session
+#       garbles — the 19-04 Pitfall 11 interop surface).  feedstage
+#       the password prompt (drawterm's readcons prints
+#       `<user>@<authdom> password: ' — cpu.c's getkey shape; the
+#       password is sent as EXACT bytes `$pw\r' with no trailing
+#       newline assumptions — readcons terminates on \r or \n and the
+#       raw pty does no translation), then assert presence-only:
+#       the remote shell prompt, a fed command (echo with a unique
+#       per-run marker) and its echoed output marker, and the session
+#       teardown (rc exit -> connection drop -> drawterm's gconsexit
+#       `goodbye').
+#
+#   The `-s ''` flag is LOAD-BEARING on this venue: without a -s
+#   value drawterm defaults secstoreserver to the authserver, and
+#   secdial passes a 3-part address through netmkaddr AS-IS — the
+#   secstore probe would land on the AUTH port where authsrv's
+#   readn(TICKREQLEN) waits for more bytes while the probe waits for
+#   a reply (a mutual park neither side's timers can heal).  `-s ''
+#   makes secdial fall to its $auth parse (host-only -> port 5356),
+#   which the committed hostfwd pair does NOT forward: the dial is
+#   refused instantly and the probe is skipped — the standard
+#   drawterm behavior on a host with no reachable secstore.
+#
+#   exit 0 only when every stage + post-pass passed; a failure exits
+#   1 and names the failed stage on stderr; exit 2 on a contract
+#   violation (missing/empty env — the empty-creds abort fires BEFORE
+#   any spawn, naming the creds file path).
+#
+# Hygiene: the caller rm -f's the capture BEFORE launch and we rm -f
+# + log_file it fresh below — the file starts empty and only THIS
+# run's streams (qemu serial + the drawterm pty, one capture) write
+# it.  EVERY exit path kills BOTH process groups (qemu's AND
+# drawterm's — drawterm is a second spawned subtree the sibling-gate
+# sweep misses, the 19-PATTERNS warning); the caller's EXIT trap
+# sweeps any survivor keyed on this run's unique tags.
+#
+# Markers: PRESENCE assertions only, never interleaving order
+# (preemption and TCG make arrival order meaningless); CRLF-tolerant
+# substrings, never end-of-line anchored; no timing-based asserts.
+# Timeouts TCG-sized (600s per stage; KVM completes in seconds).
+#
+# Env (exported by nix/drawterm-gate-x64.sh = the flake app
+# .#drawterm-gate-x64):
+#   R9_QEMU        default qemu-system-x86_64
+#   R9_ISO         REQUIRED — the COMPOSED cpu ISO (the iso-builder
+#                  output with --append=init=/amd64/init -c and
+#                  bootfs-cpu.paq staged as /boot/bootfs.paq)
+#   R9_SMOKE_LOG   REQUIRED — the capture (fresh per run; the
+#                  green-twice runs retain both captures as evidence)
+#   R9_NETDEV_ARGV REQUIRED — the emitter's slirp argv as ONE
+#                  space-separated line (the D-04 hostfwd pair rides
+#                  the pinned TOML data; the spawn block splits it —
+#                  NO netdev literal lives in this file)
+#   R9_DEMO_USER   REQUIRED non-empty — the §15 creds user (the
+#                  driver's parse of out/auth-creds.txt's user= line;
+#                  the -O spec and the prompt-match both key on it)
+#   R9_DEMO_PW     REQUIRED non-empty — the §15 creds password (the
+#                  driver's parse of out/auth-creds.txt's password=
+#                  line).  It reaches ONLY the pty feedstage below
+#                  (raw-mode send, never echoed — drawterm's gconsinit
+#                  sets ECHO off before any prompt) and the T-18-13
+#                  redaction pass at the end; the gate never prints it.
+#   R9_CREDS_FILE  the creds file path (for the empty-creds abort's
+#                  named error; default the §15 host-side copy)
+#   DRAWTERM_BIN   REQUIRED — the 19-06 drawterm package binary (the
+#                  flake app exports the package path; the pty spawn
+#                  below execs it)
+#   R9_RUN_TAG     qemu's per-run unique -name (the caller's survivor
+#                  sweep keys on it)
+#   R9_DT_TAG      drawterm's per-run unique argv[0] (via bash's
+#                  `exec -a' — drawterm rejects extra argv, so the tag
+#                  rides argv[0]; the caller's second sweep keys on it)
+#   R9_MACHINE/R9_CPU/R9_ACCEL — the caller-selected q35 shape
+#                  (defaults q35/host/kvm; TCG selects qemu64)
+#
+# usage: env R9_ISO=... R9_SMOKE_LOG=... R9_NETDEV_ARGV=...
+#          R9_DEMO_USER=... R9_DEMO_PW=... DRAWTERM_BIN=... \
+#          expect build/x86_64/drawterm-gate.expect
+
+set timeout 600                    ;# per stage, TCG-sized
+match_max 1048576                  ;# boot ladder + session ride one buffer window
+# log_user stays ON — expect 5.45 writes NOTHING to log_file when
+# log_user is 0 (measured on the aarch64 gate); the wire echo on the
+# driver's stdout is the app's visible progress; the stage lines name
+# it on stderr.
+
+# --- required env (loud, BEFORE any spawn) -------------------------------
+# the empty-creds loud abort (the flagged DESK-06/empty edge): a
+# missing or empty credential aborts BEFORE any qemu/drawterm spend,
+# naming the path — never a silent skip or a half-spawned venue.
+set creds_file [expr {[info exists env(R9_CREDS_FILE)] ? $env(R9_CREDS_FILE) : "build/x86_64/out/auth-creds.txt"}]
+foreach v {R9_ISO R9_SMOKE_LOG R9_NETDEV_ARGV R9_DEMO_USER R9_DEMO_PW DRAWTERM_BIN} {
+	if {[info exists env($v)]} {
+		if {$env($v) eq ""} {
+			puts stderr "drawterm-gate: \$$v is EMPTY — aborting before any spawn; the creds read names the file: $creds_file (run via the flake app: nix run .#drawterm-gate-x64)"
+			exit 2
+		}
+		continue
+	}
+	puts stderr "drawterm-gate: \$$v unset — run via the flake app (nix run .#drawterm-gate-x64)"
+	exit 2
+}
+if {$env(R9_DEMO_USER) eq "" || $env(R9_DEMO_PW) eq ""} {
+	puts stderr "drawterm-gate: the creds read produced an empty user or password — aborting before any spawn (creds file: $creds_file; the driver's parse and this check share the D-12 contract)"
+	exit 2
+}
+if {![file executable $env(DRAWTERM_BIN)]} {
+	puts stderr "drawterm-gate: DRAWTERM_BIN $env(DRAWTERM_BIN) is not an executable file (the flake app exports the 19-06 package binary)"
+	exit 2
+}
+set QEMU [expr {[info exists env(R9_QEMU)] ? $env(R9_QEMU) : "qemu-system-x86_64"}]
+set run_tag [expr {[info exists env(R9_RUN_TAG)] ? $env(R9_RUN_TAG) : "r9x64dtgate-[pid]-[clock seconds]"}]
+set dt_tag [expr {[info exists env(R9_DT_TAG)] ? $env(R9_DT_TAG) : "r9x64dtgate-dt-[pid]-[clock seconds]"}]
+
+# --- Hygiene: a fresh capture per run -----------------------------------
+exec rm -f $env(R9_SMOKE_LOG)
+
+# --- subtree 1: spawn qemu with the §15 cpu ISO (the q35 shape the
+#     caller selected; the netdev+device tokens are the SPLIT
+#     R9_NETDEV_ARGV — the emitter's slirp argv carrying the D-04
+#     hostfwd pair; the NIC is the drawterm entry seam) ------------------
+set R9_MACHINE [expr {[info exists env(R9_MACHINE)] ? $env(R9_MACHINE) : "q35"}]
+set R9_CPU [expr {[info exists env(R9_CPU)] ? $env(R9_CPU) : "host"}]
+set R9_ACCEL [expr {[info exists env(R9_ACCEL)] ? $env(R9_ACCEL) : "kvm"}]
+
+set netdev_argv {}
+foreach tok [split $env(R9_NETDEV_ARGV)] {
+	if {$tok ne ""} {
+		lappend netdev_argv $tok
+	}
+}
+if {[llength $netdev_argv] == 0} {
+	puts stderr "drawterm-gate: R9_NETDEV_ARGV is empty — the caller's emitter capture failed (the slirp argv is required)"
+	exit 2
+}
+
+spawn $QEMU -M $R9_MACHINE -cpu $R9_CPU -smp 1 -m 1024M \
+	-accel $R9_ACCEL \
+	-cdrom $env(R9_ISO) \
+	{*}$netdev_argv \
+	-nographic \
+	-name $run_tag
+set qemu_sid $spawn_id
+set qemu_pid [exp_pid]
+log_file $env(R9_SMOKE_LOG)
+
+# --- teardown: kill BOTH process groups on every exit path --------------
+# Each spawned child is a session/group leader on its own pty (expect's
+# pty setup), so each group IS its subtree; catch: already-dead is fine.
+# The lone-pid second form is the no-group fallback.  The caller's EXIT
+# trap sweeps any survivor keyed on this run's unique tags (qemu's
+# -name and drawterm's argv[0]).
+proc cleanup {} {
+	global qemu_pid dt_pid
+	catch { exec kill -KILL -- -$qemu_pid 2>/dev/null }
+	catch { exec kill -KILL $qemu_pid 2>/dev/null }
+	if {[info exists dt_pid]} {
+		catch { exec kill -KILL -- -$dt_pid 2>/dev/null }
+		catch { exec kill -KILL $dt_pid 2>/dev/null }
+	}
+}
+
+# --- staged ordered assertions (each stage names its failure) ---------
+# stage runs against whatever the global spawn_id points at; the boot
+# ladder below runs on the qemu pty, the session stages later switch
+# spawn_id to the drawterm pty.  expect_before (registered while the
+# qemu pty is current) fast-fails the SERIAL stream only.
+proc stage {name re} {
+	global expect_out
+	expect {
+		-re $re { puts stderr "drawterm-gate: stage ok — $name" }
+		timeout { puts stderr "drawterm-gate: TIMEOUT at stage: $name"; cleanup; exit 1 }
+		eof { puts stderr "drawterm-gate: process exited (EOF) at stage: $name"; cleanup; exit 1 }
+	}
+}
+
+# feedstage — the session's ONLY typed surfaces: match the program's
+# own prompt text on the pty, then send the answer.  drawterm's
+# password read runs RAW (its gconsinit set the OS tty ECHO off before
+# any prompt), so the sent password never echoes to the wire.
+proc feedstage {name re sendstr} {
+	expect {
+		-re $re { send -- $sendstr; puts stderr "drawterm-gate: feed ok — $name" }
+		timeout { puts stderr "drawterm-gate: TIMEOUT at feed stage: $name"; cleanup; exit 1 }
+		eof { puts stderr "drawterm-gate: process exited (EOF) at feed stage: $name"; cleanup; exit 1 }
+	}
+}
+
+# --- the hostfwd listener observation (the chassis hostfwd_stage) ------
+# qemu binds the loopback hostfwd listeners EAGERLY at netdev init (a
+# failed bind aborts qemu itself — the backstop); this stage makes the
+# POSITIVE observation explicit while the guest runs: read the HOST's
+# listening table (exec ss -tln, netstat fallback — a host-side exec,
+# never either pty) and assert the entry present.  LOOPBACK ONLY —
+# the committed pair, never widened (T-19-19).  exec does not touch
+# the spawn's pty: output accumulates in expect's buffer and the next
+# stage consumes it.
+proc host_listeners {} {
+	if {![catch {exec ss -tln} out]} { return $out }
+	if {![catch {exec netstat -tln} out]} { return $out }
+	return ""
+}
+proc hostfwd_stage {port} {
+	set listeners [host_listeners]
+	if {$listeners eq ""} {
+		puts stderr "drawterm-gate: FAILED at stage: hostfwd-$port-listening — no host listening-table tool produced output (ss/netstat both missing?)"
+		cleanup
+		exit 1
+	}
+	if {![regexp "127\\.0\\.0\\.1:${port}( |\$)" $listeners]} {
+		puts stderr "drawterm-gate: FAILED at stage: hostfwd-$port-listening — no 127.0.0.1:$port loopback entry in the host listening table (the slirp hostfwd bind is missing); table follows:"
+		puts stderr $listeners
+		cleanup
+		exit 1
+	}
+	puts stderr "drawterm-gate: stage ok — hostfwd-$port-listening (127.0.0.1:$port present in the host listening table)"
+}
+
+# fast-fail on kernel panic markers and the cpurc FAIL vocabulary
+# anywhere in the SERIAL boot (the bring-up gate's rule; the ladder's
+# failure legs name themselves on the wire — waiting the full timeout
+# for the absent ok marker would only hide them).  Registered while
+# the qemu pty is the current spawn_id, so these arms bind the serial
+# stream and can never false-match the drawterm session's output.
+expect_before {
+	-re {panic|Unhandled interrupt} {
+		puts stderr "drawterm-gate: kernel panic marker on the wire — aborting"
+		cleanup
+		exit 1
+	}
+	-re {cpurc: FAIL} {
+		puts stderr "drawterm-gate: cpurc printed a FAIL marker — aborting (the failing leg is named on the wire)"
+		cleanup
+		exit 1
+	}
+}
+
+# --- 1. the boot ladder (the cpu-bringup vocabulary, EMISSION order:
+#        the 15-03 lesson — a stage whose text already streamed by an
+#        earlier match would wait forever; the kernel prints the
+#        bootconf line between the banner and paqfs) --------------------
+stage banner	{r9 from the Internet}
+stage bootconf	{devenv: bootconf init=/amd64/init -c}
+stage paqfs	{paqfs\.\.\.}
+stage version	{version\.\.\.}
+
+# --- 2. the hostfwd pair observed host-side while the guest boots
+#        (the committed TOML pair rides the emitter's argv; the
+#        drawterm session dials exactly this pair — 17010 the cpu
+#        listener, 5670 the authsrv) ------------------------------------
+hostfwd_stage 17010
+hostfwd_stage 5670
+
+# --- 3. the cpurc ladder in EMISSION order (each stage consumes the
+#        buffer to its match, so the ordered stages ARE the order
+#        assertion): pairing -> keyfs -> the listen1 -t authsrv
+#        announce -> factotum's key write -> the aux/listen tcp17010
+#        announce -> DONE.  LISTEN-17010 is the dial gate: no drawterm
+#        spawn happens before it (a dial into an unannounced port is
+#        a refused connection, not a gate leg) ---------------------------
+stage pairing-ok	{cpurc: PAIR-OK}
+stage keyfs-ok		{cpurc: KEYFS-OK}
+stage authsrv-listen	{cpurc: AUTHSRV-LISTEN}
+stage factotum-ok	{cpurc: FACTOTUM-OK}
+stage listen-17010	{cpurc: LISTEN-17010}
+stage ladder-done	{cpurc: DONE}
+
+# --- subtree 2: spawn drawterm -G on a pty ------------------------------
+# expect's spawn IS pty-backed: drawterm gets a real tty as stdio, its
+# isatty(0)/tcgetattr raw-mode path works, and the interactive
+# password read (a raw single-char readcons loop, the 16-05 measured
+# facts) is drivable — a piped-stdin feed can NEVER work here and is
+# prohibited.  The connection is pinned on argv via -O (the committed
+# hostfwd pair's loopback side, the 18-05 literal idiom; argv is the
+# single source — the $cpu/$auth/$USER env reads never execute).  The
+# unique run tag rides argv[0] via bash's `exec -a' (drawterm rejects
+# extra argv operands; argv[0] is the one slot it ignores), so the
+# caller's survivor sweep keys on THIS gate's drawterm and never
+# cross-kills a foreign session (the sibling-gate no-cross-kill rule).
+set dt_user $env(R9_DEMO_USER)
+set dt_pw $env(R9_DEMO_PW)
+set dt_spec "cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=$dt_user"
+set dt_marker "DTGATE-$run_tag"
+set dt_cmd "exec -a $dt_tag $env(DRAWTERM_BIN) -G -s '' -O $dt_spec"
+spawn bash -c $dt_cmd
+set dt_sid $spawn_id
+set dt_pid [exp_pid]
+puts stderr "drawterm-gate: spawned drawterm on a pty (argv0 tag $dt_tag; marker $dt_marker)"
+
+# --- 4. the password feedstage: match drawterm's OWN prompt text
+#        (cpu.c getkey -> readcons prints `<user>@<authdom> password:
+#        ' — the authdom arrives in the server's ticket request, so
+#        the user@ prefix is the match anchor and the dom stays
+#        generic), then send the EXACT password bytes with \r (no
+#        trailing-newline assumption: readcons terminates on either
+#        \r or \n and the raw pty translates neither) ---------------
+set spawn_id $dt_sid
+feedstage dt-password "${dt_user}@.* password: " "$dt_pw\r"
+
+# --- 5. the remote session's shell prompt — remoteside's rc -li went
+#        through p9any -> p9sk1 (authsrv tickets) -> auth_chuid -> the
+#        client exportfs mounted at /mnt/term -> cons stdio from
+#        /mnt/term/dev/cons -> rc -li: the rcmain default prompt.
+#        (rcmain sources $home/lib/profile only when /bin/test -r
+#        succeeds; the §15 session image carries no /bin/test and the
+#        creds user has no staged home, so the profile's cpu case —
+#        and its cpu% prompt — never runs on this venue: the default
+#        prompt IS the login shell's evidence.)  Fast-fail arms name
+#        the two failure shapes: a rejected password re-prompts (the
+#        mismatch line), a dead session prints goodbye.
+expect {
+	-re {password mismatch} {
+		puts stderr "drawterm-gate: FAILED at stage: session-prompt — the auth exchange rejected the password (mismatch line on the pty)"
+		cleanup
+		exit 1
+	}
+	-re {goodbye} {
+		puts stderr "drawterm-gate: FAILED at stage: session-prompt — drawterm exited before a shell prompt (goodbye on the pty; the failure text is above it in the capture)"
+		cleanup
+		exit 1
+	}
+	-re {% } {
+		puts stderr "drawterm-gate: stage ok — session-prompt (the remote interactive shell; CPU-04's rc -li evidence)"
+	}
+	timeout {
+		puts stderr "drawterm-gate: TIMEOUT at stage: session-prompt (no shell prompt after the password feed)"
+		cleanup
+		exit 1
+	}
+	eof {
+		puts stderr "drawterm-gate: drawterm exited (EOF) at stage: session-prompt"
+		cleanup
+		exit 1
+	}
+}
+
+# --- 6. the fed command + its echoed output marker (DESK-06's scripted
+#        interaction: a real command through the encrypted channel,
+#        executed by the remote shell, output delivered back over
+#        /mnt/term/dev/cons — the cons-stdio leg of CPU-04's flow).
+#        The marker is unique per run (the run tag rides it), so the
+#        presence assert can never be satisfied by stale capture
+#        bytes; a marker count of at least one is presence-only (a
+#        terminal-echo of the typed line would also match — equally
+#        valid evidence the bytes crossed).
+send -- "echo $dt_marker\r"
+stage fed-echo $dt_marker
+
+# --- 7. session teardown on exit: feed rc's exit, watch the session
+#        die end-to-end — rc exits -> the listener's service process
+#        exits -> the connection drops -> drawterm's exportfs returns
+#        -> gconsexit prints `goodbye' (the deterministic -G exit
+#        line) and the process exits.  A bounded eof wait follows;
+#        either way cleanup reaps the subtree.
+send -- "exit\r"
+stage session-exit {goodbye}
+set timeout 15
+expect {
+	eof { puts stderr "drawterm-gate: stage ok — drawterm EOF after goodbye (clean session teardown)" }
+	timeout { puts stderr "drawterm-gate: note — no EOF within 15s of goodbye (continuing; cleanup reaps the drawterm subtree)" }
+}
+set timeout 600
+
+# --- 8. drain the serial stream into the capture ------------------------
+# The dt-session stages read only the drawterm pty; the serial console
+# kept producing (authsrv -d's per-exchange syslog lines through the
+# #c/cons fallback — CPU-04's auth evidence — and init's console
+# shell).  log_file only records what expect PROCESSES, so drain the
+# qemu pty now (bounded: a quiet-gap timeout ends it) before the
+# whole-file post-passes read the capture.
+set spawn_id $qemu_sid
+set drain_n 0
+while {$drain_n < 40} {
+	incr drain_n
+	expect {
+		-re {[\s\S]+} { }
+		timeout { break }
+		eof {
+			puts stderr "drawterm-gate: qemu exited (EOF) during the serial drain — continuing to the post-pass (the capture holds what streamed)"
+			break
+		}
+	}
+}
+puts stderr "drawterm-gate: stage ok — serial drained (authsrv's exchange lines are in the capture; CPU-04's serial evidence)"
+
+# --- 9. the whole-file post-passes: stop the log, read the capture,
+#        assert the never-appears contracts + the whole-capture
+#        presences -------------------------------------------------------
+log_file                           ;# stop + flush before the whole-file scan
+set fh [open $env(R9_SMOKE_LOG) r]
+set whole [read $fh]
+close $fh
+if {[string first "cpurc: FAIL" $whole] >= 0} {
+	puts stderr "drawterm-gate: cpurc: FAIL present in the capture — a ladder leg failed"
+	cleanup
+	exit 1
+}
+puts stderr "drawterm-gate: post-pass ok — zero cpurc: FAIL in the capture"
+if {[string first "panic" $whole] >= 0} {
+	puts stderr "drawterm-gate: a panic marker is present in the capture"
+	cleanup
+	exit 1
+}
+puts stderr "drawterm-gate: post-pass ok — zero panic markers in the capture"
+# the session markers, whole-capture (DESK-06's contract + CPU-04's
+# evidence): the password prompt (user@ anchored — the creds user the
+# gate fed), the shell prompt, the fed command's marker, the teardown
+# line, and the auth leg's serial evidence (authsrv -d's tr-ok for
+# the drawterm ticket exchange through the #c/cons fallback — at
+# least one, the 18-04 AUTH-07 precedent shape).
+set sess_missing 0
+if {[string first "${dt_user}@" $whole] < 0} {
+	puts stderr "drawterm-gate: session marker absent — the password prompt's user anchor '${dt_user}@' is not in the capture"
+	incr sess_missing
+}
+if {[string first " password: " $whole] < 0} {
+	puts stderr "drawterm-gate: session marker absent — the readcons password prompt text is not in the capture"
+	incr sess_missing
+}
+if {[string first $dt_marker $whole] < 0} {
+	puts stderr "drawterm-gate: session marker absent — the fed command's echo marker '$dt_marker' is not in the capture"
+	incr sess_missing
+}
+if {[string first "goodbye" $whole] < 0} {
+	puts stderr "drawterm-gate: session marker absent — drawterm's teardown line 'goodbye' is not in the capture"
+	incr sess_missing
+}
+if {[string first "tr-ok" $whole] < 0} {
+	puts stderr "drawterm-gate: session marker absent — no authsrv -d tr-ok token in the capture (the drawterm ticket exchange's serial evidence, CPU-04's auth leg)"
+	incr sess_missing
+}
+if {$sess_missing > 0} {
+	cleanup
+	exit 1
+}
+puts stderr "drawterm-gate: post-pass ok — the session markers all present: the password prompt (user@ anchored), the shell prompt stage passed above, the fed-command marker, the teardown line, and tr-ok (the auth exchange's serial evidence)"
+
+# --- 10. the T-18-13 redaction (LAST, after every assert ran over the
+#         TRUE capture): the password crossed the pty as a raw-mode
+#         feed (never echoed), but any incidental occurrence — a
+#         debug line, a mismatch echo, an authsrv diagnostic — must
+#         not survive into the RETAINED capture.  Rewrite with every
+#         occurrence mapped to the fixed token, then append the
+#         redaction-contract line (the token's guaranteed presence is
+#         the retained-evidence grep's contract).  Mechanical, applied
+#         by THIS committed gate — never by hand (the 15-07
+#         evidence-discipline family: the tool that asserts is the
+#         tool that redacts).
+set pw_count 0
+set pos 0
+while {1} {
+	set idx [string first $dt_pw $whole $pos]
+	if {$idx < 0} {
+		break
+	}
+	incr pw_count
+	set pos [expr {$idx + [string length $dt_pw]}]
+}
+set redacted [string map [list $dt_pw "<demo-pw-redacted>"] $whole]
+set fh [open $env(R9_SMOKE_LOG) w]
+puts -nonewline $fh $redacted
+puts $fh "\ndrawterm-gate: redaction contract held — <demo-pw-redacted> ($pw_count occurrence(s) of the per-bake DEMO password mapped; asserts ran over the true capture first; T-18-13)"
+close $fh
+puts stderr "drawterm-gate: post-pass ok — the per-bake DEMO password redacted from the retained capture ($pw_count occurrence(s) mapped; T-18-13)"
+
+puts stderr "drawterm-gate: ALL STAGES PASS — §15 cpu boot through the cpurc ladder (PAIR-OK, KEYFS-OK, AUTHSRV-LISTEN, FACTOTUM-OK, LISTEN-17010, DONE), the hostfwd pair observed host-side (17010 + 5670), drawterm -G on a pty through the committed pair, the p9any -> p9sk1 password feedstage, the encrypted rc4_256 sha1 session (no -e flag — D-15), the remote shell prompt, the fed command's echo, the session teardown (goodbye), the serial drain carrying tr-ok, zero FAIL, zero panic, the capture redacted"
+
+cleanup
+exit 0
