@@ -1,5 +1,72 @@
 # Phase 19 deferred items
 
+## [19-10 Leg-1 continuation 2, 2026-11-16] the dual-cons-reader report vs the live tree: profile exonerated, window-child path open
+
+Owner report (after the sweep fix worked): a window swept open OK, but a
+prompt painted on the cons layer at the left edge OVER the desktop and only
+every other keystroke reached the window (typed chars visible in the window;
+output at the out-of-window prompt). Orchestrator diagnosis: the session
+`rc -li` left alive beside rio; prescribed fix: the windowed profile case
+must end `exec rio`.
+
+Live refutation (KVM guest, the current tree's bake, 2026-11-15/16):
+
+- The staged profile's guarded windowed block ALREADY ends `exec rio`
+  (`build/x86_64/root-tree/usr/glenda/lib/profile` line 49; §15's P6 bake
+  assert pins `exec rio` in the cpu case) — there was nothing profile-side
+  to fix, and any image re-bake would be byte-identical.
+- A `-G` side session's `ps` against the LIVE windowed session (evidence
+  `19-10-leg1-cont-ps.log`) shows the windowed session's chain as
+  `tcp17010 → rio` (rio pid 51 + its libthread procs 70-74) with `plumber`
+  (68/69) and `ramfs` (59) — **no `rc -li` survives the exec**. The two
+  other `rc` entries are init's serial console shell and the probe's own.
+- Login is single-reader end to end: an XTEST-typed marker line + Enter at
+  the empty grey desktop produced NO painting on the cons layer
+  (`19-10-leg1-cont-desktop-keys-2.png`; with no window open, rio swallows
+  keys silently).
+- r9's MBEFORE union semantics are head-insert/first-accepting by source
+  (`port/src/pgrp.rs` bind(), MBEFORE arm) — rio's winshell
+  `/dev/cons`-through-the-union shape is kernel-correct on paper.
+
+Open mechanism (hypothesis, NOT root-caused — the fix-everything bar is
+unmet without reproduction): the only process a sweep adds is the window's
+own `rc -i`, and the symptom's alternation + left-side prompt/output fits
+that child reading and writing the SESSION cons instead of its wsys window
+cons. Not reproducible on the automated venue: the synthetic XTEST mouse
+still drives nothing (the prior recorded finding), and both programmatic
+window-creation avenues into a live rio are blocked by r9-side defects
+(below). Reopener: the owner's next windowed session with the README's
+`ps` discriminator hot (a live one-line capture names the class), or the
+first r9 devsrv/srv-mount pass that unblocks automated rio driving.
+
+### the r9 /srv open/write path blocks foreign rio driving (two shapes)
+
+From `evidence/19-10-leg1-cont-srvctl.log` (live guest, glenda sessions):
+
+- Writing THROUGH a posted `/srv` file (`echo 'new …' >/srv/riowctl…`)
+  → `devsrv: fd string too long` — the write reaches the publish-command
+  parser, not the posted service's pipe.
+- Opening/mounting rio's posted service (`mount /srv/rio.glenda.51 /mnt`)
+  → `mount: namec: does not exist` from mount(1) — the entry lists in
+  `/srv` but the open fails.
+
+Net effect: no foreign process (a `-G` side session, the serial shell) can
+drive a live rio's wctl — window creation without a real mouse is
+impossible on this venue. Also candidate material for the /tmp finding
+below. Reopener: the first r9 devsrv pass.
+
+### /tmp unwritable in a cpu session despite the ramfs stanza
+
+`mkdir /tmp/u` in a `-G` session → `namec: does not exist`
+(`evidence/19-10-leg1-cont-gunion.log`), while the profile's ramfs stanza
+runs in every cpu session (ps showed the parallel session's ramfs process
+alive). The image stages `/tmp` (§15's STAGE9 mkdir set) and the profile
+falls back to ramfs on the create failure, yet the writable mount did not
+take effect in the probed session. One observation, not root-caused
+(possibly the same posted-/srv mount class as above — ramfs mounts through
+its own postmountsrv). Reopener: the next venue needing session `/tmp`.
+
+
 ## [19-10 Leg-1 continuation] the §14 auth image's sweep hardcodes dom=DEMO-harvey (user-domain breakage)
 
 Found during the 19-10 Leg-1 authid root-cause (2026-11-15): `build/x86_64/auth-sweep.rc:331`

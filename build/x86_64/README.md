@@ -616,7 +616,10 @@ Two terminals, zero extra machinery:
    shell — the profile's draw-presence guard holds (DESK-02).
 5. **Teardown** — exit the remote shell: the session ends and
    drawterm exits (`goodbye`, status propagated). In rio, exit the
-   windows then button-3 `Exit`. Then `ctrl-a x` the qemu terminal.
+   windows then button-3 `Exit` — because the profile **exec**s rio
+   (the shell is replaced, donor-style), rio's exit IS the session's
+   exit; drawterm quits on the spot. Then `ctrl-a x` the qemu
+   terminal.
 
 Venue honesty: the pieces proven on the primary host are the builds,
 the wrapper's scrub/pin/print/dial, and the flag surface; the full
@@ -624,6 +627,40 @@ interactive login→shell-marker loop over hostfwd is 19-08's `-G`
 interop gate (green-twice on local KVM per D-14); the windowed desktop
 leg is driven under Xvfb with screenshots as 19-10's Leg-1 substrate
 evidence.
+
+#### The dual-reader signature and its 30-second discriminator (19-10 Leg-1 continuation)
+
+The windowed session's login half is single-reader by construction and
+by live proof: the profile's cpu case **ends `exec rio`** (the shell is
+replaced — the `-G` guard path is unaffected), and a `-G` side
+session's `ps` against a live windowed session shows `rio` plus its
+libthread worker procs where the login shell was — no `rc -li`
+survives the exec (evidence `19-10-leg1-cont-ps.log`; typed keys at
+the empty desktop paint nothing on the cons layer,
+`19-10-leg1-cont-desktop-keys-2.png`).
+
+If a windowed session ever shows the **dual-reader signature** — a
+`% `/`cpu% ` prompt and echoed keys painting on the cons layer at the
+left edge OVER the desktop, every other keystroke diverted away from
+the focused window — run the discriminator while the session is live,
+in a second terminal (headless, so the wrapper takes its `-G` form):
+
+```
+nix run .#drawterm        # or: drawterm -G -s '' -O 'cpu=127.0.0.1,auth=tcp!127.0.0.1!5670,user=glenda'
+# log in, then:
+ps
+```
+
+A healthy windowed session lists: the boot daemons (init, paqfs,
+listen, factotum, …), the session's `tcp17010` chain, `rio` once with
+its worker procs, `plumber`, `ramfs`, plus init's serial `rc` and this
+probe's own `rc` — and nothing else reading the session cons. If the
+symptom is live, the extra reader names its class in one line: a
+second `rc` beside `rio` is the swept window's child on the session
+cons (rio/venue side — capture the `ps` and the session becomes the
+fix-loop's input). Note the automated Xvfb leg cannot open windows
+itself (synthetic XTEST mouse drives nothing — the recorded 19-10
+finding), so this discriminator is the owner-session instrument.
 
 ### The darwin page — DOCUMENTED-MANUAL, `-G` only (amended D-03, D-05/D-06)
 
