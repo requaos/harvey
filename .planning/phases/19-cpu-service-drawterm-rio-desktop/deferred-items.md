@@ -1,5 +1,159 @@
 # Phase 19 deferred items
 
+## [19-10 Leg-1 continuation 4, 2026-11-16] the post-sweep mouse death: ROOT-CAUSED at two layers; BOTH fixes implemented but UNCOMMITTED (live end-to-end proof blocked by the session's bake-pipeline instability — see the resume block)
+
+Owner report (at pin 56109c3, after the identity fix held — window created,
+prompt in-window, keystrokes landing): after the right-button sweep, the
+cursor does NOT return to the arrow (stuck as the sweep crosscursor —
+screenshot-verified on my repro) and the button-3 menu cannot be opened for
+a second window. Owner's live discriminator answers: the cursor still MOVES
+(as the cross), typing still lands. Cursor motion is X-native and proves
+nothing about delivery — the decisive probes below were run live instead.
+
+### The wedge signature (reproduced 4x: owner's pin kernel, CEXEC-fixed
+### kernel, and two earlier kernels; host-side instrumented drawterm)
+
+Evidence `19-10-leg1-cont4-drawterm-wedge-trace.log` (every mouse event of
+the sweep is served one-by-one; at the sweep's release):
+1. rio's sweep-exit `moveto` write arrives at drawterm ("m720 524").
+2. Exactly ONE further mouse record is served — the XWarpPointer motion
+   the moveto itself generated.
+3. The guest then NEVER issues another /dev/mouse read. A B3 press piles
+   up unserved (drawterm's ring advances, no reader).
+4. No cursor-restore write ever happens (no Qcursor write after the
+   sweep-exit moveto) — hence the stuck crosscursor.
+5. Draw writes from other threads and the keyboard path keep working.
+
+### Guest-side discriminators (evidence 19-10-leg1-cont4-guest-probes.txt)
+
+- `cat /dev/mouse` on the wedged session: NO Einuse — **the outer rio's
+  mouse fid was CLUNKED** (measured on BOTH the owner-pin kernel and the
+  CEXEC-fixed kernel — the fd loss is pre-existing, not caused by my fix).
+- The proc map: rio's threads are userspace threads inside pid 51; the
+  sweep creates a proc burst (70-76) that is NOT just winctl/winshell:
+  **every window's shell rc -i re-sources the cpu profile and — because
+  the profile's guard checks `/mnt/term/mnt/wsys` (the stock drawterm
+  TERMINAL-side-rio idiom) — misses THIS venue's remote-rio shape
+  (winshell's own `mount /mnt/wsys MREPL`, fsys.c filsysmount) and runs
+  `plumber` + `exec rio` A SECOND TIME inside every window: A NESTED RIO
+  (the ghost).** The ghost's own helper procs + per-window ramfs/plumber
+  collateral are the extra "rio"-args procs; pid 71 (dead) is the first
+  ghost that died at `initmouse` Einuse. Every -G probe made with a
+  draw-serving drawterm ALSO spawned a whole headless rio tree (the ps
+  pollution seen on long-lived guests).
+- The ghost chain runs over the SAME 9P session: its exec forks
+  (RFFDG copies) carry clones of the outer's mouse/draw/cons fds, and
+  the outer's parked mouse read holds an op-ref across all of it — the
+  fid accounting around that chain is where the outer's mouse fid dies
+  (the clunk was measured twice; the exact arm inside the chain was not
+  isolated — the kernel-side syscall tracer could not run: a println in
+  sys_close kills the boot on this venue, and the serial-magic dump
+  trigger (also tried) never got a clean guest — see Hazards).
+
+### Root cause (two independent defects, both required to explain every
+### observed fact)
+
+1. **HARVEY (the trigger): the staged profile's cpu case guards the
+   desktop exec with the WRONG PATH for the remote-rio venue.** Window
+   shells must detect the desktop via `/mnt/wsys` (fsys.c's mount), not
+   only `/mnt/term/mnt/wsys`. With the wrong guard every window spawns
+   plumber x2 + ramfs + a nested rio that races the outer rio on the
+   session's shared devices (draw: re-paints the grey; mouse: the outer's
+   fid is clunked somewhere in the ghost chain's fork/exec/fid lifecycle
+   — measured; the exact arm open).
+2. **r9 (missing kernel semantics): NO close-on-exec.** OCEXEC is masked
+   away at open/create and never recorded; exec_replace never closes
+   CEXEC fds (donor sysexec's `fdclose(i, CCEXEC)` loop, 9k
+   sysproc.c:519-523, was never ported). libthread's procexec depends on
+   it: its exec-status pipe write end is `OWRITE|OCEXEC`, and the
+   parent's status read only EOFs when the exec'ed child's copy closes
+   at exec — without the sweep rio's `new()` parks forever at
+   `recvul(cpid)` (mousethread never returns to the event loop). The
+   CEXEC fix alone did NOT cure the live wedge (the mouse fd was already
+   being lost through the ghost-chain arm) — both layers must be fixed.
+
+### Implemented, pinned, UNCOMMITTED (handoff state 2026-11-16)
+
+- **r9 tree (/home/req/code/r9): the CEXEC port, STAGED.** Chan.cexec
+  recorded at namec::open_chan (donor Aopen arm) + carried by
+  dup/op_clone; FdGroup::take_cexec (fdclose's per-fd arm);
+  exec_replace's close_on_exec_fds sweep in donor order (after args
+  committed, before the segment frees). Pins: port lib
+  `namec_tests::open_chan_records_oceexec_as_fd_state` (GREEN) and
+  x86_64 bins `exec::tests::exec_replace_closes_cexec_fds_and_keeps_plain_fds`
+  (RED→GREEN; RED evidence 19-10-leg1-cexec-red.txt). Battery at the
+  handoff state: xtask check + clippy green, port 164 lib + 228
+  integration total, x86_64 bins green. Patch:
+  evidence/19-10-leg1-cont4-r9-cexec-fix.patch. (The donor's Acreate-arm
+  recording (sys_create hunk) was implemented, then DROPPED after the
+  candidate guest's cpu listener refused dials — that hunk is the only
+  delta from a kernel whose venue ran healthy; do NOT re-add it without
+  isolating why. The wedge path only needs the OPEN-arm recording.)
+- **harvey tree: the profile guard fix, UNSTAGED** in
+  build/x86_64/root-tree/usr/glenda/lib/profile (the cpu case now binds
+  and exits early when EITHER /mnt/wsys (remote-rio window shells) or
+  /mnt/term/mnt/wsys (terminal-side rio) exists; the desktop-exec block
+  only runs when neither does). P6's bake asserts still pass (terminal
+  rio-free, cpu keeps exec rio + latin1.8). Patch:
+  evidence/19-10-leg1-cont4-profile-guard-fix.patch.
+
+### Resume block (the exact next steps)
+
+1. Commit the profile fix (harvey) — mkimage must run via the SANCTIONED
+   app path (`nix run .#boot-r9-x64 -- --system=cpu`), NOT from a plain
+   shell: bakes run directly in this session's shells produced paqs whose
+   guests' cpu listener refused dials (see Hazards; the 18-06 devshell
+   finding is the recorded sibling). NOTE: the flake app only sees
+   TRACKED/STAGED content — stage or commit the profile first.
+2. The r9 CEXEC fix needs the full D-11 choreography BEFORE any pin
+   advance (push-before-pin, two-derivation FOD proof, lock-only
+   advance, hosted CI observed, battery, gates re-green) — it is kernel
+   bytes. The candidate kernel can ride the sanctioned app via
+   `nix run .#boot-r9-x64 --override-input r9 path:/home/req/code/r9`
+   (proven working this session: the override venue boots, ladder
+   completes, -G login green with the fixed kernel).
+3. THE LIVE PROOF still owed: on the combined candidate (profile fix +
+   CEXEC kernel), drive the windowed session: menu → New → sweep →
+   THE CURSOR MUST RESTORE (arrow over the desktop) and a SECOND window
+   must be creatable (menu re-open). The windowed password feed needs
+   click-to-focus before xdotool type (the plain windowfocus+type flaked
+   ~60% this session); the -G pty path is 100% reliable for health
+   checks. The prior session ran out of wall-clock before this proof
+   (see Hazards for everything that burned time).
+4. If the combined candidate still loses the mouse fd (Einuse test),
+   the ghost-chain fid-accounting arm is next: the suspects are
+   devmnt's clunk_if_last ref accounting around a parked read's op-ref
+   concurrent with the RFFDG deep_copy chain of the ghost's execs, and
+   devip/devpipe close dispatch in that same chain. The DUMPNOW
+   serial-magic dump trigger (uart16550 rx_ring_buffer patch — reverted,
+   never commit as-is; a magic println in the RX sweep is boot-safe on a
+   wait-mode serial, but see Hazards) plus /proc/N/args typed into the
+   window are the working instruments.
+
+### Hazards recorded for the next session (all hit live)
+
+- A `println!` in sys_close KILLS THE BOOT (all-blocked wedge at ladder
+  end; wedgedbg dumps on serial). Never instrument close paths with
+  prints on this venue.
+- The Bash tool's background mechanism runs qemu from a DIFFERENT PATH
+  (system qemu without `virtio-net-pci-non-transition`) — use absolute
+  /run/current-system/sw/bin/qemu-system-x86_64, and note nohup+disown
+  children are reaped nondeterministically at call end; prefer the
+  tool's run_in_background for the qemu itself.
+- `pgrep -f <pattern>` matches THIS SESSION'S OWN wrapper bash (the
+  pattern string is in its cmdline) — kill loops built on it kill their
+  own wrappers and can miss real targets. Match on `ps -eo pid,args |
+  grep '[q]emu-system'` instead.
+- The owner's live guest (qemu 2352707, ports 17010/5670) went down at
+  ~12:55 EST 2026-11-16 — NOT killed by this session's commands (every
+  kill loop excluded it or pattern-matched only this session's own
+  guests); cause unknown (possibly owner action, possibly environment
+  process reaping). The canonical ports are free; the owner's reboot
+  rides the fixed image once the fixes land.
+- xdotool XTEST typing into the windowed drawterm is ~40-60% reliable
+  on a fresh Xvfb; click-to-focus first. The -G pty feed (password +
+  \r, the gate's exact idiom) never failed once all session.
+
 ## [19-10 Leg-1 continuation 3, 2026-11-16] the dual-cons-reader defect: ROOT-CAUSED LIVE and FIXED at the kernel layer (r9 56109c3)
 
 Owner report recap: swept window's shell alternating keystrokes with rio's
