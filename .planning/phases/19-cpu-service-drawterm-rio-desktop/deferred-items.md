@@ -1,5 +1,56 @@
 # Phase 19 deferred items
 
+## [19-10 Leg-1 continuation 4 — LANDED, 2026-11-16] the post-sweep mouse death: root-caused at two layers, BOTH fixes landed at the pin, the two-window proof GREEN at the pinned tree
+
+STATUS UPDATE (supersedes the resume block below): everything in the
+resume block executed.  Landing state:
+
+- **r9 99714a6** (pushed, hosted CI SUCCESS run 43941101250): the
+  close-on-exec port — Chan.cexec recorded at namec::open_chan (the
+  donor Aopen arm; the Acreate arm deliberately not carried, see the
+  commit message), carried by dup/op_clone, FdGroup::take_cexec, and
+  exec_replace's close_on_exec_fds sweep in the donor's sysexec order.
+  RED→GREEN pins retained (19-10-leg1-cexec-red.txt + the two test
+  fns in-tree).  **r9 3e5ed0c** (pushed, hosted CI SUCCESS run
+  43942790544): the boot-iso FOD hash re-wire — two-derivation proof
+  kernel A plain 99714a6 + kernel B marker clone 609a5e9, fresh
+  derivations, byte-identical ISOs (file sha256 44146f06…, NAR
+  sha256-4xttiQ…, three-way agreed; FOD realization green).
+- **harvey d70c4efb6**: the profile guard fix (the FLAT dialect-safe
+  shape — single-condition ifs + wsysup flag; kills the ghost rio).
+  **harvey 6d6190676**: flake.lock advanced 56109c3 -> 3e5ed0c
+  lock-only.
+- **Battery + gates at the pin**: r9 port 164 lib + 228 all-targets +
+  x86_64 104 bins zero failures; harvey drawterm-gate ALL STAGES PASS
+  and smoke (chain + cpu legs) ALL STAGES PASS at 6d6190676.
+- **The two-window proof at the PINNED tree** (evidence
+  19-10-leg1-cont4-proof-record.txt + -twowindow.png +
+  -twowindow-atpin.png): window 1 sweeps with its prompt, the ARROW
+  CURSOR restores, the B3 menu REOPENS, window 2 sweeps — both windows
+  live; the mouse chain alive end-to-end (39 read parks, cursor writes
+  present; the wedge signature absent).
+
+OPEN RESIDUAL (one, clearly named — the login-time desktop auto-start
+skip): on app-baked venues from the 13:2x runs onward (INCLUDING the
+pinned venue), the windowed session lands at a cpu% shell and the
+desktop does NOT auto-start — `plumber; rio` at the prompt brings it up
+clean and everything downstream is green.  The skip reproduced with
+BOTH the old and new profiles (NOT caused by the guard change), did
+not reproduce on the owner's 10:19 venue, and pairs with a foreground
+`rio` failing `can't open display: screeninit failed` after a first
+failed attempt.  Mechanism open; first suspects: the §15 bake's
+draw-suite staging (the app-bake path's products differ from the
+direct-bake path's — the 18-06 awk-shadowing class is the recorded
+sibling for auth) or a drawterm-side per-connection devdraw state
+quirk.  Reopener: the owner's Leg-1 re-presentation boot (if the
+desktop auto-starts there, the skip is venue-of-the-day; either way
+`rio` at the prompt is the documented fallback) or the next §15-bake
+plan.  The hazards section below (bake-path, background-qemu,
+pgrep-self-match, XTEST typing) remains load-bearing for whoever
+drives this venue next.
+
+## [SUPERSEDED — the original continuation-4 record, kept for the audit trail]
+
 ## [19-10 Leg-1 continuation 4, 2026-11-16] the post-sweep mouse death: ROOT-CAUSED at two layers; BOTH fixes implemented but UNCOMMITTED (live end-to-end proof blocked by the session's bake-pipeline instability — see the resume block)
 
 Owner report (at pin 56109c3, after the identity fix held — window created,
