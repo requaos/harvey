@@ -39,3 +39,13 @@ NAR sha256-BfU8eS6TA7x6HMx1Vv3h818DyJEMD6SxSDePI2lb3ME=, three-way
 agreed; FOD re-wired at r9 56109c3 (flake.nix only); pushed; hosted CI
 run 43887537787 SUCCESS at the pushed HEAD; harvey flake.lock advanced
 dae4397 -> 56109c3 lock-only (ff21c4786).
+
+Gates re-greened at the advanced pin (run after the owner's guest went
+down, freeing the canonical hostfwd ports):
+  drawterm-gate-x64: ALL STAGES PASS (§15 cpu boot, cpurc ladder,
+    hostfwd pair, drawterm -G pty session, p9any->p9sk1 password feed,
+    encrypted rc4_256 sha1 session, remote shell prompt + fed command,
+    teardown, zero FAIL, zero panic, redacted) — capture retained at
+    evidence/19-10-leg1-identitykey-gate.console
+  boot-r9-smoke-x64: ALL STAGES PASS (chain leg + cpu-chain leg with
+    the full cpurc ladder, hostfwd observation, zero FAIL/panic)
