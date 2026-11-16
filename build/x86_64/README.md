@@ -542,6 +542,23 @@ darwin is the documented-manual venue below).
 The `-O`/`-G` surface is pinned by `sys/src/cmd/unix/drawterm/flagtest.sh`
 (TAP; green on both the gui-x11 and gui-none builds).
 
+### One- and two-button mice (Shift+Left = middle)
+
+The Plan 9 chord needs three buttons, and the donor rio leans on the
+third: the button-3 menu's `New`/`Resize` **sweep drags with button 3
+itself** — donor `sweep()` (`sys/src/cmd/rio/rio.c`) tracks
+`mouse->buttons == 4` only, so a plain left-drag falls straight to
+its `Rescue` path and creates nothing (donor semantics, not a client
+defect; the earlier recipe's "hold a button" phrasing was wrong).  A
+two-button mouse sweeps fine: **press right, drag, release**.  The
+middle button — rio's button-2 window menu (cut/snarf/paste), acme
+and sam middle-clicks — is emulated by the gui-x11 backend: **hold
+Shift and click/drag with the left button**.  Press, drag, and
+release all translate (button 1 with `ShiftMask` in the event's own
+state is reported as button 2, on both edges — nothing sticks down).
+Shift+right is deliberately left alone: the sweep wants button 3, and
+a real right button already provides it.
+
 ### The wrapper (`nix run .#drawterm`) — TESTED on the primary host (headless leg)
 
 `nix/drawterm-x64.sh` scrubs `$cpu`/`$auth`/`$PASS`/`$USER` before
@@ -585,7 +602,11 @@ Two terminals, zero extra machinery:
    `exec rio` takes the drawterm window — the grey desktop;
    button-3 opens the menu, `New` opens a window with a plain `% ` rc
    (rio's windows run `rc -i`, never the login profile — no nested
-   desktop). Two console lines are expected and benign: the guest
+   desktop). The New sweep sizes with a **button-3 drag** (press
+   right, drag, release — a plain left-drag is donor-ignored; see
+   *One- and two-button mice* above), and **Shift+Left** is the
+   middle button (rio's button-2 window menu). Two console lines are
+   expected and benign: the guest
    serial prints one `syscall 10 unimplemented` (FAUTH — libauth's
    namespace-mount auth probe; r9 keeps FAUTH unimplemented by design
    and the mount proceeds unauthenticated), and the session prints

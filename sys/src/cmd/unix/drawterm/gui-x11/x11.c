@@ -1282,7 +1282,10 @@ xmouse(XEvent *e)
 		ms.xy.y = be->y;
 		s = be->state;
 		ms.msec = be->time;
-		switch(be->button){
+		i = be->button;
+		if(i == 1 && (s&ShiftMask))
+			i = 2;	/* shift-click stands in for a missing middle button */
+		switch(i){
 		case 1:
 			s |= Button1Mask;
 			break;
@@ -1306,7 +1309,17 @@ xmouse(XEvent *e)
 		ms.xy.y = be->y;
 		ms.msec = be->time;
 		s = be->state;
-		switch(be->button){
+		i = be->button;
+		if(i == 1 && (s&ShiftMask)){
+			/*
+			 * End the emulated middle button.  The pre-release
+			 * state still carries the physical Button1Mask, so
+			 * clear it too or button 1 sticks down.
+			 */
+			i = 2;
+			s &= ~(Button1Mask|Button2Mask);
+		}
+		switch(i){
 		case 1:
 			s &= ~Button1Mask;
 			break;
@@ -1327,6 +1340,15 @@ xmouse(XEvent *e)
 	case MotionNotify:
 		me = (XMotionEvent *)e;
 		s = me->state;
+		/*
+		 * Keep the emulated middle button down through a drag:
+		 * with shift held, a button-1 drag reports button 2,
+		 * press through release.
+		 */
+		if((s&ShiftMask) && (s&Button1Mask)){
+			s &= ~Button1Mask;
+			s |= Button2Mask;
+		}
 		ms.xy.x = me->x;
 		ms.xy.y = me->y;
 		ms.msec = me->time;
