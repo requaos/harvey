@@ -1,5 +1,60 @@
 # Phase 19 deferred items
 
+## [19-10 Leg-1 continuation 5 — LANDED, 2026-11-16] the stuck-contextual-cursor residual: root-caused (the swallowed zero-count Twrite), fixed at r9, the REVERT PROVEN with real sprite observation at the pinned tree
+
+The owner's live report at 3e5ed0c (everything else green): the
+contextual edge/corner cursor shapes fire, render, and track — but the
+cursor never RETURNS to the arrow off the edges; it sticks at the last
+contextual shape over interiors and background.
+
+**Root cause (r9 devmnt):** the revert rides a ZERO-LENGTH write —
+libdraw setcursor(nil) writes 0 bytes (write(cfd, curs, 0)) and
+drawterm's devmouse carries the arrow reset on exactly that event
+(Qcursor n < 72 -> cursorarrow()).  The donor mntrdwr is a DO-WHILE:
+even a zero-length write sends one Twrite with count=0 and the server
+OBSERVES it.  r9's devmnt::write was `while done < buf.len()` — a
+zero-length write sent NOTHING and returned Ok(0): the revert
+"succeeded" client-side (riosetcursor set lastcursor=nil and never
+retried) while the server never saw it.  This also retro-explains a
+flaw in continuation 4's proof claim: every retained trace since the
+first wedged session carried ONLY n=72 cursor writes — no revert ever
+reached the server on ANY session, wedged or fixed (the "arrow cursor
+at the end" sightings in cont-4's screenshots were the vision tool
+reporting a cursor that X screenshots do not capture — the sprite is
+X-side; import/xdotool capture the framebuffer only.  The window/menu/
+second-window claims stand — that is framebuffer content).
+
+**Landing (the full choreography):**
+- r9 501a7c5 (pushed, CI SUCCESS 43958057930): both devmnt::write and
+  ::read re-keyed to the donor do-while (at least one rpc always; a
+  zero-length request is a real protocol event).  Pin:
+  port/tests/devmnt_test zero_length_write_sends_the_zero_count_twrite
+  (scripted-server writes-log proves the empty write lands as ONE
+  observed zero-count Twrite; RED evidence
+  19-10-leg1-cont5-zerowrite-red.txt).  Battery: check+clippy clean,
+  port 229, x86_64 bins 104.
+- r9 c787ce9 (pushed, CI SUCCESS 43959845447): the FOD re-wire —
+  two-derivation proof kernel A 501a7c5 + kernel B marker 7c275a5,
+  byte-identical ISOs (file sha256 b3ae4de3…, NAR sha256-YaslMB…
+  three-way agreed; FOD realization green).
+- harvey d109744b2: flake.lock 3e5ed0c -> c787ce9 lock-only.
+- Gates at the pin: drawterm-gate ALL STAGES PASS, smoke (chain+cpu)
+  ALL STAGES PASS.
+
+**The revert proof at the pinned tree (evidence
+19-10-leg1-cont5-cursor-proof.txt + -cursorfix screenshot):** cursor
+observed via XFixesGetCursorImage (the REAL X sprite — not
+framebuffer pixels): interior after sweep = the default (sum 485048…),
+right edge = rio's 'r' shape (sum 121645…), BACK INSIDE = the default
+again, TL corner = rio's 'tl' shape, bare desktop = the default; and
+the host-side trace now carries n=0 Qcursor writes — the first ever
+observed on this venue — in 1:1 correspondence with the revert
+moments.  Window 2 swept clean after (both windows in the screenshot).
+
+The ONE remaining residual is unchanged (the login-time desktop
+auto-start skip on this session's app-baked venues; manual
+`plumber; rio` green — see continuation 4's record below).
+
 ## [19-10 Leg-1 continuation 4 — LANDED, 2026-11-16] the post-sweep mouse death: root-caused at two layers, BOTH fixes landed at the pin, the two-window proof GREEN at the pinned tree
 
 STATUS UPDATE (supersedes the resume block below): everything in the
