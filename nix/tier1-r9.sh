@@ -175,8 +175,13 @@ R9_INITRD="$HARVEY/build/aarch64/bootfs.paq"
 #     7c/7l/cc ride the canary markers) minus stacksmoke (its T1-OK is
 #     the donor termrc's line; the r9 boot's own stacksmoke stage covers
 #     it here) minus every SKIP-named member (the donor-guarded legs
-#     emit T1-SKIP on r9) — plus the fixed markers float-d01 (D-01) and
-#     libtest-tdraw.  The SKIP set is extracted VERBATIM from
+#     emit T1-SKIP on r9) — plus the fixed markers float-d01 (D-01),
+#     libtest-tdraw and forkstress.  These are fixed because no
+#     tiers/tier1-cmds.txt entry names them: float-d01 is a canary
+#     check, libtest-tdraw a libtest binary, and forkstress (20-03, the
+#     WINDOWS #49 pin) a build/aarch64 fixture baked only into the r9
+#     image.  Listing forkstress here makes a missing T1-OK forkstress
+#     red the post-pass.  The SKIP set is extracted VERBATIM from
 #     tier1-sweep.rc's r9-venue SKIP lines (the file is the source of
 #     truth). ---
 T1_SKIP=$("$GREP" -oE '(^|[[:space:]])echo T1-SKIP [A-Za-z0-9.-]+' "$HARVEY/build/aarch64/tier1-sweep.rc" \
@@ -202,7 +207,7 @@ for m in $T1_OK_ALL; do
 	*) T1_OK="$T1_OK $m" ;;
 	esac
 done
-R9_EXPECT_OK="$T1_OK float-d01 libtest-tdraw"
+R9_EXPECT_OK="$T1_OK float-d01 libtest-tdraw forkstress"
 R9_EXPECT_SKIP="$T1_SKIP"
 export R9_EXPECT_OK R9_EXPECT_SKIP
 echo "== expected on r9: $(echo "$R9_EXPECT_OK" | wc -w | tr -d ' ') T1-OK markers + $(echo "$R9_EXPECT_SKIP" | wc -w | tr -d ' ') T1-SKIP markers (computed)"

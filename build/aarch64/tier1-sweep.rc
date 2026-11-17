@@ -702,5 +702,19 @@ if not {
 	t1skip libtest-disktest
 }
 
+# forkstress (20-03, the WINDOWS #49 pin): 200 forks, each child
+# compares its data, bss, heap and stack with the parent's pre-fork
+# pattern while the parent overwrites its own copy.  The fix was a
+# missing isb after the TTBR0 write in r9's vm::switch; a child running
+# on its parent's pages shows here as T1-FAIL forkstress.  r9 venue
+# only: the binary is baked into the r9 image (mkimage.sh) and the
+# donor and 9k venues do not carry it.  nix/tier1-r9.sh lists
+# forkstress among the fixed expected names, so a silent entry reds
+# the gate as `missing T1-OK forkstress`.
+if(~ $venue r9){
+	if(/bin/forkstress) echo T1-OK forkstress
+	if not echo T1-FAIL forkstress
+}
+
 echo T1-DONE
 exit

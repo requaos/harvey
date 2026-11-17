@@ -15,6 +15,16 @@
  * The parent waits and counts a non-empty exit status (a mismatch or a
  * trap) as a failure.
  *
+ * The trigger (20-03, from the 20-02 root cause): the defect was a stale
+ * TTBR0 switch that left a fork child running on its PARENT's physical
+ * pages.  A child on its parent's pages still reads the right bytes
+ * unless the parent changes them between fork and the child's first
+ * run, and rc does exactly that (poplist before Waitfor).  So after
+ * fork returns, the parent overwrites all four arrays with a second
+ * pattern before it waits.  A correct child still sees the pre-fork
+ * pattern in its own copy; a child on the parent's pages sees the
+ * second pattern, counted as `parent` in the DETAIL line.
+ *
  * usage: forkstress [-n forks]	(default 200)
  * Prints `forkstress: ok N forks` and exits nil only when no child
  * failed; otherwise `forkstress: FAIL F of N forks`.
@@ -24,6 +34,7 @@ enum {
 	Nword = 16*1024,	/* 64 KiB, 16 pages, per static segment */
 	Nstack = 4*1024,	/* 16 KiB, 4 pages, of live stack */
 	Pagemask = 4096-1,
+	Nseg = 4,	/* data, bss, heap, stack; seg+Nseg is the parent's post-fork pattern */
 };
 
 u32int data[Nword] = { 1 };	/* initialised, so it lands in the data segment */
@@ -51,7 +62,7 @@ fill(u32int *a, int n, int seg, int k)
 static int
 check(char *name, u32int *a, int n, int seg, int k)
 {
-	int i, first, last, nbad, nzero, nstale;
+	int i, first, last, nbad, nzero, nstale, nparent;
 	u32int want, got;
 
 	first = -1;
@@ -59,6 +70,7 @@ check(char *name, u32int *a, int n, int seg, int k)
 	nbad = 0;
 	nzero = 0;
 	nstale = 0;
+	nparent = 0;
 	for(i = 0; i < n; i++){
 		want = pattern(seg, k, i);
 		got = a[i];
@@ -70,6 +82,8 @@ check(char *name, u32int *a, int n, int seg, int k)
 		nbad++;
 		if(got == 0)
 			nzero++;
+		else if(got == pattern(seg+Nseg, k, i))
+			nparent++;
 		else if(k > 0 && got == pattern(seg, k-1, i))
 			nstale++;
 	}
@@ -77,9 +91,9 @@ check(char *name, u32int *a, int n, int seg, int k)
 		return 0;
 	print("forkstress: MISMATCH seg=%s addr=%p want=%#.8ux got=%#.8ux\n",
 		name, &a[first], pattern(seg, k, first), a[first]);
-	print("forkstress: DETAIL seg=%s fork=%d nbad=%d zero=%d stale=%d other=%d first=%p last=%p pageoff=%#ux\n",
-		name, k, nbad, nzero, nstale, nbad-nzero-nstale, &a[first], &a[last],
-		(uint)((uintptr)&a[first] & Pagemask));
+	print("forkstress: DETAIL seg=%s fork=%d nbad=%d zero=%d parent=%d stale=%d other=%d first=%p last=%p pageoff=%#ux\n",
+		name, k, nbad, nzero, nparent, nstale, nbad-nzero-nparent-nstale,
+		&a[first], &a[last], (uint)((uintptr)&a[first] & Pagemask));
 	return 1;
 }
 
@@ -135,6 +149,11 @@ main(int argc, char *argv[])
 				exits("mismatch");
 			exits(nil);
 		}
+		/* the trigger: change the parent's copy before the child runs */
+		fill(data, Nword, 0+Nseg, k);
+		fill(bss, Nword, 1+Nseg, k);
+		fill(heap, Nword, 2+Nseg, k);
+		fill(stk, Nstack, 3+Nseg, k);
 		w = wait();
 		if(w == nil){
 			print("forkstress: wait after fork %d failed: %r\n", k);
