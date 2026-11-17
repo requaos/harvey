@@ -335,9 +335,31 @@ Plans:
 **Goal:** Bring the r9 aarch64 kernel and Harvey arm64 userspace back to parity with the v2.1 x86_64 work so `nix run .#boot-r9-smoke` is green at the pin — the first end-to-end proof of the objtype rename aarch64 -> arm64 (quick 261117-bz5: r9 8e4e730 seeds cputype=arm64, the Harvey image stages arm64/). **Kernel work in sibling repo `../r9`.**
 **Known start (measured 2026-11-17 at r9 8e4e730):** `r9-kernel-virt` fails to compile — `aarch64/src/main.rs` omits `note_pending` in the `PipeHooks` (:493) and `DevipHooks` (:523) initializers, a field the shared `port` crate gained in phase 19-08 (r9 56acaea). The ARM leg was frozen at the v2.0 pin through phases 13-19, so more drift is expected behind those two errors.
 **Carried in from quick 261117-bz5 (unrun there):** the donor-venue gates (`build/aarch64/subset-exec.sh` merged /arm64 staging; `build/aarch64/trace-boot.rc` `bind /boot/ourinit /arm64/init`) and r9 `cargo test -p port` on nightly-2026-01-30.
-**Requirements**: TBD
+**Requirements**: ARM-01, ARM-02, ARM-03, ARM-04, ARM-05, ARM-06, ARM-07, ARM-08, ARM-09, ARM-10, ARM-11, ARM-12
 **Depends on:** Phase 19
-**Plans:** 0 plans
+**Plans:** 17 plans
 
-Plans:
-- [ ] TBD (run /gsd-plan-phase 20 to break down)
+Plans (strictly sequential, one wave each — the plans share the one r9 checkout and the HVF timing series must not run under other load):
+
+*Group A — arm64 green on HVF at the pin*
+- [ ] 20-01-PLAN.md — tracer: note fix (both halves) + per-proc user hooks + rename test literal + gate post-passes and pushword fast-fail (ARM-01, ARM-02, ARM-04)
+- [ ] 20-02-PLAN.md — repeat harness, pre-fix per-fork rate and N derivation from its lower 95% bound, forkstress reproducer committed and baked into the image, root-cause the HVF fork-child defect; owner checkpoint on the fix route (ARM-03)
+- [ ] 20-03-PLAN.md — fix the fork-child defect, pin it with forkstress, post-fix N series on HVF + TCG control (ARM-03)
+- [ ] 20-04-PLAN.md — r9 guards: aarch64 virtshell CI lane, port integration tests under xtask test, darwin devShell, dev_exec boot-test profiles re-greened (ARM-01)
+- [ ] 20-05-PLAN.md — donor re-provision + donor tier-1 gate; boot-chain trace fversion diagnosis (ARM-04)
+- [ ] 20-06-PLAN.md — group A close: push r9, lock-only pin, HVF series at the pin, records, push Harvey; owner CI + boot-iso checkpoint (ARM-03, ARM-05)
+
+*Group B — syscall-path parity*
+- [ ] 20-07-PLAN.md — measure the ramfs writable venue (ramfs + /n/wp baked into the tier-1 image) and the lone-member brk defect; owner checkpoint (ARM-07)
+- [ ] 20-08-PLAN.md — rfork fd-group split, devmnt write, DMDIR + union creates; writeprobe pin in the tier-1 sweep (ARM-06, ARM-07)
+- [ ] 20-09-PLAN.md — arm64 churn gate (virtchurn) built and run against the unfixed exit path (ARM-07)
+- [ ] 20-10-PLAN.md — exit-path drains + husk sweep, close-on-exec sweep, brk per measurement; churn gate green; cexecprobe + brkprobe pins (ARM-06, ARM-07)
+- [ ] 20-11-PLAN.md — group B close: push r9, lock-only pin, HVF series at the pin, push Harvey; owner checkpoint (ARM-03, ARM-05, ARM-07)
+
+*Group C — cpu-port arms*
+- [ ] 20-12-PLAN.md — measure aarch64 host-test compilability and an arm64 consumer + baseline for each cpu-port arm (sslprobe); owner checkpoint on the devcap profile route (ARM-11, ARM-12)
+- [ ] 20-13-PLAN.md — DTB bootconf: launcher seam, delivery measurement, owner checkpoint on the carrier, reader + pair parser + ROOT env seed merge; virtio check_cap_extents (ARM-10, ARM-09)
+- [ ] 20-14-PLAN.md — exec and remove measurements; owner checkpoint on the remove route; `#!` exec pre-pass (sys_exec factored first); REMOVE/WSTAT/FWSTAT dispatch with stat validation (ARM-08)
+- [ ] 20-15-PLAN.md — devcap/devssl baseline on a cap kernel; owner checkpoint; devcap + devssl arms and hooks; the devcap-carrying kernel by the chosen route (virtcpu profile + kernel-virt-cpu) (ARM-09)
+- [ ] 20-16-PLAN.md — cpu boot-path measurement; owner checkpoint; arm64 cpu fixture (cpurc, shebangecho, cpuprobe), the boot-r9-cpu gate (ARM-11)
+- [ ] 20-17-PLAN.md — the aarch64 host-test battery; group C close: CI lanes, push r9, lock-only pin, HVF series at the pin for four gates, records, push Harvey; owner checkpoint (ARM-03, ARM-05, ARM-11, ARM-12)

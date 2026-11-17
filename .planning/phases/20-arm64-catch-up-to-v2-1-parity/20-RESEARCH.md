@@ -520,17 +520,22 @@ Confirm `ProcState::Blocked`, `ProcState::Ready` and `sleep_until` exist with th
 | A8 | `ProcState::{Blocked,Ready}` exist under those names on aarch64 | Code examples | Trivial; a compile error |
 | A9 | The devShell fix idiom works and xorriso evaluates on darwin | Code examples | Gate both packages, or neither |
 
-## Open Questions
+## Open Questions (RESOLVED)
+
+All five questions below were answered after this research was written. Each carries a RESOLVED line naming where; the original text is kept as the record of what was asked.
 
 1. **Does the HVF fork defect gate this phase?**
+   - RESOLVED: yes. 20-CONTEXT.md D-01 gates the phase on HVF and makes the root cause and fix non-deferrable and not time-boxed (the recommendation below was not taken); D-02 requires a stated repeat count. Planned in 20-02 (rate, N from the lower 95% bound, root cause, owner checkpoint), 20-03 (fix, pin, series), 20-06/20-11/20-17 (series at each pin). Requirement ARM-03.
    - Known: TCG is clean (4/4); HVF fires in about a third of boots; smoke was 6/6 on HVF.
    - Unclear: root cause; true smoke rate.
    - Recommendation: gate on TCG, record HVF, give the defect one time-boxed debug plan, and let the owner decide whether a miss blocks phase close. A larger N (say 20 smoke boots on HVF, about 3 minutes) would settle A4 cheaply.
 
 2. **How much kernel parity belongs here?**
+   - RESOLVED: all of it. 20-CONTEXT.md D-03 puts the must tier, b4–b11 and the cpu-port items b12–b16 and c1 in this phase; D-07 keeps it one phase; D-08 adds the capability hardening, the host-test battery and the churn gate; D-09 requires positive pins and leading measurements, which answers the "land without positive pins" concern (20-07 through 20-17).
    - Recommendation: must tier plus b4–b11 as one optional plan; b12–b16 and c1 go with the cpu port. This needs the owner's yes, because b4–b11 land without positive pins.
 
 3. **Should a requirement set be minted?** The roadmap says "Requirements: TBD". Candidates that match the recommended scope:
+   - RESOLVED: yes. ARM-01..ARM-12 are in .planning/REQUIREMENTS.md and mapped to Phase 20 in ROADMAP.md. They supersede the six candidates below: ARM-03 is gated on HVF with a derived N (not TCG twice), ARM-06 is not optional, and ARM-07..ARM-12 cover the D-03/D-08 scope.
    - ARM-01: r9 aarch64 `virtshell` builds at HEAD and an r9 CI lane keeps it building.
    - ARM-02: note-interruptible blocking IO and `#c/user`/`#c/hostowner` behave on arm64 as on x86_64; no `hooks not registered` on any gate wire.
    - ARM-03: `nix run .#boot-r9-smoke`, `.#boot-r9-net-smoke`, `.#boot-r9-tier1` green at the pin on TCG, twice consecutively, with HVF results recorded.
@@ -539,8 +544,10 @@ Confirm `ProcState::Blocked`, `ProcState::Ready` and `sleep_until` exist with th
    - ARM-06 (if the optional tier is taken): arch halves of the 15-03/17-02/17-05/19-10 fixes ported.
 
 4. **Who observes hosted CI?** No `gh` here. A human checkpoint, or install `gh` via nix for the session.
+   - RESOLVED: the owner, at a blocking human checkpoint after each group's push: 20-06 Task 3, 20-11 Task 3 and 20-17 Task 4, each of which also carries the linux-host `boot-iso` check. `gh` is not installed.
 
 5. **Is the smoke gate allowed to grow a post-pass?** Adding a `not registered` check changes a gate that has been byte-stable since v2.0. Recommended, but it is a gate change.
+   - RESOLVED: yes. 20-01 Task 3 adds the `hooks not registered` absence post-pass and the `pushword but no argv` fast-fail arm to all three arm64 expect drivers, after measuring each gate's baseline counts; the `unknown device` and `unsupported this era` checks are added only where the measured baseline is zero. D-01 (the gates must name the defect) and ARM-02 (no `hooks not registered` line on any gate wire) require it.
 
 ## Environment Availability
 
