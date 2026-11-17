@@ -198,6 +198,15 @@ Re-enable check: removing the `isb` brings the fires back. The (c) run, made aft
 
 Not needed: (e) is confirmed by both criteria (zero fires past the fork target with the fix, fires back without it) and by the direct probe. The rc guards from 17-06 are not involved. The defect is below rc: any process switched in after another one with an overlapping VA layout can run on that process's pages.
 
+### Owner decision (Task 3 checkpoint, 2026-11-17)
+
+Owner's answer, verbatim as relayed: "fix route = aarch64-fix (20-03 applies the vm::switch isb fix as written). N = keep the derived lower-bound values (smoke=1753, net-smoke=36, tier1=10; boot-r9-cpu per the plan's rules)."
+
+DECISION: aarch64-fix
+
+- 20-03 edits `r9/aarch64/src/vm.rs` `switch()` as named below. No `port/src/` edit, no FOD pass.
+- N is unchanged: `N-SOURCE: lower-bound` stays in force with the three `N-HVF` lines above. `boot-r9-cpu` gets no line here. Under the plan's rules, the plan that builds that gate (20-16) derives its `N-HVF boot-r9-cpu` from `P-LO` and that gate's measured forks per boot, with a floor of 36.
+
 ### Fix location and size
 
 - **Where the fix belongs:** `r9/aarch64/src/vm.rs`, `pub unsafe fn switch`. Add `isb` immediately after `msr ttbr0_el1, {pt_phys}` in the User arm. That one instruction is what was confirmed. For consistency, the Kernel arm (`msr ttbr1_el1`) should get the same `isb`, and a `dsb ishst` should go before the `msr` so prior page-table stores are visible to the walker. The `dsb ishst` before the `tlbi` in `invalidate_all_tlb_entries` is architecturally required too, but was shown not to be the cause; it is optional hardening.
