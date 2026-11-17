@@ -23,7 +23,7 @@ progress:
 See: .planning/PROJECT.md (updated 2026-11-13)
 
 **Core value:** Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reproducible from clean checkouts on Linux (primary host since 2026-11-06; darwin stays a documented-manual venue).
-**Current focus:** Phase 19 — CPU Service + Drawterm + rio Desktop
+**Current focus:** Milestone v2.1 complete (phases 13–19) — ready for /gsd:complete-milestone
 
 ## Current Position
 
@@ -324,6 +324,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-17T12:09:45.282Z
+Last session: 2026-11-17
 Stopped at: Phase 19 complete — all phases complete
 Resume file: None

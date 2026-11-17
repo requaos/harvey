@@ -22,6 +22,8 @@ Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reprod
 
 ### Validated
 
+- ✓ **Milestone payoff on x86_64 (v2.1 complete)**: `nix run .#boot-r9-x64 -- --system=cpu` is the ONE command bringing up the full system (net + auth + cpu listener — the §15 cpu image: cpurc ladder, keyfs/authsrv, factotum, tcp17010 over the ether hostfwd pair), and `nix run .#drawterm` connects from the host, authenticates p9any→p9sk1 over an encrypted devssl (#D rc4_256/sha1) session, and lands the user in an interactive rio desktop — human-accepted 2026-11-16 (signed 19-EVIDENCE.md Row 1); both standing gates + the clean-checkout proof green at the final pin r9 0921a1b — Phase 19 (CPU-01..04, DESK-01/02/04/05/06/07, INT-05/06/07; `19-VERIFICATION.md` 13/13; the leg's D-11 loop landed seven kernel+image fix layers; darwin -G deferred by owner 2026-11-17 with the aarch64-port reopener, darwin graphical deferred 2026-11-14)
+
 - ✓ Nix devshell + flake apps (`setup`/`toolchain`/`build`/`iso`) implement the BUILD_ON_UNIX flow — committed `a1735e67f`
 - ✓ Native aarch64 host toolchain (Plan 9 compilers 6a/6c/6l, 8a/8c/8l, cpp, pcc, vendored `iar`) builds on darwin-aarch64 and linux-aarch64 — committed `a1735e67f`
 - ✓ 9k amd64 kernel (`k10cpu`) builds via the lima-VM namespace build on macOS hosts — validated this session (`amd64/9k10cpu`, `.elf`)
@@ -55,7 +57,6 @@ Harvey userspace + r9 kernel boot to a shell on x86_64 under qemu/KVM — reprod
 
 Milestone v2.1 headline scope (decomposed into REQ-IDs in REQUIREMENTS.md; v2.0's delivered Phases 6–8 are recorded in Validated below):
 
-- [ ] Inherited v2.0 payoff on x86_64: host net modes, services/GUI tiers + bootfs payload (delivered Phases 15–16), in-guest p9sk1 auth (delivered Phase 18 — verified 9/9 2026-11-14, incl. the gap-closure round: CR-01/CR-02/AUTH-08 closed at r9 pin 9103522), cpu + drawterm + rio (Phase 19) — phase 19 remains
 
 Carried over from v1.0:
 
@@ -103,6 +104,8 @@ Carried over from v1.0:
 |----------|-----------|---------|
 | Nix flake for devshell + build apps | Reproducible toolchain across darwin/linux without Docker-on-EOL-Ubuntu | ✓ Good |
 | Phase 18 gap-closure round (2026-11-14): all three verifier gaps closed at the source — CR-01 hostowner iseve gate + donor 1..=127 bound, CR-02 cpuid(1,0) ECX rebind, AUTH-08 devip donor-TCP (Nagle off, ACK immediate) — one FOD pass over all gap bytes together, pin advanced lock-only to r9 9103522 | The verifier independently reproduced every live claim (9/9 must-haves); the reviewer-confirmed CR-03 (accept-pool sockets keep smoltcp stock defaults — >2048 B into announced connections hangs; gate green only because the DEMO object is 401 B) is new-scope with no failing test, recorded open in 18-REVIEW-DISPOSITION with Phase 19's cpu/exportfs path as the natural reopener | ✓ Verified 9/9; CR-03 + WR-01..04 + IN-02..07 open as advisories in the ledger |
+| Phase 19 terminus: darwin -G leg DEFERRED by owner (2026-11-17) — the owner will port the cpu stack to aarch64 and perform the darwin leg natively on the mac (SSH-tunnel venue declined ×3; mac-local x86_64 TCG declined) | The recorded recipe's tunnel coupling contradicts the owner's two-independent-nix-machines doctrine; the aarch64 cpu port is phase-scale owner-performed work | ◒ Deferred with reopener (19-EVIDENCE.md Row 2; REQUIREMENTS.md DESK-07 accepted-with-recorded-deferral) |
+| Phase 19's D-11 leg loop: every human-session defect root-caused live before fixing (seven layers: wrapper `-s ''` secstore park, authid server-key, desktop substrate + r9 Ropen iounit, Shift+Left middle-button, mount-identity keying, close-on-exec + profile wsys guard, devmnt zero-length write, fd/pgrp exit teardown) — each with RED→GREEN pins and the full FOD/pin choreography (pin 9103522 → 0921a1b, 12 r9 commits, 8 lock-only advances, hosted CI observed green at every step) | The fix-everything doctrine; owner live-verified each layer before the next | ✓ Verified 13/13 |
 | CR-07/WINDOWS #66 closed by maintainer-ratified explicit disposition, not cure (Phase 17 terminus, 2026-11-13) | The ~8%/run 8-way-transfer triple-fault class is live but venue-blocked: KVM capture ceiling + TCG×slirp avenue both exhausted (N=10 NO-FIRE-IN-SERIES), strongest-candidate fix refuted at the fix pin; the goal's letter accepts "explicitly dispositioned with rationale" — waived with 3-part D-15 rationale (Neil Skinner, 2026-11-13T14:42:08Z), reopener conditions + `boot-r9-stress-x64` instrument committed | ✓ Waived-with-reopener (FLUSH-01 closed via disposition arm; reopens on a context-reaching venue or non-healing instrumentation) |
 | Vendor 9-cc `iar` subset in-repo (`sys/src/cmd/unix/9cc/`) | External dep kept failing on aarch64 hosts (C23/glibc collisions); in-repo code we control | ✓ Good |
 | VM build rsyncs to guest-local disk | virtiofs subdirectory bind-mounts silently return empty trees — namespace build cannot run on the shared mount | ✓ Good |
@@ -179,4 +182,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-11-14 after Phase 18 (In-Guest p9sk1 Auth Domain complete — verified 9/9 incl. gap closure at r9 pin 9103522; CR-03 open advisory in the disposition ledger; v2.1 phases 13-18 of 13-19 done, 19 remains)*
+*Last updated: 2026-11-17 after Phase 19 (CPU Service + Drawterm + rio Desktop complete — verified 13/13; milestone v2.1 COMPLETE: phases 13–19 all done; DESK-07 darwin legs owner-deferred with reopeners; review ledger 2 fixed / 2 deferred / 1 skipped)*
