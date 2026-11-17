@@ -1,5 +1,41 @@
 # Phase 19 deferred items
 
+## [Phase 19 review WR-02 — DEFERRED, 2026-11-17] FdGroup::op_done merges the streaming offset into a possibly REFILLED slot
+
+From 19-REVIEW.md WR-02 (r9 `port/src/fdgrp.rs:120-125`): `op_done(fd,
+c)` writes `slot.offset = c.offset` into whatever chan currently
+occupies the fd.  The comment covers only the "slot emptied mid-op"
+case, but a sibling in a SHARED fd group can also close(fd) and then
+open() a different file into the same slot while the original op is
+blocked in pread/pwrite — exactly the interleave `op_ref` was built
+for.  On wake, the blocked op's advanced offset is merged into the
+unrelated new chan, silently jumping its streaming position; the
+`store()` comment's impossibility claim is contradicted by `op_ref`'s
+own documentation, so the guard-free merge is not covered by an
+impossibility argument.
+
+Deferred, not fixed in the 19 review-fix pass: the fix is r9 KERNEL
+BYTES (merge the offset only when the slot still names the SAME file
+identity — compare `(dev, devno, qid.path)` of the op chan and the
+slot chan, or `Arc::ptr_eq` on `mnt_fid` for DEV_MNT chans; otherwise
+`drop_op_ref` and discard the offset), which requires the full D-11
+pin choreography (push-before-pin, two-derivation FOD proof,
+lock-only advance, hosted CI, battery, gates re-green).  The next
+r9-touching pass owns it; fix shape per the review's Fix section.
+
+## [Phase 19 review IN-01 — DEFERRED, 2026-11-17] devssl secrets and RC4 state are freed without zeroization
+
+From 19-REVIEW.md IN-01 (r9 `port/src/devssl.rs:160-176` OneWay and
+`:1019-1043` close): on the last close, the conv's `Vec<u8>` secrets
+and the `Rc4state` permutation drop into the kernel heap without
+being zeroed first, so the p9sk1 session keys (the dec64'd mksecret
+material) remain readable in freed kernel memory until the pages are
+reused.  Donor parity (the donor's sslclose `free`s without memset)
+and the hardening milestone owns crypto upgrades — deferred there.
+Fix shape when it lands: zero `OneWay::secret` and `Rc4state::state`
+on direction drop (a `Drop` impl or an explicit zeroing in `close()`'s
+last-ref arm).
+
 ## [19-10 Leg-1 continuation 6 — LANDED, 2026-11-17] the window never deleted on shell exit: TWO r9 defects + one exposed regression, all fixed; `exit` now deletes the window AT THE PINNED TREE
 
 The owner's report at c787ce9 (everything else green): `exit` in a
