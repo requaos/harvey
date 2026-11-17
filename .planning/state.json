@@ -96,13 +96,13 @@
     {
       "number": "19",
       "name": "CPU Service + Drawterm + rio Desktop",
-      "status": "in_progress"
+      "status": "complete"
     }
   ],
   "next": {
-    "command": "/gsd-progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 19 (14 of 19 roadmap phases complete) · executing"
+    "command": "/gsd-progress",
+    "label": "Show progress",
+    "reason": "Unsure of state — showing progress"
   },
-  "updated_at": "2026-11-15T05:00:34.196Z"
+  "updated_at": "2026-11-17T14:34:18.739Z"
 }

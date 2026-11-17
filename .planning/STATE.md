@@ -312,6 +312,10 @@ None yet.
 - 19-08 RESOLVED (pass 3, 2026-11-15): the session-exit deadlock closed by the FIVE-layer chain (r9 22d40fb..56acaea, all pushed): the devssl direction split, the devmnt tag-mux (the named boot-race suspects eliminated STRUCTURALLY — the rebuilt tree booted q35cpu PASS x5 + the profile set on its first session), the session-teardown Drop, the note-interrupt fix, and devpipe's blocking write (the tier1 gate's measured paqfs root death — a THIRD race class the rebuilt tree exposed, root-caused and fixed). The gate is GREEN TWICE on KVM + the TCG leg GREEN + REDACTION-OK at the df4ad78 pin (evidence 19-08-gate-{pin-a,pin-b,tcg}.log); hosted CI observed SUCCESS at both pushed HEADs before each lock-only advance (runs 43711744441, 43717790664). Residual (recorded, non-blocking): devip's connect/listen/write-full block arms WAKE on notes but do not yet surface the interrupt — no measured caller; the data-read pair is the -G session's whole surface. DESK-06/CPU-04/DESK-04 closed by this plan's completion
 - objtype RENAMED aarch64 -> arm64 (quick 261117-bz5, 2026-11-17; Harvey 27cc1d25e/a15e787e9/cd0fa04d2, r9 8e4e730 LOCAL ONLY): until r9 8e4e730 is pushed and the Harvey flake pin advanced, the pinned r9 kernel still seeds cputype=aarch64 against an image that stages arm64/ — boot-r9 and the other arm64 r9 apps will not reach init. Unrun after the rename: the donor-venue gates (subset-exec.sh merged /arm64 staging; trace-boot.rc `bind /boot/ourinit /arm64/init`) and r9 `cargo test -p port` (needs nightly-2026-01-30). The host harness dir keeps the name build/aarch64/; r9's aarch64/ crate keeps its Rust name
 
+### Roadmap Evolution
+
+- Phase 20 added (2026-11-17): arm64 catch-up to v2.1 parity — the r9 aarch64 kernel does not compile at pin 8e4e730 (missing `note_pending` hooks, pre-existing since 19-08); goal is boot-r9-smoke green on arm64. Supersedes the "aarch64 is FROZEN at the v2.0 pin" concern above for this phase's scope
+
 ### Quick Tasks Completed
 
 | # | Description | Date | Commit | Directory |

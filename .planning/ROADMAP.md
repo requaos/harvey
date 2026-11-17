@@ -52,6 +52,7 @@ Full detail: `.planning/milestones/v2.0-ROADMAP.md`
 - [x] **Phase 17: r9 Kernel Flush-Out** - *(cross-repo: `../r9`)* the open Phase-7/8 CR/WR backlog + known kernel windows closed under real userspace load, every fix landing with a pin (completed 2026-11-13)
 - [x] **Phase 18: In-Guest p9sk1 Auth Domain** - hash-paired bake-time domain generator, `/dev/random` from x86_64 entropy + devcap `#¤`, keyfs/authsrv on tcp/567, loopback probe green before any drawterm (completed 2026-11-14)
 - [x] **Phase 19: CPU Service + Drawterm + rio Desktop** - `cpu -R` end-to-end, flake drawterm, rio in-session only, full-chain smoke + clean-checkout proof on linux-x86_64 (completed 2026-11-17)
+- [ ] **Phase 20: arm64 catch-up to v2.1 parity**
 
 ## Phase Details
 
@@ -328,3 +329,15 @@ Plans:
 **Source phase:** 06 (deferred at verification 2026-11-05)
 **Follow-ups:**
 - [ ] Hosted green run of the nix-based harvey.yml after first push
+
+### Phase 20: arm64 catch-up to v2.1 parity
+
+**Goal:** Bring the r9 aarch64 kernel and Harvey arm64 userspace back to parity with the v2.1 x86_64 work so `nix run .#boot-r9-smoke` is green at the pin — the first end-to-end proof of the objtype rename aarch64 -> arm64 (quick 261117-bz5: r9 8e4e730 seeds cputype=arm64, the Harvey image stages arm64/). **Kernel work in sibling repo `../r9`.**
+**Known start (measured 2026-11-17 at r9 8e4e730):** `r9-kernel-virt` fails to compile — `aarch64/src/main.rs` omits `note_pending` in the `PipeHooks` (:493) and `DevipHooks` (:523) initializers, a field the shared `port` crate gained in phase 19-08 (r9 56acaea). The ARM leg was frozen at the v2.0 pin through phases 13-19, so more drift is expected behind those two errors.
+**Carried in from quick 261117-bz5 (unrun there):** the donor-venue gates (`build/aarch64/subset-exec.sh` merged /arm64 staging; `build/aarch64/trace-boot.rc` `bind /boot/ourinit /arm64/init`) and r9 `cargo test -p port` on nightly-2026-01-30.
+**Requirements**: TBD
+**Depends on:** Phase 19
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 20 to break down)
