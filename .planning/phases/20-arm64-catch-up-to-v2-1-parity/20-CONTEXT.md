@@ -19,6 +19,10 @@ Bring the r9 aarch64 kernel (sibling repo `../r9`, crate dir `aarch64/`, Rust na
 - **D-03: Full kernel parity now.** In addition to the must tier (the complete note fix including the `push_note` ready-a-Blocked-target half, the per-proc user hook registration, the rename test fix in `port/tests/devenv_test.rs`, donor-venue re-provision, CI coverage that compiles the aarch64 `dev_exec` code), this phase includes the aarch64 halves of rfork, mount-write, exit and exec, AND the cpu-port items research recommended deferring: the `#!` exec pre-pass, WSTAT/FWSTAT/REMOVE dispatch arms, devcap, devssl, and DTB bootconf.
 - **D-04: Research rated the cpu-port items as phase-sized.** The owner chose to include them anyway. If the planner finds the phase exceeds the budget for full-fidelity plans, it must return a phase-split recommendation rather than thin the plans or silently drop items.
 
+- **D-07: One phase, no split.** The planner returned a phase-split recommendation (about 12 plans / 32 tasks; three sub-phases proposed). The owner chose to proceed as a single Phase 20, accepting the planner's warning about plan quality at this size. Do not return another split recommendation for size alone. Preserve the planner's proposed ordering inside the one phase: the HVF-green-at-the-pin work (incl. the fork-child defect) first, syscall-path parity second, cpu-port arms last — a new arm64 gate must not be built or have its N-green series run before the fork-child defect is fixed.
+- **D-08: The three unnamed items are in scope.** virtio capability hardening (`check_cap_extents`), the aarch64 host-test battery, and the arm64 churn gate (which pins the exit-leak fix). The churn gate goes with the syscall-path work.
+- **D-09: Unknowns for the cpu-port arms are resolved inside the phase, not assumed.** Research only inventoried these items. The plans that build them must begin with a measuring/investigation task (writable venue: ramfs in arm64 tier-1; an arm64 consumer and fixture gate for devcap/devssl/`#!`/bootconf; whether the aarch64 crate compiles as a host test binary; whether the lone-member brk defect exists on aarch64) and must carry a checkpoint where the finding could change the design.
+
 ### Carried in
 
 - **D-05: The objtype is `arm64`** (quick 261117-bz5). The harness dir keeps the name `build/aarch64/`; r9's crate keeps `aarch64/`. Do not rename either.
@@ -27,7 +31,9 @@ Bring the r9 aarch64 kernel (sibling repo `../r9`, crate dir `aarch64/`, Rust na
 ### Claude's Discretion
 
 - Plan count, wave structure and ordering, provided the HVF fork-child defect is investigated early enough that its size is known before the parity work is declared done.
-- Requirement IDs: research proposes ARM-01..06; extend as needed for the D-03 scope.
+- The devcap profile route: a separate arm64 cpu profile (new r9 package + new Harvey app; the three existing gates stay on an unchanged kernel) versus adding `"cap"` to virtshell (changes the kernel under all three gates). The planner leans to the separate profile; the owner has not ruled. Treat it as a `checkpoint:decision` before the task that implements it.
+- The D-02 repeat count N: derive it from per-fork failure rate and have the harness re-measure the pre-fix rate before fixing N (planner estimate from 13 boots: about 36 smoke boots or 5 tier-1 sweeps for 95%).
+- Requirement IDs: the planner proposed ARM-01..ARM-11; research proposes ARM-01..06; extend as needed for the D-03 scope.
 - Whether r9 edits touch `port/src/` (which re-stales the x86_64 boot-iso FOD that cannot be checked on this host) — avoid where an aarch64-side change suffices, and flag every case where it cannot be avoided.
 
 </decisions>
