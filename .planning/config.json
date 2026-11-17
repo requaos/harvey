@@ -17,7 +17,7 @@
     "compact_content": false,
     "nyquist_validation": false,
     "_auto_chain_active": false,
-    "use_worktrees": false
+    "use_worktrees": true
   },
   "plan_review": {
     "source_grounding": false

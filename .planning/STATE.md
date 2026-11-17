@@ -6,15 +6,15 @@ current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
 stopped_at: Completed 20-01-PLAN.md
-last_updated: "2026-11-17T21:21:31.467Z"
+last_updated: "2026-11-17T23:10:51.233Z"
 last_activity: 2026-11-17
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: 3a2d3bc07e098a946451950716fd4b937b523fe5
+state_head: a2b0f525d6d97bc5636eed1f23c50c5b2f316efe
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 59
+  completed_plans: 60
 ---
 
 # Project State
@@ -29,8 +29,8 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
-Plan: 2 of 17
-Status: In progress — 20-01 complete (aarch64 note fix + user hooks, port suite green, gate fast-fail)
+Plan: 3 of 17
+Status: In progress — 20-01, 20-02 complete (HVF fork-child root cause: missing isb after TTBR0 write; owner chose aarch64-fix, lower-bound N kept)
 Last activity: 2026-11-17 - Completed 20-01-PLAN.md
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 execution-complete pending verification; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
