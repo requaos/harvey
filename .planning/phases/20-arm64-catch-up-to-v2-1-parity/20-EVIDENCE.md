@@ -282,3 +282,16 @@ Why nothing saw it before: one boot of the existing gates leaks less than the ro
 **Confirmation (instrumented copy, not the r9 checkout):** I rsynced r9 at `cb9cde3` into `.build/r9-instr` (gitignored) and changed one line to `bitmap.set(8 * byte_idx + bit_idx, false);`. The diff is `.build/p20-03-bitmapalloc-fix.diff`. I passed the copy as `--override-input r9 path:…/.build/r9-instr`, which built kernel `r9-kernel-virt-wip`, and ran the same image with the Task 2 work applied. The tier-1 HVF gate printed `tier1-r9: ALL STAGES PASS` and `T1-OK forkstress`, with 0 `NotAllocated` lines and 328 reaped procs. The capture is `.build/p20-03-tier1-instr-dealloc-fix.log`. `/Users/neilskinner/code/r9` was not edited, and its tracked tree is clean.
 
 **What this blocks:** 20-03 Task 2, the pin. Its acceptance needs `T1-OK forkstress` on the wire. It also blocks Task 3's tier-1 series, which runs with the pin in place. The smoke and net-smoke gates fork too little per boot to reach the threshold.
+
+### Owner decision (20-03 Task 2 checkpoint, 2026-11-17)
+
+Owner's answer, as relayed: "Option A. You are approved to edit r9 port/src/bitmapalloc.rs:164 (bitmap.set(8 * byte_idx + bit_idx, false)) and add a unit test freeing a page outside byte 0. Run the port suite and `cargo xtask check`, commit in r9, and record `PORT-SRC-EDIT: YES` plus the owner approval in 20-EVIDENCE.md so 20-06 redoes the x86_64 boot-iso build."
+
+PORT-SRC-EDIT: YES
+
+- **r9 commit:** `8958c9e` `fix(20-03): bitmapalloc deallocate clears the bit it checked`. Parent `cb9cde3`. One file, `port/src/bitmapalloc.rs`, +35 / -1.
+- **Change:** `deallocate` now clears `8 * byte_idx + bit_idx`, the bit `is_set` checked, with a comment at the site. It also adds the test `bitmappagealloc_deallocate_outside_byte_0`, which frees PA 36 (bitmap 0, byte 1) and PA 100 (bitmap 1, byte 1) and checks the bytes, the double free, the reuse and the usage figure.
+- **Red/green:** with the old line restored for the check, the new test FAILED at its first byte assertion. With the fix it passes.
+- **Suite:** `cargo test -p port --no-fail-fast` passed 232 with 0 failed. One earlier full run showed the new test failing because it used a stale test binary, left over from the red check: the file was restored within the same mtime tick. After `touch` it passed, and the full suite was re-run green. `cargo xtask check` exited 0. `rustfmt --check` on the file is clean. The virtshell kernel built (`VIRTSHELL-BUILD-OK`).
+- **Cross-arch:** x86_64 uses the same allocator, so the x86_64 kernel bytes change. **20-06 must redo the stale x86_64 boot-iso FOD**, and the Harvey push stays held for the owner's linux-host pass.
+- The Task 2 work was reapplied from `20-03-task2-wip.patch`, and the patch file was deleted.
