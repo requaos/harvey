@@ -6,7 +6,7 @@
 #include <bio.h>
 #include <mach.h>
 
-#include "/aarch64/include/ureg.h"
+#include "/arm64/include/ureg.h"
 
 #define	REGSIZE		sizeof(struct Ureg)
 #define	FPREGSIZE	520

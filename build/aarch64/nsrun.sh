@@ -16,7 +16,7 @@
 #       root, inside the namespace: bind the Harvey tree and su the
 #       command to <user>. Never invoked by hand — see --wrap.
 #
-# If $HARVEY/aarch64 exists it is additionally bound at /aarch64
+# If $HARVEY/arm64 exists it is additionally bound at /arm64
 # (pre-gate the dir exists only in scratch copies; post-gate it is
 # committed — the same script serves both).
 
@@ -94,7 +94,7 @@ mkdir -p /rc
 mount --bind $HARVEY/rc /rc
 
 # mk recipes backquote rc scripts whose shebang is #!/bin/rc (membername in
-# the boot mkfiles: 9k/mk/bootmkfile, 9/boot/bootmkfile, 9k/boot/mkfile.aarch64).
+# the boot mkfiles: 9k/mk/bootmkfile, 9/boot/bootmkfile, 9k/boot/mkfile.arm64).
 # The namespace shares the distro /bin, which has no rc on a fresh host — the
 # legacy docker path provided it globally (build/Dockerfile: cp $PLAN9/bin/rc
 # /bin/rc).  Bind the wrapper's rc over /bin/rc here; the mount namespace is
@@ -150,12 +150,12 @@ mount --bind $HARVEY/unix /unix
 mkdir -p /usr/glenda
 mount --bind $HARVEY/usr/glenda /usr/glenda
 
-# post-gate the aarch64 arch dir is committed and rsynced to the
+# post-gate the arm64 arch dir is committed and rsynced to the
 # guest; pre-gate it exists only in scratch copies. Either way, bind
 # it only when present.
-if [ -d "$HARVEY/aarch64" ]; then
-	mkdir -p /aarch64
-	mount --bind "$HARVEY/aarch64" /aarch64
+if [ -d "$HARVEY/arm64" ]; then
+	mkdir -p /arm64
+	mount --bind "$HARVEY/arm64" /arm64
 fi
 
 # unwind the staged /lib even if the command fails

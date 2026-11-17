@@ -93,7 +93,7 @@ install:V:
 			echo MOVQ '$'$n, RARG
 			echo SYSCALL
 			echo RET
-		case aarch64
+		case arm64
 			j=$i
 			if(~ $i seek) j=_seek
 			echo TEXT $j'(SB)', 1, '$0'

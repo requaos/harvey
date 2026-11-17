@@ -1,9 +1,9 @@
-# Harvey aarch64 user-side syscall ABI (frozen)
+# Harvey arm64 user-side syscall ABI (frozen)
 
 This document is the canonical Harvey↔r9 user-side syscall wire
-contract for `objtype=aarch64`. It is one half of the ABI freeze
+contract for `objtype=arm64`. It is one half of the ABI freeze
 (decisions D-15/D-16/D-17, phase 02): the other half is the trap-frame
-layout in `aarch64/include/ureg.h`. Phase 4 builds r9's `svc` dispatch
+layout in `arm64/include/ureg.h`. Phase 4 builds r9's `svc` dispatch
 and its build-time static checks against this document and that header —
 changing either after Phase 4 means re-freezing both repos.
 
@@ -11,7 +11,7 @@ Provenance: derived from 9front arm64 at pin
 `350266104f1fed81c78c3d05fa44f523bec0ae4d` (branch `front`), wording
 research-verified 2026-10-31 against both trees (9front
 `sys/src/9/arm64/trap.c:196` and `sys/src/9/arm64/mem.h:92`; Harvey
-`sys/src/libc/9syscall/sys.h` and the `case aarch64` stub generator in
+`sys/src/libc/9syscall/sys.h` and the `case arm64` stub generator in
 `sys/src/libc/9syscall/mkfile`).
 
 ## Wire contract
@@ -31,9 +31,8 @@ research-verified 2026-10-31 against both trees (9front
 
 ## User-side stub shape
 
-Generated per syscall by the `case aarch64` block of
-`sys/src/libc/9syscall/mkfile` (donor `case arm64` verbatim, case label
-renamed):
+Generated per syscall by the `case arm64` block of
+`sys/src/libc/9syscall/mkfile` (donor `case arm64` verbatim):
 
 ```
 TEXT name(SB), 1, $0
@@ -45,7 +44,7 @@ TEXT name(SB), 1, $0
 
 Per-name quirks, identical to the other arches' generator rules:
 `seek` is emitted as `_seek` (pairs with the C wrapper in
-`sys/src/libc/aarch64/_seek.c`), and `exits` is emitted as `_exits`
+`sys/src/libc/arm64/_seek.c`), and `exits` is emitted as `_exits`
 (Harvey's long-standing line-9 rename). No stub-side buffer store
 anywhere — the kernel always writes return buffers.
 
@@ -65,7 +64,7 @@ The table is Harvey's `sys/src/libc/9syscall/sys.h` 0–54, verbatim:
 
 ## Trap frame
 
-The trap frame is `aarch64/include/ureg.h`, field-for-field:
+The trap frame is `arm64/include/ureg.h`, field-for-field:
 `r0`..`r28` (with `r28` noted as `sb`), `r29`, the
 `r30`/`link` union, `sp`, `pc` (interrupted address), `psr`, and
 `type` (exception class). Phase 4 enforces the match against r9's Rust
@@ -78,12 +77,12 @@ contract: Harvey 9k's generated `systab[]` handlers are
 `void sysxxx(Ar0*, va_list)`; 9front's are `void sysxxx(Ar0)`. r9
 mimics neither — it matches this document's wire contract (number in
 R0, args at SP+8, `SVC`, result in R0) plus the frozen
-`aarch64/include/ureg.h` trap frame, and nothing else.
+`arm64/include/ureg.h` trap frame, and nothing else.
 
 ## Kernel-side enforcement (Phase 4 appendix)
 
 This appendix is the kernel side of the contract: how r9's trap frame
-matches the frozen `aarch64/include/ureg.h`, and the build-time checks
+matches the frozen `arm64/include/ureg.h`, and the build-time checks
 that make any drift a build failure, not a runtime mystery (Phase 4
 success criterion SC#1). It documents enforcement only — the frozen
 wire contract above is unchanged.
@@ -91,7 +90,7 @@ wire contract above is unchanged.
 ### Pinned trap-frame offsets
 
 r9's `TrapFrame` (`aarch64/src/trap.rs` in the r9 repo) IS the `Ureg`
-of `aarch64/include/ureg.h`, field-for-field. Pinned byte offsets
+of `arm64/include/ureg.h`, field-for-field. Pinned byte offsets
 (field index × 8):
 
 - r0@0 … r28@224
@@ -128,7 +127,7 @@ kernel-side read rule.)
    `core::mem::size_of::<TrapFrame>() == 288`. Always on — any layout
    drift fails `cargo build`, with no Harvey checkout needed.
 2. **Cross-repo header check**: `cargo xtask ureg-check` (r9 repo)
-   parses this repo's `aarch64/include/ureg.h` — located via the
+   parses this repo's `arm64/include/ureg.h` — located via the
    `R9_HARVEY_DIR` environment variable, default `../harvey` — and
    fails with a named-field diff when the field names, order, or count
    drift from the pinned table above. It runs standalone and as a

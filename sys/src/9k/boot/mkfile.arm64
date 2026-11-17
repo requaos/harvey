@@ -1,6 +1,6 @@
 </$objtype/mkfile
 
-# sys/src/9k/boot/mkfile.aarch64 — the additive, objtype-gated aarch64
+# sys/src/9k/boot/mkfile.arm64 — the additive, objtype-gated arm64
 # boot(8) build for the r9 boot chain.  boot has no
 # standalone mkfile: the amd64 path builds it from the kernel build dir
 # via ../mk/bootmkfile with an awk-generated bootconf (../mk/parse
@@ -8,7 +8,7 @@
 # the hand-written bootr9.c supplies the bootconf instead.
 #
 # Invoked from the namespace build:
-#	objtype=aarch64 mk -f mkfile.aarch64
+#	objtype=arm64 mk -f mkfile.arm64
 # (driven by build/aarch64/subset-build.sh's boot-chain section).  The
 # default target leaves the `boot` binary in the cwd; subset-build.sh
 # harvests it to build/aarch64/out/boot.  boot is pid 1, not a user

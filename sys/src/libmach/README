@@ -1,4 +1,4 @@
-# libmach arm64 (aarch64) support vendored from 9front
+# libmach arm64 support vendored from 9front
 # (https://github.com/9front/9front @ 350266104f1fed81c78c3d05fa44f523bec0ae4d,
 # branch "front", 2026-10-31).
 #
@@ -7,14 +7,12 @@
 #   7db.c    arm64 disassembler/debugger support (arm64mach)
 #   7obj.c   7-format object parser (_is7/_read7)
 #
-# Local modifications vs upstream:
-#   * 7.c — the single path rewrite of the import set:
-#     #include "/arm64/include/ureg.h" becomes "/aarch64/include/ureg.h"
-#     (project naming is aarch64; D-11 rename-on-import covers tree paths).
-#   * libmach-internal arch names are NOT renamed: the setmach entry string
-#     stays "arm64", as do the marm64/arm64mach symbols and ObjArm64
-#     (D-01/D-11 — rename-on-import applies to tree paths, not to the
-#     identifiers nm/acid users type).
+# Local modifications vs upstream: none in the import set. As of
+# 2026-11-17 Harvey's objtype is the donor's `arm64` (the earlier
+# rename-on-import to `aarch64` was reversed), so 7.c includes
+# "/arm64/include/ureg.h" exactly as the donor does, and the setmach
+# entry string, the marm64/arm64mach symbols and ObjArm64 are the
+# donor's own.
 #
 # Wiring edits in this directory (setmach.c, executable.c, obj.c, mkfile)
 # follow the donor's own table entries verbatim. The retired port that

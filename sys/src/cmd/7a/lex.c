@@ -10,7 +10,7 @@ main(int argc, char *argv[])
 	int nout, nproc, status, i, c;
 
 	thechar = '7';
-	thestring = "aarch64";
+	thestring = "arm64";
 	memset(debug, 0, sizeof(debug));
 	cinit();
 	outfile = 0;

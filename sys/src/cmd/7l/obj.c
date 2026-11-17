@@ -9,7 +9,7 @@
 char	*noname		= "<none>";
 char	symname[]	= SYMDEF;
 char	thechar		= '7';
-char	*thestring 	= "aarch64";
+char	*thestring 	= "arm64";
 
 static int
 isobjfile(char *f)

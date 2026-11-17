@@ -48,10 +48,10 @@ ALLSUBSYS=ape\
 	/acme\
 
 # D-13/USPACE-04 append-only tier allowlists (data: build/aarch64/tiers/).
-# Under objtype=aarch64 the sweep sets below are filtered through the tier
+# Under objtype=arm64 the sweep sets below are filtered through the tier
 # files; every other objtype passes the ALL* lists through unchanged, and
 # COVERAGE_SWEEP=1 (set only by the 06-04 coverage sweep) forces the full
-# sets even under aarch64 — the sweep certifies the whole tree, never the
+# sets even under arm64 — the sweep certifies the whole tree, never the
 # allowlist to itself (Pitfall P6-1).  Tier files are addressed
 # $HARVEY-absolute: host paths stay live under unshare -m while /build is
 # never bound in the namespace (Pitfall P6-2).
@@ -71,7 +71,7 @@ T0KEEP=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER0}
 T1KEEP=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1}
 # 14-08 (XEXEC-04): the amd64 arm — the same keep-rule, the tier data
 # re-keyed to build/x86_64/tiers (the k10t1-proven core scope; Phase 15
-# appends).  The aarch64 arms above stay as-is (frozen-at-pin).
+# appends).  The arm64 arms above stay as-is (frozen-at-pin).
 # 15-01 (USPACE-07): the amd64 cmd keep widens to the tier1+tier2 UNION
 # in ONE multi-file awk (the tier-0 lib keep stays tier0-only — the
 # services tier names cmds, never libs; closure growth appends to
@@ -108,9 +108,9 @@ T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER
 # mk's backquote scanner closes the `{...} at the first bare inner '}'
 # (it does not parse @{...} groups), so the ape dirs ride the for-list
 # with their own '~ ape/lib/*' arm instead.
-LIBS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS ape/lib/ap ape/lib/bsd ape/lib/utf) if(~ $i $T0KEEPA || ~ $i ape/lib/*) echo $i; if not echo $ALLLIBS}
-CMDS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLCMDS}
-SUBSYS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLSUBSYS}
+LIBS=`{if(~ $objtype arm64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS ape/lib/ap ape/lib/bsd ape/lib/utf) if(~ $i $T0KEEPA || ~ $i ape/lib/*) echo $i; if not echo $ALLLIBS}
+CMDS=`{if(~ $objtype arm64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLCMDS}
+SUBSYS=`{if(~ $objtype arm64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLSUBSYS}
 
 none:VQ:
 	echo mk all, install, clean, nuke, release, kernels, or libs

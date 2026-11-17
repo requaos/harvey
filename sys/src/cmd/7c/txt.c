@@ -8,7 +8,7 @@ void
 ginit(void)
 {
 	thechar = '7';
-	thestring = "aarch64";
+	thestring = "arm64";
 	exregoffset = REGEXT;
 	exfregoffset = FREGEXT;
 	newvlongcode = 1;

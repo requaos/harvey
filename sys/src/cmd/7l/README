@@ -2,8 +2,9 @@
 # (https://github.com/9front/9front @ 350266104f1fed81c78c3d05fa44f523bec0ae4d,
 # branch "front", pinned 2026-10-31).
 #
-# 7l is Harvey's aarch64 linker: the project's tree name for the
-# architecture is `aarch64` (D-01: arm64 == aarch64, the same ISA);
+# 7l is Harvey's arm64 linker: the donor's `arm64` objtype name is
+# carried unchanged as of 2026-11-17 (the earlier rename-on-import to
+# `aarch64` was reversed);
 # the tool letter stays 7. Emits Plan 9 a.out (R_MAGIC) only.
 # Temporary bridge on the way to the r9 kernel — see
 # .planning/ROADMAP.md Phase 2.
@@ -17,9 +18,6 @@
 #   * l.h — MAXIO set to (16*1024): the donor defines it as IOUNIT,
 #     which exists in neither plan9port's nor Harvey's libc.h
 #     (6l/l.h uses (16*1024)).
-#   * obj.c — thestring set to the aarch64 arch name (donor value was
-#     arm64): the linker library search path is /{thestring}/lib, so
-#     the donor value would never find /aarch64/lib/libc.a.
 #   * unixcompat.c — new Harvey file (6l/unixcompat.c shape): hunk-
 #     backed malloc/calloc/free/realloc, mysbrk returning sbrk(size),
 #     setmalloctag no-op, and the my* host-OS wrappers, self-contained

@@ -2,8 +2,9 @@
 # (https://github.com/9front/9front @ 350266104f1fed81c78c3d05fa44f523bec0ae4d,
 # branch "front", pinned 2026-10-31).
 #
-# 7c is Harvey's aarch64 compiler: the project's tree name for the
-# architecture is `aarch64` (D-01: arm64 == aarch64, the same ISA);
+# 7c is Harvey's arm64 compiler: the donor's `arm64` objtype name is
+# carried unchanged as of 2026-11-17 (the earlier rename-on-import to
+# `aarch64` was reversed);
 # the tool letter stays 7. Imported as a temporary bridge on the way to
 # the r9 kernel — see .planning/ROADMAP.md Phase 2.
 #
@@ -25,10 +26,6 @@
 #     frontend has no OROL node producer, so the vendored consumers are
 #     dead code; removing them keeps the shared frontend untouched.
 #     Zero functional loss (no rotate fusion).
-#   * txt.c — thestring set to the aarch64 arch name (donor value was
-#     arm64). Harvey's host-built tools resolve includes as
-#     /{thestring}/include (cc/lex.c), and Harvey's tree names the arch
-#     dir aarch64.
 #   * enam.c — generated from vendored 7.out.h by the donor mkenam ed
 #     script and committed (6c precedent: no enam.c rule in the mkfile).
 #     Regenerate only when 7.out.h's opcode enum changes.

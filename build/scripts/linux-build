@@ -60,9 +60,9 @@ fn build_arm{
 		cd /sys/src/9/bcm && mk nuke && mk CONF'='pi4 install && mk CONF'='pi4cpu install && mk CONF'='pi4wifi install && mk clean
 }
 
-# aarch64 scope (Phase 6, D-13/USPACE-04): the tier-filtered sweep driven by
+# arm64 scope (Phase 6, D-13/USPACE-04): the tier-filtered sweep driven by
 # the committed allowlists (build/aarch64/tiers/tier{0,1}.txt), replacing the
-# v1.0 hardcoded subset.  Under objtype=aarch64 the mk layer filters
+# v1.0 hardcoded subset.  Under objtype=arm64 the mk layer filters
 # LIBS/CMDS/SUBSYS (sys/src/mkfile) and TARG/DIRS (cmd/mkfile + the ip/auth/
 # factotum container mkfiles) through the tier data; every other objtype is
 # untouched (byte-parity proven in 06-02's parity evidence).  libc keeps its
@@ -73,12 +73,12 @@ fn build_arm{
 # cmd sweep covers the toolchain.  factotum arrives via the cmd/auth/factotum
 # recursion with its TARG filtered to factotum only (fgui needs the
 # out-of-tier graphics stack); paqfs's dir is kept by cmd/paqfs:paqfs —
-# mkpaqfs compiles for aarch64 but is host-only tooling (the tier drivers
-# stage paqfs per-target; nothing stages or executes mkpaqfs for aarch64).
-fn build_aarch64{
-	for(i in /sys/src/libc) {cd $i && objtype=aarch64 mk nuke && objtype=aarch64 mk install && objtype=aarch64 mk clean}
-	cd /sys/src && objtype=aarch64 mk libs
-	cd /sys/src/cmd && objtype=aarch64 mk install
+# mkpaqfs compiles for arm64 but is host-only tooling (the tier drivers
+# stage paqfs per-target; nothing stages or executes mkpaqfs for arm64).
+fn build_arm64{
+	for(i in /sys/src/libc) {cd $i && objtype=arm64 mk nuke && objtype=arm64 mk install && objtype=arm64 mk clean}
+	cd /sys/src && objtype=arm64 mk libs
+	cd /sys/src/cmd && objtype=arm64 mk install
 }
 
 fn build_power{
@@ -145,11 +145,11 @@ mkdir -p /rc/bin
 
 # 386 legacy kernel/userland pass is deferred scope (re-enable by restoring
 # the 386 element to this assignment). Phase 1's green gate was amd64-only;
-# Phase 2 ran aarch64 as the proven shell-boot subset; Phase 6 (D-13) grows
-# the aarch64 leg to the tier-filtered sweep (see build_aarch64 above — the
+# Phase 2 ran arm64 as the proven shell-boot subset; Phase 6 (D-13) grows
+# the arm64 leg to the tier-filtered sweep (see build_arm64 above — the
 # mk layer filters through build/aarch64/tiers/tier{0,1}.txt), amd64 still
 # sweeps the full tree.
-arch=(amd64 aarch64)
+arch=(amd64 arm64)
 for(i in $arch){
 	echo build $i
 

@@ -16,10 +16,10 @@ amd64/9*
 amd64/*bin
 amd64/init
 amd64/lib
-/aarch64/9*
-/aarch64/*bin
-/aarch64/init
-/aarch64/lib
+/arm64/9*
+/arm64/*bin
+/arm64/init
+/arm64/lib
 arm/9*
 arm/*bin
 arm/init
