@@ -76,6 +76,8 @@ done
 for f in ipconfig ping udpecho aan tcpblast tcpecho; do
 	[ -s "$OUT/$f" ] || err "$OUT/$f missing — run sh build/aarch64/subset-build.sh first"
 done
+# 20-02: the fork-image stressor (WINDOWS #49 reproducer; not gate-wired)
+[ -s "$OUT/forkstress" ] || err "$OUT/forkstress missing — run sh build/aarch64/subset-build.sh first"
 SUBSET="rc grep cat cp date echo ls mkdir mv ps rm sed test wc"
 SUBSET="$SUBSET dd"	# 07-04: dd joins the image (D-07's sweep writer); append form keeps the edit insertion-only
 SUBSET="$SUBSET bind"	# 07-07: the net-sweep's `bind -a '#l' /net` execs /bin/bind (not an rc builtin)
@@ -159,6 +161,8 @@ cp "$OUT/netblast" "$STAGE/arm64/bin/netblast"
 # 08-03: the soak machinery + echo server bake beside netblast
 cp "$OUT/tcpblast" "$STAGE/arm64/bin/tcpblast"
 cp "$OUT/tcpecho" "$STAGE/arm64/bin/tcpecho"
+# 20-02: forkstress bakes beside them (typed by hand / by 20-03's driver)
+cp "$OUT/forkstress" "$STAGE/arm64/bin/forkstress"
 
 # 3b. 06-07 (D-12): the tier-1 sweep payload — h-prefixed binaries into
 #     /arm64/bin (the sweep invokes them as /bin/h* on r9 through the
@@ -249,6 +253,7 @@ done
 [ -f "$STAGE/arm64/bin/aan" ] || err "manifest: arm64/bin/aan missing"
 [ -f "$STAGE/arm64/bin/tcpblast" ] || err "manifest: arm64/bin/tcpblast missing"
 [ -f "$STAGE/arm64/bin/tcpecho" ] || err "manifest: arm64/bin/tcpecho missing"
+[ -f "$STAGE/arm64/bin/forkstress" ] || err "manifest: arm64/bin/forkstress missing"
 # 06-07 (D-12): every tier-1 payload path is asserted pre-bake (T-06-15:
 # a stale bake would certify old binaries — presence of the just-staged
 # paths is the tripwire)

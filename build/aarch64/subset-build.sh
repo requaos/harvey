@@ -316,6 +316,13 @@ echo "== boot chain: tcpecho (08-03, NETIP-03)"
 (cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw tcpecho.c \
 	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/tcpecho" tcpecho.7 \
 	&& rm -f tcpecho.7) || fail "tcpecho"
+# 20-02: forkstress — the fork-image integrity stressor (WINDOWS #49
+# reproducer, rc out of the picture).  Baked into the image; no gate
+# calls it yet (20-03 wires it).  Same 7c -FTVw + 7l shape as tcpblast.
+echo "== boot chain: forkstress (20-02, WINDOWS #49 reproducer)"
+(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw forkstress.c \
+	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/forkstress" forkstress.7 \
+	&& rm -f forkstress.7) || fail "forkstress"
 
 # 06-05: tier-0 lib test binaries (D-06 — in-tree lib tests run on the
 # donor where they exist; subset-exec.sh stages them h*-style and the
@@ -412,6 +419,7 @@ if [ -z "$NATIVE_LINUX" ]; then
 		"$GUEST:$GUEST_DIR/build/aarch64/out/aan" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/tcpblast" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/tcpecho" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/forkstress" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/hdrawtest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/harctest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/htdraw" \
@@ -453,8 +461,9 @@ done
 [ -s "$HARVEY/build/aarch64/out/netblast" ] || err "build/aarch64/out/netblast missing after rsync-back"
 magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/netblast" | tr -d ' \n')
 [ "$magic" = "00008c47" ] || err "build/aarch64/out/netblast: bad magic $magic (want 00008c47)"
-# 08-03: the six Phase-8 gate binaries carry the same magic contract
-for f in ipconfig ping udpecho aan tcpblast tcpecho; do
+# 08-03: the six Phase-8 gate binaries (and 20-02's forkstress) carry
+# the same magic contract
+for f in ipconfig ping udpecho aan tcpblast tcpecho forkstress; do
 	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
 	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
