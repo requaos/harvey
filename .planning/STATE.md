@@ -3,13 +3,12 @@ gsd_state_version: "1.0"
 milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
-current_phase_name: CPU Service + Drawterm + rio Desktop
-status: executing
-stopped_at: Completed 19-10-PLAN.md (phase 19 execution 10/10; DESK-07 accepted with recorded deferral; INT-07 green; phase verification pending — orchestrator)
-last_updated: "2026-11-17T12:09:46.205Z"
+status: completed
+stopped_at: Phase 19 complete — all phases complete
+last_updated: "2026-11-17T13:09:15.363Z"
 last_activity: 2026-11-17
-last_activity_desc: Phase 19 execution complete (19-10 closed; verification pending)
-state_head: d4f0eeae52000c1c50b2766f5dd2501364f290e5
+last_activity_desc: Phase 19 complete
+state_head: 4e4b348751a78e34dcb2b83dfa8c3395e5436191
 progress:
   total_phases: 7
   completed_phases: 2
@@ -28,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 ## Current Position
 
-Phase: 19 (CPU Service + Drawterm + rio Desktop) — EXECUTION COMPLETE (10/10 plans), awaiting phase verification
-Plan: 10 of 10
-Status: 19-10 CLOSED — DESK-07 accepted with recorded deferral (the linux graphical row SIGNED 2026-11-16: Neil Skinner, r9 0921a1bc, screenshot in place, Row 1 at d4f0eeae5; the darwin -G row deferred by owner decision 2026-11-17 with the aarch64-port reopener; the darwin graphical deferral stands 2026-11-14, gui-cocoa reopener); INT-07 green (the clean-checkout proof, both gates, from two independent fresh clones); phase verification is the next step (orchestrator-owned)
-Last activity: 2026-11-17 — Phase 19 execution complete (19-10 closed after the linux leg's D-11 fix loop + the owner's acceptance and deferral decisions)
+Phase: 19
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-11-17 — Phase 19 complete
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 execution-complete pending verification; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
@@ -51,6 +50,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | 16 | 8 | - | - |
 | 17 | 8 | - | - |
 | 18 | 8 | - | - |
+| 19 | 10 | - | - |
 
 **Recent Trend:** n/a (milestone start)
 **Per-Plan Metrics:**
@@ -325,5 +325,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-17T12:09:45.282Z
-Stopped at: Completed 19-10-PLAN.md (phase 19 execution 10/10; DESK-07 accepted with recorded deferral; INT-07 green; phase verification pending — orchestrator)
+Stopped at: Phase 19 complete — all phases complete
 Resume file: None
