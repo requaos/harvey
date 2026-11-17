@@ -213,3 +213,28 @@ DECISION: aarch64-fix
 - **Classification:** `aarch64/`. No `port/src/` edit, no x86_64 kernel bytes changed, no FOD impact. Not Harvey userspace, and not outside both repos: the qemu/HVF behaviour is architecturally permitted, and the kernel sequence is wrong.
 - **Estimated size:** 1 to 3 lines of inline asm in one function, plus a comment. A regression check fits the existing gates; a host test cannot see TLB behaviour. The ASID-free design stays (adding ASIDs would be a separate, larger change and is not needed for this fix).
 - **Reproducer (high rate, deterministic enough):** `R9_ACCEL=hvf R9_SKIP_BUILD=1 R9_OVERRIDE=git+file:///Users/neilskinner/code/r9 sh build/aarch64/repeat-gate.sh boot-r9-tier1 12`. Before the fix it fails about 80% of boots (38 of 48, 0.0096 per fork). With the fix it should print `SERIES boot-r9-tier1 accel=hvf runs=12 pass=12 fail=0 pushword=0 forks=1512`. The probe in `.build/p20-probe-and-fix.diff` is the direct signal if a re-check is ever needed. That file is gitignored, so if it is gone, rebuild the probe from the description above.
+
+## Fix
+
+Plan 20-03 Task 1. The owner chose `aarch64-fix` at the 20-02 checkpoint, so the fix is at the site `## Root cause` names. The plan text expected `aarch64/src/proc.rs`, but the approved site is `vm.rs`.
+
+FIX-SITE: aarch64 r9/aarch64/src/vm.rs
+
+- **r9 commit:** `cb9cde3` `fix(20-03): isb after the TTBR write in vm::switch — the HVF fork-child defect (WINDOWS #49)`. Parent `46364d0`. One file, `aarch64/src/vm.rs`, with 15 lines added and none removed.
+- **Change:** in `pub unsafe fn switch`, `isb` goes right after `msr ttbr0_el1, {pt_phys}` in the User arm, before the `tlbi vmalle1is; dsb ish; isb`. This is the confirmed (e) isb-only variant. The Kernel arm (`msr ttbr1_el1`) gets the same `isb` so both arms follow one ordering. A comment at the site states the invariant (the TTBR write is context-synchronized before the TLBI), why it matters with no ASIDs, and why HVF exposed it while TCG did not. The existing `// SAFETY:` comment on the `unsafe` block still describes the block (a TTBR write plus the barrier and TLB sequence), so it was left as it is.
+- **Not done:** the `dsb ishst` before the `msr`, and the one before the `tlbi` in `invalidate_all_tlb_entries`. `## Root cause` lists both as hardening. Experiment (c) showed they are not the cause, and the owner's instruction limited 20-03 to the two `isb`s. They stay open as optional hardening.
+- **Scope checks:** there is no `port/src/` edit and no x86_64 byte change, so the fix has no FOD impact. `grep -c 'pushword but no argv' sys/src/cmd/rc/exec.c` printed 2 both before and after the change, so rc's guards are untouched. `rustfmt --check` on `vm.rs` is clean. The pre-existing `cargo fmt` drift in `aarch64/src/exec.rs` is not from this change and was left alone.
+- **Build:** `cargo xtask build --arch aarch64 --config virtshell` under `nix develop .#kernel-virt` printed `VIRTSHELL-BUILD-OK`.
+
+Reproducer: `R9_ACCEL=hvf R9_OVERRIDE=git+file:///Users/neilskinner/code/r9 sh build/aarch64/repeat-gate.sh boot-r9-tier1 12`. The `run-1.out` store-path name confirms which kernel each series used.
+
+```
+before (r9 46364d0, kernel r9-kernel-virt-46364d0, .build/hvf-series/boot-r9-tier1-hvf-20261117T182036):
+SERIES boot-r9-tier1 accel=hvf runs=12 pass=1 fail=11 pushword=11 forks=995
+after  (r9 cb9cde3, kernel r9-kernel-virt-cb9cde3, .build/hvf-series/boot-r9-tier1-hvf-20261117T182647):
+SERIES boot-r9-tier1 accel=hvf runs=12 pass=12 fail=0 pushword=0 forks=1512
+```
+
+- **Before:** 11 fires in 995 forks, every one a pushword fire. That is still red, at about the rate in `## Root cause` (38 of 48 boots there, 11 of 12 here).
+- **Length the after-run needs:** take r_lo, the reproducer's own exact lower 95% bound. From this re-run alone (11/995), r_lo = 0.006212, and ln(0.05)/ln(1 - 0.006212) = 2.99573/0.006231 = 480.8, so 481 forks. From the 20-02 pool (38/3972), r_lo = 0.007173, which gives 418 forks. Because the reproducer is a gate, the length is `FORKS-TARGET` = 520, the strictest of the three.
+- **After:** 0 fires in 1512 forks, which is at least 520. A kernel still failing at r_lo = 0.006212 per fork would get through 1512 forks with no fire with probability (1 - 0.006212)^1512 = 8.1e-5.
