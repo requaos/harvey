@@ -29,14 +29,14 @@
 #
 # Membership provenance: the coverage inventory's full ok set minus the
 # tier1/2/3 membership — 112 cmd dirs + the 6 aux subdirs (the
-# 'x86-hardware-only' aarch64 exclusion class RE-DERIVED as members:
+# 'x86-hardware-only' arm64 exclusion class RE-DERIVED as members:
 # aux/vga, aux/realemu et al compile natively on amd64, measured).
 # sys/src/cmd/unix is not a member and needs no exclusion: it carries no
 # mkfile (cmd/mkfile's BUGGERED=unix class — the vendored host tooling,
 # built host-side by nix/toolchain.sh, never a target).
 #
 # The games ROOT (sys/src/games, a sibling of cmd in sys/src/mkfile's
-# ALLCMDS — sys/src/cmd/games does not exist in this tree, the aarch64
+# ALLCMDS — sys/src/cmd/games does not exist in this tree, the arm64
 # plan's named fact re-verified) stays outside the default amd64 build
 # surface this phase exactly as tier-1 recorded it: the coverage proof
 # visits and proves every games dir anyway (mahjongg mp3dec mp3enc
@@ -45,7 +45,7 @@
 #
 # --- the re-derived exclusion record (D-10: every exclusion re-derived
 #     against the ACTUAL amd64 tree with its measured reason — carried
-#     from aarch64 unexamined is forbidden; these are the coverage
+#     from arm64 unexamined is forbidden; these are the coverage
 #     sweep's own digests, not inherited labels) ---
 # exclude: sys/src/cmd/postscript/picpack upstream-disabled (commented out of postscript/mkfile's TARGETS; unix-era code: the pcc cpp cascade dies in its own grammar directives)
 # exclude: sys/src/cmd/postscript/postbgi upstream-disabled (same TARGETS class; the link wants ../common/*.6 objects no recursion ever staged)

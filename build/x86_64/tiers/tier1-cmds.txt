@@ -39,9 +39,9 @@
 # Seeded 2026-11-09 (14-08) anchored to the k10t1-proven embed set —
 # Phase 6's 06-09 venue kernel (k10cpu's device set, verbatim) embedded
 # and swept exactly this core: the 35 read-only commands below are the
-# embed's swept h* membership, the sources arch-neutral (the aarch64
+# embed's swept h* membership, the sources arch-neutral (the arm64
 # tier-1 list's own members — same cmd/ sources, objtype-keyed builds).
-# The write-flow / build-chain / toolchain members of the aarch64 list
+# The write-flow / build-chain / toolchain members of the arm64 list
 # are NOT here this phase: Phase 14's tier scope is tier-0 libs + tier-1
 # CORE commands as execution proof (14-CONTEXT); Phase 15 appends them
 # onto this machinery after their own per-entry gates.
@@ -57,7 +57,7 @@
 #   the libtest markers no libtest binaries build for amd64 yet (the
 #                       06-09 9k-venue discipline, carried — never an
 #                       unearned T1-OK)
-#   ape gs games nboot  same standing exclusions as the aarch64 list
+#   ape gs games nboot  same standing exclusions as the arm64 list
 #
 # --- the k10t1 embed set's swept core (06-09-proven, 35 members) ---
 cmd/rc				# dir; the boot chain's shell + the sweep's hrc parser check

@@ -22,7 +22,7 @@
 #
 # On the donor the sweep + h* binaries are devroot-embedded at /boot.
 # On r9 (06-07, D-12) the sweep bakes at /lib/tier1-sweep.rc, the
-# binaries at /aarch64/bin (invoked as /bin/h* through the namespace
+# binaries at /arm64/bin (invoked as /bin/h* through the namespace
 # union), and the data at /lib/tier1 — the B/D prefix block below maps
 # the paths per venue, and the driver types ONE line at the r9 %
 # prompt (r9's devcons serves reads): `rc /lib/tier1-sweep.rc r9`.
@@ -53,7 +53,7 @@
 #
 # The fixed inputs re-express the v1.0 subset-exec.sh step table
 # (subset-exec.sh's header marker table is the source); the h* binaries
-# are Harvey's aarch64 tier-1 set embedded in the donor kernel's
+# are Harvey's arm64 tier-1 set embedded in the donor kernel's
 # devroot (mkrootall), executed by the donor's own rc.
 #
 # 06-06 fixed inputs (committed, read-only — the T-06-12 boundary):
@@ -78,7 +78,7 @@ if(~ $#venue 0) venue=donor
 
 # Venue path prefixes (06-07, D-12): on the donor the tier-1 set is
 # devroot-embedded at /boot and the fixed inputs ride /boot as data;
-# on r9 the binaries bake into the image's /aarch64/bin (resolved
+# on r9 the binaries bake into the image's /arm64/bin (resolved
 # through the namespace's /bin union) and the data rides /lib/tier1
 # (the paqfs image is read-only; /boot on r9 is the kernel's devroot).
 # rcm (06-09): the rcmain override for child rc invocations — empty on
@@ -544,12 +544,12 @@ if(~ $venue donor){
 
 	# --- 06-06 Task 2: the guest self-host canary (D-11) — the
 	# strongest reading of "self-hosted build chain executes": OUR
-	# aarch64 7c/7l compile the committed hello.c in the guest's
+	# arm64 7c/7l compile the committed hello.c in the guest's
 	# writable /tmp scratch (this block's cwd) and the produced binary
 	# RUNS and prints.  Compile and run markers are SEPARATE
 	# (T-06-12: a weaker proof can never masquerade as the strong
 	# one).  Headers + libc resolve from the srv9-served root's
-	# staged /aarch64 tree (thestring=aarch64; 7l autolibs libc.a via
+	# staged /arm64 tree (thestring=arm64; 7l autolibs libc.a via
 	# libc.h's #pragma lib). ---------------------------------------
 	# 7a first: the canary path doesn't exercise the assembler (7c
 	# -FTVw emits .7 directly) — assemble the committed tiny.s as

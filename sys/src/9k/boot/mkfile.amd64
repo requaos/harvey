@@ -2,7 +2,7 @@
 
 # sys/src/9k/boot/mkfile.amd64 — the additive, objtype-gated amd64
 # boot(8) build for the r9 boot chain (14-06, XEXEC-03).  Same
-# rationale as the aarch64 sibling: boot has no standalone mkfile —
+# rationale as the arm64 sibling: boot has no standalone mkfile —
 # the amd64 kernel path builds it from the kernel build dir via
 # ../mk/bootmkfile with an awk-generated bootconf (../mk/parse
 # -mkbootconf against the kernel config, e.g. k10cpu).  With no
@@ -18,7 +18,7 @@
 # command — there is deliberately no install rule into /$objtype/bin.
 #
 # BOOTFILES is bootmkfile's archive list trimmed to the real 6l link
-# closure of the embed-only method table (identical to the aarch64
+# closure of the embed-only method table (identical to the arm64
 # trims — same C sources, same bootconf method[]):
 #   - paq.$O is the lone trim: configpaq/connectpaq serve only the
 #     flash-ramdisk method our table never names (embed's

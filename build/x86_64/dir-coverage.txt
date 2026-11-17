@@ -647,9 +647,9 @@ sys/src/libc visited=3 build=ok
 sys/src/libc/386 visited=1 build=ok
 sys/src/libc/9sys visited=2 build=ok
 sys/src/libc/9syscall visited=2 build=ok
-sys/src/libc/aarch64 visited=1 build=ok
 sys/src/libc/amd64 visited=2 build=ok
 sys/src/libc/arm visited=1 build=ok
+sys/src/libc/arm64 visited=1 build=ok
 sys/src/libc/fmt visited=2 build=ok
 sys/src/libc/mips visited=1 build=ok
 sys/src/libc/port visited=2 build=ok
@@ -673,9 +673,9 @@ sys/src/libmemdraw visited=3 build=ok
 sys/src/libmemlayer visited=3 build=ok
 sys/src/libmp visited=3 build=ok
 sys/src/libmp/386 visited=1 build=ok
-sys/src/libmp/aarch64 visited=1 build=ok
 sys/src/libmp/amd64 visited=2 build=ok
 sys/src/libmp/arm visited=1 build=ok
+sys/src/libmp/arm64 visited=1 build=ok
 sys/src/libmp/mips visited=1 build=ok
 sys/src/libmp/port visited=2 build=ok
 sys/src/libmp/power visited=1 build=ok
@@ -688,9 +688,9 @@ sys/src/libregexp visited=3 build=ok
 sys/src/libscribble visited=3 build=ok
 sys/src/libsec visited=3 build=ok
 sys/src/libsec/386 visited=1 build=ok
-sys/src/libsec/aarch64 visited=1 build=ok
 sys/src/libsec/amd64 visited=2 build=ok
 sys/src/libsec/arm visited=1 build=ok
+sys/src/libsec/arm64 visited=1 build=ok
 sys/src/libsec/mips visited=1 build=ok
 sys/src/libsec/port visited=2 build=ok
 sys/src/libsec/power visited=1 build=ok

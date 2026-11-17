@@ -348,13 +348,14 @@ pub fn artifact_chain(data: &ChainData, runlog_bc: &str, now_iso: &str) -> Strin
     s.push_str(&format!("# date: {}\n", now_iso));
     s.push_str(&format!("# donor pin: {} (9front branch front)\n", DONOR_SHA));
     s.push_str("# rig: build/aarch64/trace-syscalls.py --boot-chain (05-03) + build/aarch64/trace-boot.rc + build/aarch64/pidwait.c\n");
-    s.push_str("# target: the REAL chain — 05-02's aarch64 boot(8) (staged /boot/ourboot)\n");
+    s.push_str("# target: the REAL chain — 05-02's arm64 boot(8) (staged /boot/ourboot)\n");
     s.push_str("#   with the embed method over /boot/ourbootfs.paq (05-02's baked bootfs.paq),\n");
     s.push_str("#   /boot/paqfs bind-overridden to OUR paqfs, the donor devroot's factotum\n");
     s.push_str("#   covered ('#c/null' bind — the glenda path, D-02), the donor's /srv/boot\n");
     s.push_str("#   removed (srvcreate collision), #e/init removed (the donor bootrc leaks\n");
     s.push_str("#   init=/arm64/init into the shared env; execinit's cputype branch is the\n");
-    s.push_str("#   r9-faithful one), cputype=aarch64 + nobootprompt seeded, and the trace\n");
+    s.push_str("#   r9-faithful one), cputype=arm64 + nobootprompt seeded, OUR init bound\n");
+    s.push_str("#   over the donor's /arm64/init (same name since 2026-11-17), and the trace\n");
     s.push_str("#   namespace bound over /lib/namespace (re-mounts #s/boot at /root after\n");
     s.push_str("#   newns's RFCNAMEG wipe — the k10root mechanism — and overrides termrc).\n");
     s.push_str("#   Chain: init -t → newns → termrc (stacksmoke) → rc -c '. oursweep.rc'\n");
@@ -715,11 +716,11 @@ fn compile_tracehello(cfg: &Cfg, tmpd: &Path) -> Result<PathBuf, String> {
         &format!("{}:harvey-build/build/aarch64/tracehello.c", cfg.guest),
     ))
     .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync push failed".to_string()))?;
-    // libc.a for aarch64 is a Phase-2 guest artifact; mk install is
+    // libc.a for arm64 is a Phase-2 guest artifact; mk install is
     // incremental, so this is seconds when fresh and self-heals when stale.
-    let cmd = "cd /sys/src/libc && objtype=aarch64 mk install && \
+    let cmd = "cd /sys/src/libc && objtype=arm64 mk install && \
                cd \"$HARVEY/build/aarch64\" && \
-               7c -FVw tracehello.c && 7l -o /aarch64/tracehello.7.out tracehello.7";
+               7c -FVw tracehello.c && 7l -o /arm64/tracehello.7.out tracehello.7";
     let log = tmpd.join("compile.log");
     let rc = {
         let fp = std::fs::File::create(&log).map_err(|e| e.to_string())?;
@@ -746,7 +747,7 @@ fn compile_tracehello(cfg: &Cfg, tmpd: &Path) -> Result<PathBuf, String> {
     let out_bin = tmpd.join("tracehello.7.out");
     sh_rc(&rsync(
         cfg,
-        &format!("{}:harvey-build/aarch64/tracehello.7.out", cfg.guest),
+        &format!("{}:harvey-build/arm64/tracehello.7.out", cfg.guest),
         &out_bin.to_string_lossy(),
     ))
     .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync pull failed".to_string()))?;
@@ -806,8 +807,6 @@ if [ "${1:-}" = "--ns" ]; then
 	mount --bind "$DONOR/sys" /sys
 	mkdir -p /arm64
 	mount --bind "$DONOR/arm64" /arm64
-	mkdir -p /aarch64
-	mount --bind "$DONOR/arm64" /aarch64
 	mkdir -p /rc
 	mount --bind "$DONOR/rc" /rc
 
@@ -1278,11 +1277,11 @@ const STAGE_BC: &[(&str, &str)] = &[
     ("build/aarch64/out/init", "ourinit"),
     ("build/aarch64/out/paqfs", "ourpaqfs"),
     ("build/aarch64/out/stacksmoke", "ourstacksmoke"),
-    ("aarch64/bin/rc", "ourrc"),
-    ("aarch64/bin/echo", "ourecho"),
-    ("aarch64/bin/ls", "ourls"),
-    ("aarch64/bin/ps", "ourps"),
-    ("aarch64/bin/cat", "ourcat"),
+    ("arm64/bin/rc", "ourrc"),
+    ("arm64/bin/echo", "ourecho"),
+    ("arm64/bin/ls", "ourls"),
+    ("arm64/bin/ps", "ourps"),
+    ("arm64/bin/cat", "ourcat"),
     ("build/aarch64/bootfs.paq", "ourbootfs.paq"),
     // trace-rig guest assets (data — ride the bootdir through mkrootall)
     ("build/aarch64/trace-namespace", "ournamespace"),
@@ -1309,7 +1308,7 @@ fn preconditions_bc(cfg: &Cfg) -> Result<(), String> {
             let magic = std::fs::read(&p).map_err(|e| e.to_string())?;
             if magic.len() < 4 || magic[..4] != [0x00, 0x00, 0x8c, 0x47] {
                 return Err(format!(
-                    "{} lacks R_MAGIC 00008c47 — not a 7l aarch64 binary",
+                    "{} lacks R_MAGIC 00008c47 — not a 7l arm64 binary",
                     p.display()
                 ));
             }
@@ -1334,9 +1333,9 @@ fn compile_pidwait(cfg: &Cfg, tmpd: &Path) -> Result<PathBuf, String> {
         &format!("{}:harvey-build/build/aarch64/pidwait.c", cfg.guest),
     ))
     .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync push failed".to_string()))?;
-    let cmd = "cd /sys/src/libc && objtype=aarch64 mk install && \
+    let cmd = "cd /sys/src/libc && objtype=arm64 mk install && \
                cd \"$HARVEY/build/aarch64\" && \
-               7c -FVw pidwait.c && 7l -o /aarch64/pidwait.7.out pidwait.7";
+               7c -FVw pidwait.c && 7l -o /arm64/pidwait.7.out pidwait.7";
     let log = tmpd.join("compile-pidwait.log");
     let rc = {
         let fp = std::fs::File::create(&log).map_err(|e| e.to_string())?;
@@ -1363,7 +1362,7 @@ fn compile_pidwait(cfg: &Cfg, tmpd: &Path) -> Result<PathBuf, String> {
     let out_bin = tmpd.join("pidwait.7.out");
     sh_rc(&rsync(
         cfg,
-        &format!("{}:harvey-build/aarch64/pidwait.7.out", cfg.guest),
+        &format!("{}:harvey-build/arm64/pidwait.7.out", cfg.guest),
         &out_bin.to_string_lossy(),
     ))
     .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync pull failed".to_string()))?;
@@ -1422,8 +1421,6 @@ if [ "${1:-}" = "--ns" ]; then
 	mount --bind "$DONOR/sys" /sys
 	mkdir -p /arm64
 	mount --bind "$DONOR/arm64" /arm64
-	mkdir -p /aarch64
-	mount --bind "$DONOR/arm64" /aarch64
 	mkdir -p /rc
 	mount --bind "$DONOR/rc" /rc
 
@@ -1993,63 +1990,63 @@ fn main_bc(cfg: &Cfg) -> Result<(), String> {
 // Mirrors subset-exec.sh's SUBSET_* lists (the 06-06 70-file set) plus
 // the two trace assets.  "$TMPD/..." entries are generated at run time.
 const STAGE_T1: &[(&str, &str)] = &[
-    ("aarch64/bin/cat", "hcat"),
-    ("aarch64/bin/cp", "hcp"),
-    ("aarch64/bin/date", "hdate"),
-    ("aarch64/bin/echo", "hecho"),
-    ("aarch64/bin/ls", "hls"),
-    ("aarch64/bin/mkdir", "hmkdir"),
-    ("aarch64/bin/mv", "hmv"),
-    ("aarch64/bin/ps", "hps"),
-    ("aarch64/bin/rm", "hrm"),
-    ("aarch64/bin/sed", "hsed"),
-    ("aarch64/bin/test", "htest"),
-    ("aarch64/bin/wc", "hwc"),
-    ("aarch64/bin/rc", "hrc"),
-    ("aarch64/bin/grep", "hgrep"),
-    ("aarch64/bin/ip/ipconfig", "hipconfig"),
-    ("aarch64/bin/auth/factotum", "hfactotum"),
-    ("aarch64/bin/awk", "hawk"),
-    ("aarch64/bin/bc", "hbc"),
-    ("aarch64/bin/sort", "hsort"),
-    ("aarch64/bin/tr", "htr"),
-    ("aarch64/bin/uniq", "huniq"),
-    ("aarch64/bin/tail", "htail"),
-    ("aarch64/bin/dd", "hdd"),
-    ("aarch64/bin/tar", "htar"),
-    ("aarch64/bin/chmod", "hchmod"),
-    ("aarch64/bin/tee", "htee"),
-    ("aarch64/bin/basename", "hbasename"),
-    ("aarch64/bin/sleep", "hsleep"),
-    ("aarch64/bin/cmp", "hcmp"),
-    ("aarch64/bin/comm", "hcomm"),
-    ("aarch64/bin/fmt", "hfmt"),
-    ("aarch64/bin/join", "hjoin"),
-    ("aarch64/bin/look", "hlook"),
-    ("aarch64/bin/pr", "hpr"),
-    ("aarch64/bin/split", "hsplit"),
-    ("aarch64/bin/strings", "hstrings"),
-    ("aarch64/bin/sum", "hsum"),
-    ("aarch64/bin/md5sum", "hmd5sum"),
-    ("aarch64/bin/sha1sum", "hsha1sum"),
-    ("aarch64/bin/ed", "hed"),
-    ("aarch64/bin/dc", "hdc"),
-    ("aarch64/bin/units", "hunits"),
-    ("aarch64/bin/cal", "hcal"),
-    ("aarch64/bin/touch", "htouch"),
-    ("aarch64/bin/time", "htime"),
-    ("aarch64/bin/seq", "hseq"),
-    ("aarch64/bin/read", "hread"),
-    ("aarch64/bin/du", "hdu"),
-    ("aarch64/bin/xd", "hxd"),
-    ("aarch64/bin/nm", "hnm"),
-    ("aarch64/bin/cpp", "hcpp"),
-    ("aarch64/bin/mk", "hmk"),
-    ("aarch64/bin/yacc", "hyacc"),
-    ("aarch64/bin/lex", "hlex"),
-    ("aarch64/bin/7a", "h7a"),
-    ("aarch64/bin/7c", "h7c"),
-    ("aarch64/bin/7l", "h7l"),
+    ("arm64/bin/cat", "hcat"),
+    ("arm64/bin/cp", "hcp"),
+    ("arm64/bin/date", "hdate"),
+    ("arm64/bin/echo", "hecho"),
+    ("arm64/bin/ls", "hls"),
+    ("arm64/bin/mkdir", "hmkdir"),
+    ("arm64/bin/mv", "hmv"),
+    ("arm64/bin/ps", "hps"),
+    ("arm64/bin/rm", "hrm"),
+    ("arm64/bin/sed", "hsed"),
+    ("arm64/bin/test", "htest"),
+    ("arm64/bin/wc", "hwc"),
+    ("arm64/bin/rc", "hrc"),
+    ("arm64/bin/grep", "hgrep"),
+    ("arm64/bin/ip/ipconfig", "hipconfig"),
+    ("arm64/bin/auth/factotum", "hfactotum"),
+    ("arm64/bin/awk", "hawk"),
+    ("arm64/bin/bc", "hbc"),
+    ("arm64/bin/sort", "hsort"),
+    ("arm64/bin/tr", "htr"),
+    ("arm64/bin/uniq", "huniq"),
+    ("arm64/bin/tail", "htail"),
+    ("arm64/bin/dd", "hdd"),
+    ("arm64/bin/tar", "htar"),
+    ("arm64/bin/chmod", "hchmod"),
+    ("arm64/bin/tee", "htee"),
+    ("arm64/bin/basename", "hbasename"),
+    ("arm64/bin/sleep", "hsleep"),
+    ("arm64/bin/cmp", "hcmp"),
+    ("arm64/bin/comm", "hcomm"),
+    ("arm64/bin/fmt", "hfmt"),
+    ("arm64/bin/join", "hjoin"),
+    ("arm64/bin/look", "hlook"),
+    ("arm64/bin/pr", "hpr"),
+    ("arm64/bin/split", "hsplit"),
+    ("arm64/bin/strings", "hstrings"),
+    ("arm64/bin/sum", "hsum"),
+    ("arm64/bin/md5sum", "hmd5sum"),
+    ("arm64/bin/sha1sum", "hsha1sum"),
+    ("arm64/bin/ed", "hed"),
+    ("arm64/bin/dc", "hdc"),
+    ("arm64/bin/units", "hunits"),
+    ("arm64/bin/cal", "hcal"),
+    ("arm64/bin/touch", "htouch"),
+    ("arm64/bin/time", "htime"),
+    ("arm64/bin/seq", "hseq"),
+    ("arm64/bin/read", "hread"),
+    ("arm64/bin/du", "hdu"),
+    ("arm64/bin/xd", "hxd"),
+    ("arm64/bin/nm", "hnm"),
+    ("arm64/bin/cpp", "hcpp"),
+    ("arm64/bin/mk", "hmk"),
+    ("arm64/bin/yacc", "hyacc"),
+    ("arm64/bin/lex", "hlex"),
+    ("arm64/bin/7a", "h7a"),
+    ("arm64/bin/7c", "h7c"),
+    ("arm64/bin/7l", "h7l"),
     ("build/aarch64/out/stacksmoke", "hstacksmoke"),
     ("build/aarch64/out/hdrawtest", "hdrawtest"),
     ("build/aarch64/out/harctest", "harctest"),
@@ -2171,8 +2168,6 @@ if [ "${1:-}" = "--ns" ]; then
 	mount --bind "$DONOR/sys" /sys
 	mkdir -p /arm64
 	mount --bind "$DONOR/arm64" /arm64
-	mkdir -p /aarch64
-	mount --bind "$DONOR/arm64" /aarch64
 	mkdir -p /rc
 	mount --bind "$DONOR/rc" /rc
 
@@ -2265,15 +2260,15 @@ fn preconditions_t1(cfg: &Cfg) -> Result<(), String> {
                 p.display()
             ));
         }
-        // the staged executables are 7l aarch64 binaries (R_MAGIC);
+        // the staged executables are 7l arm64 binaries (R_MAGIC);
         // keyed on the HOST path — build/aarch64/{hello.c,tiny.*,
         // nm-input.7,tier1-sweep.rc} ride as data (hello.c starts with
         // 'h' too; measured: the name-keyed check was wrong)
-        if rel.starts_with("aarch64/bin/") || rel.starts_with("build/aarch64/out/") {
+        if rel.starts_with("arm64/bin/") || rel.starts_with("build/aarch64/out/") {
             let magic = std::fs::read(&p).map_err(|e| e.to_string())?;
             if magic.len() < 4 || magic[..4] != [0x00, 0x00, 0x8c, 0x47] {
                 return Err(format!(
-                    "{} lacks R_MAGIC 00008c47 — not a 7l aarch64 binary",
+                    "{} lacks R_MAGIC 00008c47 — not a 7l arm64 binary",
                     p.display()
                 ));
             }
@@ -2288,8 +2283,8 @@ fn preconditions_t1(cfg: &Cfg) -> Result<(), String> {
         ("sys/lib/yaccpar", "yacc skeleton"),
         ("sys/lib/lex/ncform", "lex skeleton"),
         ("sys/include", "committed include tree"),
-        ("aarch64/include", "committed arch headers"),
-        ("aarch64/lib/libc.a", "tier-0 fresh libc.a (subset-build.sh)"),
+        ("arm64/include", "committed arch headers"),
+        ("arm64/lib/libc.a", "tier-0 fresh libc.a (subset-build.sh)"),
     ] {
         let p = cfg.harvey.join(rel);
         if std::fs::metadata(&p).map(|m| m.len()).unwrap_or(0) == 0 {
@@ -2315,13 +2310,13 @@ fn compile_tracesup(cfg: &Cfg, tmpd: &Path) -> Result<PathBuf, String> {
         &format!("{}:harvey-build/build/aarch64/tracesup.c", cfg.guest),
     ))
     .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync push failed".to_string()))?;
-    // libc + libbio for aarch64 are tier-0 guest artifacts; mk install is
+    // libc + libbio for arm64 are tier-0 guest artifacts; mk install is
     // incremental.  tracesup links libbio (Bopen/Bwrite) — 7l autolibs it
     // via bio.h's #pragma lib.
-    let cmd = "cd /sys/src/libc && objtype=aarch64 mk install && \
-               cd /sys/src/libbio && objtype=aarch64 mk install && \
+    let cmd = "cd /sys/src/libc && objtype=arm64 mk install && \
+               cd /sys/src/libbio && objtype=arm64 mk install && \
                cd \"$HARVEY/build/aarch64\" && \
-               7c -FVw tracesup.c && 7l -o /aarch64/tracesup.7.out tracesup.7";
+               7c -FVw tracesup.c && 7l -o /arm64/tracesup.7.out tracesup.7";
     let log = tmpd.join("compile-tracesup.log");
     let rc = {
         let fp = std::fs::File::create(&log).map_err(|e| e.to_string())?;
@@ -2352,7 +2347,7 @@ fn compile_tracesup(cfg: &Cfg, tmpd: &Path) -> Result<PathBuf, String> {
     let out_bin = tmpd.join("tracesup.7.out");
     sh_rc(&rsync(
         cfg,
-        &format!("{}:harvey-build/aarch64/tracesup.7.out", cfg.guest),
+        &format!("{}:harvey-build/arm64/tracesup.7.out", cfg.guest),
         &out_bin.to_string_lossy(),
     ))
     .and_then(|rc| (rc == 0).then_some(()).ok_or("rsync pull failed".to_string()))?;
@@ -2523,17 +2518,19 @@ fn prep_srvroot_t1(cfg: &Cfg, tmpd: &Path) -> Result<TermrcRestore, String> {
         rootfs.join("sys/lib/lex/ncform"),
     )
     .map_err(|e| e.to_string())?;
-    let _ = std::fs::remove_dir_all(rootfs.join("aarch64/include"));
+    // Harvey's include + libc.a merge into the served root's /arm64 next
+    // to the donor's bin + init (subset-exec.sh header: MIXED /arm64).
+    let _ = std::fs::remove_dir_all(rootfs.join("arm64/include"));
     let _ = std::fs::remove_dir_all(rootfs.join("sys/include"));
-    std::fs::create_dir_all(rootfs.join("aarch64/lib")).map_err(|e| e.to_string())?;
+    std::fs::create_dir_all(rootfs.join("arm64/lib")).map_err(|e| e.to_string())?;
     copy_dir_recursive(
-        &cfg.harvey.join("aarch64/include"),
-        &rootfs.join("aarch64/include"),
+        &cfg.harvey.join("arm64/include"),
+        &rootfs.join("arm64/include"),
     )?;
     copy_dir_recursive(&cfg.harvey.join("sys/include"), &rootfs.join("sys/include"))?;
     std::fs::copy(
-        cfg.harvey.join("aarch64/lib/libc.a"),
-        rootfs.join("aarch64/lib/libc.a"),
+        cfg.harvey.join("arm64/lib/libc.a"),
+        rootfs.join("arm64/lib/libc.a"),
     )
     .map_err(|e| e.to_string())?;
 
@@ -2923,7 +2920,7 @@ pub fn artifact_t1(
     s.push_str("#   (subset-exec.sh's D-10 venue); stacksmoke rides the traced shell.\n");
     s.push_str("# venue: the donor's own chain; srv9 --writable-prefix /tmp\n");
     s.push_str("#   --writable-prefix /usr/glenda/tmp; srvroot staging (sys/lib\n");
-    s.push_str("#   skeletons, sys/include, aarch64/include + libc.a) per 06-06.\n");
+    s.push_str("#   skeletons, sys/include, arm64/include + libc.a) per 06-06.\n");
     s.push_str(&format!("# serial log: {} (gitignored .build evidence)\n", runlog));
     s.push_str(&format!(
         "# traced pids: {}; measured syscall entry fragments: {}\n",

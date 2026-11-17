@@ -568,7 +568,7 @@ mount --bind "$HARVEY_UNIX" "$NSX/unix"
 # the per-arch dirs (nsrun.sh's bind set — libmach's v.c includes
 # /mips/include/ureg.h etc. by absolute path, so every arch dir the
 # tree names must exist at the chroot root)
-for a in 386 aarch64 arm mips mips64 power power64 riscv riscv64 sparc acme; do
+for a in 386 arm64 arm mips mips64 power power64 riscv riscv64 sparc acme; do
 	mkdir -p "$NSX/$a"
 	mount --bind "$HARVEY_REAL/$a" "$NSX/$a"
 done

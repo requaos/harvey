@@ -87,10 +87,10 @@ awk 'NF && $1 !~ /^#/ { print $1 }' "$TIERFILE" | while IFS= read -r line; do
 	# artifact path per entry form (the existing ledger's conventions)
 	case "$e" in
 	stage/stacksmoke) art="build/aarch64/out/stacksmoke" ;;
-	cmd/ip/*) art="aarch64/bin/ip/$bin" ;;
-	cmd/auth/*) art="aarch64/bin/auth/$bin" ;;
-	cmd/cc) bin="cc.a7"; art="aarch64/lib/cc.a7" ;;
-	*) art="aarch64/bin/$bin" ;;
+	cmd/ip/*) art="arm64/bin/ip/$bin" ;;
+	cmd/auth/*) art="arm64/bin/auth/$bin" ;;
+	cmd/cc) bin="cc.a7"; art="arm64/lib/cc.a7" ;;
+	*) art="arm64/bin/$bin" ;;
 	esac
 	emit "$e" "$bin" "$art"
 done

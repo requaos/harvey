@@ -4,7 +4,7 @@
 # $HARVEY subdirs onto /sys, /amd64, /386, /rc, ... — and bind-mounting a
 # virtiofs subdirectory silently yields an empty tree, so this CANNOT run
 # on the lima shared mount. Instead we rsync the checkout to guest-local
-# disk, build there, and rsync the artifacts (amd64/, 386/, aarch64/) back.
+# disk, build there, and rsync the artifacts (amd64/, 386/, arm64/) back.
 #
 # Wrapper provides: LIMA_YAML; lima + openssh + rsync on PATH.
 HARVEY="${HARVEY:-$PWD}"
@@ -61,9 +61,9 @@ ssh -F "$SSH_CFG" "$GUEST" "KERNDATE=$KERNDATE bash -lc 'set -e; cd \"$GUEST_DIR
 	exit $RC
 }
 
-echo "== pulling artifacts back (amd64/, 386/, aarch64/)"
-for d in amd64 386 aarch64; do
+echo "== pulling artifacts back (amd64/, 386/, arm64/)"
+for d in amd64 386 arm64; do
   rsync -a -e "$RSYNC_RSH" "$GUEST:$GUEST_DIR/$d/" "$HARVEY/$d/"
 done
 
-echo "harvey VM build complete; artifacts synced into $HARVEY/{amd64,386,aarch64}"
+echo "harvey VM build complete; artifacts synced into $HARVEY/{amd64,386,arm64}"

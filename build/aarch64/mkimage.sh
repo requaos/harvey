@@ -2,14 +2,14 @@
 # build/aarch64/mkimage.sh — bake build/aarch64/bootfs.paq, the paqfs
 # root image for the r9 real boot chain.  Stages a
 # scratch tree from the committed build/aarch64/root-tree/ skeleton
-# plus the built binaries (subset-build.sh's out/ + aarch64/bin), then
+# plus the built binaries (subset-build.sh's out/ + arm64/bin), then
 # invokes the host mkpaqfs (.build/bin/mkpaqfs, built by
 # build/aarch64/mkpaqfs-host.sh when missing).
 #
 # Image contract:
 #   /boot/boot, /boot/paqfs        the pid-1 binary + its paqfs server
-#   /aarch64/init                  execinit's target (/%s/init)
-#   /aarch64/bin/<16 subset + stacksmoke>
+#   /arm64/init                  execinit's target (/%s/init)
+#   /arm64/bin/<16 subset + stacksmoke>
 #   /rc/lib/rcmain                 copied VERBATIM from rc/lib/rcmain at
 #                                  bake time (single source of truth;
 #                                  amd64 safety keys on image contents,
@@ -28,14 +28,14 @@
 #                                  factotum-exec path
 #
 # usage: sh build/aarch64/mkimage.sh   (repo root, inside the nix
-# devshell; run subset-build.sh first — the out/ + aarch64/bin inputs)
+# devshell; run subset-build.sh first — the out/ + arm64/bin inputs)
 
 set -eu
 
 HARVEY="${HARVEY:-$PWD}"
 ROOT_TREE="$HARVEY/build/aarch64/root-tree"
 OUT="$HARVEY/build/aarch64/out"
-BIN="$HARVEY/aarch64/bin"
+BIN="$HARVEY/arm64/bin"
 IMAGE="$HARVEY/build/aarch64/bootfs.paq"
 MKPAQFS="$HARVEY/.build/bin/mkpaqfs"
 
@@ -134,7 +134,7 @@ mkdir -p "$STAGE"
 # 2. empty mount-point dirs + staging parents
 mkdir -p "$STAGE/root" "$STAGE/env" "$STAGE/proc" "$STAGE/dev" "$STAGE/srv" \
 	"$STAGE/fd" "$STAGE/bin" "$STAGE/tmp" "$STAGE/mnt" \
-	"$STAGE/boot" "$STAGE/aarch64/bin/ip" "$STAGE/aarch64/bin/auth" \
+	"$STAGE/boot" "$STAGE/arm64/bin/ip" "$STAGE/arm64/bin/auth" \
 	"$STAGE/rc/lib" "$STAGE/rc/bin" "$STAGE/adm/timezone"
 # 2a. /net (07-07, NETDRV-03): the net-sweep's `bind -a '#l' /net` needs
 #     the baked mount-point dir — r9's sys_bind requires the target to
@@ -144,35 +144,35 @@ mkdir -p "$STAGE/net"
 # 3. binaries
 cp "$OUT/boot" "$STAGE/boot/boot"
 cp "$OUT/paqfs" "$STAGE/boot/paqfs"
-cp "$OUT/init" "$STAGE/aarch64/init"
+cp "$OUT/init" "$STAGE/arm64/init"
 for f in $SUBSET; do
-	cp "$BIN/$f" "$STAGE/aarch64/bin/$f"
+	cp "$BIN/$f" "$STAGE/arm64/bin/$f"
 done
-cp "$BIN/ip/ipconfig" "$STAGE/aarch64/bin/ip/ipconfig"
-cp "$BIN/auth/factotum" "$STAGE/aarch64/bin/auth/factotum"
+cp "$BIN/ip/ipconfig" "$STAGE/arm64/bin/ip/ipconfig"
+cp "$BIN/auth/factotum" "$STAGE/arm64/bin/auth/factotum"
 # 08-03: the Phase-8 gate binaries bake beside ipconfig (D-12)
-cp "$BIN/ip/ping" "$STAGE/aarch64/bin/ip/ping"
-cp "$BIN/ip/udpecho" "$STAGE/aarch64/bin/ip/udpecho"
-cp "$BIN/aan" "$STAGE/aarch64/bin/aan"
-cp "$OUT/stacksmoke" "$STAGE/aarch64/bin/stacksmoke"
-cp "$OUT/netblast" "$STAGE/aarch64/bin/netblast"
+cp "$BIN/ip/ping" "$STAGE/arm64/bin/ip/ping"
+cp "$BIN/ip/udpecho" "$STAGE/arm64/bin/ip/udpecho"
+cp "$BIN/aan" "$STAGE/arm64/bin/aan"
+cp "$OUT/stacksmoke" "$STAGE/arm64/bin/stacksmoke"
+cp "$OUT/netblast" "$STAGE/arm64/bin/netblast"
 # 08-03: the soak machinery + echo server bake beside netblast
-cp "$OUT/tcpblast" "$STAGE/aarch64/bin/tcpblast"
-cp "$OUT/tcpecho" "$STAGE/aarch64/bin/tcpecho"
+cp "$OUT/tcpblast" "$STAGE/arm64/bin/tcpblast"
+cp "$OUT/tcpecho" "$STAGE/arm64/bin/tcpecho"
 
 # 3b. 06-07 (D-12): the tier-1 sweep payload — h-prefixed binaries into
-#     /aarch64/bin (the sweep invokes them as /bin/h* on r9 through the
+#     /arm64/bin (the sweep invokes them as /bin/h* on r9 through the
 #     namespace's /bin union), the sweep + fixed inputs as /lib data
 #     (the paqfs image is read-only — data rides /lib, matching
 #     /lib/net-sweep.rc's precedent)
 mkdir -p "$STAGE/lib/tier1"
 for f in $TIER1_BINS; do
-	cp "$BIN/$f" "$STAGE/aarch64/bin/h$f"
+	cp "$BIN/$f" "$STAGE/arm64/bin/h$f"
 done
-cp "$BIN/ip/ipconfig" "$STAGE/aarch64/bin/hipconfig"
-cp "$BIN/auth/factotum" "$STAGE/aarch64/bin/hfactotum"
-cp "$OUT/htdraw" "$STAGE/aarch64/bin/htdraw"
-cp "$OUT/hdisktest" "$STAGE/aarch64/bin/hdisktest"
+cp "$BIN/ip/ipconfig" "$STAGE/arm64/bin/hipconfig"
+cp "$BIN/auth/factotum" "$STAGE/arm64/bin/hfactotum"
+cp "$OUT/htdraw" "$STAGE/arm64/bin/htdraw"
+cp "$OUT/hdisktest" "$STAGE/arm64/bin/hdisktest"
 cp "$HARVEY/build/aarch64/tier1-sweep.rc" "$STAGE/lib/tier1-sweep.rc"
 # the known-content sentinel (the same bytes subset-exec.sh bakes — the
 # sweep's wc/md5sum/sha1sum asserts key on them)
@@ -191,7 +191,7 @@ cp "$HARVEY/build/aarch64/netaddr.rc" "$STAGE/lib/netaddr.rc"
 
 # 5. pre-bake manifest: every mandated path exists, and /boot/factotum
 #    is ABSENT (auth-stub-by-absence)
-for p in boot/boot boot/paqfs aarch64/init aarch64/bin/stacksmoke \
+for p in boot/boot boot/paqfs arm64/init arm64/bin/stacksmoke \
 	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
 	usr/glenda/lib/profile; do
 	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
@@ -222,7 +222,7 @@ done
 [ -f "$STAGE/lib/netip-aan-drop.rc" ] || err "manifest: lib/netip-aan-drop.rc missing from staged tree"
 # 08-08 (NETIP-08): the tcpblast soak gate fixture must be baked
 [ -f "$STAGE/lib/netip-soak.rc" ] || err "manifest: lib/netip-soak.rc missing from staged tree"
-[ -f "$STAGE/aarch64/bin/netblast" ] || err "manifest: aarch64/bin/netblast missing from staged tree"
+[ -f "$STAGE/arm64/bin/netblast" ] || err "manifest: arm64/bin/netblast missing from staged tree"
 
 # 5a. init identity: out/ was shared with the
 # staged-init supply chain — the sharing ended (the smoke stage
@@ -238,24 +238,24 @@ done
 "$GREP" -q "init: r9 EL0 alive" "$OUT/init" \
 	&& err "out/init is the STAGED init (re-run sh build/aarch64/subset-build.sh)"
 for f in $SUBSET; do
-	[ -f "$STAGE/aarch64/bin/$f" ] || err "manifest: aarch64/bin/$f missing"
+	[ -f "$STAGE/arm64/bin/$f" ] || err "manifest: arm64/bin/$f missing"
 done
-[ -f "$STAGE/aarch64/bin/ip/ipconfig" ] || err "manifest: aarch64/bin/ip/ipconfig missing"
-[ -f "$STAGE/aarch64/bin/auth/factotum" ] || err "manifest: aarch64/bin/auth/factotum missing"
+[ -f "$STAGE/arm64/bin/ip/ipconfig" ] || err "manifest: arm64/bin/ip/ipconfig missing"
+[ -f "$STAGE/arm64/bin/auth/factotum" ] || err "manifest: arm64/bin/auth/factotum missing"
 # 08-03: the Phase-8 gate binaries are asserted pre-bake (T-08-05: a
 # missing/stale payload fails the bake loudly)
-[ -f "$STAGE/aarch64/bin/ip/ping" ] || err "manifest: aarch64/bin/ip/ping missing"
-[ -f "$STAGE/aarch64/bin/ip/udpecho" ] || err "manifest: aarch64/bin/ip/udpecho missing"
-[ -f "$STAGE/aarch64/bin/aan" ] || err "manifest: aarch64/bin/aan missing"
-[ -f "$STAGE/aarch64/bin/tcpblast" ] || err "manifest: aarch64/bin/tcpblast missing"
-[ -f "$STAGE/aarch64/bin/tcpecho" ] || err "manifest: aarch64/bin/tcpecho missing"
+[ -f "$STAGE/arm64/bin/ip/ping" ] || err "manifest: arm64/bin/ip/ping missing"
+[ -f "$STAGE/arm64/bin/ip/udpecho" ] || err "manifest: arm64/bin/ip/udpecho missing"
+[ -f "$STAGE/arm64/bin/aan" ] || err "manifest: arm64/bin/aan missing"
+[ -f "$STAGE/arm64/bin/tcpblast" ] || err "manifest: arm64/bin/tcpblast missing"
+[ -f "$STAGE/arm64/bin/tcpecho" ] || err "manifest: arm64/bin/tcpecho missing"
 # 06-07 (D-12): every tier-1 payload path is asserted pre-bake (T-06-15:
 # a stale bake would certify old binaries — presence of the just-staged
 # paths is the tripwire)
 for f in $TIER1_BINS; do
-	[ -f "$STAGE/aarch64/bin/h$f" ] || err "manifest: aarch64/bin/h$f missing"
+	[ -f "$STAGE/arm64/bin/h$f" ] || err "manifest: arm64/bin/h$f missing"
 done
-for p in aarch64/bin/hipconfig aarch64/bin/hfactotum aarch64/bin/htdraw aarch64/bin/hdisktest \
+for p in arm64/bin/hipconfig arm64/bin/hfactotum arm64/bin/htdraw arm64/bin/hdisktest \
 	lib/tier1-sweep.rc lib/tier1/sentinel.txt lib/tier1/tiny.y lib/tier1/tiny.l \
 	lib/tier1/tiny.mk lib/tier1/tiny.s lib/tier1/nm-input.7 lib/tier1/hello.c; do
 	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"

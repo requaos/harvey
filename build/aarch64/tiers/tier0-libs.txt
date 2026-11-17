@@ -1,4 +1,4 @@
-# tier0-libs.txt — D-13 append-only aarch64 library allowlist (USPACE-04).
+# tier0-libs.txt — D-13 append-only arm64 library allowlist (USPACE-04).
 #
 # Plain data, one entry per line: the bare lib dir name (sys/src-relative),
 # `libname` entry form.  Consumers: the objtype-gated LIBS filter in
@@ -18,7 +18,7 @@
 # Seeded 2026-11-04 with the 13 v1.0-inherited libs (subset-build.sh's green
 # loop), in the v1.0 subset order (libc first).  The mk filter emits the
 # sweep in ALLLIBS on-disk order, not in this file's order; libc's primacy
-# is carried by build_aarch64's explicit libc bootstrap line, which stays.
+# is carried by build_arm64's explicit libc bootstrap line, which stays.
 # The 22 outstanding libs (USPACE-05) append here in 06-05, one line each,
 # after their per-lib artifact gates; no lib is silently dropped.
 libc		# v1.0 gate: subset-build green; also linux-build's explicit nuke/install/clean bootstrap

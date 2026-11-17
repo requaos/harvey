@@ -23,7 +23,7 @@ byteaddr(Memimage *i, Point p)
 	 * as a huge unsigned and, added to a 64-bit pointer, zero-extends
 	 * instead of sign-extending — the address lands exactly 2^32 bytes
 	 * out (memarc's negative-origin temporaries reached memsetl this
-	 * way: the aarch64 wild write at fault addr base+4GiB).  Wrapping
+	 * way: the arm64 wild write at fault addr base+4GiB).  Wrapping
 	 * in int restores the 32-bit-pointer behavior on 64-bit targets.
 	 */
 	a = i->data->bdata+i->zero+(int)(sizeof(ulong)*p.y*i->width);

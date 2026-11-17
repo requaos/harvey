@@ -1,10 +1,10 @@
 #!/bin/sh
-# build/aarch64/subset-build.sh — the aarch64 tier-0/tier-1 userspace
+# build/aarch64/subset-build.sh — the arm64 tier-0/tier-1 userspace
 # namespace build driver (06-03: the hardcoded v1.0 loops became
 # tier-file loops in place — RESEARCH OQ-3 — so mkimage.sh and
 # smoke-r9.sh inherit tier-1 growth with no call-site changes).
 #
-# Builds, with objtype=aarch64: the tier-0 library allowlist
+# Builds, with objtype=arm64: the tier-0 library allowlist
 # (build/aarch64/tiers/tier0-libs.txt) with the D-07 fresh-archive rule
 # (rm -f the target .a before mk install — ar vu never prunes, the 02-10
 # staleness class) + a T0-ART sha256 marker per lib, then the tier-1
@@ -42,9 +42,9 @@ err() { echo "error: $*" >&2; exit 1; }
 GREP=$(command -v /usr/bin/grep || command -v grep) || err "no host grep found"
 
 [ -d "$HARVEY/sys/src" ] || err "$HARVEY does not look like the harvey checkout (missing sys/src)"
-[ -f "$HARVEY/sys/src/libmp/aarch64/mkfile" ] || err "sys/src/libmp/aarch64/mkfile missing (plan 02-07 Task 1 stub)"
-[ -f "$HARVEY/sys/src/libsec/aarch64/mkfile" ] || err "sys/src/libsec/aarch64/mkfile missing (plan 02-07 Task 1 stub)"
-[ -d "$HARVEY/aarch64" ] || err "aarch64/ arch dir missing — plan 02-06 wiring is a precondition"
+[ -f "$HARVEY/sys/src/libmp/arm64/mkfile" ] || err "sys/src/libmp/arm64/mkfile missing (plan 02-07 Task 1 stub)"
+[ -f "$HARVEY/sys/src/libsec/arm64/mkfile" ] || err "sys/src/libsec/arm64/mkfile missing (plan 02-07 Task 1 stub)"
+[ -d "$HARVEY/arm64" ] || err "arm64/ arch dir missing — plan 02-06 wiring is a precondition"
 
 # Platform split: linux runs natively (sudo unshare via
 # nsrun.sh); darwin drives the lima guest.  The guest script below and
@@ -99,7 +99,7 @@ cat > "$TMPD/subset-build-guest.sh" <<'GUEST_EOF'
 #!/usr/bin/env bash
 # subset-build-guest.sh — guest side of build/aarch64/subset-build.sh.
 # Runs inside the Plan 9 mount namespace (nsrun.sh --wrap): /sys is the
-# checkout's sys, /aarch64 the committed arch dir. Never committed;
+# checkout's sys, /arm64 the committed arch dir. Never committed;
 # the host driver regenerates it each run.
 set -e
 
@@ -130,7 +130,7 @@ if [ -n "$_NM_HOSTNM" ]; then
 	echo "== nm shim: $_NM_SHIMDIR/nm -> $_NM_HOSTNM (9l autolib shadow)"
 fi
 
-# the namespace binds $HARVEY/aarch64 at /aarch64; mkdirs lays out the
+# the namespace binds $HARVEY/arm64 at /arm64; mkdirs lays out the
 # bin/lib tree it needs (vm-run.sh, unlike nix/build.sh, does not run
 # mkdirs first; git tracks no empty dirs)
 cd "$HARVEY" && bash build/mkdirs || fail "mkdirs"
@@ -141,7 +141,7 @@ cd "$HARVEY" && bash build/mkdirs || fail "mkdirs"
 # alphaobj.6 duplicate-symbol'd Phase 2), so the target .a is deleted
 # before repopulating.  Artifact assert + T0-ART sha256 marker per lib
 # (mk exit status is never trusted — 02-12).  libc stays first-class:
-# tier0-libs.txt line 1 and build_aarch64's explicit bootstrap both keep
+# tier0-libs.txt line 1 and build_arm64's explicit bootstrap both keep
 # its primacy.
 TIER0="$HARVEY/build/aarch64/tiers/tier0-libs.txt"
 [ -f "$TIER0" ] || fail "tier0 data file missing: $TIER0"
@@ -157,10 +157,10 @@ while read -r line; do
 	*)	lib="lib${d#lib}.a";;
 	esac
 	echo "== tier0 lib: $d"
-	rm -f "/aarch64/lib/$lib"
-	(cd "/sys/src/$d" && objtype=aarch64 mk install) || fail "lib $d"
-	[ -s "/aarch64/lib/$lib" ] || fail "lib $d: no artifact /aarch64/lib/$lib"
-	echo "T0-ART $d $(sha256sum "/aarch64/lib/$lib" | cut -d' ' -f1)"
+	rm -f "/arm64/lib/$lib"
+	(cd "/sys/src/$d" && objtype=arm64 mk install) || fail "lib $d"
+	[ -s "/arm64/lib/$lib" ] || fail "lib $d: no artifact /arm64/lib/$lib"
+	echo "T0-ART $d $(sha256sum "/arm64/lib/$lib" | cut -d' ' -f1)"
 done < "$TIER0"
 
 # tier-1 commands + boot chain: the D-13 allowlist, dispatched per entry
@@ -169,7 +169,7 @@ done < "$TIER0"
 # cmd/<dir>:<target> → per-target install in the dir (factotum/paqfs
 # precedent — never the dir's whole TARG: factotum's sibling fgui needs
 # the out-of-tier graphics stack); 9k/boot → the additive objtype-gated
-# mkfile.aarch64 build+harvest+clean; stage/<name> → the staged-compile
+# mkfile.arm64 build+harvest+clean; stage/<name> → the staged-compile
 # blocks (init.install / stacksmoke 7c+7l).  T1-ART sha256 marker per
 # entry's artifact.  A failing entry aborts the BUILD (fail) — the
 # build side is not the sweep; USPACE-04's never-wedge edge belongs to
@@ -184,32 +184,32 @@ while read -r line; do
 	echo "== tier1 entry: $entry"
 	case "$entry" in
 	9k/boot)
-		# boot(8) for aarch64 via the additive, objtype-gated
-		# mkfile.aarch64 (boot has no standalone mkfile; the amd64 path
+		# boot(8) for arm64 via the additive, objtype-gated
+		# mkfile.arm64 (boot has no standalone mkfile; the amd64 path
 		# awk-generates the bootconf from a kernel config, and the
 		# hand-written bootr9.c is the generated equivalent here).
 		# Build in-tree, harvest to out/ (gitignored), then clean the
 		# boot dir so the guest tree stays pristine (no *.7/libboot.a7
 		# left behind).
-		(cd /sys/src/9k/boot && objtype=aarch64 mk -f mkfile.aarch64) || fail "boot(8) aarch64 build"
+		(cd /sys/src/9k/boot && objtype=arm64 mk -f mkfile.arm64) || fail "boot(8) arm64 build"
 		cp /sys/src/9k/boot/boot "$HARVEY/build/aarch64/out/boot" || fail "harvest boot to out/"
-		(cd /sys/src/9k/boot && objtype=aarch64 mk -f mkfile.aarch64 clean) || fail "boot dir clean"
+		(cd /sys/src/9k/boot && objtype=arm64 mk -f mkfile.arm64 clean) || fail "boot dir clean"
 		art="$HARVEY/build/aarch64/out/boot"
 		;;
 	stage/init)
 		# init installs via cmd's per-target rule — cmd/mkfile's
-		# special $BIN/init rule lands it at /aarch64/init (boot's
+		# special $BIN/init rule lands it at /arm64/init (boot's
 		# execinit builds /$objtype/init), so harvest from there, not
-		# /aarch64/bin.
-		(cd /sys/src/cmd && objtype=aarch64 mk init.install) || fail "init.install"
-		cp /aarch64/init "$HARVEY/build/aarch64/out/init" || fail "harvest init to out/"
+		# /arm64/bin.
+		(cd /sys/src/cmd && objtype=arm64 mk init.install) || fail "init.install"
+		cp /arm64/init "$HARVEY/build/aarch64/out/init" || fail "harvest init to out/"
 		art="$HARVEY/build/aarch64/out/init"
 		;;
 	stage/stacksmoke)
 		# the deep-recursion binary (build/aarch64/stacksmoke.c),
 		# recompiled here so it ships in the real image too.
-		(cd "$HARVEY/build/aarch64" && objtype=aarch64 7c -FTVw stacksmoke.c \
-			&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/stacksmoke" stacksmoke.7 \
+		(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw stacksmoke.c \
+			&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/stacksmoke" stacksmoke.7 \
 			&& rm -f stacksmoke.7) || fail "stacksmoke"
 		art="$HARVEY/build/aarch64/out/stacksmoke"
 		;;
@@ -218,7 +218,7 @@ while read -r line; do
 		# 7c build links.  Fresh-archive hygiene mirrors D-07 (mklib's
 		# ar vu is the same never-prune rule).
 		rm -f /sys/src/cmd/cc/cc.a7
-		(cd /sys/src/cmd/cc && objtype=aarch64 mk install) || fail "cmd cc"
+		(cd /sys/src/cmd/cc && objtype=arm64 mk install) || fail "cmd cc"
 		art=/sys/src/cmd/cc/cc.a7
 		;;
 	cmd/*:*)
@@ -226,23 +226,23 @@ while read -r line; do
 		# %.install rule), never the whole dir TARG.
 		dir="${entry%%:*}"
 		tgt="${entry##*:}"
-		(cd "/sys/src/$dir" && objtype=aarch64 mk "$tgt.install") || fail "cmd $entry"
-		art="/aarch64/bin/${dir#cmd/}"
+		(cd "/sys/src/$dir" && objtype=arm64 mk "$tgt.install") || fail "cmd $entry"
+		art="/arm64/bin/${dir#cmd/}"
 		# paqfs is also harvested to out/ — mkimage.sh's manifest names
 		# out/paqfs (the boot chain's image supply contract).
 		if [ "$tgt" = "paqfs" ]; then
-			cp /aarch64/bin/paqfs "$HARVEY/build/aarch64/out/paqfs" || fail "harvest paqfs to out/"
+			cp /arm64/bin/paqfs "$HARVEY/build/aarch64/out/paqfs" || fail "harvest paqfs to out/"
 		fi
 		;;
 	cmd/*)
 		# dir vs single-file: a dir entry recurses its own mkfile; a
 		# single builds via cmd's per-target install rule.
 		if [ -d "/sys/src/$entry" ]; then
-			(cd "/sys/src/$entry" && objtype=aarch64 mk install) || fail "cmd $entry"
+			(cd "/sys/src/$entry" && objtype=arm64 mk install) || fail "cmd $entry"
 		else
-			(cd /sys/src/cmd && objtype=aarch64 mk "${entry#cmd/}.install") || fail "cmd $entry"
+			(cd /sys/src/cmd && objtype=arm64 mk "${entry#cmd/}.install") || fail "cmd $entry"
 		fi
-		art="/aarch64/bin/${entry#cmd/}"
+		art="/arm64/bin/${entry#cmd/}"
 		;;
 	*)
 		fail "tier1 entry form not understood: $entry"
@@ -260,20 +260,20 @@ done < "$TIER1"
 # tier1-cmds.txt when its Phase-6 execution gate passes — 06-06; the
 # 07-04 net venue already proved it on the donor.)
 echo "== subset cmd: dd (per-target install, 07-04)"
-(cd /sys/src/cmd && objtype=aarch64 mk dd.install) || fail "cmd dd (per-target install)"
+(cd /sys/src/cmd && objtype=arm64 mk dd.install) || fail "cmd dd (per-target install)"
 
 # 07-07: bind joins the image — the net-sweep's `bind -a '#l' /net`
 # forks/execs /bin/bind (bind is NOT an rc builtin; the boot chain's own
 # binds are init's /lib/namespace interpretation, a different mechanism).
 # bind.c is single-file, u.h+libc.h only.  Same insertion-only shape as dd.
 echo "== subset cmd: bind (per-target install, 07-07)"
-(cd /sys/src/cmd && objtype=aarch64 mk bind.install) || fail "cmd bind (per-target install)"
+(cd /sys/src/cmd && objtype=arm64 mk bind.install) || fail "cmd bind (per-target install)"
 
 # 07-04: netblast, the D-08 TX-bulk generator, joins the image supply
 # chain beside stacksmoke (same compile/harvest shape)
 echo "== boot chain: netblast (07-04, D-08)"
-(cd "$HARVEY/build/aarch64" && objtype=aarch64 7c -FTVw netblast.c \
-	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/netblast" netblast.7 \
+(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw netblast.c \
+	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/netblast" netblast.7 \
 	&& rm -f netblast.7) || fail "netblast"
 
 # 08-03: the Phase-8 gate binaries (NETIP-03..07) build from the full
@@ -286,35 +286,35 @@ echo "== boot chain: netblast (07-04, D-08)"
 # surface.  Insertion-only beside the 07-04/07-07 blocks per the same
 # Phase-6 collision-avoidance rule (07-04 precedent).
 echo "== subset cmd: ipconfig (dir install + out/ harvest, 08-03)"
-(cd /sys/src/cmd/ip/ipconfig && objtype=aarch64 mk install) || fail "cmd ip/ipconfig (dir install)"
-cp /aarch64/bin/ip/ipconfig "$HARVEY/build/aarch64/out/ipconfig" || fail "harvest ipconfig to out/"
+(cd /sys/src/cmd/ip/ipconfig && objtype=arm64 mk install) || fail "cmd ip/ipconfig (dir install)"
+cp /arm64/bin/ip/ipconfig "$HARVEY/build/aarch64/out/ipconfig" || fail "harvest ipconfig to out/"
 
 echo "== subset cmd: ping (per-target install + out/ harvest, 08-03)"
-(cd /sys/src/cmd/ip && objtype=aarch64 mk ping.install) || fail "cmd ip ping (per-target install)"
-cp /aarch64/bin/ip/ping "$HARVEY/build/aarch64/out/ping" || fail "harvest ping to out/"
+(cd /sys/src/cmd/ip && objtype=arm64 mk ping.install) || fail "cmd ip ping (per-target install)"
+cp /arm64/bin/ip/ping "$HARVEY/build/aarch64/out/ping" || fail "harvest ping to out/"
 
 echo "== subset cmd: udpecho (per-target install + out/ harvest, 08-03)"
-(cd /sys/src/cmd/ip && objtype=aarch64 mk udpecho.install) || fail "cmd ip udpecho (per-target install)"
-cp /aarch64/bin/ip/udpecho "$HARVEY/build/aarch64/out/udpecho" || fail "harvest udpecho to out/"
+(cd /sys/src/cmd/ip && objtype=arm64 mk udpecho.install) || fail "cmd ip udpecho (per-target install)"
+cp /arm64/bin/ip/udpecho "$HARVEY/build/aarch64/out/udpecho" || fail "harvest udpecho to out/"
 
 # 08-03: aan links libthread + libauth via #pragma autolib off the
 # tier-0 archives the loop above just rebuilt (Phase 2 landed
-# libthread's aarch64 port; the closure is tier-0-complete).
+# libthread's arm64 port; the closure is tier-0-complete).
 echo "== subset cmd: aan (per-target install + out/ harvest, 08-03)"
-(cd /sys/src/cmd && objtype=aarch64 mk aan.install) || fail "cmd aan (per-target install)"
-cp /aarch64/bin/aan "$HARVEY/build/aarch64/out/aan" || fail "harvest aan to out/"
+(cd /sys/src/cmd && objtype=arm64 mk aan.install) || fail "cmd aan (per-target install)"
+cp /arm64/bin/aan "$HARVEY/build/aarch64/out/aan" || fail "harvest aan to out/"
 
 # 08-03: tcpblast + tcpecho — the NETIP-08 bidirectional soak machinery
 # (D-15: slirp proof now, the tap truth verdict is Phase 9's joint gate)
 # and the NETIP-03 tcp/7 echo server.  New payload sources living beside
 # netblast.c; same 7c -FTVw + 7l compile/harvest shape as netblast.
 echo "== boot chain: tcpblast (08-03, NETIP-08/D-15)"
-(cd "$HARVEY/build/aarch64" && objtype=aarch64 7c -FTVw tcpblast.c \
-	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/tcpblast" tcpblast.7 \
+(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw tcpblast.c \
+	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/tcpblast" tcpblast.7 \
 	&& rm -f tcpblast.7) || fail "tcpblast"
 echo "== boot chain: tcpecho (08-03, NETIP-03)"
-(cd "$HARVEY/build/aarch64" && objtype=aarch64 7c -FTVw tcpecho.c \
-	&& objtype=aarch64 7l -o "$HARVEY/build/aarch64/out/tcpecho" tcpecho.7 \
+(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw tcpecho.c \
+	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/tcpecho" tcpecho.7 \
 	&& rm -f tcpecho.7) || fail "tcpecho"
 
 # 06-05: tier-0 lib test binaries (D-06 — in-tree lib tests run on the
@@ -328,24 +328,24 @@ echo "== boot chain: tcpecho (08-03, NETIP-03)"
 # are the in-tree targets; libdraw's $O.test is the additive rule this
 # wave adds (test.c had no rule).
 echo "== tier-0 lib test binaries (06-05, D-06)"
-(cd /sys/src/libmemdraw && objtype=aarch64 mk 7.drawtest 7.arctest) || fail "libmemdraw test binaries"
+(cd /sys/src/libmemdraw && objtype=arm64 mk 7.drawtest 7.arctest) || fail "libmemdraw test binaries"
 cp /sys/src/libmemdraw/7.drawtest "$HARVEY/build/aarch64/out/hdrawtest" || fail "harvest hdrawtest"
 cp /sys/src/libmemdraw/7.arctest "$HARVEY/build/aarch64/out/harctest" || fail "harvest harctest"
 rm -f /sys/src/libmemdraw/7.drawtest /sys/src/libmemdraw/7.arctest \
 	/sys/src/libmemdraw/drawtest.7 /sys/src/libmemdraw/arctest.7
-(cd /sys/src/libdraw && objtype=aarch64 mk 7.test) || fail "libdraw test binary"
+(cd /sys/src/libdraw && objtype=arm64 mk 7.test) || fail "libdraw test binary"
 cp /sys/src/libdraw/7.test "$HARVEY/build/aarch64/out/htdraw" || fail "harvest htdraw"
 rm -f /sys/src/libdraw/7.test /sys/src/libdraw/test.7
-(cd /sys/src/libdisk && objtype=aarch64 mk 7.test) || fail "libdisk test binary"
+(cd /sys/src/libdisk && objtype=arm64 mk 7.test) || fail "libdisk test binary"
 cp /sys/src/libdisk/7.test "$HARVEY/build/aarch64/out/hdisktest" || fail "harvest hdisktest"
 rm -f /sys/src/libdisk/7.test /sys/src/libdisk/test.7
 
-echo "== tier tree (/aarch64/bin):"
-ls /aarch64/bin
+echo "== tier tree (/arm64/bin):"
+ls /arm64/bin
 echo "-- ip:"
-ls /aarch64/bin/ip
+ls /arm64/bin/ip
 echo "-- auth:"
-ls /aarch64/bin/auth
+ls /arm64/bin/auth
 
 echo "TIER-BUILD-OK"
 GUEST_EOF
@@ -376,22 +376,22 @@ fi
 "$GREP" -q 'TIER-BUILD-OK' "$LOG" || err "guest build log lacks TIER-BUILD-OK"
 
 if [ -z "$NATIVE_LINUX" ]; then
-	# rsync the resulting /aarch64/bin tree back to the host checkout
-	# (gitignored: /aarch64/*bin)
-	echo "== pulling the subset tree back to host aarch64/bin"
-	mkdir -p "$HARVEY/aarch64/bin"
+	# rsync the resulting /arm64/bin tree back to the host checkout
+	# (gitignored: /arm64/*bin)
+	echo "== pulling the subset tree back to host arm64/bin"
+	mkdir -p "$HARVEY/arm64/bin"
 	rsync -a --delete -e "$RSYNC_RSH" \
-		"$GUEST:$GUEST_DIR/aarch64/bin/" "$HARVEY/aarch64/bin/"
+		"$GUEST:$GUEST_DIR/arm64/bin/" "$HARVEY/arm64/bin/"
 
 	# 06-05: pull the tier-0 library archives back too (gitignored:
-	# /aarch64/lib) — the 06-05 artifact gate asserts host-side
-	# $HARVEY/aarch64/lib/*.a, and on darwin nothing else lands them
+	# /arm64/lib) — the 06-05 artifact gate asserts host-side
+	# $HARVEY/arm64/lib/*.a, and on darwin nothing else lands them
 	# host-side.  --delete mirrors the guest exactly; the D-07
 	# fresh-archive rule makes the guest set the truth.
-	echo "== pulling the tier-0 library archives back to host aarch64/lib"
-	mkdir -p "$HARVEY/aarch64/lib"
+	echo "== pulling the tier-0 library archives back to host arm64/lib"
+	mkdir -p "$HARVEY/arm64/lib"
 	rsync -a --delete -e "$RSYNC_RSH" \
-		"$GUEST:$GUEST_DIR/aarch64/lib/" "$HARVEY/aarch64/lib/"
+		"$GUEST:$GUEST_DIR/arm64/lib/" "$HARVEY/arm64/lib/"
 
 	# Pull the boot-chain binaries back to the host's gitignored
 	# build/aarch64/out/.  Individual-file sync (no --delete):
@@ -425,21 +425,21 @@ fi
 
 # assert the sixteen expected binaries on the host side
 for f in rc grep cat cp date echo ls mkdir mv ps rm sed test wc; do
-	[ -x "$HARVEY/aarch64/bin/$f" ] || err "aarch64/bin/$f missing after rsync-back"
+	[ -x "$HARVEY/arm64/bin/$f" ] || err "arm64/bin/$f missing after rsync-back"
 done
 # 07-04: the seventeenth — dd (D-07's sweep writer)
-[ -x "$HARVEY/aarch64/bin/dd" ] || err "aarch64/bin/dd missing after rsync-back"
+[ -x "$HARVEY/arm64/bin/dd" ] || err "arm64/bin/dd missing after rsync-back"
 # 07-07: the eighteenth — bind (the net-sweep's `bind -a '#l' /net`)
-[ -x "$HARVEY/aarch64/bin/bind" ] || err "aarch64/bin/bind missing after rsync-back"
-[ -x "$HARVEY/aarch64/bin/ip/ipconfig" ] || err "aarch64/bin/ip/ipconfig missing after rsync-back"
-[ -x "$HARVEY/aarch64/bin/auth/factotum" ] || err "aarch64/bin/auth/factotum missing after rsync-back"
+[ -x "$HARVEY/arm64/bin/bind" ] || err "arm64/bin/bind missing after rsync-back"
+[ -x "$HARVEY/arm64/bin/ip/ipconfig" ] || err "arm64/bin/ip/ipconfig missing after rsync-back"
+[ -x "$HARVEY/arm64/bin/auth/factotum" ] || err "arm64/bin/auth/factotum missing after rsync-back"
 # 06-03: the tracer's additions — awk (G1 generator path) and the
-# tier-file-driven guest build chain (7a/7c/7l as aarch64 targets)
-[ -x "$HARVEY/aarch64/bin/awk" ] || err "aarch64/bin/awk missing after rsync-back"
-magic=$(od -An -tx1 -N4 "$HARVEY/aarch64/bin/awk" | tr -d ' \n')
-[ "$magic" = "00008c47" ] || err "aarch64/bin/awk: bad magic $magic (want 00008c47)"
+# tier-file-driven guest build chain (7a/7c/7l as arm64 targets)
+[ -x "$HARVEY/arm64/bin/awk" ] || err "arm64/bin/awk missing after rsync-back"
+magic=$(od -An -tx1 -N4 "$HARVEY/arm64/bin/awk" | tr -d ' \n')
+[ "$magic" = "00008c47" ] || err "arm64/bin/awk: bad magic $magic (want 00008c47)"
 for t in 7a 7c 7l; do
-	[ -x "$HARVEY/aarch64/bin/$t" ] || err "aarch64/bin/$t missing after rsync-back"
+	[ -x "$HARVEY/arm64/bin/$t" ] || err "arm64/bin/$t missing after rsync-back"
 done
 
 # Every boot-chain binary must carry the arm64 a.out magic
@@ -466,4 +466,4 @@ for f in hdrawtest harctest htdraw hdisktest; do
 	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
 done
 
-echo "== PASS: aarch64 tier-0/tier-1 set built and installed ($(ls "$HARVEY/aarch64/bin" | wc -l | tr -d ' ') entries in aarch64/bin; log: $LOG)"
+echo "== PASS: arm64 tier-0/tier-1 set built and installed ($(ls "$HARVEY/arm64/bin" | wc -l | tr -d ' ') entries in arm64/bin; log: $LOG)"

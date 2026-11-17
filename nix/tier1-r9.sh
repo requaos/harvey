@@ -15,7 +15,7 @@
 #      NEVER the default; the gate runs the default (always build).
 #   2. bake — build/aarch64/mkimage.sh → build/aarch64/bootfs.paq
 #      (Harvey's own mkpaqfs; r9's xtask is never invoked).  The bake
-#      carries the tier-1 payload (06-07): /aarch64/bin/h* binaries,
+#      carries the tier-1 payload (06-07): /arm64/bin/h* binaries,
 #      /lib/tier1-sweep.rc, /lib/tier1/* fixed inputs.
 #   3. DTB patch: a throwaway copy
 #      of the package's selected DTB (virt-gicv3.dtb by default) gets

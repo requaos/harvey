@@ -1,4 +1,4 @@
-# tier1-cmds.txt — D-13 append-only aarch64 command allowlist (USPACE-04).
+# tier1-cmds.txt — D-13 append-only arm64 command allowlist (USPACE-04).
 #
 # Plain data, one entry per line, sys/src-relative.  Consumers: the
 # objtype-gated mk filters (sys/src/mkfile CMDS/SUBSYS, sys/src/cmd/mkfile
@@ -22,7 +22,7 @@
 #                          filter-equipped leaf mkfiles (cmd/auth/factotum
 #                          drops fgui this way)
 #   9k/boot, stage/<name>  driver-only: never seen by the mk sweep
-#                          (9k/boot builds via 9k/boot/mkfile.aarch64;
+#                          (9k/boot builds via 9k/boot/mkfile.arm64;
 #                          stage/* are harvested by the subset/stage scripts)
 #
 # Keep-rule (uniform across all five filter mkfiles): a candidate survives
@@ -37,14 +37,14 @@
 # build never regresses: the v1.0 16-subset, the boot chain, and the guest
 # build chain's already-green members.
 #
-# Documented exclusions from the aarch64 sweep (USPACE-04 transparency —
+# Documented exclusions from the arm64 sweep (USPACE-04 transparency —
 # nothing is dropped silently):
 #   ape                 subsystem excluded by milestone decision (not cmd/)
 #   gs                  ghostscript: tier-excluded (Phase 10 long tail)
 #   games               no tier-1 members (Phase 10)
 #   nboot               bootloader tree, not a userspace sweep member
 #   cmd/4a..9l letters  other-arch toolchains are HOST tools via
-#                       BUILDTOOLCHAIN only, never aarch64 targets
+#                       BUILDTOOLCHAIN only, never arm64 targets
 #   cmd/cpp cmd/mk cmd/yacc cmd/lex   LANDED 06-06 with their per-tool
 #                       execution gates (the build-chain banner below)
 #   cmd/init            staged via the driver-only stage/init entry
@@ -71,11 +71,11 @@ cmd/wc
 cmd/ip/ipconfig
 cmd/auth/factotum:factotum	# fgui excluded: needs the out-of-tier graphics stack (libdraw/libcontrol)
 # --- boot chain (v1.0 donor/r9 image gates) ---
-9k/boot				# driver-only: sys/src/9k/boot/mkfile.aarch64, harvested to build/aarch64/out
-stage/init			# driver-only: cmd/init.c via per-target init.install, harvested from /aarch64/init
+9k/boot				# driver-only: sys/src/9k/boot/mkfile.arm64, harvested to build/aarch64/out
+stage/init			# driver-only: cmd/init.c via per-target init.install, harvested from /arm64/init
 stage/stacksmoke		# driver-only: build/aarch64/stacksmoke.c compiled by the subset script
 cmd/paqfs:paqfs			# mkpaqfs stays host-only: only the host bakes images; drivers install paqfs per-target
-# --- guest build chain (v1.0-green aarch64 target toolchain) ---
+# --- guest build chain (v1.0-green arm64 target toolchain) ---
 cmd/7a
 cmd/7c
 cmd/7l

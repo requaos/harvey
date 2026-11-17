@@ -1,17 +1,17 @@
 #!/usr/bin/env bash
 # build/aarch64/pre-gate-build.sh — the riscv64-vaporware pre-gate:
-# compile libc for aarch64 and link a hello-world Plan 9 binary using
+# compile libc for arm64 and link a hello-world Plan 9 binary using
 # the COMMITTED mkfiles, with the pre-gate arch scaffolding
-# (aarch64/mkfile + aarch64/include/{u.h,ureg.h}) injected into the
+# (arm64/mkfile + arm64/include/{u.h,ureg.h}) injected into the
 # DISPOSABLE GUEST COPY ONLY. The committed tree gains the linked
 # binary (build/aarch64/hello.7.out) but no arch scaffolding —
-# aarch64/, CPUS, pcc.c all landed post-gate.
+# arm64/, CPUS, pcc.c all landed post-gate.
 #
-# OBSOLETE: the arch scaffolding is now committed (aarch64/
+# OBSOLETE: the arch scaffolding is now committed (arm64/
 # mkfile, include/{u.h,ureg.h}, ABI.md), so the guest-scratch injection
 # this script exists to perform is already wired in. The script refuses
 # to run on a current tree (the guard below, exit 2); use
-# objtype=aarch64 mk in the namespace instead. Kept committed as the
+# objtype=arm64 mk in the namespace instead. Kept committed as the
 # historical record of how hello.7.out was produced pre-gate.
 #
 # Steps:
@@ -19,22 +19,22 @@
 #      input)
 #   2. rsync this checkout to the lima guest (vm-run.sh exclusion set)
 #      and ensure the guest toolchain (7a/7c/7l, iar)
-#   3. guest-only scratch injection: aarch64/mkfile (the known 5-line
+#   3. guest-only scratch injection: arm64/mkfile (the known 5-line
 #      objtype file — now committed
-#      identically) + aarch64/include/{u.h,ureg.h} copied from the
+#      identically) + arm64/include/{u.h,ureg.h} copied from the
 #      pinned donor (the committed copies assert sha256
-#      equality with the copies used here) + aarch64/lib/
+#      equality with the copies used here) + arm64/lib/
 #   4. namespace build via nsrun.sh (which conditionally binds
-#      /aarch64 now that the guest copy has it):
-#        cd /sys/src/libc && objtype=aarch64 mk nuke && mk install
+#      /arm64 now that the guest copy has it):
+#        cd /sys/src/libc && objtype=arm64 mk nuke && mk install
 #      runs the COMMITTED libc mkfiles (PORTDIRS 9sys 9syscall fmt
-#      port + aarch64) — the new 9syscall `case aarch64` block
+#      port + arm64) — the new 9syscall `case arm64` block
 #      generates every SVC stub and 7a assembles them into
-#      /aarch64/lib/libc.a — then 7c/7l build the gate program
-#      (7l resolves the libc.a pragma via /aarch64/lib)
+#      /arm64/lib/libc.a — then 7c/7l build the gate program
+#      (7l resolves the libc.a pragma via /arm64/lib)
 #   5. pull hello.7.out back to the host checkout (committed gate
 #      evidence — this precedes any arch scaffolding)
-#   6. assert the host checkout gained no aarch64/ dir
+#   6. assert the host checkout gained no arm64/ dir
 #
 # Guest-state partitioning: mutates the default guest dir
 # harvey-build only (the donor build uses
@@ -69,8 +69,8 @@ fi
 # obsolescence guard: the arch scaffolding is committed, so the
 # guest-scratch injection below is already wired in — running this
 # script would only rebuild what the namespace build does directly.
-if [ -e "$HARVEY/aarch64/mkfile" ]; then
-	echo "pre-gate-build.sh is obsolete post-02-06 (aarch64/ is committed); use objtype=aarch64 mk in the namespace" >&2
+if [ -e "$HARVEY/arm64/mkfile" ]; then
+	echo "pre-gate-build.sh is obsolete post-02-06 (arm64/ is committed); use objtype=arm64 mk in the namespace" >&2
 	exit 2
 fi
 
@@ -119,11 +119,11 @@ ssh -F "$SSH_CFG" "$GUEST" "cd \"$GUEST_DIR\" && nix develop -c sh -c 'cd sys/sr
 
 # 3. guest-only scratch injection — these files exist ONLY in the
 #    disposable guest tree, never in the committed checkout.
-echo "== injecting guest-scratch aarch64/ scaffolding (guest copy only)"
-ssh -F "$SSH_CFG" "$GUEST" "mkdir -p $GUEST_DIR/aarch64/include $GUEST_DIR/aarch64/lib"
+echo "== injecting guest-scratch arm64/ scaffolding (guest copy only)"
+ssh -F "$SSH_CFG" "$GUEST" "mkdir -p $GUEST_DIR/arm64/include $GUEST_DIR/arm64/lib"
 rsync -e "$RSYNC_RSH" "$DONOR/arm64/include/u.h" "$DONOR/arm64/include/ureg.h" \
-	"$GUEST:$GUEST_DIR/aarch64/include/"
-ssh -F "$SSH_CFG" "$GUEST" "cat > $GUEST_DIR/aarch64/mkfile" <<'EOF'
+	"$GUEST:$GUEST_DIR/arm64/include/"
+ssh -F "$SSH_CFG" "$GUEST" "cat > $GUEST_DIR/arm64/mkfile" <<'EOF'
 </sys/src/mkfile.proto
 
 CC=7c
@@ -134,8 +134,8 @@ EOF
 
 # 4. namespace build. /build is not a namespace bind, so the compile
 #    runs from the real guest path ($HARVEY is re-sourced by
-#    nsrun.sh's su tail); /sys and /aarch64 are the Plan 9 absolutes.
-CMD='cd /sys/src/libc && objtype=aarch64 mk nuke && objtype=aarch64 mk install && cd "$HARVEY/build/aarch64" && 7c -FVw hello.c && 7l -o /aarch64/hello.7.out hello.7'
+#    nsrun.sh's su tail); /sys and /arm64 are the Plan 9 absolutes.
+CMD='cd /sys/src/libc && objtype=arm64 mk nuke && objtype=arm64 mk install && cd "$HARVEY/build/aarch64" && 7c -FVw hello.c && 7l -o /arm64/hello.7.out hello.7'
 QCMD=$(printf '%q' "$CMD")
 echo "== running in guest namespace: $CMD"
 set +e
@@ -150,12 +150,12 @@ fi
 
 # 5. pull the gate evidence binary back to the host checkout
 echo "== pulling hello.7.out back to host"
-rsync -e "$RSYNC_RSH" "$GUEST:$GUEST_DIR/aarch64/hello.7.out" \
+rsync -e "$RSYNC_RSH" "$GUEST:$GUEST_DIR/arm64/hello.7.out" \
 	"$HARVEY/build/aarch64/hello.7.out"
 
 # 6. the committed tree must stay scaffolding-free
-if [ -e "$HARVEY/aarch64" ]; then
-	echo "error: aarch64/ leaked into the committed tree" >&2
+if [ -e "$HARVEY/arm64" ]; then
+	echo "error: arm64/ leaked into the committed tree" >&2
 	exit 1
 fi
 [ -s "$HARVEY/build/aarch64/hello.7.out" ] || {

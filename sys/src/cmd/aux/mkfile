@@ -62,7 +62,7 @@ ALLDIRS=mnihongo\
 # ^cmd/aux anchors match no GUI entry; one file set everywhere is the
 # established pattern, so a future aux member can live in any tier).
 # 15-07 (USPACE-09): the four-file union — tier4's first aux members
-# land here: the 'x86-hardware-only' aarch64 exclusion class re-derived
+# land here: the 'x86-hardware-only' arm64 exclusion class re-derived
 # as amd64 MEMBERS (aux/vga, aux/realemu, aux/na, aux/gps, aux/mnihongo,
 # aux/flashfs all compile natively, measured by the coverage proof).
 TIER1A=$HARVEY/build/x86_64/tiers/tier1-cmds.txt

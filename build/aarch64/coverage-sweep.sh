@@ -1,7 +1,7 @@
 #!/bin/sh
 # build/aarch64/coverage-sweep.sh — USPACE-02 complete-reach proof (D-15).
 #
-# Regenerates build/aarch64/dir-coverage.txt: an objtype=aarch64
+# Regenerates build/aarch64/dir-coverage.txt: an objtype=arm64
 # `mk checkall` over sys/src/cmd + sys/src/games with the D-13 tier
 # filters DISENGAGED (COVERAGE_SWEEP=1 — 06-02's passthrough, set only by
 # this sweep; rc variables are environmental, so nested sub-mks inherit
@@ -159,7 +159,7 @@ cat > "$TMPD/coverage-sweep-guest.sh" <<'GUEST_EOF'
 #!/usr/bin/env bash
 # coverage-sweep-guest.sh — guest side of build/aarch64/coverage-sweep.sh
 # (06-04).  Runs inside the Plan 9 mount namespace (nsrun.sh --wrap):
-# /sys is the checkout's sys, /aarch64 the committed arch dir.  Never
+# /sys is the checkout's sys, /arm64 the committed arch dir.  Never
 # committed; the host driver regenerates it each run.
 set -e
 
@@ -176,7 +176,7 @@ echo "   7l: $(command -v 7l)"
 echo "   ar: $(command -v ar)"
 echo "   mk: $(command -v mk)"
 echo "   rc: $(command -v rc)"
-echo "   objtype=aarch64 cputype=${cputype:-<unset>} COVERAGE_SWEEP=1"
+echo "   objtype=arm64 cputype=${cputype:-<unset>} COVERAGE_SWEEP=1"
 echo "   watchdog: ${WATCHDOG_SECS}s per open VISIT"
 
 # nm shim (nix/build.sh:16-32's idiom, mirrored from subset-build.sh):
@@ -195,7 +195,7 @@ if [ -n "$_NM_HOSTNM" ]; then
 	echo "== nm shim: $_NM_SHIMDIR/nm -> $_NM_HOSTNM (9l autolib shadow)"
 fi
 
-# the namespace binds $HARVEY/aarch64 at /aarch64; mkdirs lays out the
+# the namespace binds $HARVEY/arm64 at /arm64; mkdirs lays out the
 # bin/lib tree it needs (vm-run.sh does not run mkdirs first).
 cd "$HARVEY" && bash build/mkdirs || fail "mkdirs"
 
@@ -205,8 +205,8 @@ cd "$HARVEY" && bash build/mkdirs || fail "mkdirs"
 # rc loop continues past per-lib failures (a lib failure is data, not an
 # abort — the report covers cmd+games), and the shim is NOT yet on PATH,
 # so the prebuild stays out of the coverage log.
-echo "== libs prebuild (objtype=aarch64 COVERAGE_SWEEP=1 mk libs; best-effort)"
-(cd /sys/src && objtype=aarch64 COVERAGE_SWEEP=1 mk libs) || true
+echo "== libs prebuild (objtype=arm64 COVERAGE_SWEEP=1 mk libs; best-effort)"
+(cd /sys/src && objtype=arm64 COVERAGE_SWEEP=1 mk libs) || true
 
 # --- the visitation shim -------------------------------------------------
 # A scratch dir holding an executable `mk` rc script: appends
@@ -246,12 +246,12 @@ echo "== mk shim: $SHIMD/mk (real mk: $REAL_MK; log: $COVERAGE_LOG)"
 run_sweeps() {
 	set +e
 	echo "COVERAGE-VISIT /sys/src/cmd" >> "$COVERAGE_LOG"
-	(cd /sys/src/cmd && PATH="$SHIMD:$PATH" COVERAGE_SWEEP=1 objtype=aarch64 "$REAL_MK" checkall)
+	(cd /sys/src/cmd && PATH="$SHIMD:$PATH" COVERAGE_SWEEP=1 objtype=arm64 "$REAL_MK" checkall)
 	st=$?
 	echo "COVERAGE-EXIT /sys/src/cmd $st" >> "$COVERAGE_LOG"
 	echo "== cmd checkall aggregate exit: $st (per-dir failures are data)"
 	echo "COVERAGE-VISIT /sys/src/games" >> "$COVERAGE_LOG"
-	(cd /sys/src/games && PATH="$SHIMD:$PATH" COVERAGE_SWEEP=1 objtype=aarch64 "$REAL_MK" checkall)
+	(cd /sys/src/games && PATH="$SHIMD:$PATH" COVERAGE_SWEEP=1 objtype=arm64 "$REAL_MK" checkall)
 	st=$?
 	echo "COVERAGE-EXIT /sys/src/games $st" >> "$COVERAGE_LOG"
 	echo "== games checkall aggregate exit: $st (per-dir failures are data)"
@@ -276,7 +276,7 @@ run_sweeps() {
 		# invoke BARE mk (the shim, via PATH) so the dir's own visit is
 		# logged — $REAL_MK would only log nested sub-mks, and a leaf
 		# dir runs none.
-		(cd "$d" && PATH="$SHIMD:$PATH" COVERAGE_SWEEP=1 objtype=aarch64 mk all)
+		(cd "$d" && PATH="$SHIMD:$PATH" COVERAGE_SWEEP=1 objtype=arm64 mk all)
 		# per-dir failures are data; never abort the pass
 	done < /tmp/coverage-second-chance.txt
 	return 0
@@ -365,14 +365,14 @@ echo "COVERAGE-LOG-END"
 
 # --- Wave-0 blocker re-verification (06-04 task step 4) ------------------
 # jpg's Phase-1 generator fix (7be7e98c8) re-verified host-correct for the
-# aarch64 sweep: FORCE the generator chain (the committed ycbcr.h/rgbv.h
+# arm64 sweep: FORCE the generator chain (the committed ycbcr.h/rgbv.h
 # can satisfy mk without it) and prove the freshly produced generators are
 # host ELF and the headers regenerate.  Runs WITHOUT the shim (the reach
 # log is complete above; guest tree is a scratch rsync copy, self-healing
 # on the next vm-run).
 echo "== wave-0 blocker re-verification: jpg generator chain (forced)"
 (cd /sys/src/cmd/jpg && rm -f ycbcr.h rgbv.h unix.rgbycc unix.rgbrgbv \
-	&& objtype=aarch64 COVERAGE_SWEEP=1 mk ycbcr.h rgbv.h) || fail "jpg generator chain (ycbcr.h/rgbv.h)"
+	&& objtype=arm64 COVERAGE_SWEEP=1 mk ycbcr.h rgbv.h) || fail "jpg generator chain (ycbcr.h/rgbv.h)"
 for f in /sys/src/cmd/jpg/unix.rgbycc /sys/src/cmd/jpg/unix.rgbrgbv; do
 	[ -x "$f" ] || fail "jpg generator missing: $f"
 	m=$(od -An -tx1 -N4 "$f" | tr -d ' \n')
@@ -549,7 +549,7 @@ JPG_STATE=$(row_state sys/src/cmd/jpg)
 cat <<EOF
 # dir-coverage.txt — USPACE-02 complete-reach report (D-15, 06-04)
 #
-# generator: build/aarch64/coverage-sweep.sh — objtype=aarch64
+# generator: build/aarch64/coverage-sweep.sh — objtype=arm64
 #   COVERAGE_SWEEP=1 (the D-13 tier filters disengaged at every depth;
 #   only this sweep sets it).  Two passes: (1) \`mk checkall\` over
 #   sys/src/cmd + sys/src/games; (2) a second-chance visitation pass
@@ -604,7 +604,7 @@ cat <<EOF
 #   step 4):
 #   jpg ($JPG_STATE): ycbcr.h/rgbv.h force-regenerated by host-ELF
 #     unix.rgbycc/unix.rgbrgbv — the Phase-1 fix (7be7e98c8) holds for
-#     the aarch64 sweep; the run removed the committed headers +
+#     the arm64 sweep; the run removed the committed headers +
 #     generators in the scratch guest tree, rebuilt via the mkfile's
 #     own rules, and asserted magic 7f454c46 on both generator
 #     binaries (BLOCKER-CHECK lines in the run log).
@@ -612,12 +612,12 @@ cat <<EOF
 #     blocker — compiled clean in the Phase-1 sweep
 #     (01-01-SUMMARY.md:156); the row below is this run's fresh data.
 #   4a ($A4_STATE): builds as an amd64 target (01-01-SUMMARY.md:150 +
-#     PITFALLS notorious-dirs); as an aarch64 *target* it is excluded
+#     PITFALLS notorious-dirs); as an arm64 *target* it is excluded
 #     by decision — toolchain letters are host tools via
 #     BUILDTOOLCHAIN only — but it is VISITED and recorded here like
 #     every cmd dir.
 #   gs ($GS_STATE): tier-excluded by decision but VISITED by this
-#     sweep — default.aarch64.h is absent so its build=fail row is
+#     sweep — default.arm64.h is absent so its build=fail row is
 #     expected data; its guarded genarch generator is audit row G6
 #     (build/aarch64/generator-audit.txt).
 EOF

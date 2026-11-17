@@ -2,7 +2,7 @@
 # build/aarch64/generator-scan.sh — USPACE-03's mechanical red (06-04).
 #
 # Asserts the invariant: no build-then-run generator artifact is a
-# Plan 9 aarch64 binary (R_MAGIC 00008c47 — 7c output can never RUN on
+# Plan 9 arm64 binary (R_MAGIC 00008c47 — 7c output can never RUN on
 # the host at build time).  Consumes the committed audit
 # (build/aarch64/generator-audit.txt):
 #

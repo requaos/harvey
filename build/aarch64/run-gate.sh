@@ -8,7 +8,7 @@
 # This is the load-bearing proof (the vaporware gate):
 # compiler → assembler → linker → libc asm → generated
 # SVC stubs → syscall wire contract → reference-kernel execution, in
-# one executed slice, BEFORE any aarch64/ scaffolding lands.
+# one executed slice, BEFORE any arm64/ scaffolding lands.
 # hello.7.out is the known-good ABI bisect point: if
 # it later fails on r9, the bug is in r9.
 #
@@ -216,8 +216,6 @@ if [ "${1:-}" = "--ns" ]; then
 	mount --bind "$DONOR/sys" /sys
 	mkdir -p /arm64
 	mount --bind "$DONOR/arm64" /arm64
-	mkdir -p /aarch64
-	mount --bind "$DONOR/arm64" /aarch64
 	mkdir -p /rc
 	mount --bind "$DONOR/rc" /rc
 
@@ -469,8 +467,8 @@ STATUS_LINE=$(grep -m1 '^__GSD_EXIT__' "$RUNLOG" | tr -d '\r' | sed 's/^[[:space
 
 # NOTE: the pre-gate "committed tree must stay scaffolding-free"
 # assertion was removed when the arch dir was committed
-# (aarch64/mkfile, include/{u.h,ureg.h}, ABI.md — commit a7945d8b5).
-# aarch64/ is now legitimate committed wiring, so the gate is idempotent
+# (arm64/mkfile, include/{u.h,ureg.h}, ABI.md — commit a7945d8b5).
+# arm64/ is now legitimate committed wiring, so the gate is idempotent
 # again (README: consecutive runs append consecutive PASS blocks).
 
 echo "== PASS: hello.7.out executed on the 9front donor kernel; evidence appended to $EVIDENCE"

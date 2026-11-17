@@ -1,5 +1,5 @@
 /*
- * bootr9.c — hand-written bootconf for the aarch64/r9 boot(8) build.
+ * bootr9.c — hand-written bootconf for the arm64/r9 boot(8) build.
  *
  * The amd64 build awk-generates this file from the kernel config's boot
  * section (sys/src/9k/mk/parse, mkbootconf); the r9 boot has no kernel

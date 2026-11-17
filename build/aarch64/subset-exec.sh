@@ -1,6 +1,6 @@
 #!/bin/sh
 # build/aarch64/subset-exec.sh — the tier-1 execution gate: the Harvey
-# aarch64 tier-1 binaries (the D-09 membership: the v1.0 16-subset, the
+# arm64 tier-1 binaries (the D-09 membership: the v1.0 16-subset, the
 # 06-03 tracer's cmd/awk, the 06-06 coreutils extension — bc sort tr
 # uniq tail dd tar chmod tee basename sleep cmp comm fmt join look pr
 # split strings sum md5sum sha1sum ed dc units cal touch time seq read
@@ -15,6 +15,22 @@
 # this era).  CI never runs it.  The x86_64 CI tier venue is Harvey's
 # OWN kernel via the 06-09 k10t1 pair (build/mm/build-9k10t1.sh +
 # build/mm/boot-9k10t1-sweep.sh) wired as phase6.yml's tier-9k job.
+#
+# MIXED /arm64 IN THE SERVED ROOT (2026-11-17, the objtype rename
+# aarch64 -> arm64): the srv9-served guest root $ROOTFS now holds ONE
+# /arm64 directory fed from two trees —
+#   from the donor (donor-ns-build.sh's srvroot assembly):
+#	arm64/init, arm64/bin/...
+#   from Harvey (staged below for the in-guest 7c/7l canary):
+#	arm64/include/..., arm64/lib/libc.a
+# Nothing overlaps: the donor srvroot carries no arm64/include and no
+# arm64/lib (verified against donor-ns-build.sh and the on-disk
+# srvroot at the rename).  Before the rename Harvey's half lived at
+# /aarch64, told apart by name; Harvey's 7c/7l now carry
+# thestring=arm64, so their compiled-in /arm64/include and /arm64/lib
+# searches must land here.  If donor-ns-build.sh ever starts shipping
+# arm64/include or arm64/lib into the srvroot, this staging must be
+# revisited — it would silently replace the donor's files.
 #
 # 06-03 evolution (D-10): the 22 typed drive9 steps are replaced by the
 # SOURCED in-guest sweep — build/aarch64/tier1-sweep.rc, staged into the
@@ -132,7 +148,7 @@ SUBSET_FLAT="cat cp date echo ls mkdir mv ps rm sed test wc rc grep"
 SUBSET_NAMED="ip/ipconfig auth/factotum"
 # 06-06 (USPACE-06, D-09): the researcher-proposed coreutils extension
 # + the four build-chain members with per-tool fixed-input checks.  All
-# install flat into /aarch64/bin and stage h*-prefixed.  (dd already
+# install flat into /arm64/bin and stage h*-prefixed.  (dd already
 # rode the 07-04 image block; its tier-1 gate membership lands here.)
 SUBSET_CORE="bc sort tr uniq tail dd tar chmod tee basename sleep cmp comm fmt join look pr split strings sum md5sum sha1sum ed dc units cal touch time seq read du xd nm"
 SUBSET_CHAIN="cpp mk yacc lex"
@@ -184,14 +200,14 @@ actual=$(git -C "$DONOR" rev-parse HEAD 2>/dev/null || echo missing)
 [ -s "$DIST/9qemu.u" ] || err "$DIST/9qemu.u missing — run sh build/aarch64/donor-vm-build.sh first"
 [ -d "$ROOTFS/arm64/bin" ] || err "$ROOTFS incomplete — run sh build/aarch64/donor-vm-build.sh first"
 for f in $SUBSET_FLAT $SUBSET_CORE $SUBSET_CHAIN; do
-	[ -x "$HARVEY/aarch64/bin/$f" ] || err "aarch64/bin/$f missing — run sh build/aarch64/subset-build.sh first"
+	[ -x "$HARVEY/arm64/bin/$f" ] || err "arm64/bin/$f missing — run sh build/aarch64/subset-build.sh first"
 done
 for f in $SUBSET_NAMED; do
-	[ -x "$HARVEY/aarch64/bin/$f" ] || err "aarch64/bin/$f missing — run sh build/aarch64/subset-build.sh first"
+	[ -x "$HARVEY/arm64/bin/$f" ] || err "arm64/bin/$f missing — run sh build/aarch64/subset-build.sh first"
 done
 # 06-03 tracer additions: the awk binary, the committed sweep + canary
 # source, and the staged stacksmoke (the termrc override runs it)
-[ -x "$HARVEY/aarch64/bin/awk" ] || err "aarch64/bin/awk missing — run sh build/aarch64/subset-build.sh first"
+[ -x "$HARVEY/arm64/bin/awk" ] || err "arm64/bin/awk missing — run sh build/aarch64/subset-build.sh first"
 [ -s "$HARVEY/build/aarch64/out/stacksmoke" ] || err "build/aarch64/out/stacksmoke missing — run sh build/aarch64/subset-build.sh first"
 [ -f "$HARVEY/build/aarch64/tier1-sweep.rc" ] || err "build/aarch64/tier1-sweep.rc missing (06-03 committed sweep)"
 [ -f "$HARVEY/build/aarch64/hello.c" ] || err "build/aarch64/hello.c missing (06-06 self-host canary source, staged as data)"
@@ -202,10 +218,10 @@ done
 # 06-06 Task 2 (D-11): the canary's toolchain binaries + the guest-side
 # compile's header/libc inputs (staged into the srv9-served root below)
 for f in $SUBSET_SELFHOST; do
-	[ -x "$HARVEY/aarch64/bin/$f" ] || err "aarch64/bin/$f missing — run sh build/aarch64/subset-build.sh first"
+	[ -x "$HARVEY/arm64/bin/$f" ] || err "arm64/bin/$f missing — run sh build/aarch64/subset-build.sh first"
 done
-[ -d "$HARVEY/aarch64/include" ] || err "aarch64/include missing (the committed arch headers — 02-06 wiring is a precondition)"
-[ -s "$HARVEY/aarch64/lib/libc.a" ] || err "aarch64/lib/libc.a missing — run sh build/aarch64/subset-build.sh first"
+[ -d "$HARVEY/arm64/include" ] || err "arm64/include missing (the committed arch headers — 02-06 wiring is a precondition)"
+[ -s "$HARVEY/arm64/lib/libc.a" ] || err "arm64/lib/libc.a missing — run sh build/aarch64/subset-build.sh first"
 # 06-05: the tier-0 lib test binaries (D-06 — built per-target by
 # subset-build.sh, staged below, run by the sweep's libtest block)
 for f in hdrawtest harctest htdraw hdisktest; do
@@ -275,19 +291,19 @@ mkdir -p "$ROOTFS/sys/lib/lex"
 cp "$HARVEY/sys/lib/yaccpar" "$ROOTFS/sys/lib/yaccpar"
 cp "$HARVEY/sys/lib/lex/ncform" "$ROOTFS/sys/lib/lex/ncform"
 # 06-06 Task 2 (D-11 canary): the in-guest 7c/7l resolve headers and
-# autolib via the compiled-in thestring=aarch64 — /aarch64/include and
-# /aarch64/lib/libc.a must exist IN THE SERVED ROOT (7l autolibs libc.a
+# autolib via the compiled-in thestring=arm64 — /arm64/include and
+# /arm64/lib/libc.a must exist IN THE SERVED ROOT (7l autolibs libc.a
 # via libc.h's #pragma lib).  Stage Harvey's committed arch include
 # tree + the freshly built libc.a (subset-build's tier-0 fresh-archive
 # product, rsynced back host-side on the darwin leg).  The compiler's
 # include search also covers /sys/include (measured on the donor:
-# u.h resolves from /aarch64/include, then libc.h is wanted from
+# u.h resolves from /arm64/include, then libc.h is wanted from
 # /sys/include) — stage the committed sys/include tree as well.
-rm -rf "$ROOTFS/aarch64/include" "$ROOTFS/sys/include"
-mkdir -p "$ROOTFS/aarch64/lib" "$ROOTFS/sys"
-cp -R "$HARVEY/aarch64/include" "$ROOTFS/aarch64/include"
+rm -rf "$ROOTFS/arm64/include" "$ROOTFS/sys/include"
+mkdir -p "$ROOTFS/arm64/lib" "$ROOTFS/sys"
+cp -R "$HARVEY/arm64/include" "$ROOTFS/arm64/include"
 cp -R "$HARVEY/sys/include" "$ROOTFS/sys/include"
-cp "$HARVEY/aarch64/lib/libc.a" "$ROOTFS/aarch64/lib/libc.a"
+cp "$HARVEY/arm64/lib/libc.a" "$ROOTFS/arm64/lib/libc.a"
 
 TMPD=$(mktemp -d "${TMPDIR:-/tmp}/subset-exec.XXXXXX")
 TERMRC_ORIG="$TMPD/termrc.orig"
@@ -327,11 +343,11 @@ if [ -n "$NATIVE_LINUX" ]; then
 	# stage in place (no lima, no rsync)
 	mkdir -p "$DONOR/arm64/bin/subset"
 	for f in $SUBSET_FLAT $SUBSET_CORE $SUBSET_CHAIN; do
-		cp "$HARVEY/aarch64/bin/$f" "$DONOR/arm64/bin/subset/h$f"
+		cp "$HARVEY/arm64/bin/$f" "$DONOR/arm64/bin/subset/h$f"
 	done
-	cp "$HARVEY/aarch64/bin/ip/ipconfig" "$DONOR/arm64/bin/subset/hipconfig"
-	cp "$HARVEY/aarch64/bin/auth/factotum" "$DONOR/arm64/bin/subset/hfactotum"
-	cp "$HARVEY/aarch64/bin/awk" "$DONOR/arm64/bin/subset/hawk"
+	cp "$HARVEY/arm64/bin/ip/ipconfig" "$DONOR/arm64/bin/subset/hipconfig"
+	cp "$HARVEY/arm64/bin/auth/factotum" "$DONOR/arm64/bin/subset/hfactotum"
+	cp "$HARVEY/arm64/bin/awk" "$DONOR/arm64/bin/subset/hawk"
 	cp "$HARVEY/build/aarch64/out/stacksmoke" "$DONOR/arm64/bin/subset/hstacksmoke"
 	cp "$TMPD/sentinel.txt" "$DONOR/arm64/bin/subset/sentinel.txt"
 	cp "$HARVEY/build/aarch64/tier1-sweep.rc" "$DONOR/arm64/bin/subset/tier1-sweep.rc"
@@ -341,7 +357,7 @@ if [ -n "$NATIVE_LINUX" ]; then
 	done
 	# 06-06 Task 2 (D-11): the canary's toolchain binaries
 	for f in $SUBSET_SELFHOST; do
-		cp "$HARVEY/aarch64/bin/$f" "$DONOR/arm64/bin/subset/h$f"
+		cp "$HARVEY/arm64/bin/$f" "$DONOR/arm64/bin/subset/h$f"
 	done
 	# 06-05: the tier-0 lib test binaries (D-06)
 	for f in hdrawtest harctest htdraw hdisktest; do
@@ -350,11 +366,11 @@ if [ -n "$NATIVE_LINUX" ]; then
 else
 	ssh -F "$SSH_CFG" "$GUEST" "mkdir -p $GUEST_DONOR/arm64/bin/subset"
 	for f in $SUBSET_FLAT $SUBSET_CORE $SUBSET_CHAIN; do
-		rsync -a -e "$RSYNC_RSH" "$HARVEY/aarch64/bin/$f" "$GUEST:$GUEST_DONOR/arm64/bin/subset/h$f"
+		rsync -a -e "$RSYNC_RSH" "$HARVEY/arm64/bin/$f" "$GUEST:$GUEST_DONOR/arm64/bin/subset/h$f"
 	done
-	rsync -a -e "$RSYNC_RSH" "$HARVEY/aarch64/bin/ip/ipconfig" "$GUEST:$GUEST_DONOR/arm64/bin/subset/hipconfig"
-	rsync -a -e "$RSYNC_RSH" "$HARVEY/aarch64/bin/auth/factotum" "$GUEST:$GUEST_DONOR/arm64/bin/subset/hfactotum"
-	rsync -a -e "$RSYNC_RSH" "$HARVEY/aarch64/bin/awk" "$GUEST:$GUEST_DONOR/arm64/bin/subset/hawk"
+	rsync -a -e "$RSYNC_RSH" "$HARVEY/arm64/bin/ip/ipconfig" "$GUEST:$GUEST_DONOR/arm64/bin/subset/hipconfig"
+	rsync -a -e "$RSYNC_RSH" "$HARVEY/arm64/bin/auth/factotum" "$GUEST:$GUEST_DONOR/arm64/bin/subset/hfactotum"
+	rsync -a -e "$RSYNC_RSH" "$HARVEY/arm64/bin/awk" "$GUEST:$GUEST_DONOR/arm64/bin/subset/hawk"
 	rsync -a -e "$RSYNC_RSH" "$HARVEY/build/aarch64/out/stacksmoke" "$GUEST:$GUEST_DONOR/arm64/bin/subset/hstacksmoke"
 	rsync -a -e "$RSYNC_RSH" "$TMPD/sentinel.txt" "$GUEST:$GUEST_DONOR/arm64/bin/subset/sentinel.txt"
 	rsync -a -e "$RSYNC_RSH" "$HARVEY/build/aarch64/tier1-sweep.rc" "$GUEST:$GUEST_DONOR/arm64/bin/subset/tier1-sweep.rc"
@@ -364,7 +380,7 @@ else
 	done
 	# 06-06 Task 2 (D-11): the canary's toolchain binaries
 	for f in $SUBSET_SELFHOST; do
-		rsync -a -e "$RSYNC_RSH" "$HARVEY/aarch64/bin/$f" "$GUEST:$GUEST_DONOR/arm64/bin/subset/h$f"
+		rsync -a -e "$RSYNC_RSH" "$HARVEY/arm64/bin/$f" "$GUEST:$GUEST_DONOR/arm64/bin/subset/h$f"
 	done
 	# 06-05: the tier-0 lib test binaries (D-06)
 	for f in hdrawtest harctest htdraw hdisktest; do
@@ -508,8 +524,6 @@ if [ "${1:-}" = "--ns" ]; then
 	mount --bind "$DONOR/sys" /sys
 	mkdir -p /arm64
 	mount --bind "$DONOR/arm64" /arm64
-	mkdir -p /aarch64
-	mount --bind "$DONOR/arm64" /aarch64
 	mkdir -p /rc
 	mount --bind "$DONOR/rc" /rc
 

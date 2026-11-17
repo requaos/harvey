@@ -225,11 +225,11 @@ jobs:
           fi
           echo "VENUE-PIN-OK jobs: wave0-host tier-9k tier-r9 tier-2 x86_64-poolpanic"
       - name: FPdbleword region assert (D-01)
-        # Sed the union region out of aarch64/include/u.h and require
+        # Sed the union region out of arm64/include/u.h and require
         # exactly the two uint members (the amd64 reference shape);
         # any surviving ulong member is red.
         run: |
-          region=$(sed -n '/^union FPdbleword/,/^};/p' aarch64/include/u.h)
+          region=$(sed -n '/^union FPdbleword/,/^};/p' arm64/include/u.h)
           n=$(printf '%s\n' "$region" | grep -cE '^[[:space:]]+uint[[:space:]]+(lo|hi);')
           if [ "$n" -ne 2 ]; then
             echo "FPDBL-FAIL: want exactly the uint lo/hi members, found $n" >&2

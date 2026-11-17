@@ -1,9 +1,9 @@
 #!/bin/sh
 # build/aarch64/stage-build.sh — stage the r9-userspace binaries:
 # compile the C list below in the lima guest's Plan 9
-# namespace (objtype=aarch64, the committed wiring: the vendored
-# 7c/7l carry thestring=aarch64, resolving /aarch64/include and
-# /aarch64/lib), rsync the results back to the gitignored
+# namespace (objtype=arm64, the committed wiring: the vendored
+# 7c/7l carry thestring=arm64, resolving /arm64/include and
+# /arm64/lib), rsync the results back to the gitignored
 # build/aarch64/smoke-out/, and copy the committed hello.7.out in verbatim
 # (the ABI bisect binary rides the initrd).  r9's
 # `cargo xtask initrd` then bakes smoke-out/{init,hello,smokefork,smokenote,
@@ -80,7 +80,7 @@ cat > "$TMPD/stage-build-guest.sh" <<'GUEST_EOF'
 #!/usr/bin/env bash
 # stage-build-guest.sh — guest side of build/aarch64/stage-build.sh.
 # Runs inside the Plan 9 mount namespace (nsrun.sh --wrap): /sys is the
-# checkout's sys, /aarch64 the committed arch dir.  Never committed;
+# checkout's sys, /arm64 the committed arch dir.  Never committed;
 # the host driver regenerates it each run.
 set -e
 
@@ -94,20 +94,20 @@ echo "   7c: $(command -v 7c)"
 echo "   7l: $(command -v 7l)"
 echo "   mk: $(command -v mk)"
 
-# the namespace binds $HARVEY/aarch64 at /aarch64; mkdirs lays out the
+# the namespace binds $HARVEY/arm64 at /arm64; mkdirs lays out the
 # bin/lib tree libc's install needs (vm-run.sh, unlike nix/build.sh,
 # does not run mkdirs first — subset-build.sh's note)
 cd "$HARVEY" && bash build/mkdirs || fail "mkdirs"
 
-# ensure objtype=aarch64 libc — idempotent rerun (the committed wiring
-# proved green); everything staged here links /aarch64/lib/libc.a
+# ensure objtype=arm64 libc — idempotent rerun (the committed wiring
+# proved green); everything staged here links /arm64/lib/libc.a
 echo "== stage lib: libc (idempotent)"
-(cd /sys/src/libc && objtype=aarch64 mk install) || fail "libc"
+(cd /sys/src/libc && objtype=arm64 mk install) || fail "libc"
 
 mkdir -p "$STAGE"
 for f in $STAGE_SRCS; do
 	echo "== stage compile: build/aarch64/$f.c -> out/$f"
-	(cd "$HARVEY/build/aarch64" && objtype=aarch64 7c -FTVw "$f.c" && objtype=aarch64 7l -o "$STAGE/$f" "$f.7" && rm -f "$f.7") || fail "$f"
+	(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw "$f.c" && objtype=arm64 7l -o "$STAGE/$f" "$f.7" && rm -f "$f.7") || fail "$f"
 done
 
 echo "== staged tree ($STAGE):"

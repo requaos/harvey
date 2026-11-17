@@ -42,14 +42,14 @@ ALLDIRS=lib\
 
 # D-13/USPACE-04 tier allowlist filter, prefix cmd/auth (the uniform
 # keep-rule comment lives in sys/src/mkfile): a TARG/DIRS candidate survives
-# under objtype=aarch64 iff some tier1 entry names cmd/auth/<candidate> or a
+# under objtype=arm64 iff some tier1 entry names cmd/auth/<candidate> or a
 # path under it (cmd/auth/factotum:factotum keeps factotum by its dir).
 # Passthrough for every other objtype and under COVERAGE_SWEEP=1.
 TIER1=$HARVEY/build/aarch64/tiers/tier1-cmds.txt
 T1KEEP=`{awk '/^cmd\/auth\//{ sub(/^cmd\/auth\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1}
 # 14-08 (XEXEC-04): the amd64 arm — build/x86_64/tiers (factotum is the
 # seeded member via cmd/auth/factotum:factotum; Phase 18 appends the
-# auth suite).  The aarch64 arm above stays as-is.
+# auth suite).  The arm64 arm above stays as-is.
 # 15-01 (USPACE-07): the amd64 keep widens to the tier1+tier2 UNION in
 # ONE multi-file awk — the services tier's auth members join from the
 # tier-2 data (factotum stays a tier-1 line, never moved).
@@ -64,8 +64,8 @@ TIER3A=$HARVEY/build/x86_64/tiers/tier3-gui.txt
 TIER4A=$HARVEY/build/x86_64/tiers/tier4-tail.txt
 T1KEEPA=`{awk '/^cmd\/auth\//{ sub(/^cmd\/auth\//,""); sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER3A $TIER4A}
 
-TARG=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEPA) echo $i; if not echo $ALLTARG}
-DIRS=`{if(~ $objtype aarch64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLDIRS}
+TARG=`{if(~ $objtype arm64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLTARG) if(~ $i $T1KEEPA) echo $i; if not echo $ALLTARG}
+DIRS=`{if(~ $objtype arm64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLDIRS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLDIRS}
 
 OTHEROFILES=\
 	challenge.$O\

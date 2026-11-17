@@ -296,7 +296,7 @@ frame, and nothing else.
 This appendix is the kernel side of the contract: how r9's x86_64
 frame matches the frozen `amd64/include/ureg.h`, and the build-time
 checks that make any drift a build failure, not a runtime mystery
-(D-02b; the aarch64 Phase-4 two-layer shape, extended with a negative
+(D-02b; the arm64 Phase-4 two-layer shape, extended with a negative
 control). It documents enforcement only — the frozen wire contract
 above is unchanged.
 

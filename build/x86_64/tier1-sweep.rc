@@ -16,7 +16,7 @@
 # sweep over the SAME binaries (the identical-6.outs ABI witness,
 # D-01): the read-only check bodies below are the aarch64 sweep's,
 # carried verbatim; the venue path prefixes map /bin + /lib/tier1 (the
-# aarch64 r9 block, re-keyed /aarch64→/amd64 through the namespace's
+# arm64 r9 block, re-keyed /arm64→/amd64 through the namespace's
 # /bin union).
 #
 # Membership (this phase's tier-1 core scope — build/x86_64/tiers/

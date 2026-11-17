@@ -460,7 +460,7 @@ mount --bind "$HARVEY_AMD64" "$NSX/amd64"
 mount --bind "$HARVEY_RC" "$NSX/rc"
 mount --bind "$HARVEY_LIB" "$NSX/lib"
 mount --bind "$HARVEY_UNIX" "$NSX/unix"
-for a in 386 aarch64 arm mips mips64 power power64 riscv riscv64 sparc acme; do
+for a in 386 arm64 arm mips mips64 power power64 riscv riscv64 sparc acme; do
 	mkdir -p "$NSX/$a"
 	mount --bind "$HARVEY_REAL/$a" "$NSX/$a"
 done

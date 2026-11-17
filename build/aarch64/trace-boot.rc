@@ -7,15 +7,30 @@
 #	rc /boot/trace-boot.rc chain	trace the real boot chain
 #	rc /boot/trace-boot.rc sweep	trace the standalone sweep binaries
 #
-# chain: launches /boot/ourboot (the aarch64 boot(8)) with the embed
+# chain: launches /boot/ourboot (the arm64 boot(8)) with the embed
 # method aimed at /boot/ourbootfs.paq — the REAL flow measured on the
 # donor kernel: opencons → bindenvsrv → doauth (glenda path: the donor
 # devroot's /boot/factotum is covered by a bind onto '#c/null' so
 # access(AEXEC) fails exactly as on r9) → rfork(RFNAMEG) →
-# connectembed (pipe+fork+exec /boot/paqfs — overridden to OUR aarch64
+# connectembed (pipe+fork+exec /boot/paqfs — overridden to OUR arm64
 # paqfs by the driver's bind) → fversion → mount /root → nsinit binds
-# → execinit → /aarch64/init -t (from the image via the / union) →
+# → execinit → /arm64/init -t (OUR init — see NAME COLLISION below) →
 # newns → termrc (stacksmoke first) → exec rc -i → the % prompt.
+#
+# NAME COLLISION (2026-11-17, the objtype rename aarch64 -> arm64):
+# Harvey's arch dir and the donor's are now both /arm64.  boot(8)'s
+# nsinit does bind / / (which carries the donor shell's whole / union
+# along — devroot + the donor's served root) and only then binds our
+# image AFTER it, so execinit's /$cputype/init = /arm64/init would walk
+# into the DONOR's arm64 dir first and exec the donor's init.  Before
+# the rename the seed named the old objtype, a dir only our image had.
+# The driver therefore binds /boot/ourinit (the same binary the image
+# carries at /arm64/init) over the donor's /arm64/init before launch:
+# the path string execinit execs, the cputype branch it takes and
+# boot's traced syscall stream are unchanged, and the bind sequence in
+# ournamespace stays identical to r9's lib/namespace.  Once init's
+# newns wipes the namespace the donor root is gone and /arm64 is the
+# image's alone.
 #
 # The staging binds + env writes run in THIS shell (the untraced
 # driver).  They must NOT live in the traced launcher: rc has no bind
@@ -147,7 +162,10 @@ if (~ $mode chain) {
 	bind '#c/null' /boot/factotum
 	bind /boot/ournamespace /lib/namespace
 	rm '#e/init' >[2]/dev/null
-	echo -n aarch64 > '#e/cputype'
+	# the donor's /arm64/init shadows the image's in boot's / union
+	# (header: NAME COLLISION) — cover it with OUR init
+	bind /boot/ourinit /arm64/init
+	echo -n arm64 > '#e/cputype'
 	echo -n 'embed!/boot/ourbootfs.paq' > '#e/nobootprompt'
 	# the launcher: nothing but spin + exec inside the traced pid.
 	{

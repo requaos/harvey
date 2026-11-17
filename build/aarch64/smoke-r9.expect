@@ -168,7 +168,7 @@ proc strip_echoed_line {capture} {
 }
 
 # 3a. ls /bin — the subset binaries are present (the /bin union resolves
-#     to the image's aarch64/bin through devmnt): five word-anchored
+#     to the image's arm64/bin through devmnt): five word-anchored
 #     presence assertions.
 send "ls /bin\r"
 stage ls-prompt {% }

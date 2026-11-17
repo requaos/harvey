@@ -17,15 +17,21 @@
 #
 # Namespace binds (donor tree = $DONOR, default ~/9front-donor):
 #   /sys     ← $DONOR/sys          donor mkfiles/includes
-#   /arm64   ← $DONOR/arm64        donor arch dir (objtype=arm64 INSIDE
-#                                  the donor tree — the donor's own
-#                                  naming carve-out)
-#   /aarch64 ← $DONOR/arm64        COMPATIBILITY ALIAS: Harvey's vendored
-#                                  7a/7c/7l carry thestring=aarch64,
-#                                  so their built-in
-#                                  include search /aarch64/include and
-#                                  library search /aarch64/lib must
-#                                  resolve into the donor's arm64 dirs
+#   /arm64   ← $DONOR/arm64        donor arch dir. Harvey's vendored
+#                                  7a/7c/7l carry thestring=arm64 (the
+#                                  donor's own name since 2026-11-17),
+#                                  so their built-in include search
+#                                  /arm64/include and library search
+#                                  /arm64/lib resolve here directly.
+#                                  Harvey's tree uses /arm64 too: the
+#                                  two are told apart by NAMESPACE,
+#                                  never by name — donor namespaces
+#                                  (this script, run-gate.sh,
+#                                  subset-exec.sh --ns) bind
+#                                  $DONOR/arm64, Harvey namespaces
+#                                  (BUILD_SETUP_NAMESPACE, nsrun.sh)
+#                                  bind $HARVEY/arm64; they are
+#                                  separate `unshare -m` invocations.
 #   /rc      ← $DONOR/rc           rc scripts the build needs
 #   /lib     ← merged distro lib + $DONOR/lib (BUILD_SETUP_NAMESPACE
 #              staging: root-owned 1777, trap-unwound)
@@ -432,12 +438,11 @@ if [ "${1:-}" = "--ns" ]; then
 	# /sys from the DONOR tree (not Harvey's)
 	mount --bind "$DONOR/sys" /sys
 
-	# donor arch dir at its own name AND at the /aarch64 alias our
-	# thestring=aarch64 tools require (see header)
+	# donor arch dir at /arm64 — the one name our thestring=arm64
+	# tools and the donor mkfiles both use (see header: Harvey's
+	# /arm64 is never bound in this namespace)
 	mkdir -p /arm64
 	mount --bind "$DONOR/arm64" /arm64
-	mkdir -p /aarch64
-	mount --bind "$DONOR/arm64" /aarch64
 	# NOTE: $DONOR/arm64/{lib,bin*} are created in the wrap phase (as the
 	# repo user) — the build runs under su and cannot write root-owned
 	# dirs. Repair ownership here for dirs left root-owned by earlier

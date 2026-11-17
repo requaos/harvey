@@ -3,7 +3,7 @@ MANFILES=${TARG:%=%.man}
 
 # plan9port mk expands ${TARG:%=$O.%} on an EMPTY TARG to a single phantom
 # `$O.' target (empty stem), and rule prereq lists are expanded at parse
-# time — a container whose TARG is filter-emptied (the D-13 aarch64 tier
+# time — a container whose TARG is filter-emptied (the D-13 arm64 tier
 # filter) would otherwise grow bogus `$O.' prereqs that have no recipe
 # (same for MANFILES).  Recompute both lists empty-safe.  Non-empty TARG:
 # identical value, so every other objtype is byte-identical.
