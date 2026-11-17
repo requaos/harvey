@@ -108,9 +108,99 @@ N-HVF boot-r9-smoke = 1753
 N-HVF boot-r9-net-smoke = 36
 N-HVF boot-r9-tier1 = 10
 
+Stressor result (Task 2): `/bin/forkstress -n 450` over 11 HVF boots that reached the prompt made 4950 forks with 0 mismatches. One more boot hit a pushword fire in termrc before the stressor ran. Its own per-fork lower bound is 0, and its upper 95% bound, 2.996/4950 = 0.000605, is below P-LO. So the stressor does not reproduce the defect, and its forks never count toward a gate's forks per boot:
+
+STRESSOR-RATE: not-fired
+
 **Against the point-estimate hypothesis** (36 smoke boots, 5 tier-1 sweeps, from research's 13 boots at about 0.0084 per fork). The pooled point estimate here, 0.0093, is close to that figure. The N above is still larger, for two reasons:
 
 - It uses the lower bound (0.00575), not the point estimate. A still-broken kernel failing at the lowest rate the data allow is the hardest to catch, and a lower rate needs a longer series.
 - It takes the per-boot form where it binds. Tier-1 rises from 5 to 10 only because of the floor; the bound alone asks for 5. Smoke rises from 36 to 1753 because the smoke gate itself fired once in 30 boots, and the exact lower bound of that rate is 0.0017 per boot.
 
 Net-smoke stays at its floor of 36.
+
+## Root cause
+
+**Confirmed.** `vm::switch` in `r9/aarch64/src/vm.rs` writes TTBR0_EL1 and then issues `tlbi vmalle1is; dsb ish; isb` with no context synchronization between the `msr` and the `tlbi`. Until an ISB, the TTBR0 write is not guaranteed to be in effect. Table walks in that window, including speculative ones, can still use the previous process's root table, and an entry filled after the TLBI has executed survives the trailing ISB. r9 uses no ASIDs (every user translation lives in one ASID), so the incoming process then runs on the outgoing process's translations for any VA it shares with it.
+
+A fork child and its parent share their entire VA layout. When the parent rc blocks in `Waitfor` and the child is switched in, the child executes on the **parent's physical pages**. By then the parent has already run `poplist()` (`sys/src/cmd/rc/simple.c:69`, before `Waitfor` at :70), so `runq->argv` in the parent's memory is the popped list. The child's first action, `pushword("exec")` (`havefork.c:229`), finds `argv == 0` and aborts with exactly `rc: pushword but no argv!`. That is why every one of the 15 pre-fix fires shows the same message, and why no `fault:` line appears between fork and fire: the child never faults, because it is translating through the parent's valid entries.
+
+Apple-silicon cores walk tables speculatively under HVF. TCG never fills its software TLB speculatively, which explains 0 fires in 615 TCG forks.
+
+**What the wrong bytes are (T-20-04).** These are not zeros and not a stale copy. They are **another live process's memory, mapped read-write**. The probe below shows the child resolving 110 of its 114 pages to physical pages that belong to pid 6, its parent. So the child reads, and can write, the parent's live data, bss and stack, which is a process-isolation fault. The finding is called out for the Task 3 checkpoint. WINDOWS #50 (an intermittent HVF-only EL1 translation fault in `devpipe::read`'s user-buffer copy) fits the same mechanism, a stale or foreign user translation, but that has not been tested here.
+
+Venue for every experiment: an instrumented copy of the r9 tree at `46364d0`, made with `rsync -a --exclude .git --exclude target --exclude result /Users/neilskinner/code/r9/ .build/r9-instr/`. It was passed to the gates with `R9_OVERRIDE=path:<worktree>/.build/r9-instr` and `R9_SKIP_BUILD=1`, on HVF and the same image (forkstress baked in, `46d54b261`). The real r9 checkout was never edited, because the worktree path guard refuses edits to `../r9`. Each experiment's kernel is a distinct store path (`r9-kernel-virt-wip`, hash listed). The copy was deleted after the last run. The probe and fix diffs are kept as `.build/p20-probe-and-fix.diff` and `.build/p20-fix-e-isb.diff`.
+
+### 1. Characterization (from the Task 1 captures)
+
+See "Where the fires are" under `## Pre-fix rate`. In short, the fires cluster at fixed fork sites. In 13 of 15 the parent rc has just reaped a child (`process N exited: ""`) and its next fork's child aborts on its first action. The failing child has no `fault:` lines. Fire sites include the first termrc child (line 1925), the `netip-static.rc` script's children, and the tier-1 sweep's `rc` and `awk`/`sort`/`xd` neighbours. Preemption (`sched: switch`) is next to only 2 of the 15.
+
+### 2. The stressor (rc taken out of the picture)
+
+`build/aarch64/forkstress.c` (commit `46d54b261`) is baked as `/arm64/bin/forkstress`. Before every fork it fills 64 KiB of data, 64 KiB of bss, 64 KiB of heap and 16 KiB of stack with a pattern that depends on the iteration. The child checks all four. Usage: `forkstress [-n forks]`, default 200.
+
+- Command: `R9_KERNEL_PKG=/nix/store/ylf81k8sz1b2bng0jlwsr51pgp2bq8il-r9-kernel-virt-46364d0 R9_ACCEL=hvf R9_FS_N=450 nix develop -c nix shell --inputs-from . nixpkgs#dtc -c bash .build/p20-forkstress.sh 12 base450`. This is the uncommitted launcher: it runs steps 0b, 3 and 4 of `nix/tier1-r9.sh` (shape select, DTB patch, `expect`) over the already-baked `build/aarch64/bootfs.paq`, with `R9_TIER1_LOG` pointed at the per-run capture.
+- The driver copy `.build/p20-forkstress.expect` is `build/aarch64/tier1-r9.expect` lines 1-148 verbatim, with two changes. First, line 68's env check drops `R9_EXPECT_OK R9_EXPECT_SKIP`. Second, lines 149-240 (the typed sweep line, the marker waits and the whole-file post-pass) are replaced by:
+
+  ```
+  set fsn [expr {[info exists env(R9_FS_N)] ? $env(R9_FS_N) : 200}]
+  send "/bin/forkstress -n $fsn\r"
+  expect {
+      -re {forkstress: ok [0-9]+ forks} { puts stderr "p20-forkstress: OK"; set rc 0 }
+      -re {forkstress: FAIL [0-9]+ of [0-9]+ forks} { puts stderr "p20-forkstress: FAIL"; set rc 3 }
+      -re {forkstress: fork [0-9]+ failed} { puts stderr "p20-forkstress: FORK-FAILED (proc table)"; set rc 4 }
+      timeout { puts stderr "p20-forkstress: TIMEOUT"; cleanup; exit 1 }
+      eof { puts stderr "p20-forkstress: EOF"; cleanup; exit 1 }
+  }
+  expect -timeout 5 -re {% } {}
+  log_file
+  cleanup
+  exit $rc
+  ```
+- The larger image still boots: after commit `46d54b261`, `R9_ACCEL=tcg nix run .#boot-r9-smoke --no-write-lock-file --override-input r9 git+file:///Users/neilskinner/code/r9` printed `smoke-r9: ALL STAGES PASS`, and the `ls /bin` sweep lists `/bin/forkstress`.
+- Limit found: one boot can make at most about 505 forks. At fork 506 the stressor got `proc: table full`, because r9 never frees proc-table slots in this era. So `-n` must stay at or below about 450 per boot.
+- Result: 11 boots × 450 = **4950 forks, 0 mismatches**. Run 12 fired in termrc before the prompt. `STRESSOR-RATE: not-fired`.
+- Why the stressor cannot see it, now that the cause is known: the stressor's child checks memory that is identical in parent and child at fork time, and the parent does not modify that memory before the child runs (it is blocked in `wait`). A child running on its parent's pages therefore reads correct bytes. rc fails because its parent mutates `runq->argv` (`poplist`) between fork and the child's first instruction. A future stressor would need the parent to write a fresh pattern after `fork()` returns and before `wait()`.
+
+### 3. Mechanisms, one at a time
+
+The reproducer is the tier-1 gate on HVF: `R9_ACCEL=hvf R9_SKIP_BUILD=1 R9_OVERRIDE=<r9 flake ref> sh build/aarch64/repeat-gate.sh boot-r9-tier1 12` (about 90 s). With the switch as shipped it fired in 38 of 48 boots: 10/12 at the 20-01 head, 8/12 in the control, 9/12 and 11/12 in the (d) and (c) runs below. That is 38 fires in 3972 forks, a per-fork rate of 0.0096 with an exact lower bound r_lo = 0.00717. A mechanism counts as the cause only if disabling it gives zero fires over at least ln(0.05)/ln(1 - r_lo) = 418 forks, and FORKS-TARGET (520) is the stricter of the two. Each fix series below ran 1512 tier-1 forks. If a still-broken kernel failed at r_lo per fork, it would come through 1512 forks with no fire with probability (1 - 0.00717)^1512 = 1.9e-5.
+
+| # | Mechanism | Prediction if it is the cause | Instrumentation (temporary, in the copy) | Kernel | Observed (tier-1 HVF ×12) | Verdict |
+|---|-----------|------------------------------|------------------------------------------|--------|---------------------------|---------|
+| ctl | none (pristine copy) | fires as at the 20-01 head | none | `8w4xif5h…-wip` | 8 fail / 12, 8 pushword, 1086 forks | reproduces |
+| (a) | parent page absent from `mapping_log` at copy time | the child demand-faults the missing page: a `fault: … page-in` line between fork and fire, and the page reads zero (bss/stack) or initial (data) | capture evidence only, no kernel change | 20-01 head | 15/15 fires have **no** `fault:` line between fork and abort. The probe shows 110 of 114 child pages resolving to the parent's PAs, so the records exist and map | ruled out |
+| (b) | KZERO alias remapped without break-before-make / TLB invalidation | copy reads through a wrong alias, so the child's **own** pages hold wrong bytes; it would fire with the switch fixed | not separately instrumented. `map_kernel_alias` rewrites an identical KZERO+PA entry (same PA and attributes, so no BBM hazard), and every write goes through `write_entry`'s full `tlbi vmalle1is` | — | with only the switch fixed, 0 fires in 2604 forks over 3 gates (below), so the copy path is not needed for a fire | not the cause |
+| (c) | stale translation from a PTE store not ordered before the TLBI (missing `dsb ishst`) | adding the barrier stops the fires | `dsb ishst` before `tlbi` in `invalidate_all_tlb_entries` only, switch as shipped | `i2vk4swb…-wip` | **11 fail / 12**, 11 pushword, 801 forks | ruled out (worth adding as hardening, see the fix) |
+| (d) | I-cache incoherence for text pages copied through the alias | maintenance on copied text stops the fires | `flush_icache_user_range` (dc cvau + ic ivau) on each copied text page's alias, plus `ic ialluis; dsb ish; isb` after the copy loop | `b417k8yk…-wip` | **9 fail / 12**, 9 pushword, 1287 forks | ruled out |
+| (e) | no TLB flush that covers the switch to the child (stale translations across the TTBR0 switch, no ASIDs) | synchronizing the TTBR0 write before the TLBI stops the fires, and the probe shows the incoming proc using another proc's PAs | (e) full: `dsb ishst; msr ttbr0; isb; tlbi; dsb; isb`, kernel `afk34say…-wip`. (e) isb-only: `msr ttbr0; isb; tlbi; dsb; isb`, kernel `5n3xqf7x…-wip`. (c)+(e) together: kernel `9b9lkcka…-wip` | see column | (c)+(e): **0 / 12, 1512 forks**. (e) full: **0 / 12, 1512 forks**. (e) isb-only: **0 / 12, 1512 forks** | **confirmed** |
+| (f) | timer preemption inside the copy | fires track `sched: switch` lines, and the fix would have to touch preemption | capture evidence. `rfork_copy` runs IRQ-masked in syscall context | — | `sched: switch` is next to only 2 of 15 fires, and the confirmed fix touches no preemption path | not the cause |
+
+Re-enable check: removing the `isb` brings the fires back. The (c) run, made after the (e) runs with the switch as shipped, gave 11 fires in 12 boots. The probe run below gave 2 of 6.
+
+**Cross-gate check of the isb-only fix** (kernel `j954qrbi…-wip`): `boot-r9-net-smoke` 12/12 pass, 0 pushword, 852 forks. `boot-r9-smoke` 30/30 pass, 0 pushword, 240 forks. Together with the tier-1 series that is 0 fires in 2604 forks over all three gates. At P-LO the probability of that is (1 - 0.00575)^2604 = 3e-7.
+
+**Direct probe** (`p20_probe`, called inside the PROC_TABLE lock right after `vm::switch` in both `pick_next` and `reschedule`). For every record in the incoming proc's `mapping_log` it runs `at s1e0r, va; isb; mrs par_el1` and prints a mismatch when PAR_EL1's PA differs from the recorded PA, naming the live proc whose `mapping_log` owns the PAR's PA.
+
+- Switch as shipped (kernel `8ysm9ix1…-wip`), tier-1 HVF ×6: 2 fails (runs 4 and 6), 725 forks. Probe hits came in 3 boots, each just before the fork child first ran:
+  ```
+  run-4: p20probe: pid=107 va=0x30000 kind=Data want=0x44dc7000 par=0xff000000428c7b80 owner=6
+         ... (va 0x31000..0x35000, Data/Bss, all owner=6)
+         p20probe: pid=107 stale=110 of 114
+         rc: pushword but no argv
+  run-5: p20probe: pid=56 stale=61 of 65   (owner=3; this child happened not to read a mutated word)
+  run-6: p20probe: pid=124 stale=110 of 114 (owner=6), then rc: pushword but no argv
+  ```
+  Both failing boots show a stale switch immediately before the abort, and the stale PAs belong to the parent.
+- Same probe with the isb-only fix (kernel `x2kayjx4…-wip`), tier-1 HVF ×12: **0 probe lines**, 12/12 pass, 0 pushword, 1512 forks.
+
+### 4. Widening
+
+Not needed: (e) is confirmed by both criteria (zero fires past the fork target with the fix, fires back without it) and by the direct probe. The rc guards from 17-06 are not involved. The defect is below rc: any process switched in after another one with an overlapping VA layout can run on that process's pages.
+
+### Fix location and size
+
+- **Where the fix belongs:** `r9/aarch64/src/vm.rs`, `pub unsafe fn switch`. Add `isb` immediately after `msr ttbr0_el1, {pt_phys}` in the User arm. That one instruction is what was confirmed. For consistency, the Kernel arm (`msr ttbr1_el1`) should get the same `isb`, and a `dsb ishst` should go before the `msr` so prior page-table stores are visible to the walker. The `dsb ishst` before the `tlbi` in `invalidate_all_tlb_entries` is architecturally required too, but was shown not to be the cause; it is optional hardening.
+- **Classification:** `aarch64/`. No `port/src/` edit, no x86_64 kernel bytes changed, no FOD impact. Not Harvey userspace, and not outside both repos: the qemu/HVF behaviour is architecturally permitted, and the kernel sequence is wrong.
+- **Estimated size:** 1 to 3 lines of inline asm in one function, plus a comment. A regression check fits the existing gates; a host test cannot see TLB behaviour. The ASID-free design stays (adding ASIDs would be a separate, larger change and is not needed for this fix).
+- **Reproducer (high rate, deterministic enough):** `R9_ACCEL=hvf R9_SKIP_BUILD=1 R9_OVERRIDE=git+file:///Users/neilskinner/code/r9 sh build/aarch64/repeat-gate.sh boot-r9-tier1 12`. Before the fix it fails about 80% of boots (38 of 48, 0.0096 per fork). With the fix it should print `SERIES boot-r9-tier1 accel=hvf runs=12 pass=12 fail=0 pushword=0 forks=1512`. The probe in `.build/p20-probe-and-fix.diff` is the direct signal if a re-check is ever needed. That file is gitignored, so if it is gone, rebuild the probe from the description above.
