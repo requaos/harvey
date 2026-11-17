@@ -133,6 +133,14 @@ expect_before {
         cleanup
         exit 1
     }
+    # the rc argv-stack abort (`rc: pushword but no argv!`, the HVF
+    # fork-child defect, WINDOWS #49): fail at once with a named message
+    # instead of riding the stage timeout (20-01, D-01 groundwork).
+    -re {pushword but no argv} {
+        puts stderr "smoke-r9: rc argv-stack abort on the wire (pushword but no argv) — WINDOWS #49"
+        cleanup
+        exit 1
+    }
 }
 
 # 1. the staged boot sequence: banner → paqfs server → stacksmoke → prompt
@@ -268,6 +276,32 @@ if {![string match "*#l0: virtio: 1000Mbps: *" $whole]} {
 }
 puts stderr "smoke-r9: stage ok — nic-bind (#l0: virtio: 1000Mbps: bind line present in the capture)"
 
-puts stderr "smoke-r9: ALL STAGES PASS — boot, echo (typed + answered), ls/ps/cat sweep, DEL safety, restart, pid-warning-absent, nic-bind"
+# user-hooks-registered / no-unknown-device / no-unsupported-era
+#    (20-01): whole-capture ABSENCE checks.  A devcons hook pair left
+#    unregistered prints `hooks not registered` on every serve (the
+#    #c/user regression); an `unknown device` or `unsupported this era`
+#    line names a kernel surface the boot reached but r9 does not
+#    serve.  All three were measured at 0 on this gate before the
+#    checks were added — any line is a regression.
+if {[string match "*hooks not registered*" $whole]} {
+    puts stderr "smoke-r9: user-hooks-registered FAILED — a 'hooks not registered' line is present in the capture"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9: stage ok — user-hooks-registered (no 'hooks not registered' in the capture)"
+if {[string match "*unknown device*" $whole]} {
+    puts stderr "smoke-r9: no-unknown-device FAILED — an 'unknown device' line is present in the capture"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9: stage ok — no-unknown-device (no 'unknown device' in the capture)"
+if {[string match "*unsupported this era*" $whole]} {
+    puts stderr "smoke-r9: no-unsupported-era FAILED — an 'unsupported this era' line is present in the capture"
+    cleanup
+    exit 1
+}
+puts stderr "smoke-r9: stage ok — no-unsupported-era (no 'unsupported this era' in the capture)"
+
+puts stderr "smoke-r9: ALL STAGES PASS — boot, echo (typed + answered), ls/ps/cat sweep, DEL safety, restart, pid-warning-absent, nic-bind, user-hooks-registered, no-unknown-device, no-unsupported-era"
 cleanup
 exit 0
