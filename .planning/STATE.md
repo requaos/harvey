@@ -5,10 +5,10 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 status: completed
 stopped_at: Phase 19 complete — all phases complete
-last_updated: "2026-11-17T13:09:15.363Z"
+last_updated: "2026-11-17T14:19:43.869Z"
 last_activity: 2026-11-17
 last_activity_desc: Phase 19 complete
-state_head: 4e4b348751a78e34dcb2b83dfa8c3395e5436191
+state_head: cd0fa04d285a3d5e3194b23d09930eff34f28943
 progress:
   total_phases: 7
   completed_phases: 2
@@ -30,7 +30,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 Phase: 19
 Plan: Not started
 Status: All phases complete
-Last activity: 2026-11-17 — Phase 19 complete
+Last activity: 2026-11-17 - Completed quick task 261117-bz5: Rename Harvey objtype aarch64 back to arm64 (Plan 9 convention)
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 execution-complete pending verification; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
@@ -310,6 +310,13 @@ None yet.
 - 18-05/AUTH-08 RESOLVED (18-07/18-08): the devip two-write defect was tcp_socket's stock smoltcp defaults (Nagle ON + 10ms delayed ACK holding every sub-MSS follow-up write for a post-deadline drive a fully-parked venue can never run) — fixed donor-faithfully at r9 ab4cb66 (Nagle off, ACK immediate — connect-path sockets only; CR-03: accept-pool sockets keep stock defaults so >2048-byte writes into ANNOUNCED connections still hang, open in the disposition ledger); 18-08's FOD pass pinned the bytes (r9 9103522, Harvey flake.lock advanced lock-only), restored the sweep's 9d legs (-s 127.0.0.1 — the $attr cs class reds on r9, the literal-loopback idiom instead), and flipped the gate to presence demands — the round-trip is green twice at the pin with the bytes-back AUTH-SECOBS (evidence 18-08-auth-{a,b}.log, redacted); the AUTH-SKIP arm is retired; no residual
 - 18-gap-review CR-03 OPEN (advisory, non-blocking per the #3304 evidence gate): the 18-07 TCP fix covers only connect-path sockets — AcceptPool::spawn_listener (r9 stack.rs) keeps smoltcp stock Nagle + 10ms delayed ACK, and x86_64 never calls tick_check, so a >2048-byte write into an ANNOUNCED connection (a secstore PUT of any real file) parks forever; the auth gate is green twice only because the committed DEMO object is 401 bytes. Fix is two set_* calls at the pool site + WR-04 pin legs; natural reopener: Phase 19 cpu/exportfs (needs exactly this class). Recorded open in 18-REVIEW-DISPOSITION with WR-03/WR-04/IN-06/IN-07
 - 19-08 RESOLVED (pass 3, 2026-11-15): the session-exit deadlock closed by the FIVE-layer chain (r9 22d40fb..56acaea, all pushed): the devssl direction split, the devmnt tag-mux (the named boot-race suspects eliminated STRUCTURALLY — the rebuilt tree booted q35cpu PASS x5 + the profile set on its first session), the session-teardown Drop, the note-interrupt fix, and devpipe's blocking write (the tier1 gate's measured paqfs root death — a THIRD race class the rebuilt tree exposed, root-caused and fixed). The gate is GREEN TWICE on KVM + the TCG leg GREEN + REDACTION-OK at the df4ad78 pin (evidence 19-08-gate-{pin-a,pin-b,tcg}.log); hosted CI observed SUCCESS at both pushed HEADs before each lock-only advance (runs 43711744441, 43717790664). Residual (recorded, non-blocking): devip's connect/listen/write-full block arms WAKE on notes but do not yet surface the interrupt — no measured caller; the data-read pair is the -G session's whole surface. DESK-06/CPU-04/DESK-04 closed by this plan's completion
+- objtype RENAMED aarch64 -> arm64 (quick 261117-bz5, 2026-11-17; Harvey 27cc1d25e/a15e787e9/cd0fa04d2, r9 8e4e730 LOCAL ONLY): until r9 8e4e730 is pushed and the Harvey flake pin advanced, the pinned r9 kernel still seeds cputype=aarch64 against an image that stages arm64/ — boot-r9 and the other arm64 r9 apps will not reach init. Unrun after the rename: the donor-venue gates (subset-exec.sh merged /arm64 staging; trace-boot.rc `bind /boot/ourinit /arm64/init`) and r9 `cargo test -p port` (needs nightly-2026-01-30). The host harness dir keeps the name build/aarch64/; r9's aarch64/ crate keeps its Rust name
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 261117-bz5 | Rename Harvey objtype aarch64 back to arm64 (Plan 9 convention) | 2026-11-17 | cd0fa04d2 | [261117-bz5-rename-harvey-objtype-aarch64-back-to-ar](./quick/261117-bz5-rename-harvey-objtype-aarch64-back-to-ar/) |
 
 ## Deferred Items
 
