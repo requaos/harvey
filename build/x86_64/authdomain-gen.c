@@ -218,20 +218,31 @@ randbytes(uchar *p, int n)
 /*
  * a random [0-9a-zA-Z] password — printable, rc-safe (no spaces,
  * quotes, or '#'; sentinel-feed friendly), >=7 for the secuser path,
- * <=13 so it fits the Nvrsafe config field if reused there.
+ * <=13 so it fits the Nvrsafe config field if reused there.  Chars
+ * come from rejection sampling, not a plain %: 256 = 4*62+8, so
+ * alph[r % 62] would favor '0'-'7' by ~25% relative (WR-01) and these
+ * strings are real key material whenever an operator keeps the
+ * generated values (the machine password derives the nvram machkey —
+ * the /adm/keys master).  Bytes at or above 248 (4*62, the largest
+ * alphabet multiple under 256) are redrawn; the survivors map onto
+ * the alphabet uniformly.
  */
 void
 genpassword(char *out, int n)
 {
 	static char alph[] = "0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-	uchar r[Maxpw];
 	int i;
 
 	if(n > Maxpw)
 		n = Maxpw;
-	randbytes(r, n);
-	for(i = 0; i < n; i++)
-		out[i] = alph[r[i] % (nelem(alph)-1)];
+	for(i = 0; i < n; i++){
+		uchar c;
+
+		do{
+			randbytes(&c, 1);
+		}while(c >= 256/(nelem(alph)-1)*(nelem(alph)-1));	/* 248 */
+		out[i] = alph[c % (nelem(alph)-1)];
+	}
 	out[n] = 0;
 }
 
@@ -678,13 +689,19 @@ verify(char *dir)
 	static char *names[3] = { "nvram", "keys", "ndb-auth" };
 	uchar *art;
 	uchar nv[Filecap];
-	char manifest[Filecap], label[32], hex[SHA1dlen*2+1];
+	char manifest[Filecap+1], label[32], hex[SHA1dlen*2+1];
 	char *line, *next;
 	int n, nu, i, fail, seen[3];
 	Nvrsafe *safe;
 
 	fail = 0;
 	memset(seen, 0, sizeof seen);
+	/* the buffer is Filecap+1 over a Filecap cap on purpose: readfile
+	 * accepts an exactly-Filecap file by design, so n == Filecap is a
+	 * reachable boundary and the NUL below must land in-bounds there
+	 * (CR-01 — a Filecap-sized buffer wrote one byte past the stack on
+	 * precisely that input); anything that big is still refused loud
+	 * by the strict shape checks below */
 	n = readfile(dir, "manifest", (uchar*)manifest, Filecap);
 	manifest[n] = 0;
 
@@ -838,13 +855,15 @@ info(char *dir)
 	uchar nv[Nvramfile];
 	uchar keys[Filecap];
 	Nvrsafe *safe;
-	char manifest[Filecap], label[32], *line, *next;
+	char manifest[Filecap+1], label[32], *line, *next;
 	int n, nu, i;
 
 	n = readfile(dir, "nvram", nv, Nvramfile);
 	if(n != Nvramfile)
 		sysfatal("nvram: %d bytes, want %d", n, Nvramfile);
 	safe = (Nvrsafe*)nv;
+	/* the verify() CR-01 shape: Filecap+1 of room so the NUL stays
+	 * in-bounds at the n == Filecap boundary */
 	n = readfile(dir, "manifest", (uchar*)manifest, Filecap);
 	manifest[n] = 0;
 	line = manifest;

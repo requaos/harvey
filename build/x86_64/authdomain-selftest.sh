@@ -17,6 +17,17 @@
 #     membership rule: a user list without bootes refuses loud
 #   - verify-mode teeth (Task 2): four doctored-input classes each
 #     refuse with a nonzero exit and their own marker
+#   - the CR-01 boundary: a staged manifest of EXACTLY Filecap bytes
+#     (readfile accepts exactly-cap files by design) walks verify and
+#     info with room for the terminating NUL — -V refuses the padded
+#     shape loud, -i completes clean, and an AddressSanitizer build
+#     (when the host cc has one) re-runs both — the only venue that
+#     can actually SEE a one-byte out-of-bounds stack write
+#   - generated passwords (WR-01): the charset is exactly
+#     [0-9a-zA-Z] and every one of the 62 alphabet symbols is
+#     reachable across a 960-char sample — the sanity floor under the
+#     rejection-sampling fix (the distribution itself is not pinnable
+#     with a cheap leg)
 #   - label discipline (Task 2): the DEMO token in the nvram authdom
 #     span and in the manifest rows; -i prints the parsed fields
 #   - /authdomain.local is gitignored and NOTHING is written inside
@@ -177,6 +188,92 @@ if ./gen -V n4 >v4.log 2>&1; then
 else
 	echo "NEG-CONTROL-REFUSED-truncated: $(tail -1 v4.log)"
 fi
+
+# (5) the CR-01 boundary: a manifest of EXACTLY Filecap bytes.
+# readfile accepts exactly-cap files by design (it only refuses a
+# cap+1'th byte), so n == Filecap is reachable and the terminating
+# NUL write used to land one byte past the 64 KiB stack buffer in
+# verify/info.  Post-fix semantics: read WITH room for the NUL, never
+# silently truncated — -V still refuses this doctored shape LOUD (the
+# trailing padding rows), -i (which parses only label/users)
+# completes clean
+cp -r demo n5
+ML=$(wc -c < demo/manifest | tr -d ' ')
+yes xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx \
+	| head -c $((65536 - ML)) >> n5/manifest
+[ "$(wc -c < n5/manifest | tr -d ' ')" = "65536" ] \
+	|| fail "CR-01 leg: staged manifest is not exactly Filecap bytes"
+if ./gen -V n5 >v5.log 2>&1; then
+	fail "verify ACCEPTED an exactly-Filecap manifest padded past the artifact rows"
+else
+	grep -q 'trailing rows after the three artifacts' v5.log \
+		|| fail "CR-01 leg: -V refusal is not the loud trailing-rows marker: $(tail -1 v5.log)"
+	echo "FILECAP-BOUNDARY-REFUSED: $(tail -1 v5.log)"
+fi
+./gen -i n5 >i5.log 2>&1 \
+	|| { cat i5.log; fail "CR-01 leg: -i choked on the exactly-Filecap manifest"; }
+grep -q '^names: glenda bootes norbert$' i5.log \
+	|| fail "CR-01 leg: -i did not parse the exactly-Filecap manifest"
+
+# the memory-safety pin itself: the same boundary input under an
+# AddressSanitizer build (the plain -O2 build cannot observe a
+# one-byte stack overrun — it corrupts silently).  Leak detection is
+# off: this leg pins the CR-01 overwrite, not donor allocation
+# hygiene.  Skipped with a note when the host cc lacks ASan
+if "$CC" -fsanitize=address -O1 -Wno-unknown-pragmas -I"$DONORS" -o gen-asan \
+	"$HARVEY/build/x86_64/authdomain-gen.c" \
+	"$DONORS"/passtokey.c "$DONORS"/nvcsum.c "$DONORS"/crypt.c \
+	"$DONORS"/des.c "$DONORS"/desCBC.c "$DONORS"/desmodes.c \
+	"$DONORS"/sha1.c "$DONORS"/sha1block.c "$DONORS"/hmac.c \
+	"$DONORS"/strecpy.c >asanbuild.log 2>&1; then
+	if ASAN_OPTIONS=detect_leaks=0 ./gen-asan -V n5 >a5v.log 2>&1; then
+		fail "ASan build: -V accepted the padded Filecap manifest"
+	else
+		grep -q 'trailing rows' a5v.log \
+			|| fail "ASan build: wrong -V refusal marker: $(tail -1 a5v.log)"
+	fi
+	ASAN_OPTIONS=detect_leaks=0 ./gen-asan -i n5 >a5i.log 2>&1 \
+		|| { cat a5i.log; fail "ASan build: -i failed on the exactly-Filecap manifest"; }
+	if grep -q 'AddressSanitizer' a5v.log a5i.log; then
+		fail "AddressSanitizer reported a memory error on the exactly-Filecap boundary — the CR-01 shape is not fixed"
+	fi
+	echo "FILECAP-BOUNDARY-ASAN-CLEAN"
+else
+	echo "NOTE: host cc has no AddressSanitizer — CR-01 boundary pinned behaviorally only (loud -V refusal + clean -i)"
+fi
+
+echo "== generated-password alphabet (WR-01): charset + reachability"
+# genpassword maps /dev/urandom bytes onto [0-9a-zA-Z] by rejection
+# sampling; a sanity leg can pin the invariants, not the distribution:
+# every generated char is IN the alphabet, and every one of the 62
+# symbols is REACHABLE across a 960-char sample (80 DEMO runs x the
+# 12-char feed password) — an indexing or rejection bug that strands a
+# symbol or emits a foreign byte reds here (a missed symbol over 960
+# uniform draws is a <1e-5 flake; termination of the redraw loop is
+# exercised by every one of these generate runs)
+i=0
+while [ "$i" -lt 80 ]; do
+	./gen -o "pw$i" >"pw$i.log" 2>&1 || { cat "pw$i.log"; fail "WR-01 leg: DEMO generate $i failed"; }
+	i=$((i+1))
+done
+cat pw*/feed >allpw
+PWC=$(tr -d '\n' <allpw)
+NW=${#PWC}
+[ "$NW" = "960" ] || fail "WR-01 leg: harvested $NW password chars, want 960 (80 x 12)"
+if [ -n "$(printf '%s' "$PWC" | tr -d '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ')" ]; then
+	fail "WR-01 leg: a generated password carries a char outside [0-9a-zA-Z]"
+fi
+miss=""
+for c in 0 1 2 3 4 5 6 7 8 9 \
+	a b c d e f g h i j k l m n o p q r s t u v w x y z \
+	A B C D E F G H I J K L M N O P Q R S T U V W X Y Z; do
+	case "$PWC" in
+	*$c*)	;;
+	*)	miss="$miss$c"
+	esac
+done
+[ -z "$miss" ] || fail "WR-01 leg: alphabet symbols never generated: $miss"
+echo "GENPASSWORD-ALPHABET-OK"
 
 echo "== local-file interface path (the committed example is the shape proof)"
 # fill the example's placeholders with test values: a custom label, a
