@@ -21,13 +21,13 @@ says so on its face.
 
 | Field | Value |
 |-------|-------|
-| Status | **PENDING — awaiting the owner's session** (blocking-human; no executor accepts a desktop on the owner's behalf) |
+| Status | **ACCEPTED — linux graphical leg, human-accepted 2026-11-16** |
 | Venue | linux-x86_64, KVM (qemu q35; slirp + the committed D-04 hostfwd pair `127.0.0.1:17010`/`127.0.0.1:5670`) |
-| r9 SHA | `df4ad78d0177b60b48603e00fd9ba786e2d3c69f` (pre-filled from the flake.lock pin) |
-| Date | *(to be signed)* |
-| Accepter | *(to be signed)* |
-| Screenshot | `evidence/19-10-linux-rio.png` *(to be captured — the interactive rio desktop visible in the drawterm window)* |
-| Session notes | *(to be signed — MUST record: the desktop started IN-SESSION (the profile's `case cpu` exec, not at boot; the boot-side absence proof lives in the 19-07/19-08/19-09 gates) and ONE in-session plumbing observation — a plumber-fed action or the plumber's presence, DESK-05's in-session evidence)* |
+| r9 SHA | `0921a1bc9337a3e35598248877782ae54172dbad` (the accepted session's pin; the leg's D-11 fix loop spanned df4ad78 → dae4397 → 56109c3 → 3e5ed0c → 0921a1b, each layer live-verified by the owner before the next) |
+| Date | 2026-11-16 |
+| Accepter | Neil Skinner (the owner; sign-off recorded at the owner's direction following their acceptance "linux leg accepted", 2026-11-16) |
+| Screenshot | `evidence/19-10-linux-rio.png` — present (PNG 2616×1690) |
+| Session notes | Desktop ran IN-SESSION in the drawterm window after login (not at boot; the boot-side absence is the 19-07/19-08/19-09 gates' proof). Owner-verified behaviors: keystrokes land in-window; cursor contextual shapes on window edges/corners with correct revert to the arrow; right-button menu reopens after sweep; second window sweeps; `exit` deletes the window while other windows live. Plumbing observation (DESK-05): plumber present and serving in-session — the owner's own live `ps` capture (this phase's evidence) shows the plumber processes; `/mnt/plumb` serves its full port set. |
 
 The recipe (README §"The linux session recipe" + §"The full-system boot", executed
 verbatim): boot `nix run .#boot-r9-x64 -- --system=cpu` in one terminal and leave
