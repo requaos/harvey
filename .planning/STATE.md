@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 19
 current_phase_name: CPU Service + Drawterm + rio Desktop
 status: executing
-stopped_at: "19-10 checkpoint: DESK-07 human legs pending (linux graphical row + darwin -G row unsigned, blocking-human) — all automatable work done (scaffold, deferral records, INT-07 clean-checkout proof GREEN both gates); resume = /gsd:execute-phase 19 continuation after the owner signs the rows in 19-EVIDENCE.md"
-last_updated: "2026-11-15T14:46:32.190Z"
-last_activity: 2026-11-14
-last_activity_desc: Phase 19 execution started
-state_head: 4f54e8c6c56a6ff12c6997d66add3d434e013cad
+stopped_at: Completed 19-10-PLAN.md (phase 19 execution 10/10; DESK-07 accepted with recorded deferral; INT-07 green; phase verification pending — orchestrator)
+last_updated: "2026-11-17T12:09:46.205Z"
+last_activity: 2026-11-17
+last_activity_desc: Phase 19 execution complete (19-10 closed; verification pending)
+state_head: d4f0eeae52000c1c50b2766f5dd2501364f290e5
 progress:
   total_phases: 7
   completed_phases: 2
   total_plans: 58
-  completed_plans: 57
+  completed_plans: 58
 ---
 
 # Project State
@@ -28,12 +28,12 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 ## Current Position
 
-Phase: 19 (CPU Service + Drawterm + rio Desktop) — EXECUTING
+Phase: 19 (CPU Service + Drawterm + rio Desktop) — EXECUTION COMPLETE (10/10 plans), awaiting phase verification
 Plan: 10 of 10
-Status: CHECKPOINT — DESK-07 human legs pending (blocking-human): the linux graphical row and the darwin -G row in 19-EVIDENCE.md await the owner's sessions + signatures; all automatable 19-10 work is done and committed (INT-07 clean-checkout proof GREEN, both gates)
-Last activity: 2026-11-14 — Phase 19 execution started
+Status: 19-10 CLOSED — DESK-07 accepted with recorded deferral (the linux graphical row SIGNED 2026-11-16: Neil Skinner, r9 0921a1bc, screenshot in place, Row 1 at d4f0eeae5; the darwin -G row deferred by owner decision 2026-11-17 with the aarch64-port reopener; the darwin graphical deferral stands 2026-11-14, gui-cocoa reopener); INT-07 green (the clean-checkout proof, both gates, from two independent fresh clones); phase verification is the next step (orchestrator-owned)
+Last activity: 2026-11-17 — Phase 19 execution complete (19-10 closed after the linux leg's D-11 fix loop + the owner's acceptance and deferral decisions)
 
-Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 next; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
+Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 execution-complete pending verification; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
 ## Performance Metrics
 
@@ -120,6 +120,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 19 P08 | 280 min continuation (4h45m across both passes; 6 kernel fix cycles) | 2 tasks | 9 files |
 | Phase 19 P08 | 205 min continuation (5h30m across all three passes; 5 kernel fixes + the choreography x2) | 3 tasks | 16 files |
 | Phase 19 P09 | 24 min | 3 tasks | 11 files |
+| Phase 19 P10 | ~46h wall across three passes (2026-11-15 -> 2026-11-17; the linux-leg D-11 loop + owner acceptance + this records pass) | 3 tasks | 62 files |
 
 ## Accumulated Context
 
@@ -292,6 +293,9 @@ Recent decisions affecting current work:
 - [Phase 19]: [19-10 close-out] D-03 amended (owner decision 2026-11-14): darwin is -G text-only this milestone (gui-none backend — no Carbon, no XQuartz); the darwin GRAPHICAL rio leg is deferred with the named reopener (a future milestone porting a 64-bit Cocoa/AppKit backend of the 9front gui-cocoa class into sys/src/cmd/unix/drawterm); XQuartz considered and rejected — recorded in REQUIREMENTS DESK-07, STATE Deferred Items, and 19-EVIDENCE.md
 - [Phase 19]: [19-10 close-out] D-10/D-14 user overrides executed as locked: tick_check wired proactively (19-02 — q35 tick's dev_exec block) and carried by 19-08's long-lived authenticated -G sessions; the -G gate's required witness is local KVM green-twice (D-14) with hosted CI observed SUCCESS best-effort at both pushed HEADs (runs 43711744441, 43717790664)
 - [Phase 19]: [19-10 close-out] OQ settlements on record: OQ-2 the -O comma grammar with argv as the single connection source (19-06); OQ-3 aux/listen -t /bin/service tcp in cpurc with listen1 -t retained for flags-carrying authsrv (19-07); OQ-4 --system=cpu|terminal flag over R9_SYSTEM over the terminal default (19-09)
+- [Phase 19]: [19-10 close-out] DESK-07 linux graphical leg human-accepted 2026-11-16 (Neil Skinner; r9 0921a1bc; Row 1 signed in 19-EVIDENCE.md at d4f0eeae5, screenshot in place) after the phase's longest D-11 loop — ten fix layers, each live-verified by the owner before the next, six lock-only pin advances df4ad78 -> 0921a1b (0921a1b == pin == origin/main)
+- [Phase 19]: [19-10 close-out] DESK-07 darwin -G leg DEFERRED BY OWNER DECISION 2026-11-17 — verbatim intent: 'aarch64 cpu port, but just note it so that I can move back to the mac and perform the work natively on the aarch64 machine'; the owner declined the SSH-tunnel venue and a mac-local x86_64 TCG substitute; the aarch64 cpu port (DTB bootconf seam, auth-suite tiers, §15 mkimage contract, devssl #D registration, drawterm gate — all x86_64-only today) is phase-scale owner-performed future work; reopener: the aarch64 cpu port — the DESK-07 darwin -G row reopens against it
+- [Phase 19]: [19-10 close-out] DESK-07 closed ACCEPTED WITH RECORDED DEFERRAL per the owner resolutions (standing evidence: the signed linux Row 1 + INT-07's automated clean-checkout proof, GREEN both gates 2026-11-15; both darwin legs deferred with named reopeners — -G 2026-11-17 aarch64-port, graphical 2026-11-14 gui-cocoa); INT-07 complete; Phase 19 execution 10/10
 
 ### Pending Todos
 
@@ -313,12 +317,13 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 | Category | Item | Status | Deferred At | Milestone |
 |----------|------|--------|-------------|-----------|
+| darwin | DESK-07 darwin -G text leg — port the cpu stack to aarch64 natively and run the darwin -G session against it (owner-performed on the darwin/aarch64 machine; the SSH-tunnel venue and a mac-local x86_64 TCG substitute were both declined; the port is phase-scale: DTB bootconf seam, auth-suite tiers, §15 mkimage contract, devssl #D registration, drawterm gate) | Open (owner decision 2026-11-17) | 2026-11-17 | v2.1 → future milestone |
 | darwin | DESK-07 darwin graphical rio leg — port a 64-bit Cocoa/AppKit backend (9front gui-cocoa class) into sys/src/cmd/unix/drawterm; XQuartz considered and rejected; darwin is -G-only (gui-none) this milestone | Open (owner decision 2026-11-14, amended D-03) | 2026-11-14 | v2.1 → future milestone |
 | CI | harvey.yml nix rewrite — hosted green run pending first push (backlog 999.1) | Open | 2026-11-05 | v2.0 → v2.1 carry |
 | aarch64 | Re-activation of the aarch64 target | Frozen at v2.0 pin; re-derivable | 2026-11-06 | v2.1 |
 
 ## Session Continuity
 
-Last session: 2026-11-15T14:46:31.224Z
-Stopped at: 19-10 checkpoint: DESK-07 human legs pending (linux graphical row + darwin -G row unsigned, blocking-human) — all automatable work done (scaffold, deferral records, INT-07 clean-checkout proof GREEN both gates); resume = /gsd:execute-phase 19 continuation after the owner signs the rows in 19-EVIDENCE.md
+Last session: 2026-11-17T12:09:45.282Z
+Stopped at: Completed 19-10-PLAN.md (phase 19 execution 10/10; DESK-07 accepted with recorded deferral; INT-07 green; phase verification pending — orchestrator)
 Resume file: None

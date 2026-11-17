@@ -76,13 +76,13 @@
 - [x] **DESK-04**: r9 devssl `#D` (rc4_256/sha1) for encrypted sessions via pushssl; `-e clear` documented fallback (stronger crypto is PROTOCOL-blocked — the hardening milestone)
 - [x] **DESK-05**: plumb/plumber runs in the drawterm session
 - [x] **DESK-06**: `-G` text-mode drawterm interop gate in CI via hostfwd (scripted login → shell marker)
-- [ ] **DESK-07**: Human-accepted graphical rio leg on linux AND darwin (drawterm is host-side; the darwin leg connects to the linux-hosted guest) <!-- 19-10 scope per the amended D-03 (owner decision 2026-11-14): the linux GRAPHICAL row + the darwin -G TEXT row are this phase's legs (signed rows + screenshots in 19-EVIDENCE.md, D-13); the darwin GRAPHICAL row is deferred 2026-11-14 by owner decision — reopener: a future milestone porting a 64-bit Cocoa/AppKit backend (9front gui-cocoa class) into sys/src/cmd/unix/drawterm; XQuartz considered and rejected. Not silently marked complete: the checkbox flips only when both human rows are signed (pending as of 2026-11-15) -->
+- [x] **DESK-07**: Human-accepted graphical rio leg on linux AND darwin (drawterm is host-side; the darwin leg connects to the linux-hosted guest) <!-- 19-10 scope per the amended D-03 (owner decision 2026-11-14): the linux GRAPHICAL row + the darwin -G TEXT row are this phase's legs (signed rows + screenshots in 19-EVIDENCE.md, D-13); the darwin GRAPHICAL row is deferred 2026-11-14 by owner decision — reopener: a future milestone porting a 64-bit Cocoa/AppKit backend (9front gui-cocoa class) into sys/src/cmd/unix/drawterm; XQuartz considered and rejected. Not silently marked complete: the checkbox flips only when both human rows are signed (pending as of 2026-11-15) --><!-- closed 19-10, accepted WITH RECORDED DEFERRAL per the owner resolutions — the gate rule above was superseded by the owner's 2026-11-17 decision on the second row: the linux GRAPHICAL row is SIGNED (human-accepted 2026-11-16, Neil Skinner, r9 0921a1bc, screenshot evidence/19-10-linux-rio.png — Row 1 in 19-EVIDENCE.md, commit d4f0eeae5); the darwin -G row is DEFERRED BY OWNER DECISION 2026-11-17 — the owner declined the recorded SSH-tunnel venue and a mac-local x86_64 TCG substitute; verbatim intent: "aarch64 cpu port, but just note it so that I can move back to the mac and perform the work natively on the aarch64 machine"; that port is phase-scale (DTB bootconf seam, auth-suite tiers, §15 mkimage contract, devssl #D registration, drawterm gate — all x86_64-only today) and explicitly the owner's own future work; reopener: the aarch64 cpu port — the DESK-07 darwin -G row reopens against it; the darwin GRAPHICAL row stays deferred 2026-11-14 (gui-cocoa reopener, XQuartz rejected). Standing evidence: the signed linux Row 1 + INT-07's automated clean-checkout proof (GREEN both gates); both darwin legs carry named reopeners in STATE.md's Deferred Items — recorded deferrals, never silent completions -->
 
 ### Integration (INT — continuing)
 
 - [x] **INT-05**: `nix run .#boot-r9` remains the ONE command on x86_64 — brings up the full system (net + auth + cpu listener); boot-r9-smoke extended to the new chain
 - [x] **INT-06**: r9 flake.lock pin advances via push-before-pin as its OWN commit + fresh hosted CI run (never bundled)
-- [ ] **INT-07**: Clean-checkout proof of the full v2.1 chain on linux-x86_64 (darwin documented-manual) <!-- 19-10 GREEN 2026-11-15: two independent fresh clones of harvey at e4001b383 (r9 solely via the flake.lock github pin df4ad78 — no sibling clone): nix run .#boot-r9-smoke-x64 exit 0 ALL STAGES PASS (chain + cpu legs) and nix run .#drawterm-gate-x64 exit 0 ALL STAGES PASS (the -G session end-to-end, capture redacted); record in 19-EVIDENCE.md (clone SHA, locked rev, verdicts, retained consoles) -->
+- [x] **INT-07**: Clean-checkout proof of the full v2.1 chain on linux-x86_64 (darwin documented-manual) <!-- 19-10 GREEN 2026-11-15: two independent fresh clones of harvey at e4001b383 (r9 solely via the flake.lock github pin df4ad78 — no sibling clone): nix run .#boot-r9-smoke-x64 exit 0 ALL STAGES PASS (chain + cpu legs) and nix run .#drawterm-gate-x64 exit 0 ALL STAGES PASS (the -G session end-to-end, capture redacted); record in 19-EVIDENCE.md (clone SHA, locked rev, verdicts, retained consoles) -->
 
 ## Future Requirements
 
@@ -162,10 +162,10 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | DESK-04 | Phase 19 | Complete |
 | DESK-05 | Phase 19 | Complete |
 | DESK-06 | Phase 19 | Complete |
-| DESK-07 | Phase 19 | Pending |
+| DESK-07 | Phase 19 | Complete |
 | INT-05 | Phase 19 | Complete |
 | INT-06 | Phase 19 | Complete |
-| INT-07 | Phase 19 | Pending |
+| INT-07 | Phase 19 | Complete |
 
 **Coverage:**
 - v2.1 requirements: 46 total
