@@ -1,5 +1,60 @@
 # Phase 19 deferred items
 
+## [19-10 Leg-1 continuation 6 — LANDED, 2026-11-17] the window never deleted on shell exit: TWO r9 defects + one exposed regression, all fixed; `exit` now deletes the window AT THE PINNED TREE
+
+The owner's report at c787ce9 (everything else green): `exit` in a
+window kills the shell (prompt gone) but the window stays and still
+echoes typed input.  Reproduced with xdotool; three instrumented-kernel
+(diag serial prints) rounds isolated the chain — pointer (a) wait()
+was EXONERATED early (the serial showed winshell's _schedexecwait
+completing: "process N exited: procexec"), and the break was in the
+fd/fid close chain:
+
+1. **exit_tail's fd drain closed under a borrow** — every duplicate of
+   one server fid inside the dying fd table pinned the Arc count, so
+   clunk_if_last never fired (measured: 4 skips at count=2 on the wsys
+   /dev/cons chans, zero wsys Tclunks).  The donor closefgrp nils each
+   slot BEFORE its cclose.  Fix: ownership-consuming drain.
+2. **The donor closepgrp's mount half was never ported** — a namespace
+   group's death dropped the mount table as plain Rust drops; the
+   mounted tree's ROOT/attach fid never Tclunked.  rio's wsys attach
+   carries a window ref (xfidattach's `if(!newlymade) incref(w)`), so
+   even with both cons fids clunked the refcount stayed one short and
+   wclosewin never ran.  Fix: Pgrp::take_mount_chans + the
+   last-holder drain in sweep_husk_payloads.
+
+**The regression the first pin exposed** (drawterm-gate FAILED at
+session-exit, rc=1): the new exit-time clunks race the teardown kill
+notes; an interrupted Tclunk's LATE reply hit the loud 'unexpected
+reply tag' error and drained a HEALTHY waiter's rpc (capture preserved
+in the gate log).  r9 1cbc1db restored the donor mountmux DROP arm (a
+late reply is logged and dropped, never fatal); the tag-mismatch pin
+re-keyed to the drop contract + the new
+mux_foreign_reply_is_dropped_and_live_waiters_still_complete pin.
+
+Landing (the full choreography, twice for the two FOD rounds):
+- r9 ab0a977 (pushed, CI SUCCESS 43983837655) — the exit-deletion fix
+  + the namespace_test take_mount_chans pin; battery green.
+- r9 1cbc1db (pushed, CI SUCCESS 43989749900) — the drop arm; battery
+  green (port 231 + x86_64 104).
+- r9 0921a1b (pushed, CI SUCCESS 43990489795) — the FOD re-wire;
+  two-derivation proofs (ab0a977+marker accf880; 1cbc1db+marker
+  06b94f8; byte-identical ISOs both rounds).
+- harvey 3f449fd72 — flake.lock 543c375 -> 0921a1b lock-only.
+- Gates at the final pin: drawterm-gate ALL STAGES PASS, smoke
+  (chain+cpu) ALL STAGES PASS.
+
+**The proof at the pinned tree** (evidence
+19-10-leg1-cont6-proof-record.txt + -exit-deletes-atpin.png): two
+windows swept, `exit` typed into window 1 — window 1 DELETED (its area
+repaints desktop grey), window 2 unaffected.  On the instrumented
+precursor the clunk trace shows the whole wsys session's fid set
+Tclunking at shell exit (cons fids 3+4, mount root 2, attach 1).
+
+The one remaining residual is unchanged (the login-time desktop
+auto-start skip on this session's app-baked venues; manual
+`plumber; rio` green — see continuation 4's record).
+
 ## [19-10 Leg-1 continuation 5 — LANDED, 2026-11-16] the stuck-contextual-cursor residual: root-caused (the swallowed zero-count Twrite), fixed at r9, the REVERT PROVEN with real sprite observation at the pinned tree
 
 The owner's live report at 3e5ed0c (everything else green): the
