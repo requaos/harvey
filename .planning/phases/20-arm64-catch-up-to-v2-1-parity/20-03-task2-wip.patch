@@ -1,0 +1,133 @@
+diff --git a/build/aarch64/forkstress.c b/build/aarch64/forkstress.c
+index 4c63fde0a..96d5d47dc 100644
+--- a/build/aarch64/forkstress.c
++++ b/build/aarch64/forkstress.c
+@@ -15,6 +15,16 @@
+  * The parent waits and counts a non-empty exit status (a mismatch or a
+  * trap) as a failure.
+  *
++ * The trigger (20-03, from the 20-02 root cause): the defect was a stale
++ * TTBR0 switch that left a fork child running on its PARENT's physical
++ * pages.  A child on its parent's pages still reads the right bytes
++ * unless the parent changes them between fork and the child's first
++ * run, and rc does exactly that (poplist before Waitfor).  So after
++ * fork returns, the parent overwrites all four arrays with a second
++ * pattern before it waits.  A correct child still sees the pre-fork
++ * pattern in its own copy; a child on the parent's pages sees the
++ * second pattern, counted as `parent` in the DETAIL line.
++ *
+  * usage: forkstress [-n forks]	(default 200)
+  * Prints `forkstress: ok N forks` and exits nil only when no child
+  * failed; otherwise `forkstress: FAIL F of N forks`.
+@@ -24,6 +34,7 @@ enum {
+ 	Nword = 16*1024,	/* 64 KiB, 16 pages, per static segment */
+ 	Nstack = 4*1024,	/* 16 KiB, 4 pages, of live stack */
+ 	Pagemask = 4096-1,
++	Nseg = 4,	/* data, bss, heap, stack; seg+Nseg is the parent's post-fork pattern */
+ };
+ 
+ u32int data[Nword] = { 1 };	/* initialised, so it lands in the data segment */
+@@ -51,7 +62,7 @@ fill(u32int *a, int n, int seg, int k)
+ static int
+ check(char *name, u32int *a, int n, int seg, int k)
+ {
+-	int i, first, last, nbad, nzero, nstale;
++	int i, first, last, nbad, nzero, nstale, nparent;
+ 	u32int want, got;
+ 
+ 	first = -1;
+@@ -59,6 +70,7 @@ check(char *name, u32int *a, int n, int seg, int k)
+ 	nbad = 0;
+ 	nzero = 0;
+ 	nstale = 0;
++	nparent = 0;
+ 	for(i = 0; i < n; i++){
+ 		want = pattern(seg, k, i);
+ 		got = a[i];
+@@ -70,6 +82,8 @@ check(char *name, u32int *a, int n, int seg, int k)
+ 		nbad++;
+ 		if(got == 0)
+ 			nzero++;
++		else if(got == pattern(seg+Nseg, k, i))
++			nparent++;
+ 		else if(k > 0 && got == pattern(seg, k-1, i))
+ 			nstale++;
+ 	}
+@@ -77,9 +91,9 @@ check(char *name, u32int *a, int n, int seg, int k)
+ 		return 0;
+ 	print("forkstress: MISMATCH seg=%s addr=%p want=%#.8ux got=%#.8ux\n",
+ 		name, &a[first], pattern(seg, k, first), a[first]);
+-	print("forkstress: DETAIL seg=%s fork=%d nbad=%d zero=%d stale=%d other=%d first=%p last=%p pageoff=%#ux\n",
+-		name, k, nbad, nzero, nstale, nbad-nzero-nstale, &a[first], &a[last],
+-		(uint)((uintptr)&a[first] & Pagemask));
++	print("forkstress: DETAIL seg=%s fork=%d nbad=%d zero=%d parent=%d stale=%d other=%d first=%p last=%p pageoff=%#ux\n",
++		name, k, nbad, nzero, nparent, nstale, nbad-nzero-nparent-nstale,
++		&a[first], &a[last], (uint)((uintptr)&a[first] & Pagemask));
+ 	return 1;
+ }
+ 
+@@ -135,6 +149,11 @@ main(int argc, char *argv[])
+ 				exits("mismatch");
+ 			exits(nil);
+ 		}
++		/* the trigger: change the parent's copy before the child runs */
++		fill(data, Nword, 0+Nseg, k);
++		fill(bss, Nword, 1+Nseg, k);
++		fill(heap, Nword, 2+Nseg, k);
++		fill(stk, Nstack, 3+Nseg, k);
+ 		w = wait();
+ 		if(w == nil){
+ 			print("forkstress: wait after fork %d failed: %r\n", k);
+diff --git a/build/aarch64/tier1-sweep.rc b/build/aarch64/tier1-sweep.rc
+index 7ed3eab12..d03fa0fa0 100644
+--- a/build/aarch64/tier1-sweep.rc
++++ b/build/aarch64/tier1-sweep.rc
+@@ -702,5 +702,19 @@ if not {
+ 	t1skip libtest-disktest
+ }
+ 
++# forkstress (20-03, the WINDOWS #49 pin): 200 forks, each child
++# compares its data, bss, heap and stack with the parent's pre-fork
++# pattern while the parent overwrites its own copy.  The fix was a
++# missing isb after the TTBR0 write in r9's vm::switch; a child running
++# on its parent's pages shows here as T1-FAIL forkstress.  r9 venue
++# only: the binary is baked into the r9 image (mkimage.sh) and the
++# donor and 9k venues do not carry it.  nix/tier1-r9.sh lists
++# forkstress among the fixed expected names, so a silent entry reds
++# the gate as `missing T1-OK forkstress`.
++if(~ $venue r9){
++	if(/bin/forkstress) echo T1-OK forkstress
++	if not echo T1-FAIL forkstress
++}
++
+ echo T1-DONE
+ exit
+diff --git a/nix/tier1-r9.sh b/nix/tier1-r9.sh
+index 513a45e2d..1466ac78d 100644
+--- a/nix/tier1-r9.sh
++++ b/nix/tier1-r9.sh
+@@ -175,8 +175,13 @@ R9_INITRD="$HARVEY/build/aarch64/bootfs.paq"
+ #     7c/7l/cc ride the canary markers) minus stacksmoke (its T1-OK is
+ #     the donor termrc's line; the r9 boot's own stacksmoke stage covers
+ #     it here) minus every SKIP-named member (the donor-guarded legs
+-#     emit T1-SKIP on r9) — plus the fixed markers float-d01 (D-01) and
+-#     libtest-tdraw.  The SKIP set is extracted VERBATIM from
++#     emit T1-SKIP on r9) — plus the fixed markers float-d01 (D-01),
++#     libtest-tdraw and forkstress.  These are fixed because no
++#     tiers/tier1-cmds.txt entry names them: float-d01 is a canary
++#     check, libtest-tdraw a libtest binary, and forkstress (20-03, the
++#     WINDOWS #49 pin) a build/aarch64 fixture baked only into the r9
++#     image.  Listing forkstress here makes a missing T1-OK forkstress
++#     red the post-pass.  The SKIP set is extracted VERBATIM from
+ #     tier1-sweep.rc's r9-venue SKIP lines (the file is the source of
+ #     truth). ---
+ T1_SKIP=$("$GREP" -oE '(^|[[:space:]])echo T1-SKIP [A-Za-z0-9.-]+' "$HARVEY/build/aarch64/tier1-sweep.rc" \
+@@ -202,7 +207,7 @@ for m in $T1_OK_ALL; do
+ 	*) T1_OK="$T1_OK $m" ;;
+ 	esac
+ done
+-R9_EXPECT_OK="$T1_OK float-d01 libtest-tdraw"
++R9_EXPECT_OK="$T1_OK float-d01 libtest-tdraw forkstress"
+ R9_EXPECT_SKIP="$T1_SKIP"
+ export R9_EXPECT_OK R9_EXPECT_SKIP
+ echo "== expected on r9: $(echo "$R9_EXPECT_OK" | wc -w | tr -d ' ') T1-OK markers + $(echo "$R9_EXPECT_SKIP" | wc -w | tr -d ' ') T1-SKIP markers (computed)"

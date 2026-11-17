@@ -238,3 +238,47 @@ SERIES boot-r9-tier1 accel=hvf runs=12 pass=12 fail=0 pushword=0 forks=1512
 - **Before:** 11 fires in 995 forks, every one a pushword fire. That is still red, at about the rate in `## Root cause` (38 of 48 boots there, 11 of 12 here).
 - **Length the after-run needs:** take r_lo, the reproducer's own exact lower 95% bound. From this re-run alone (11/995), r_lo = 0.006212, and ln(0.05)/ln(1 - 0.006212) = 2.99573/0.006231 = 480.8, so 481 forks. From the 20-02 pool (38/3972), r_lo = 0.007173, which gives 418 forks. Because the reproducer is a gate, the length is `FORKS-TARGET` = 520, the strictest of the three.
 - **After:** 0 fires in 1512 forks, which is at least 520. A kernel still failing at r_lo = 0.006212 per fork would get through 1512 forks with no fire with probability (1 - 0.006212)^1512 = 8.1e-5.
+
+## Second defect (found by the forkstress pin, 20-03 Task 2)
+
+**Status: blocked on the owner.** The fix site is `port/src/`, which the 20-03 prohibitions forbid.
+
+The Task 2 work is uncommitted at the time of writing. It is saved as `20-03-task2-wip.patch` in this directory, and the three files were reverted to HEAD. The work has three parts:
+
+- forkstress encodes the 20-02 trigger: the parent rewrites all four arrays after `fork` and before `wait`.
+- A `T1-OK forkstress` / `T1-FAIL forkstress` entry is added inside `if(~ $venue r9){…}`, just before `T1-DONE`.
+- `forkstress` is added to the fixed names on the `R9_EXPECT_OK=` line in `nix/tier1-r9.sh`.
+
+With that work in place, the first tier-1 HVF gate against r9 `cb9cde3` (kernel `r9-kernel-virt-cb9cde3`) wedged after the stressor finished. The capture is kept as `.build/p20-03-tier1-cb9cde3-forkstress-wedge.log`.
+
+```
+forkstress: start 200 forks data=209b0 bss=313e0 heap=41b38 stack=7fffffffbf28
+...
+process 255 exited: ""
+proc: deallocate root table 0x48000000: NotAllocated
+proc: deallocate kstack page 0x48001000: NotAllocated      (x4, 0x48001000..0x48004000)
+process 256 exited: ""
+...
+forkstress: ok 200 forks
+process 131 exited: ""
+rc: can't create /env/status: namec: does not exist
+echo: namec: does not exist
+process 332 exited: "can't exec: namec: does not exist"
+...
+% wedgedbg: ~100s fully idle — dumping (pipe-RPC wedge shape)
+```
+
+The stressor itself passed with 0 mismatches. Then the shell's namespace stopped resolving anything (`/env`, `/bin/echo`), so `T1-OK forkstress` and `T1-DONE` never printed. The driver would have waited for the 600 s stage timeout, so the qemu process was killed by hand.
+
+**Cause: `BitmapPageAlloc::deallocate` clears the wrong bit** (`r9/port/src/bitmapalloc.rs:164`). It checks `bitmap.is_set(8 * byte_idx + bit_idx)` but clears `bitmap.set(bit_idx, false)`, which is bit `bit_idx` of the bitmap's byte 0. Two things follow:
+
+- **No freed page is ever freed.** Every page a proc frees at exec or exit stays marked as allocated, so allocation only ever grows within a boot.
+- **The first 8 pages of each 128 MiB bitmap get marked free by mistake.** Each `Bitmap<4096>` covers 32768 pages, or 128 MiB. Once the leak exhausts PA 0x40000000..0x47ffffff, the allocator moves into the bitmap that starts at PA 0x48000000. On qemu virt that is where the initrd is loaded (`initrd: start=0x48000000 end=0x48409bef`), and `main.rs` reserves it. The first free inside that bitmap clears bits for 0x48000000..0x48007000. Those initrd pages are then handed out as pid 256's root table and kstack, and paqfs's image gets overwritten. That is the `namec: does not exist` that follows. Freeing the same PAs later prints `NotAllocated`.
+
+The existing unit test (`bitmapalloc.rs` around line 399) frees only a page in byte 0, where `8 * 0 + bit == bit`, so it cannot see the bug. The x86_64 kernel uses the same `BitmapPageAlloc<32, PAGE_SIZE_4K>`, so the bug is cross-arch. There, the first 8 pages of PA 0 are the ones wrongly freed.
+
+Why nothing saw it before: one boot of the existing gates leaks less than the roughly 128 MiB minus the kernel that lies below the initrd. The 20-02 run of `forkstress -n 450` right after boot (about 60 pages per child) also stayed under that, and its driver never ran another command after the stressor. The tier-1 sweep's 126 forks plus 200 forkstress children cross it.
+
+**Confirmation (instrumented copy, not the r9 checkout):** I rsynced r9 at `cb9cde3` into `.build/r9-instr` (gitignored) and changed one line to `bitmap.set(8 * byte_idx + bit_idx, false);`. The diff is `.build/p20-03-bitmapalloc-fix.diff`. I passed the copy as `--override-input r9 path:…/.build/r9-instr`, which built kernel `r9-kernel-virt-wip`, and ran the same image with the Task 2 work applied. The tier-1 HVF gate printed `tier1-r9: ALL STAGES PASS` and `T1-OK forkstress`, with 0 `NotAllocated` lines and 328 reaped procs. The capture is `.build/p20-03-tier1-instr-dealloc-fix.log`. `/Users/neilskinner/code/r9` was not edited, and its tracked tree is clean.
+
+**What this blocks:** 20-03 Task 2, the pin. Its acceptance needs `T1-OK forkstress` on the wire. It also blocks Task 3's tier-1 series, which runs with the pin in place. The smoke and net-smoke gates fork too little per boot to reach the threshold.
