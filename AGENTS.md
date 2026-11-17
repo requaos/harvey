@@ -13,7 +13,7 @@ Harvey OS is a Plan 9 4th Edition derivative operating system (C, mk-based build
 - **Tech stack**: Plan 9 C dialect + mk (Harvey userspace); Rust no_std + cargo xtask (r9 kernel, sibling repo `../r9` — phases will work across both repos); host tools must build with plan9port (`$PLAN9/bin` LAST in PATH per BUILD_ON_UNIX)
 - **Host platforms**: darwin-aarch64 (primary dev machine) and linux aarch64/x86_64; Harvey namespace build requires Linux mount namespaces (lima VM on macOS); r9 builds anywhere cargo+qemu run
 - **Compatibility**: keep upstream Harvey/Plan 9 conventions (`sys/man/6/style`: tabs, lowercase, `nil`, `exits`/`sysfatal`); r9 follows its own rustfmt.toml
-- **Naming**: the 64-bit ARM architecture is `aarch64` (not `arm64`) in this project's tooling and docs
+- **Naming**: Harvey's 64-bit ARM objtype, cputype and arch dir are `arm64` (Plan 9 / 9front convention: `objtype=arm64`, `/arm64`, `sys/src/libc/arm64`; reversed from `aarch64` on 2026-11-17). `aarch64` stays correct only for host-side and external names: the `build/aarch64/` harness dir, `qemu-system-aarch64`, Rust target triples, nix system strings, hostbin dirs, and r9's own `aarch64` crate
 - **Upstream**: dormant; this repo is now the maintained fork — in-tree fixes are preferred over external patch stacks
 - **Licenses**: Harvey is MIT since 2021 (GPL only via ghostscript fonts); 9front imports are MIT — compatible
 
