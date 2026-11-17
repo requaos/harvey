@@ -4,17 +4,17 @@ milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
-status: completed
-stopped_at: Phase 19 complete — all phases complete
-last_updated: "2026-11-17T20:53:15.549Z"
+status: executing
+stopped_at: Completed 20-01-PLAN.md
+last_updated: "2026-11-17T21:21:31.467Z"
 last_activity: 2026-11-17
-last_activity_desc: Phase 19 complete
-state_head: bff34430893a090d80e634a5741f5035b6a032bc
+last_activity_desc: Completed 20-01-PLAN.md
+state_head: 3a2d3bc07e098a946451950716fd4b937b523fe5
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 58
+  completed_plans: 59
 ---
 
 # Project State
@@ -28,10 +28,10 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 ## Current Position
 
-Phase: 20 (arm64 catch-up to v2.1 parity) — READY TO EXECUTE
-Plan: Not started
-Status: All phases complete
-Last activity: 2026-11-17 - Completed quick task 261117-bz5: Rename Harvey objtype aarch64 back to arm64 (Plan 9 convention)
+Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
+Plan: 2 of 17
+Status: In progress — 20-01 complete (aarch64 note fix + user hooks, port suite green, gate fast-fail)
+Last activity: 2026-11-17 - Completed 20-01-PLAN.md
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 execution-complete pending verification; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
@@ -122,6 +122,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 19 P08 | 205 min continuation (5h30m across all three passes; 5 kernel fixes + the choreography x2) | 3 tasks | 16 files |
 | Phase 19 P09 | 24 min | 3 tasks | 11 files |
 | Phase 19 P10 | ~46h wall across three passes (2026-11-15 -> 2026-11-17; the linux-leg D-11 loop + owner acceptance + this records pass) | 3 tasks | 62 files |
+| Phase 20 P01 | 25min | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -297,6 +298,8 @@ Recent decisions affecting current work:
 - [Phase 19]: [19-10 close-out] DESK-07 linux graphical leg human-accepted 2026-11-16 (Neil Skinner; r9 0921a1bc; Row 1 signed in 19-EVIDENCE.md at d4f0eeae5, screenshot in place) after the phase's longest D-11 loop — ten fix layers, each live-verified by the owner before the next, six lock-only pin advances df4ad78 -> 0921a1b (0921a1b == pin == origin/main)
 - [Phase 19]: [19-10 close-out] DESK-07 darwin -G leg DEFERRED BY OWNER DECISION 2026-11-17 — verbatim intent: 'aarch64 cpu port, but just note it so that I can move back to the mac and perform the work natively on the aarch64 machine'; the owner declined the SSH-tunnel venue and a mac-local x86_64 TCG substitute; the aarch64 cpu port (DTB bootconf seam, auth-suite tiers, §15 mkimage contract, devssl #D registration, drawterm gate — all x86_64-only today) is phase-scale owner-performed future work; reopener: the aarch64 cpu port — the DESK-07 darwin -G row reopens against it
 - [Phase 19]: [19-10 close-out] DESK-07 closed ACCEPTED WITH RECORDED DEFERRAL per the owner resolutions (standing evidence: the signed linux Row 1 + INT-07's automated clean-checkout proof, GREEN both gates 2026-11-15; both darwin legs deferred with named reopeners — -G 2026-11-17 aarch64-port, graphical 2026-11-14 gui-cocoa); INT-07 complete; Phase 19 execution 10/10
+- [Phase 20]: 20-01: devenv_test rename fix covered two stale 10-byte literals (write count + stat length)
+- [Phase 20]: 20-01: all nine baseline counts (not registered / unknown device / unsupported this era x 3 gates) were 0, so every arm64 driver carries all three absence checks
 
 ### Pending Todos
 
@@ -336,6 +339,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-17
-Stopped at: Phase 19 complete — all phases complete
+Last session: 2026-11-17T21:21:30.342Z
+Stopped at: Completed 20-01-PLAN.md
 Resume file: None
