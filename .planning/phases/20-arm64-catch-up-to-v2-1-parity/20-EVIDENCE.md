@@ -295,3 +295,59 @@ PORT-SRC-EDIT: YES
 - **Suite:** `cargo test -p port --no-fail-fast` passed 232 with 0 failed. One earlier full run showed the new test failing because it used a stale test binary, left over from the red check: the file was restored within the same mtime tick. After `touch` it passed, and the full suite was re-run green. `cargo xtask check` exited 0. `rustfmt --check` on the file is clean. The virtshell kernel built (`VIRTSHELL-BUILD-OK`).
 - **Cross-arch:** x86_64 uses the same allocator, so the x86_64 kernel bytes change. **20-06 must redo the stale x86_64 boot-iso FOD**, and the Harvey push stays held for the owner's linux-host pass.
 - The Task 2 work was reapplied from `20-03-task2-wip.patch`, and the patch file was deleted.
+
+### The pin, after the fix
+
+The Harvey commit is `905c2ef9d`. With r9 `8958c9e`, the tier-1 HVF gate printed `tier1-r9: ALL STAGES PASS`, and the capture holds `T1-OK forkstress` once, with no `T1-FAIL forkstress` and no `NotAllocated`. The gate's computed set is now `38 T1-OK markers + 23 T1-SKIP markers`. That is the 20-01 computed set plus the one fixed name `forkstress`.
+
+To check that the pin bites, I changed the sweep entry (uncommitted) to `/bin/forkstress >/dev/null`, which prints no marker. The gate then failed:
+
+```
+tier1-r9: post-pass FAILED — missing T1-OK forkstress
+error: tier-1 r9 gate FAILED (the driver named the stage on stderr; ...)
+```
+
+The change was then reverted with `git checkout -- build/aarch64/tier1-sweep.rc`.
+
+## Post-fix series (local override)
+
+Plan 20-03 Task 3. r9 HEAD is `8958c9e` (the vm::switch isb `cb9cde3` plus the bitmapalloc fix `8958c9e`). Every series' `run-1.out` names kernel `r9-kernel-virt-8958c9e`. Harvey HEAD at the start was `fce2d744f`.
+
+The series ran from 2026-11-17T23:56:00Z to 2026-11-18T04:10:07Z, about 4 h 14 min, as one sequential block:
+
+```
+export R9_OVERRIDE=git+file:///Users/neilskinner/code/r9 R9_STOP_ON_FAIL=1
+R9_ACCEL=hvf sh build/aarch64/repeat-gate.sh boot-r9-tier1 10        # run 1 rebuilt the userland
+export R9_SKIP_BUILD=1
+R9_ACCEL=hvf sh build/aarch64/repeat-gate.sh boot-r9-net-smoke 36
+R9_ACCEL=tcg sh build/aarch64/repeat-gate.sh boot-r9-tier1 3
+R9_ACCEL=tcg sh build/aarch64/repeat-gate.sh boot-r9-net-smoke 3
+R9_ACCEL=tcg sh build/aarch64/repeat-gate.sh boot-r9-smoke 3
+R9_ACCEL=hvf sh build/aarch64/repeat-gate.sh boot-r9-smoke 1753
+```
+
+**N.** `N-SOURCE: lower-bound`. The N values are those on the `N-HVF` lines in `## N derivation`: smoke 1753, net-smoke 36 and tier-1 10. Each is at or above its floor (36, 36, 10). On the tier-1 restatement: 20-02 recorded `STRESSOR-RATE: not-fired`, so forkstress's forks do not count toward tier-1's forks per boot, and the `N-HVF boot-r9-tier1` line is unchanged. In this capture tier-1 makes 328 forks per boot, so the ordinary gate makes 328 - 200 = 128, against the recorded 126. 20-03 gave forkstress the 20-02 trigger, but its rate has not been re-measured, so the plan's rule keeps it at `not-fired`.
+
+`R9_STOP_ON_FAIL=1` was set, and no series stopped. No run failed, so none was restarted and no failure is left out.
+
+SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3280
+SERIES boot-r9-net-smoke accel=hvf runs=36 pass=36 fail=0 pushword=0 forks=2556
+SERIES boot-r9-smoke accel=hvf runs=1753 pass=1753 fail=0 pushword=0 forks=14024
+SERIES boot-r9-tier1 accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=984
+SERIES boot-r9-net-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=213
+SERIES boot-r9-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=24
+
+| Series | Directory (`.build/hvf-series/`) | Forks per run |
+|--------|----------------------------------|---------------|
+| tier-1 HVF ×10 | `boot-r9-tier1-hvf-20261117T185600` | 328, every run |
+| net-smoke HVF ×36 | `boot-r9-net-smoke-hvf-20261117T185733` | 71, every run |
+| smoke HVF ×1753 | `boot-r9-smoke-hvf-20261117T190805` | 8, every run (8.2 s mean; 1753 captures, 0 contain `pushword but no argv`) |
+| tier-1 TCG ×3 | `boot-r9-tier1-tcg-20261117T190622` | 328 |
+| net-smoke TCG ×3 | `boot-r9-net-smoke-tcg-20261117T190651` | 71 |
+| smoke TCG ×3 | `boot-r9-smoke-tcg-20261117T190739` | 8 |
+
+**HVF forks against FORKS-TARGET (520).** With forkstress excluded (`STRESSOR-RATE: not-fired`), tier-1 contributes 3280 - 10 × 200 = 1280, net-smoke 2556, and smoke 14024. The total is 1280 + 2556 + 14024 = **17860 forks with 0 fires**, which is at least 520. Counting the stressor's 2000 forks too gives 19860, but that figure is not used.
+
+A kernel still failing at P-LO = 0.00575157 per fork would get through 17860 forks clean with probability (1 - 0.00575157)^17860 = e^(-103.0), about 1e-45. The per-boot form for smoke, the one that set N = 1753, is passed by construction: 1753 clean boots at q_lo = 0.00170832 has probability 0.95^(1753/30) ≈ 0.05.
+
+D-01 and D-02 are met at the local r9 HEAD. The pinned re-run belongs to 20-06.
