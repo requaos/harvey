@@ -65,7 +65,6 @@ cmd/grep				# dir; yacc-driven (grep.y) — the mkmany/link-only class
 cmd/cat
 cmd/date
 cmd/echo
-cmd/bind				# k10t1 embeds /amd64/bin/bind and build-9k10t1.sh requires it; missing here, so clean-checkout CI never built it (20-06)
 cmd/ls
 cmd/ps
 cmd/sed
