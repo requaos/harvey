@@ -381,6 +381,18 @@ jobs:
             tail -30 "$log" || true
             exit 1
           fi
+      - name: tier-0/1/2 build (the k10t1 embed's services + bind members)
+        # build-9k10t1.sh embeds the tier-2-built services binaries
+        # (listen, ...; 15-02) and the bare-name bind that subset-build
+        # installs outside the tier data (14-08), and refuses to run
+        # without them.  Same invocation as the tier-2 job; its marker
+        # parity stays that job's gate.
+        run: |
+          nix develop -c sh build/x86_64/subset-build.sh 2>&1 | tee .build/tier-9k-subset-build.log || {
+            rc=$?
+            { echo "## ❌ tier-0/1/2 build for the k10t1 embed failed (rc=$rc)"; echo '```'; tail -60 .build/subset-build-x64.log 2>/dev/null || tail -60 .build/tier-9k-subset-build.log; echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+            exit $rc
+          }
       - name: build the k10t1 venue kernel
         # The script self-asserts its products and prints the embedded-
         # file count (43); on failure its tail lands in the step
@@ -414,6 +426,10 @@ jobs:
             .build/tier-9k-serial.log
             .build/tier-9k-result.txt
             .build/tier-9k-build.log
+            .build/tier-9k-subset-build.log
+            .build/subset-build-x64.log
+            .build/tier-9k-kernel-build.log
+            .build/tier-9k-sweep.log
           if-no-files-found: warn
 
   x86_64-poolpanic:
