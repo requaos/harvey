@@ -548,3 +548,33 @@ KERNEL-BYTES: differ (non-deterministic build; source diff x86_64 FOD hash only)
 These partial lines are not acceptance series and are not written as `SERIES` lines at the start of a line, so the 5f3ddb0 lines above remain the ones the plan's verify reads.
 
 SERIES-AT-FF2B632: owner-waived — re-run stopped (partial: tier1 done, net-smoke interrupted); the 5f3ddb0 series stands, since ff2b632's source diff is the x86_64 boot-iso outputHash line only; kernel-virt non-determinism deferred (see deferred-items.md)
+
+### Third pin: ff2b632 -> 2226cc4 (reproducible kernel bytes)
+
+**The non-determinism is resolved.** The owner approved and pushed r9 `2226cc4f316555b13d5a79b57a2e97a51e92557b`, `fix(xtask): remap build paths for reproducible kernel bytes` (`ff2b632..2226cc4`, `xtask/src/config.rs` +20). In `apply_to_build_step` it adds `--remap-path-prefix` (`NIX_BUILD_TOP` → `/build`, the workspace → `/r9`) through `build.rustflags`. The owner reports:
+
+- On darwin: `nix build .#kernel-virt --rebuild` reports no difference, no sandbox path is left in the ELF, `cargo xtask check`/`clippy`/`test` are green, and TCG `boot-r9-smoke` printed ALL STAGES PASS.
+- On the linux x86_64 host at `2226cc4`: `nix build .#boot-iso --rebuild` passes with no warning. The existing `outputHash` (`sha256-rl+HA3…`) still holds, so no FOD re-wire commit was needed. `2226cc4` is the final r9 sha for group A.
+
+The `5f3ddb0` series cannot stand in, because the kernel bytes really changed (the remap rewrites the strings in `.rodata`). So the full series runs again on this kernel.
+
+Harvey `adcd47cd3` `chore(20-06): advance the r9 pin ff2b632 -> 2226cc4 lock-only (...)`. `nix flake update r9` changed only the r9 node's `lastModified`, `narHash` and `rev`. The commit's file list is exactly `flake.lock`, and the locked rev equals r9 `origin/main`.
+
+PIN: r9 2226cc4f316555b13d5a79b57a2e97a51e92557b (Harvey adcd47cd3)
+
+**Kernel identity at this pin** (`nix build github:requaos/r9/2226cc4f316555b13d5a79b57a2e97a51e92557b#kernel-virt`, aarch64-darwin). This is the reference for checking later aarch64-neutral pin changes by byte comparison:
+
+| Item | Value |
+|------|-------|
+| Derivation | `/nix/store/cly25vwyc5x8c5ahfw7s0lg5ddfxwdg3-r9-kernel-virt-2226cc4.drv` |
+| Output | `/nix/store/9hm0inncpdr3yxjxwcd4gp8l2zq78sw9-r9-kernel-virt-2226cc4` |
+| Output narHash | `sha256-U6FHG2yBot0lacdyjYUf/rDz8Dz/uTe1mmDKxikixys=` (narSize 60534544) |
+| `kernel-virt.elf` sha256 | `d35373047a0f47eeb988d0fa1332e321175423df6631a4d18b8fd0b3484b722d` (60517872 bytes) |
+| Loaded image sha256 (`llvm-objcopy -O binary`) | `24c8213b1276cf3a8536b6ac4de79c30493c8af400f2d3d6fe7aebbc42298fe2` (41029632 bytes) |
+| `aarch64/lib/virt-gicv2.dtb` sha256 | `af2aa3fa0a6abd4d096842792d16562ca2b75baa745774ceb1cc7b687297134f` (unchanged since 5f3ddb0) |
+| `aarch64/lib/virt-gicv3.dtb` sha256 | `d96aae6b9bdf420ccff1f7af6e24a95464d1928f1c0a63f8be31dee34b6b47c6` (unchanged since 5f3ddb0) |
+
+- Checked here: two `nix build --rebuild` runs of this derivation exited 0 with no `may not be deterministic` message. `grep -a -c /nix/var/nix/builds` on the ELF prints 0, and the vendored crate paths read `/build/cargo-vendor-dir/…` (204 occurrences).
+- How to check a later pin: build `kernel-virt` at the new rev and compare the ELF sha256 above. If the ELF sha256 is equal, the kernel is the one this series ran, and an aarch64 re-run is not needed.
+
+KERNEL-VIRT-SHA256 2226cc4: d35373047a0f47eeb988d0fa1332e321175423df6631a4d18b8fd0b3484b722d
