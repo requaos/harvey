@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
-stopped_at: Completed 20-03-PLAN.md
-last_updated: "2026-11-18T11:40:13.769Z"
+stopped_at: Completed 20-04-PLAN.md
+last_updated: "2026-11-18T11:52:52.460Z"
 last_activity: 2026-11-17
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: 4e856d439d3a7adf5791d4d2c63ccf86ad5fd82a
+state_head: d8b8efbfe80c1689d20f7a75203d7df29bd6da17
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 61
+  completed_plans: 62
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
-Plan: 4 of 17
+Plan: 5 of 17
 Status: In progress — 20-01, 20-02 complete (HVF fork-child root cause: missing isb after TTBR0 write; owner chose aarch64-fix, lower-bound N kept)
 Last activity: 2026-11-17 - Completed 20-01-PLAN.md
 
@@ -124,6 +124,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 19 P10 | ~46h wall across three passes (2026-11-15 -> 2026-11-17; the linux-leg D-11 loop + owner acceptance + this records pass) | 3 tasks | 62 files |
 | Phase 20 P01 | 25min | 3 tasks | 6 files |
 | Phase 20 P03 | 12h18m | 3 tasks | 6 files |
+| Phase 20 P04 | 12min | 3 tasks | 3 files |
 
 ## Accumulated Context
 
@@ -304,6 +305,8 @@ Recent decisions affecting current work:
 - [Phase 20]: 20-03: WINDOWS #49 fixed in r9 aarch64 vm::switch (isb after TTBR0/TTBR1 write, r9 cb9cde3)
 - [Phase 20]: 20-03: owner-approved PORT-SRC-EDIT — bitmapalloc deallocate cleared the wrong bit (leak + initrd pages handed out), r9 8958c9e; 20-06 redoes the x86_64 boot-iso FOD
 - [Phase 20]: 20-03: forkstress (parent-mutation trigger) is a required r9 tier-1 marker; post-fix HVF series green at r9 8958c9e (smoke 1753, net-smoke 36, tier-1 10)
+- [Phase 20]: 20-04: virtshell has no cargo xtask boot-test profile by design; it is observed via Harvey's composed smoke (boot-r9-smoke TCG green at r9 5f3ddb0)
+- [Phase 20]: 20-04: no virtnotes re-key needed; nine named aarch64 boot-test profiles pass under TCG at r9 5f3ddb0
 
 ### Pending Todos
 
@@ -343,6 +346,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-18T11:40:12.767Z
-Stopped at: Completed 20-03-PLAN.md
+Last session: 2026-11-18T11:52:51.333Z
+Stopped at: Completed 20-04-PLAN.md
 Resume file: None
