@@ -536,3 +536,15 @@ PIN: r9 ff2b632f6d89e84e9d690aa3a75a7c31a0cb95cf (Harvey 38ec00ad7)
 - **Conclusion: the bytes differ.** The source of the difference is the build, not the r9 diff. The r9 source diff touches only the x86_64 `boot-iso` `outputHash` line, which no aarch64 code reads. Even so, no byte comparison can show that the ff2b632 kernel is the kernel the series ran. Under the orchestrator's rule, the at-pin series is re-run on the `ff2b632` kernel.
 
 KERNEL-BYTES: differ (non-deterministic build; source diff x86_64 FOD hash only) — series re-run at ff2b632
+
+**Re-run stopped by the owner.** The re-run started at 2026-11-18T18:11:05Z (Harvey `5661ee6e3`, the same driver block, `R9_OVERRIDE` unset). The owner then decided to stop it, and the orchestrator killed the series script, `repeat-gate.sh`, expect and qemu. It was not restarted. The block exited 143. Partial results, every capture naming `r9-kernel-virt-ff2b632`:
+
+| Series | Directory (`.build/hvf-series/`) | Completed | Result | `pushword but no argv` captures | `not registered` lines |
+|--------|----------------------------------|-----------|--------|---------------------------------|------------------------|
+| tier-1 HVF ×10 | `boot-r9-tier1-hvf-20261118T131105` | 10 of 10 | `SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3280` | 0 | 0 |
+| net-smoke HVF ×36 | `boot-r9-net-smoke-hvf-20261118T131243` | 12 of 36 (run 13 killed mid-boot, no SERIES line) | runs 1-12 `rc=0 pushword=0 forks=71` | 0 | 0 |
+| TCG ×3 each, smoke HVF ×1753 | — | not started | — | — | — |
+
+These partial lines are not acceptance series and are not written as `SERIES` lines at the start of a line, so the 5f3ddb0 lines above remain the ones the plan's verify reads.
+
+SERIES-AT-FF2B632: owner-waived — re-run stopped (partial: tier1 done, net-smoke interrupted); the 5f3ddb0 series stands, since ff2b632's source diff is the x86_64 boot-iso outputHash line only; kernel-virt non-determinism deferred (see deferred-items.md)
