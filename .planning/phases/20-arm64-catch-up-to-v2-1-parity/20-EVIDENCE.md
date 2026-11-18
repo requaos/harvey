@@ -446,3 +446,9 @@ The plan's verify line printed `R9-BATTERY-GREEN`.
 ```
 
 **PORT/SRC IS NOT EMPTY: THE x86_64 KERNEL BYTES CHANGE (r9 `8958c9e`, owner-approved, `PORT-SRC-EDIT: YES` above). THE x86_64 `boot-iso` FOD IS PRESUMED STALE. HARVEY `master` IS NOT PUSHED UNTIL THE OWNER'S LINUX-HOST `nix build .#boot-iso` PASS IN TASK 3.**
+
+### r9 push
+
+The owner approved the push at the 20-06 Task 1 checkpoint ("approve r9 push"), accepting that the `boot-iso` FOD is stale on r9 main until the linux-host re-wire. `git -C /Users/neilskinner/code/r9 push origin main` (no force) printed `46364d0..5f3ddb0  main -> main`. After `git fetch origin`, `origin/main` equals `HEAD`, and the plan's verify printed `PUSHED-CLEAN`.
+
+R9-PUSHED: 5f3ddb0e77176d6f8994c8c69a373d054679496d
