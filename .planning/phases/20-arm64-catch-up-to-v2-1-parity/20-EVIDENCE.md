@@ -452,3 +452,54 @@ The plan's verify line printed `R9-BATTERY-GREEN`.
 The owner approved the push at the 20-06 Task 1 checkpoint ("approve r9 push"), accepting that the `boot-iso` FOD is stale on r9 main until the linux-host re-wire. `git -C /Users/neilskinner/code/r9 push origin main` (no force) printed `46364d0..5f3ddb0  main -> main`. After `git fetch origin`, `origin/main` equals `HEAD`, and the plan's verify printed `PUSHED-CLEAN`.
 
 R9-PUSHED: 5f3ddb0e77176d6f8994c8c69a373d054679496d
+
+### The pin
+
+Harvey `980f09c4e` `chore(20-06): advance the r9 pin 8e4e730 -> 5f3ddb0 lock-only (...)`. Running `nix flake update r9` changed only the r9 node's `lastModified`, `narHash` and `rev` (6 changed lines, the same shape as the `4a4f463e1` precedent). The locked rev `5f3ddb0e77176d6f8994c8c69a373d054679496d` equals r9 `origin/main`. `git show --name-only` on the pin commit prints exactly `flake.lock`.
+
+PIN: r9 5f3ddb0e77176d6f8994c8c69a373d054679496d (Harvey 980f09c4e)
+
+### Series at the pin (no override)
+
+The block ran from 2026-11-18T12:52:28Z to 17:04:31Z (about 4 h 12 min), with `R9_OVERRIDE` unset and `R9_STOP_ON_FAIL=1`. Run 1 of tier-1 HVF rebuilt the userland at the pin, and every later series set `R9_SKIP_BUILD=1`. The driver was the 20-03 block, without the `R9_OVERRIDE` export:
+
+```
+unset R9_OVERRIDE; export R9_STOP_ON_FAIL=1
+R9_ACCEL=hvf sh build/aarch64/repeat-gate.sh boot-r9-tier1 10
+export R9_SKIP_BUILD=1
+R9_ACCEL=hvf sh build/aarch64/repeat-gate.sh boot-r9-net-smoke 36
+R9_ACCEL=tcg sh build/aarch64/repeat-gate.sh boot-r9-tier1 3
+R9_ACCEL=tcg sh build/aarch64/repeat-gate.sh boot-r9-net-smoke 3
+R9_ACCEL=tcg sh build/aarch64/repeat-gate.sh boot-r9-smoke 3
+R9_ACCEL=hvf sh build/aarch64/repeat-gate.sh boot-r9-smoke 1753
+```
+
+**N.** The N values come from the `N-HVF` lines in `## N derivation`, unchanged and not recomputed: smoke 1753, net-smoke 36 and tier-1 10. These are the same values 20-03 used, and each is at or above its floor (36, 36, 10). No run failed, so no series was broken and nothing needed classifying.
+
+SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3280
+SERIES boot-r9-net-smoke accel=hvf runs=36 pass=36 fail=0 pushword=0 forks=2556
+SERIES boot-r9-smoke accel=hvf runs=1753 pass=1753 fail=0 pushword=0 forks=14024
+SERIES boot-r9-tier1 accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=984
+SERIES boot-r9-net-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=213
+SERIES boot-r9-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=24
+
+| Series | Directory (`.build/hvf-series/`) | Kernel named in every `run-*.out` | `--override-input` in any `run-*.out` | Captures with `pushword but no argv` | `not registered` lines (expected 0) | Forks per run |
+|--------|----------------------------------|-----------------------------------|---------------------------------------|--------------------------------------|-------------------------------------|---------------|
+| tier-1 HVF ×10 | `boot-r9-tier1-hvf-20261118T075228` | `r9-kernel-virt-5f3ddb0` | 0 | 0 | 0 | 328 (`T1-OK forkstress` once in every capture; 0 `NotAllocated`) |
+| net-smoke HVF ×36 | `boot-r9-net-smoke-hvf-20261118T075410` | `r9-kernel-virt-5f3ddb0` | 0 | 0 | 0 | 71 |
+| smoke HVF ×1753 | `boot-r9-smoke-hvf-20261118T080440` | `r9-kernel-virt-5f3ddb0` | 0 | 0 | 0 | 8 (8.1 s mean) |
+| tier-1 TCG ×3 | `boot-r9-tier1-tcg-20261118T080300` | `r9-kernel-virt-5f3ddb0` | 0 | 0 | 0 | 328 |
+| net-smoke TCG ×3 | `boot-r9-net-smoke-tcg-20261118T080328` | `r9-kernel-virt-5f3ddb0` | 0 | 0 | 0 | 71 |
+| smoke TCG ×3 | `boot-r9-smoke-tcg-20261118T080416` | `r9-kernel-virt-5f3ddb0` | 0 | 0 | 0 | 8 |
+
+(The directory stamps are local time, -0500.)
+
+**HVF forks against FORKS-TARGET (520).** Forkstress is excluded (`STRESSOR-RATE: not-fired`). Tier-1 contributes 3280 - 10 × 200 = 1280, net-smoke 2556 and smoke 14024, so the total is **17860 forks with 0 fires**, at least 520. That is the same count as the 20-03 local-override series, now made at the pushed pin. A kernel still failing at P-LO per fork would come through that with probability about e^(-103).
+
+D-01 and D-02 are met at the pin.
+
+### Harvey push
+
+20-03's `PORT-SRC-EDIT: YES` and the non-empty `port/src` diff stat above both flag a `port/src/` edit. So Harvey `master` is not pushed here. It waits for the owner's linux-host `nix build .#boot-iso` pass and the FOD re-wire (Task 3). After the owner reports that, the push gets its own checkpoint.
+
+HARVEY-PUSH: pending-fod

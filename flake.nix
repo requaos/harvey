@@ -165,9 +165,11 @@
           # qemu-system-x86_64 -M q35 -accel kvm -cdrom — NO DTB patch,
           # NO -device loader anywhere (the aarch64 delivery is
           # deliberately not carried: GRUB delivers bootfs as an mb2
-          # tag-3 module off the same ISO).  The aarch64 app names and
-          # bodies stay byte-untouched (frozen-at-pin; Phase 19's INT-05
-          # owns any ONE-command consolidation).
+          # tag-3 module off the same ISO).  The aarch64 apps are their
+          # own leg: frozen at the v2.0 pin through v2.1, active again
+          # since phase 20 (the arm64 catch-up); this x64 app does not
+          # share their bodies (Phase 19's INT-05 owns any ONE-command
+          # consolidation).
           # dtc is NOT carried: nothing in the x64 pipeline touches a
           # DTB; git stays (the KERNDATE provenance step).
           bootR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-x64" ./nix/boot-r9-x64.sh ''
@@ -240,8 +242,9 @@
           # tcp/7 echo leg, the NET-SMOKE completion marker, and the
           # whole-capture post-passes).  Green TWICE consecutively with
           # both captures retained is XEXEC-05's proof.  The aarch64
-          # netSmokeR9Pkg stays byte-untouched (frozen at the v2.0
-          # pin); smokeR9X64Pkg's shape verbatim.
+          # netSmokeR9Pkg is a separate leg (frozen at the v2.0 pin
+          # through v2.1, active again since phase 20); this app keeps
+          # smokeR9X64Pkg's shape verbatim.
           # 16-06 (HNET-01/D-02/D-05): the gate re-keys its qemu spawn
           # onto the emitter's slirp argv — this app exports
           # R9_NETDEV_EMITTER (the 16-04 boot app's idiom; the attr
