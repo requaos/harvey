@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
-stopped_at: Completed 20-04-PLAN.md
-last_updated: "2026-11-18T11:52:52.460Z"
+stopped_at: Completed 20-05-PLAN.md
+last_updated: "2026-11-18T12:33:54.589Z"
 last_activity: 2026-11-17
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: d8b8efbfe80c1689d20f7a75203d7df29bd6da17
+state_head: 8781e101c38754475ec4fcb3a8ae96fc312548c5
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 62
+  completed_plans: 63
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
-Plan: 5 of 17
+Plan: 6 of 17
 Status: In progress — 20-01, 20-02 complete (HVF fork-child root cause: missing isb after TTBR0 write; owner chose aarch64-fix, lower-bound N kept)
 Last activity: 2026-11-17 - Completed 20-01-PLAN.md
 
@@ -125,6 +125,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 20 P01 | 25min | 3 tasks | 6 files |
 | Phase 20 P03 | 12h18m | 3 tasks | 6 files |
 | Phase 20 P04 | 12min | 3 tasks | 3 files |
+| Phase 20 P05 | 27 min | 2 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -307,6 +308,9 @@ Recent decisions affecting current work:
 - [Phase 20]: 20-03: forkstress (parent-mutation trigger) is a required r9 tier-1 marker; post-fix HVF series green at r9 8958c9e (smoke 1753, net-smoke 36, tier-1 10)
 - [Phase 20]: 20-04: virtshell has no cargo xtask boot-test profile by design; it is observed via Harvey's composed smoke (boot-r9-smoke TCG green at r9 5f3ddb0)
 - [Phase 20]: 20-04: no virtnotes re-key needed; nine named aarch64 boot-test profiles pass under TCG at r9 5f3ddb0
+- [Phase 20]: 20-05: D-06 is Branch A. The boot-chain trace fversion miss was the distiller keeping only the first tagged record per console line (glued fragments). trace.rs frag_records splits at every tag; REQUIRED_BC unchanged; 3 consecutive green fixed-harness runs
+- [Phase 20]: 20-05: donor-vm-build.sh is a documented prerequisite of the donor gates (stale guest 7c symptom: 7c: No such file or directory: u.h); donor venue green post-rename
+- [Phase 20]: 20-05: trace-boot.rc sweep-stage launch race (1 of 6 runs; child finishes before echo stop, harness hangs to 1800 s) deferred to the owner in deferred-items.md
 
 ### Pending Todos
 
@@ -346,6 +350,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-18T11:52:51.333Z
-Stopped at: Completed 20-04-PLAN.md
+Last session: 2026-11-18T12:33:53.592Z
+Stopped at: Completed 20-05-PLAN.md
 Resume file: None

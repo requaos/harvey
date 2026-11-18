@@ -337,7 +337,7 @@ Plans:
 **Carried in from quick 261117-bz5 (unrun there):** the donor-venue gates (`build/aarch64/subset-exec.sh` merged /arm64 staging; `build/aarch64/trace-boot.rc` `bind /boot/ourinit /arm64/init`) and r9 `cargo test -p port` on nightly-2026-01-30.
 **Requirements**: ARM-01, ARM-02, ARM-03, ARM-04, ARM-05, ARM-06, ARM-07, ARM-08, ARM-09, ARM-10, ARM-11, ARM-12
 **Depends on:** Phase 19
-**Plans:** 4/17 plans executed
+**Plans:** 5/17 plans executed
 
 Plans (strictly sequential, one wave each — the plans share the one r9 checkout and the HVF timing series must not run under other load):
 
@@ -346,7 +346,7 @@ Plans (strictly sequential, one wave each — the plans share the one r9 checkou
 - [x] 20-02-PLAN.md — repeat harness, pre-fix per-fork rate and N derivation from its lower 95% bound, forkstress reproducer committed and baked into the image, root-cause the HVF fork-child defect; owner checkpoint on the fix route (ARM-03)
 - [x] 20-03-PLAN.md — fix the fork-child defect, pin it with forkstress, post-fix N series on HVF + TCG control (ARM-03)
 - [x] 20-04-PLAN.md — r9 guards: aarch64 virtshell CI lane, port integration tests under xtask test, darwin devShell, dev_exec boot-test profiles re-greened (ARM-01)
-- [ ] 20-05-PLAN.md — donor re-provision + donor tier-1 gate; boot-chain trace fversion diagnosis (ARM-04)
+- [x] 20-05-PLAN.md — donor re-provision + donor tier-1 gate; boot-chain trace fversion diagnosis (ARM-04)
 - [ ] 20-06-PLAN.md — group A close: push r9, lock-only pin, HVF series at the pin, records, push Harvey; owner CI + boot-iso checkpoint (ARM-03, ARM-05)
 
 *Group B — syscall-path parity*
