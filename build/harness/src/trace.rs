@@ -158,6 +158,37 @@ pub const PHASE4_SET: &[&str] = &[
 ];
 pub const REQUIRED_BC: &[&str] = &["bind", "pipe", "fversion", "mount", "dup"];
 
+/// Split one serial line into its tagged fragment records:
+/// (pid, content, offset of the tag in the line). Each record runs from
+/// the end of its `__GSD_FRAG_<pid>__` tag to the start of the next tag
+/// on the same line, or to the end of the line.
+///
+/// One line can carry several records. The per-pid fragprint procs
+/// write to the shared console concurrently, and a record that lacks a
+/// trailing newline gets the next proc's record appended to it, e.g.
+/// `__GSD_FRAG_1259__ = 0 "" … 33801611008__GSD_FRAG_234__234 ourboot
+/// Fversion …` (20-05, D-06). A regex that took everything after the
+/// first tag as one record dropped the second one: here the only
+/// Fversion of the run, so the REQUIRED_BC assert failed.
+pub fn frag_records<'a>(
+    tag_re: &crate::regex::Regex,
+    line: &'a [u8],
+) -> Vec<(u32, &'a [u8], usize)> {
+    let mut tags: Vec<(u32, usize, usize)> = Vec::new();
+    let mut at = 0usize;
+    while let Some(m) = tag_re.find_at(line, at) {
+        let pid: u32 = m.group_str(1, line).unwrap_or("0").parse().unwrap_or(0);
+        tags.push((pid, m.span.start, m.span.end));
+        at = m.span.end;
+    }
+    let mut out = Vec::with_capacity(tags.len());
+    for (k, &(pid, start, end)) in tags.iter().enumerate() {
+        let stop = tags.get(k + 1).map(|t| t.1).unwrap_or(line.len());
+        out.push((pid, &line[end..stop], start));
+    }
+    out
+}
+
 /// Parse the boot-chain trace region (from the chain-launch command echo to
 /// the final __GSD_ALL_DONE__ marker).
 pub fn parse_chain_region(
@@ -166,7 +197,7 @@ pub fn parse_chain_region(
 ) -> Result<ChainData, String> {
     let arm_re = crate::regex::Regex::new("__GSD_ARM_(boot|paqfs|srv|rc)_(\\d+)__").unwrap();
     let sweep_re = crate::regex::Regex::new("__GSD_SWEEP_(BEGIN|DONE)_(\\w+)__").unwrap();
-    let frag_re = crate::regex::Regex::new("__GSD_FRAG_(\\d+)__(.*)").unwrap();
+    let frag_re = crate::regex::Regex::new("__GSD_FRAG_(\\d+)__").unwrap();
     let entry2_re = entry_re();
 
     let mut data = ChainData::default();
@@ -199,60 +230,58 @@ pub fn parse_chain_region(
     let mut unknown: Vec<String> = Vec::new();
     let mut pos = 0usize;
     for raw in region.split(|&b| b == b'\n') {
-        let idx = pos;
+        let line_at = pos;
         pos += raw.len() + 1;
-        let Some(fm) = frag_re.find(raw) else {
-            continue;
-        };
-        let pid: u32 = fm.group_str(1, raw).unwrap_or("0").parse().unwrap_or(0);
-        let content_b = fm.group(2, raw).unwrap_or(b"");
-        let content = String::from_utf8_lossy(content_b).trim().to_string();
-        if content.starts_with('=') {
-            continue; // return fragment
-        }
-        let Some(m) = entry2_re.find(content.as_bytes()) else {
-            if content.contains(" = ") {
-                // return fragment whose print starts with the data dump
-                // (sysretfmt prints PREAD's buffer etc. before " = <ret>")
+        for (pid, content_b, seg_at) in frag_records(&frag_re, raw) {
+            let idx = line_at + seg_at;
+            let content = String::from_utf8_lossy(content_b).trim().to_string();
+            if content.starts_with('=') {
+                continue; // return fragment
+            }
+            let Some(m) = entry2_re.find(content.as_bytes()) else {
+                if content.contains(" = ") {
+                    // return fragment whose print starts with the data dump
+                    // (sysretfmt prints PREAD's buffer etc. before " = <ret>")
+                    continue;
+                }
+                data.malformed += 1;
+                continue;
+            };
+            if m.group_str(1, content.as_bytes()).unwrap_or("0").parse::<u32>() != Ok(pid) {
+                data.malformed += 1;
+                continue; // glued/partial line — tag and fragment disagree
+            }
+            let name = m.group_str(3, content.as_bytes()).unwrap_or("");
+            if name == "huh?" {
+                unknown.push(content.clone());
                 continue;
             }
-            data.malformed += 1;
-            continue;
-        };
-        if m.group_str(1, content.as_bytes()).unwrap_or("0").parse::<u32>() != Ok(pid) {
-            data.malformed += 1;
-            continue; // glued/partial line — tag and fragment disagree
-        }
-        let name = m.group_str(3, content.as_bytes()).unwrap_or("");
-        if name == "huh?" {
-            unknown.push(content.clone());
-            continue;
-        }
-        let Some((number, sysh_name)) = resolve(defines, &name.to_lowercase()) else {
-            return Err(format!(
-                "unknown syscall name: {} (no matching #define in sys.h)",
-                name
-            ));
-        };
-        *data.counts.entry(sysh_name.clone()).or_insert(0) += 1;
-        data.numbers.insert(sysh_name.clone(), number);
-        let role = match data.roles.get(&pid) {
-            Some(r) => r.clone(),
-            None => {
-                // sweep binaries: attribute by bracket position in the region
-                let mut role = None;
-                for (bname, bs, be) in &brackets {
-                    if *bs <= idx && idx <= *be {
-                        role = Some(format!("sweep:{}", bname));
-                        break;
+            let Some((number, sysh_name)) = resolve(defines, &name.to_lowercase()) else {
+                return Err(format!(
+                    "unknown syscall name: {} (no matching #define in sys.h)",
+                    name
+                ));
+            };
+            *data.counts.entry(sysh_name.clone()).or_insert(0) += 1;
+            data.numbers.insert(sysh_name.clone(), number);
+            let role = match data.roles.get(&pid) {
+                Some(r) => r.clone(),
+                None => {
+                    // sweep binaries: attribute by bracket position in the region
+                    let mut role = None;
+                    for (bname, bs, be) in &brackets {
+                        if *bs <= idx && idx <= *be {
+                            role = Some(format!("sweep:{}", bname));
+                            break;
+                        }
                     }
+                    role.unwrap_or_else(|| format!("pid {}", pid))
                 }
-                role.unwrap_or_else(|| format!("pid {}", pid))
+            };
+            *data.per_role.entry(role.clone()).or_insert(0) += 1;
+            if role == "boot" {
+                data.boot_stream.push(sysh_name);
             }
-        };
-        *data.per_role.entry(role.clone()).or_insert(0) += 1;
-        if role == "boot" {
-            data.boot_stream.push(sysh_name);
         }
     }
 
@@ -446,12 +475,12 @@ use std::time::{Duration, Instant};
 
 const USAGE: &str = "usage: harness trace-syscalls [--boot-chain|--tier1]\n\
 \n\
-\x20 (default)     the 04-01 hello-path trace → 04-01-d14-trace.txt\n\
+\x20 (default)     the 04-01 hello-path trace → .build/trace/hello-trace.txt\n\
 \x20 --boot-chain  the 05-03 real-chain trace (boot/init/paqfs/rc + sweep)\n\
-\x20               → 05-03-trace.txt\n\
+\x20               → .build/trace/bootchain-trace.txt\n\
 \x20 --tier1       the 06-07 measure-first tier-1 sweep trace (the sweep\n\
-\x20               sourced under the born-traced arming) → the phase dir's\n\
-\x20               evidence/06-07-trace.txt\n\
+\x20               sourced under the born-traced arming)\n\
+\x20               → .build/trace/tier1-trace.txt\n\
 \n\
 Env overrides: HARVEY, HARVEY_VM, BOOT_BUDGET, SRV9_PORT, TRACE_OUT,\n\
 \x20 R9_SYSCALL_RS (the r9 dispatch-table source for the delta section).\n";
@@ -508,12 +537,13 @@ fn cfg() -> Cfg {
         Ok(v) if !v.is_empty() => PathBuf::from(v),
         _ => std::env::current_exe().unwrap_or_else(|_| PathBuf::from("harness")),
     };
-    let artifact_default = harvey.join(".planning/phases/04-r9-userspace-exec-harvey-r9-abi/04-01-d14-trace.txt");
-    let artifact_bc_default =
-        harvey.join(".planning/phases/05-shell-boot-one-command-integration/05-03-trace.txt");
-    let artifact_t1_default = harvey.join(
-        ".planning/phases/06-full-tree-userspace-wave-0-libraries-core-tiers/evidence/06-07-trace.txt",
-    );
+    // Defaults live in the gitignored .build/trace/. The original
+    // defaults were the phase 04/05/06 evidence paths; those phases are
+    // archived under .planning/milestones/, so a run without TRACE_OUT
+    // would have created a stray file under .planning/phases/ (20-05).
+    let artifact_default = harvey.join(".build/trace/hello-trace.txt");
+    let artifact_bc_default = harvey.join(".build/trace/bootchain-trace.txt");
+    let artifact_t1_default = harvey.join(".build/trace/tier1-trace.txt");
     // TRACE_OUT: additive override (gate e uses it to avoid clobbering the
     // committed evidence); applies to whichever mode runs
     let (artifact, artifact_bc, artifact_t1) = match std::env::var("TRACE_OUT") {
@@ -560,6 +590,15 @@ fn cfg() -> Cfg {
         ssh_cfg,
         harness_bin,
     }
+}
+
+/// Write a trace artifact, creating its directory first (the default
+/// .build/trace/ does not exist on a fresh checkout).
+fn write_artifact(path: &Path, text: &str) -> std::io::Result<()> {
+    if let Some(dir) = path.parent() {
+        std::fs::create_dir_all(dir)?;
+    }
+    std::fs::write(path, text)
 }
 
 fn die(msg: &str) -> ! {
@@ -1254,7 +1293,7 @@ fn parse_and_write(cfg: &Cfg, capture: &[u8]) -> Result<(), String> {
     let defines = load_sysh(&defines_text);
     let ordered = parse_hello_region(&region, &defines)?;
     let text = artifact_hello(&ordered, &cfg.runlog.to_string_lossy(), &utc_now_iso());
-    std::fs::write(&cfg.artifact, &text)
+    write_artifact(&cfg.artifact, &text)
         .map_err(|e| format!("write {}: {}", cfg.artifact.display(), e))?;
     eprintln!(
         "== artifact written: {} ({} syscalls)",
@@ -1910,7 +1949,7 @@ fn parse_and_write_bootchain(cfg: &Cfg, capture: &[u8]) -> Result<(), String> {
         .copied()
         .collect();
     let text = artifact_chain(&data, &cfg.runlog_bc.to_string_lossy(), &utc_now_iso());
-    std::fs::write(&cfg.artifact_bc, &text)
+    write_artifact(&cfg.artifact_bc, &text)
         .map_err(|e| format!("write {}: {}", cfg.artifact_bc.display(), e))?;
     eprintln!(
         "== artifact written: {} ({} syscalls, {} new vs Phase 4)",
@@ -3100,7 +3139,7 @@ fn parse_and_write_t1(cfg: &Cfg, _capture: &[u8]) -> Result<(), String> {
             v
         }),
     );
-    std::fs::write(&cfg.artifact_t1, &text)
+    write_artifact(&cfg.artifact_t1, &text)
         .map_err(|e| format!("write {}: {}", cfg.artifact_t1.display(), e))?;
     eprintln!(
         "== artifact written: {} ({} pids, {} entry fragments, {} binaries)",
@@ -3416,6 +3455,63 @@ __GSD_FRAG_234__234 boot Exits 14b6c 0/\"\"\n";
         let data = parse_chain_region(region.as_bytes(), &defines()).expect("parses");
         assert_eq!(data.malformed, 2, "glued line + pid mismatch skipped");
         assert_eq!(data.counts.get("close"), Some(&1));
+    }
+
+    // The glued lines are copied byte for byte (CRs included) from the
+    // failing boot-chain run research kept, .build/9front-dist/
+    // bootchain-trace-run.log lines 403-406 and 1214 (20-05, D-06). Line
+    // 406 holds the run's only Fversion record, glued to the end of pid
+    // 1259's return fragment. The other required records are clean lines
+    // so that the fversion assert is the one under test.
+    const GLUED_FIXTURE: &str = "\
+__GSD_ARM_boot_234__\r\n\
+__GSD_ARM_paqfs_1259__\r\n\
+__GSD_ARM_srv_2924__\r\n\
+__GSD_FRAG_234__234 ourboot Pwrite 1be50 1  0x7fffefc90/\"version...\" 10 -1\r\n\
+version...__GSD_FRAG_1259__1259 ourboot Close 20414 4\r\n\
+__GSD_FRAG_234__ = 10 \"\" 33782506000 33782567008\r\n\
+__GSD_FRAG_1259__ = 0 \"\" 33801607008 33801611008__GSD_FRAG_234__234 ourboot Fversion 203b4 3 0 0x7fffefe38/\"\" 32\r\n\
+__GSD_FRAG_2924__2924 paqfs Pread 1a4ac 1 0x4e42c 7 -1__GSD_FRAG_234__234 init Create 1f844 0x7fffefcf8/\"#e/user\" 0x1 0x1b4\r\n\
+__GSD_FRAG_234__234 boot Bind 12070 0 0x34830/\"#c\" 0x34870/\"/dev\" -1 0\n\
+__GSD_FRAG_234__234 boot Pipe 14230 0x349a0\n\
+__GSD_FRAG_234__234 boot Mount 14570 5 0 0x34900/\"/root\" 0 0x34a00/\"\"\n\
+__GSD_FRAG_234__234 boot Dup 11b60 5 0\n\
+__GSD_FRAG_234__234 boot Stat 14a00 0x34800/\"/root\" 0x34b00 99\n\
+__GSD_FRAG_234__234 boot Exits 14b6c 0/\"\"\n";
+
+    #[test]
+    fn chain_region_glued_fversion_is_measured() {
+        let data = parse_chain_region(GLUED_FIXTURE.as_bytes(), &defines())
+            .expect("the glued Fversion satisfies REQUIRED_BC");
+        assert_eq!(data.counts.get("fversion"), Some(&1));
+        assert_eq!(data.numbers.get("fversion"), Some(&40));
+        // entry glued to an entry: both records count
+        assert_eq!(data.counts.get("pread"), Some(&1));
+        assert_eq!(data.counts.get("create"), Some(&1));
+        // a record whose tag sits after console text on the line
+        assert_eq!(data.counts.get("close"), Some(&1));
+        assert_eq!(data.per_role.get("paqfs"), Some(&1)); // the Close
+        assert_eq!(data.per_role.get("srv"), Some(&1)); // the Pread
+        assert_eq!(data.malformed, 0);
+        // the glued Fversion is attributed to its own pid, not the
+        // first tag's
+        let at = data.boot_stream.iter().position(|n| n == "fversion");
+        assert!(at.is_some(), "fversion in the boot pid's stream");
+    }
+
+    #[test]
+    fn frag_records_splits_at_every_tag() {
+        let re = crate::regex::Regex::new("__GSD_FRAG_(\\d+)__").unwrap();
+        let line = b"x__GSD_FRAG_1__ = 0 \"\" 1 2__GSD_FRAG_22__22 boot Dup 1 5 0\r";
+        let r = frag_records(&re, line);
+        assert_eq!(r.len(), 2);
+        assert_eq!((r[0].0, r[0].1, r[0].2), (1, &b" = 0 \"\" 1 2"[..], 1));
+        assert_eq!((r[1].0, r[1].1), (22, &b"22 boot Dup 1 5 0\r"[..]));
+        // rc's fragprint definition carries the tag prefix as text with no
+        // pid digits; it must not split a record
+        let line = b"__GSD_FRAG_4159__4159 rc Pwrite 20700 5  0x54058/\"sed.'s/^/__GSD_FRAG_'^$1^'_\" 69 -1";
+        assert_eq!(frag_records(&re, line).len(), 1);
+        assert!(frag_records(&re, b"no tag here").is_empty());
     }
 
     #[test]

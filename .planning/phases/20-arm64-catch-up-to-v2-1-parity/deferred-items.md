@@ -1,0 +1,10 @@
+# Phase 20 deferred items
+
+## 20-05: boot-chain trace sweep-stage launch race (out of scope, not fixed)
+
+Found during 20-05 Task 2, baseline run 2 (`.build/trace/base-run2-raw.log`).
+
+- **What failed:** the chain stage passed (`__GSD_CHAIN_DONE__`, one line-start `Fversion` record). The next stage, `rc /boot/trace-boot.rc sweep`, then aborted at the fourth entry with `/boot/trace-boot.rc:272: > can't create: /proc/16353/ctl: file does not exist: '/proc/16353'`. The script went back to `term%` without printing `__GSD_ALL_DONE__`, and the harness kept waiting for its 1800 s `sweep traces` timeout. I stopped qemu, the harness and its srv9 by hand after about 6 minutes, by which point the result was already decided. The run is recorded as a failure.
+- **Cause (from the capture):** in `if (~ $mode sweep)`, the parent forks `{ spin; …; exec /boot/ourcat … } &` and then runs `echo stop > /proc/$tpid/ctl`. In Plan 9, `echo` is `/bin/echo`, so the arming write costs a fork and an exec in the parent. The child is protected only by `spin`, a syscall-free loop of about 60×60 iterations (a few hundred ms under TCG). In this run the child got through the spin, the exec and all of `ourcat`'s work, and exited before the parent's `stop` landed. The `ourps` listing just before shows an `rc` (pid 15232, most likely the sweep parent) in state `Fault`, so the parent was slow. In the passing runs the same entry's first traced record is already the post-spin `Create "/dev/null"`, so the margin is thin there too.
+- **Why not fixed here:** this is in `build/aarch64/trace-boot.rc`, which 20-05 does not own. It is a launch race in the sweep fixture, not the D-06 `fversion` miss, and the 20-05 changes did not cause it. Possible fixes: a born-traced self-stop for sweep children, as the chain stage already uses (`traceloop1`); a longer spin; or a `test -e /proc/$tpid` guard so a lost race becomes a recorded skip rather than a 30-minute hang. Each one changes the gate's design, so they are left for the owner.
+- **Effect on 20-05:** it hit 1 of 6 runs in total (1 of 3 baseline runs, 0 of 3 fixed-harness runs). The D-06 diagnosis does not depend on it.
