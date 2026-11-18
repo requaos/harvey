@@ -351,3 +351,20 @@ SERIES boot-r9-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=24
 A kernel still failing at P-LO = 0.00575157 per fork would get through 17860 forks clean with probability (1 - 0.00575157)^17860 = e^(-103.0), about 1e-45. The per-boot form for smoke, the one that set N = 1753, is passed by construction: 1753 clean boots at q_lo = 0.00170832 has probability 0.95^(1753/30) ≈ 0.05.
 
 D-01 and D-02 are met at the local r9 HEAD. The pinned re-run belongs to 20-06.
+
+## Donor venue
+
+Plan 20-05 Task 1. Harvey HEAD `9aae831a1`. The donor venue does not use r9. The run started at 2026-11-18T12:01:44Z.
+
+```
+nix develop -c sh -c 'sh build/aarch64/donor-vm-build.sh >.build/p20-05-donor.out 2>&1; echo "provision exit=$?"; sh build/aarch64/subset-exec.sh >.build/p20-05-subset.out 2>&1; echo "subset-exec exit=$?"; grep -c "T1-DONE" .build/p20-05-subset.out'
+provision exit=0
+subset-exec exit=0
+1
+```
+
+- **Donor pin:** `== donor pin verified (350266104f1fed81c78c3d05fa44f523bec0ae4d)`. `git -C .build/9front-donor rev-parse HEAD` printed the same SHA.
+- **Provision** (about 32 s, ending 12:02:16Z): the script ran its guest-toolchain check in `~/harvey-build-donor`, rebuilt the guest `7a/7c/7l` and `iar` from the vendored sources, swept the stale donor compiler outputs, and built `9qemu`/`9qemu.u`. It ended with `== donor build OK`.
+- **Donor tier-1 gate** (about 43 s, ending 12:02:59Z): `== expected T1-OK marker set (computed from tier1-cmds.txt): 56 members + float-d01 + libtest ×2 + selfhost ×2`, then `== PASS: the tier-1 set executed on the 9front donor kernel (T1-DONE; float canary 0.333 green)`. The capture `.build/9front-dist/subset-exec.log` has 61 distinct `T1-OK` names, 0 `T1-SKIP`, 0 `T1-FAIL` and one `T1-DONE`. This also covers the merged `/arm64` staging: Harvey's `arm64/include` and `arm64/lib/libc.a` sit beside the donor's `arm64/bin` and `arm64/init`, and the in-guest `7c`/`7l` canary (selfhost ×2) compiled and linked against them.
+- **The 20-03 sweep edit has no effect on the donor:** `grep -cE 'T1-(OK|FAIL|SKIP) forkstress'` printed **0**, both on `.build/p20-05-subset.out` and on the capture. Any mention of `forkstress` at all also counts 0 in both. The expected set, 56 members + float-d01 + libtest ×2 + selfhost ×2, matches what research recorded before 20-03 (Pitfall 5). The entry sits inside `if(~ $venue r9){…}` (`build/aarch64/tier1-sweep.rc`), and the donor sweep runs as `. /boot/tier1-sweep.rc donor`.
+- **Prerequisite documented:** the `donor-vm-build.sh` header and a new `### Re-provision before the donor gates` subsection of `build/aarch64/README.md` both say that `subset-exec.sh` and `harness trace-syscalls` do not refresh the guest `~/harvey-build-donor` checkout or its hostbin `7a/7c/7l`. They say to re-run the script after any change to the objtype, to `arm64/include` or to the compilers, and they name the symptom `7c: No such file or directory: u.h`. The script change is comments only: none of the 12 added lines is code.

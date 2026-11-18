@@ -36,6 +36,18 @@
 # end; a failed run exits non-zero with the log intact (the pre-gate
 # capture-then-cat pattern — POSIX sh has no pipefail).
 #
+# PREREQUISITE OF THE DONOR GATES (20-05, D-03): subset-exec.sh and
+# `harness trace-syscalls` (every mode) stage binaries into the
+# guest donor tree but never refresh the guest ~/harvey-build-donor
+# checkout or its hostbin 7a/7c/7l (the guest's ~/9front-hostbin/7c
+# wrapper execs that checkout's 7c).  Re-run this script after any
+# change to the objtype, to arm64/include, or to the compilers, and
+# before the next donor gate.  The symptom of skipping it is the gate's
+# in-guest compile failing with
+#	7c: No such file or directory: u.h
+# because the stale 7c still searches the old arch include dir
+# (seen after the 2026-11-17 aarch64 -> arm64 rename).
+#
 # Boundary: the donor kernel and tree never enter Harvey's
 # tracked tree; .build/ is gitignored; only this harness is committed.
 #

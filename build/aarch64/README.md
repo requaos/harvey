@@ -20,6 +20,23 @@ enough 9P and SVC, this harness retires.
   with per-dir provenance READMEs; this harness README is the pin
   record for the donor-side scaffolding.
 
+### Re-provision before the donor gates
+
+`subset-exec.sh` and `harness trace-syscalls` (every mode) stage
+binaries into the guest donor tree, but none of them refreshes the
+guest `~/harvey-build-donor` checkout or its hostbin `7a/7c/7l` (the
+guest's `~/9front-hostbin/7c` wrapper execs that checkout's `7c`).
+Re-run `nix develop -c sh build/aarch64/donor-vm-build.sh` after any
+change to the objtype, to `arm64/include`, or to the compilers, and
+before the next donor gate. If you skip it, the gate's in-guest
+compile fails with
+
+    7c: No such file or directory: u.h
+
+because the stale `7c` still searches the old arch include dir. This
+happened after the 2026-11-17 `aarch64` to `arm64` rename; the
+re-provision (about 45 s) fixed it (20-05).
+
 ## Scripts and their contracts
 
 All scripts run from the repo root inside the nix devshell (which
