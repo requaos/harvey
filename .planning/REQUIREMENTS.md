@@ -90,7 +90,7 @@ Reactivates the arm64 leg (objtype `arm64`; r9 crate `aarch64/`). Supersedes the
 
 - [x] **ARM-01**: r9 `cargo xtask build --arch aarch64 --config virtshell` builds at HEAD; an r9 CI lane compiles the aarch64 `dev_exec` code; `cargo xtask test` runs the `port` integration tests; the r9 devShell evaluates on darwin
 - [x] **ARM-02**: Note-interruptible blocking IO (the `note_pending` probe and the `push_note` ready-a-Blocked-target half) and per-proc `#c/user` / `#c/hostowner` behave on arm64 as on x86_64; no `hooks not registered` line on any arm64 gate wire
-- [ ] **ARM-03**: `boot-r9-smoke`, `boot-r9-net-smoke` and `boot-r9-tier1` are reliably green under HVF on darwin-arm64 at the pin — the `pushword but no argv` fork-child defect root-caused and fixed, each gate green N consecutive runs with N derived from the measured per-fork rate, TCG recorded as the control leg
+- [x] **ARM-03**: `boot-r9-smoke`, `boot-r9-net-smoke` and `boot-r9-tier1` are reliably green under HVF on darwin-arm64 at the pin — the `pushword but no argv` fork-child defect root-caused and fixed, each gate green N consecutive runs with N derived from the measured per-fork rate, TCG recorded as the control leg
 - [x] **ARM-04**: The objtype rename is proven on every venue: `cargo test -p port`, the donor `subset-exec.sh` gate after re-provision, and the boot-chain trace gate with its `fversion` failure diagnosed
 - [ ] **ARM-05**: Each group of r9 changes reaches Harvey push-before-pin as its own lock-only `flake.lock` commit, with the gates re-greened at the pin without `--override-input`
 - [ ] **ARM-06**: The aarch64 halves of the v2.1 syscall-path fixes are ported: non-RFPROC rfork fd-group split, devmnt write, DMDIR and union creates, exit-path drains and husk sweep, fd-drain cascade, close-on-exec sweep, and the lone-member brk arm where the defect is measured to exist
@@ -185,7 +185,7 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | INT-07 | Phase 19 | Complete |
 | ARM-01 | Phase 20 | Complete |
 | ARM-02 | Phase 20 | Complete |
-| ARM-03 | Phase 20 | Pending |
+| ARM-03 | Phase 20 | Complete |
 | ARM-04 | Phase 20 | Complete |
 | ARM-05 | Phase 20 | Pending |
 | ARM-06 | Phase 20 | Pending |
