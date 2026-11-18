@@ -97,8 +97,10 @@ T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER
 # substrate the pcc tier4 members link against (bzip2, compress, eqn,
 # grap, lp, pic, spin, troff — ape/stdio.h's pragma lib demands
 # /$objtype/lib/ape/libap.a, bsd.h libbsd.a, utf.h libutf.a; pcc's own
-# implicit link adds libap alone, pcc.c:193).  Measured-minimal: the
-# three subdirs only, NOT wholesale ape/lib — the 9/draw/fmt/... dirs
+# implicit link adds libap alone, pcc.c:193; lp's lpdsend is built
+# -D_NET_EXTENSION, so net.h's pragma lib demands libnet.a too — its
+# absence aborted the cmd recursion before rc on clean CI, 20-06).
+# Measured-minimal: the four subdirs only, NOT wholesale ape/lib — the 9/draw/fmt/... dirs
 # carry venue-fragile generator machinery the sweep's root namespace
 # owned.  The D-09 sweep venue built ape unfiltered so this gap only
 # surfaced on the clean-checkout plain build (tier-9k/poolpanic/harvey
@@ -108,7 +110,7 @@ T1KEEPA=`{awk '/^[a-z0-9]/{ sub(/[\/: 	].*$/,""); print }' $TIER1A $TIER2A $TIER
 # mk's backquote scanner closes the `{...} at the first bare inner '}'
 # (it does not parse @{...} groups), so the ape dirs ride the for-list
 # with their own '~ ape/lib/*' arm instead.
-LIBS=`{if(~ $objtype arm64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS ape/lib/ap ape/lib/bsd ape/lib/utf) if(~ $i $T0KEEPA || ~ $i ape/lib/*) echo $i; if not echo $ALLLIBS}
+LIBS=`{if(~ $objtype arm64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS) if(~ $i $T0KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLLIBS ape/lib/ap ape/lib/bsd ape/lib/utf ape/lib/net) if(~ $i $T0KEEPA || ~ $i ape/lib/*) echo $i; if not echo $ALLLIBS}
 CMDS=`{if(~ $objtype arm64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLCMDS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLCMDS}
 SUBSYS=`{if(~ $objtype arm64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEP) echo $i; if not if(~ $objtype amd64 && ! ~ $"COVERAGE_SWEEP 1) for(i in $ALLSUBSYS) if(~ $i $T1KEEPA) echo $i; if not echo $ALLSUBSYS}
 
