@@ -407,3 +407,42 @@ Every passing run printed `== PASS: real-chain trace complete` and `40 fversion 
 - **Stale defaults removed:** the three defaults that pointed into the archived `.planning/phases/04-…`, `05-…` and `06-…` directories are now `.build/trace/{hello,bootchain,tier1}-trace.txt`. A new `write_artifact` creates the directory first, and the usage text names the new paths. `grep -c 'planning/phases/0[456]-' build/harness/src/trace.rs` prints 0. No caller relied on the old defaults: every `git grep trace-syscalls` hit outside the crate is a comment. `git status --porcelain .planning/phases` shows only phase-20 files.
 
 **A second, unrelated failure (base 2): the sweep-stage launch race.** The chain stage finished, but `rc /boot/trace-boot.rc sweep` aborted at its fourth entry with `/boot/trace-boot.rc:272: > can't create: /proc/16353/ctl: file does not exist: '/proc/16353'`. The forked `{ spin; exec /boot/ourcat … }` child got through its spin and finished before the parent's `echo stop`, which is a fork and exec of `/bin/echo`. The script then returned to `term%` with no `__GSD_ALL_DONE__`, and the harness would have waited out its 1800 s `sweep traces` timeout. About 6 minutes in, with the outcome already decided, I stopped qemu, the harness and srv9 by hand (`rc=143`). The capture is `.build/trace/base-run2-raw.log`. This is a fixture race in `build/aarch64/trace-boot.rc`, which this plan does not own, and the `fversion` fix neither causes nor touches it. It is logged in `deferred-items.md` with its cause and possible fixes. The owner-visible consequence: about 1 boot-chain trace run in 6 (1 of the 6 here) can fail at the sweep stage and hang for up to 30 minutes, regardless of `fversion`.
+
+## Group A at the pin
+
+Plan 20-06. Started 2026-11-18T12:44:33Z. Harvey HEAD at the start: `5fa4c0f69`.
+
+### r9 local battery (Task 1)
+
+r9 `main` at `5f3ddb0e77176d6f8994c8c69a373d054679496d`. The tracked tree is clean. After `git fetch origin`, `origin/main` is `46364d0` (the 20-01 head, already pushed), and `HEAD..origin/main` is empty, so the push is a fast-forward. `git log --oneline origin/main..HEAD` lists four commits, each named in a phase-20 summary:
+
+```
+5f3ddb0 fix(20-04): r9 devShell evaluates on darwin (grub2/xorriso linux-gated)
+29f0c3d ci(20-04): build aarch64 virtshell in CI; xtask test runs the port integration tests
+8958c9e fix(20-03): bitmapalloc deallocate clears the bit it checked
+cb9cde3 fix(20-03): isb after the TTBR write in vm::switch — the HVF fork-child defect (WINDOWS #49)
+```
+
+Battery, inside `nix develop` (rustc 1.95.0-nightly 842bd5be2, QEMU 11.1.2), each step's exit code:
+
+| Step | Exit |
+|------|------|
+| `cargo xtask check` | 0 |
+| `cargo xtask clippy` | 0 (warnings only, none new to the four commits' files) |
+| `cargo xtask test` | 0 (every `test result:` line `ok`, 165 port lib tests among them, no `FAILED`) |
+| `cargo xtask build --arch aarch64 --config virtshell` | 0 |
+| `cargo xtask build --arch aarch64` (raspi3b default, the `build-aarch64` CI job) | 0 |
+| `cargo xtask build --arch x86-64` (the `build-x86_64` CI job) | 0 |
+| `cargo xtask build --arch riscv64` (the `build-riscv64` CI job) | 0 |
+| `R9_HARVEY_DIR=/Users/neilskinner/code/harvey cargo xtask ureg-check` | 0 (35 fields match `arm64/include/ureg.h`, 26 match `amd64/include/ureg.h`, negative control fired) |
+
+The plan's verify line printed `R9-BATTERY-GREEN`.
+
+`git diff --stat origin/main..HEAD -- port/src`:
+
+```
+ port/src/bitmapalloc.rs | 36 +++++++++++++++++++++++++++++++++++-
+ 1 file changed, 35 insertions(+), 1 deletion(-)
+```
+
+**PORT/SRC IS NOT EMPTY: THE x86_64 KERNEL BYTES CHANGE (r9 `8958c9e`, owner-approved, `PORT-SRC-EDIT: YES` above). THE x86_64 `boot-iso` FOD IS PRESUMED STALE. HARVEY `master` IS NOT PUSHED UNTIL THE OWNER'S LINUX-HOST `nix build .#boot-iso` PASS IN TASK 3.**
