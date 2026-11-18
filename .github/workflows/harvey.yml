@@ -45,6 +45,14 @@ concurrency:
   group: harvey-${{ github.ref }}
   cancel-in-progress: true
 
+# Every run step is bash -eo pipefail (GitHub's shell: bash), so a
+# `cmd | tee log || { ... }` failure handler sees cmd's status, not tee's
+# (the default bash -e reported tee's 0: a failed k10t1 kernel build
+# went green and surfaced one step later, 20-06).
+defaults:
+  run:
+    shell: bash
+
 jobs:
   build:
     runs-on: ubuntu-latest
