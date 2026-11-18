@@ -503,3 +503,36 @@ D-01 and D-02 are met at the pin.
 20-03's `PORT-SRC-EDIT: YES` and the non-empty `port/src` diff stat above both flag a `port/src/` edit. So Harvey `master` is not pushed here. It waits for the owner's linux-host `nix build .#boot-iso` pass and the FOD re-wire (Task 3). After the owner reports that, the push gets its own checkpoint.
 
 HARVEY-PUSH: pending-fod
+
+### Task 3: the owner's checks
+
+The owner reported both results, relayed by the orchestrator on 2026-11-18:
+
+- **Item 2, boot-iso FOD re-wire: DONE at r9 `ff2b632`.** On the linux x86_64 host, `nix build .#boot-iso` at `5f3ddb0` failed with the hash mismatch the `port/src` flag predicted. The owner set `outputHash` to the reported "got" value, and `nix build .#boot-iso` then succeeded. The owner committed and pushed that change: r9 `origin/main` = `ff2b632f6d89e84e9d690aa3a75a7c31a0cb95cf`, `bump boot-iso hash for allocator fix`. Checked here: `git diff --stat 5f3ddb0 ff2b632` is `flake.nix | 2 +-`, the single `outputHash` line (`sha256-0ahIuT…` → `sha256-rl+HA3pgTy+xfK7ztJ6ArQ4V9geBhXK/vJrBXw20tpQ=`).
+- **Item 1, r9 hosted CI: VERIFIED.** The owner reports every job green on `ff2b632`, including `build-aarch64-virtshell`.
+- **Harvey `origin/master`:** the owner pushed the 22 commits to `645963ed8`. The orchestrator then added and pushed `b41e7129a` (`sys/src/mkfile`: the amd64 plain build adds `ape/lib/net`, which fixes tier-9k's BUILD-SWALLOWED-FAIL on a missing `amd64/bin/rc`; the orchestrator verified it with a clean-ape `nix run .#build`). This plan leaves it as is.
+- **Item 3, Harvey hosted CI:** not yet reported.
+- **Item 4:** does not apply (`FIX-SITE: aarch64`, not `userspace`).
+
+R9-FOD-REWIRE: ff2b632f6d89e84e9d690aa3a75a7c31a0cb95cf
+
+### Second pin: 5f3ddb0 -> ff2b632
+
+Harvey `38ec00ad7` `chore(20-06): advance the r9 pin 5f3ddb0 -> ff2b632 lock-only (the boot-iso FOD re-wire for the allocator fix)`. `nix flake update r9` changed only the r9 node's `lastModified`, `narHash` and `rev`. The commit's file list is exactly `flake.lock`, and the locked rev equals r9 `origin/main`.
+
+PIN: r9 ff2b632f6d89e84e9d690aa3a75a7c31a0cb95cf (Harvey 38ec00ad7)
+
+**Is the arm64 kernel the one the series ran?** The orchestrator's rule: if the aarch64 kernel output is byte-identical to `5f3ddb0`'s, record that and skip the re-run; if it differs, re-run the series. The comparison, using `llvm-readelf` and `llvm-objcopy -O binary` from `nixpkgs#llvm`, script `kcmp.sh` in the session scratchpad:
+
+| Build | Store path | `kernel-virt.elf` bytes | sha256 (ELF) | Loaded image sha256 (`objcopy -O binary`, 41029632 bytes) | Sandbox path embedded |
+|-------|------------|-------------------------|--------------|------------------------------------------------------------|------------------------|
+| `5f3ddb0`, the one the at-pin series ran | `684a280w…-r9-kernel-virt-5f3ddb0` | 60523304 | `2804c886…` | `d89d0b5a…` | `nix-31439-1990151617` (41×) |
+| `ff2b632` | `fv5wyb0b…-r9-kernel-virt-ff2b632` | 60523216 | `41e60f76…` | `64109432…` | `nix-1405-2348648680` (41×) |
+| `5f3ddb0` again (`nix build --rebuild`, same `.drv` `gds7c7ha…`) | `684a280w…-r9-kernel-virt-5f3ddb0.check` | 60523104 | — | `94919b44…` | `nix-3913-1082037613` (41×) |
+
+- The program headers and section headers 0-10 (every allocated section's address and size) are identical across all three. The two DTBs (`virt-gicv2.dtb`, `virt-gicv3.dtb`) are byte-identical.
+- `.text` and `.rodata` differ in content, and so do the debug sections, `.strtab` and the `.llvm.<hash>` suffixes.
+- **The kernel-virt build is not deterministic.** `nix build --rebuild` of the same `5f3ddb0` derivation printed `may not be deterministic: output … differs from ….check`. The sandbox build directory, which changes on every build, is embedded in the panic-location strings, and the symbol and module hashes change with it. Substituting the equal-length path in the rebuilt image still leaves 19783 differing bytes against `ff2b632`, so the bytes cannot be normalized to one image.
+- **Conclusion: the bytes differ.** The source of the difference is the build, not the r9 diff. The r9 source diff touches only the x86_64 `boot-iso` `outputHash` line, which no aarch64 code reads. Even so, no byte comparison can show that the ff2b632 kernel is the kernel the series ran. Under the orchestrator's rule, the at-pin series is re-run on the `ff2b632` kernel.
+
+KERNEL-BYTES: differ (non-deterministic build; source diff x86_64 FOD hash only) — series re-run at ff2b632
