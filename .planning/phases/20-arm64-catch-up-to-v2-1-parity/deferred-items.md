@@ -9,7 +9,11 @@ Found during 20-05 Task 2, baseline run 2 (`.build/trace/base-run2-raw.log`).
 - **Why not fixed here:** this is in `build/aarch64/trace-boot.rc`, which 20-05 does not own. It is a launch race in the sweep fixture, not the D-06 `fversion` miss, and the 20-05 changes did not cause it. Possible fixes: a born-traced self-stop for sweep children, as the chain stage already uses (`traceloop1`); a longer spin; or a `test -e /proc/$tpid` guard so a lost race becomes a recorded skip rather than a 30-minute hang. Each one changes the gate's design, so they are left for the owner.
 - **Effect on 20-05:** it hit 1 of 6 runs in total (1 of 3 baseline runs, 0 of 3 fixed-harness runs). The D-06 diagnosis does not depend on it.
 
-## 20-06: r9 aarch64 kernel-virt build is not deterministic (deferred, owner decision 2026-11-18)
+## 20-06: r9 aarch64 kernel-virt build is not deterministic (RESOLVED at r9 2226cc4, 2026-11-18)
+
+**Resolution:** r9 `2226cc4` adds `--remap-path-prefix` (NIX_BUILD_TOP -> `/build`, workspace -> `/r9`) in xtask's build step. `nix build .#kernel-virt --rebuild` now reports no difference on darwin, and the linux host's `nix build .#boot-iso --rebuild` passes with the existing outputHash. The at-pin series is re-run once at 2226cc4. After that, a pin change that leaves aarch64 untouched is checked by comparing kernel bytes.
+
+Original record:
 
 Found during 20-06, at the second pin (5f3ddb0 -> ff2b632).
 
