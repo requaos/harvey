@@ -578,3 +578,49 @@ PIN: r9 2226cc4f316555b13d5a79b57a2e97a51e92557b (Harvey adcd47cd3)
 - How to check a later pin: build `kernel-virt` at the new rev and compare the ELF sha256 above. If the ELF sha256 is equal, the kernel is the one this series ran, and an aarch64 re-run is not needed.
 
 KERNEL-VIRT-SHA256 2226cc4: d35373047a0f47eeb988d0fa1332e321175423df6631a4d18b8fd0b3484b722d
+
+### Series at the 2226cc4 pin
+
+The block ran from 2026-11-18T18:47:51Z to 23:06:45Z (Harvey `51d0502a4`, the same driver block, `R9_OVERRIDE` unset, `R9_STOP_ON_FAIL=1`, run 1 rebuilt the userland). Every `run-*.out` names `/nix/store/9hm0inncpdr3yxjxwcd4gp8l2zq78sw9-r9-kernel-virt-2226cc4`, the store path recorded above. The orchestrator ruled that the 5f3ddb0 series cannot stand in for this kernel, so these lines are the at-pin record:
+
+SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3280
+SERIES boot-r9-net-smoke accel=hvf runs=21 pass=20 fail=1 pushword=0 forks=1464
+SERIES boot-r9-tier1 accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=984
+SERIES boot-r9-net-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=213
+SERIES boot-r9-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=24
+SERIES boot-r9-smoke accel=hvf runs=1753 pass=1753 fail=0 pushword=0 forks=14024
+
+| Series | Directory (`.build/hvf-series/`) | Result | `pushword` captures | `user fault: unresolvable` captures | `not registered` lines |
+|--------|----------------------------------|--------|---------------------|-------------------------------------|------------------------|
+| tier-1 HVF ×10 | `boot-r9-tier1-hvf-20261118T134751` | green | 0 | 0 | 0 |
+| net-smoke HVF ×36 | `boot-r9-net-smoke-hvf-20261118T134933` | **RED at run 21**; `R9_STOP_ON_FAIL` stopped the series, runs 22-36 not made | 0 | 1 (run 21) | 0 |
+| tier-1 TCG ×3 | `boot-r9-tier1-tcg-20261118T135450` | green | 0 | 0 | 0 |
+| net-smoke TCG ×3 | `boot-r9-net-smoke-tcg-20261118T135520` | green | 0 | 0 | 0 |
+| smoke TCG ×3 | `boot-r9-smoke-tcg-20261118T135610` | green | 0 | 0 | 0 |
+| smoke HVF ×1753 | `boot-r9-smoke-hvf-20261118T135637` | green | 0 | 0 | 0 |
+
+**The failing run (net-smoke HVF run 21, `run-21.log`, 44 forks, 12 s).** The fixture `rc /lib/netip-loopback.rc` (pid 36) printed `netip: random ok`, reaped pid 47 and then pid 48, and its next fork child faulted:
+
+```
+netip: random ok
+process 47 exited: ""
+fault: text page-in va=0x10000
+fault: text page-in va=0x12000
+fault: text page-in va=0x18000
+process 48 exited: ""
+user fault: unresolvable class=7 addr=0x1 pc=0x20a24 read pid=49 name=rc
+TrapFrame { x0: 0x1, ... x30: 0x186cc, sp: 0x7ffffffffda0, pc: 0x20a24, ... }
+wedgedbg: ... pid=36 ... name=rc parent=4 argv=rc /lib/netip-loopback.rc
+wedgedbg: pid=49 state=Running ... name=rc parent=36 argv=
+process 49 exited: "fault"
+...
+netip: FAIL
+```
+
+- **Who faulted:** pid 49 is a fork child of the script rc that has not exec'd yet (`name=rc`, empty `argv`).
+- **Where:** symbolized with `.build/hostbin-darwin-aarch64/bin/nm -n arm64/bin/rc` (the image's rc, built by this series' run 1). `pc 0x20a24` is in `strncmp` (`0x20a04`). The link register `0x186cc` is in `searchpath` (`0x18690`), and `x0 = 0x1` is its word argument. `searchpath` begins with `strncmp(w, "/", 1)` (`sys/src/cmd/rc/simple.c:120`). In the fork child, `execforkexec` passes it `runq->argv->words->word`.
+- **Classification: WINDOWS #49 class (a fork child sees corrupted rc argv state), not a pushword fire.** It has the same site shape as the pre-fix fires: the parent rc has just reaped a child, and its next fork child fails on its first argv access. Here `argv` is non-null but its word pointer is junk (`0x1`), so the child faults in `strncmp` instead of reaching `pushword`'s `argv == 0` abort. Runs 1-20 passed the same site (run 20 prints `netip: random ok`, `process 47 exited`, `process 48 exited` and continues).
+- **Not seen before at the fix.** No capture in the 20-03 series (`r9 8958c9e`), the 5f3ddb0 at-pin series, or the stopped ff2b632 re-run has a `user fault: unresolvable` line. This is the first fire of any kind on a kernel carrying `cb9cde3`. Over this block's HVF gates it is 1 fire in 16768 gate forks (tier-1 1280 excluding forkstress, net-smoke 1464, smoke 14024).
+- **What it does not show:** whether the cause is a residual of the same TTBR/TLB ordering (the `dsb ishst` hardening that `## Root cause` lists was never added), a different defect (WINDOWS #50 is the other open HVF-only translation fault), or something the kernel changed between `8958c9e` and `2226cc4`. The kernel code from `8958c9e` to `2226cc4` differs only by `29f0c3d` (CI and xtask test), `5f3ddb0` (devShell), the FOD hash and the path remap, none of which touches kernel logic. No probe was run.
+
+AT-PIN-2226CC4: RED — boot-r9-net-smoke accel=hvf failed run 21 of 36 (user fault addr=0x1 in rc searchpath/strncmp, fork child pid 49; WINDOWS #49 class, not pushword); the other five series green
