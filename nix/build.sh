@@ -104,8 +104,14 @@ SUDO=${SUDO:-/usr/bin/sudo}
 # link dies "no recipe to make kbd.6" (the NixOS-host discovery; Ubuntu
 # carries a /bin/ls natively).  hostbin's plan9 ls is shape-identical
 # here: one name per line for explicit args, which is all mkrules reads.
+# ls is staged only where the host has none: overwriting Ubuntu's own
+# /bin/ls in place fails ETXTBSY whenever anything on the runner is
+# executing it.  Every copy goes to a temp name and is renamed over the
+# target, so a busy binary never fails the install.
 for t in 6a 6c 6l 8a 8c 8l ls; do
-  [ -x "$HARVEY_LINUX_BIN/$t" ] && "$SUDO" cp "$HARVEY_LINUX_BIN/$t" "/bin/$t"
+  if [ "$t" = ls ] && [ -x /bin/ls ]; then continue; fi
+  [ -x "$HARVEY_LINUX_BIN/$t" ] && "$SUDO" cp "$HARVEY_LINUX_BIN/$t" "/bin/.$t.$$" &&
+    "$SUDO" mv -f "/bin/.$t.$$" "/bin/$t"
 done
 # /bin/cp must EXIST for the install layer (cmd/mkfile's $cpuobjtype._cp
 # wrapper execs /bin/cp — see that mkfile for the argv[0]-dispatch story;
