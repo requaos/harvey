@@ -902,3 +902,20 @@ Both runs printed `== expected on r9: 39 T1-OK markers + 23 T1-SKIP markers (com
 ### r9 boot-test profiles at b82ee9d (TCG)
 
 `cargo xtask boot-test --arch aarch64 --config <c>` on the working tree that became `b82ee9d`: virt 0 (14 s), virtlowecam 0 (4 s), virtpanic 0 (8 s), virtexec 0 (10 s), virtexec3 0 (1 s), virtmulti 0 (2 s), virtnotes 0 (2 s), virtnet 0 (9 s), virtip 0 (12 s). virtshell exits 1 with `dev_exec: config carries no initrd image`, as at 20-04: it is not an xtask boot-test profile by design. The virtshell kernel is the one both tier-1 runs above booted green.
+
+### Partial series at r9 b82ee9d only (stopped by the owner)
+
+This is a record for `b82ee9d` alone. It is **not** the at-pin series. The owner stopped it because the debugger's r9 commits (`3a1c9e5`, the aarch64 `exit_tail` fd-group release, and more to come) land on top of `b82ee9d`, and one series is to cover all of them.
+
+It used the 20-06 shape, with `R9_OVERRIDE='git+file:///Users/neilskinner/code/r9?rev=b82ee9d2f82465ec3ba2ba8e4c63bef8db065ea5'` and `R9_STOP_ON_FAIL=1`. Harvey was at `8bad466f1`. It started at 2026-11-19T16:15:01Z and was stopped at about 16:35Z by killing only this plan's series process tree. Every run booted the kernel `/nix/store/cqiqfc81zxz5c5v91kb37s9b4adqc7vg-r9-kernel-virt-b82ee9d`, the same store path as the tested kernel above. `nix build --rebuild` of its derivation (`ghm52l2r…-r9-kernel-virt-b82ee9d.drv`) was clean, so the build is reproducible.
+
+```
+SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3650
+SERIES boot-r9-net-smoke accel=hvf runs=36 pass=36 fail=0 pushword=0 forks=2556
+SERIES boot-r9-tier1 accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=1095
+SERIES boot-r9-net-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=213
+SERIES boot-r9-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=24
+boot-r9-smoke accel=hvf: STOPPED at 52 of 1753 runs, pass=52 fail=0 pushword=0 forks=416 (no SERIES line; the counts are summed from its RUN lines)
+```
+
+The tier-1 runs carry the new `writeprobe` entry. Each prints 365 forks per run where 20-06 printed 328: the probe's forks. The run in flight when the series stopped has no RUN line and is not counted. The series log is copied to `.build/p20-08-series-b82ee9d.log`, and the per-run captures are under `.build/hvf-series/`.
