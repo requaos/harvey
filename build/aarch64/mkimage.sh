@@ -78,9 +78,12 @@ for f in ipconfig ping udpecho aan tcpblast tcpecho; do
 done
 # 20-02: the fork-image stressor (WINDOWS #49 reproducer; not gate-wired)
 [ -s "$OUT/forkstress" ] || err "$OUT/forkstress missing — run sh build/aarch64/subset-build.sh first"
+# 20-07: the group-B measurement probe (b4 fd split; not gate-wired)
+[ -s "$OUT/rfdprobe" ] || err "$OUT/rfdprobe missing — run sh build/aarch64/subset-build.sh first"
 SUBSET="rc grep cat cp date echo ls mkdir mv ps rm sed test wc"
 SUBSET="$SUBSET dd"	# 07-04: dd joins the image (D-07's sweep writer); append form keeps the edit insertion-only
 SUBSET="$SUBSET bind"	# 07-07: the net-sweep's `bind -a '#l' /net` execs /bin/bind (not an rc builtin)
+SUBSET="$SUBSET ramfs"	# 20-07: the r9 writable venue under measurement (/lib/writeprobe.rc); not a tier member
 for f in $SUBSET; do
 	[ -f "$BIN/$f" ] || err "$BIN/$f missing — run sh build/aarch64/subset-build.sh first"
 done
@@ -142,6 +145,9 @@ mkdir -p "$STAGE/root" "$STAGE/env" "$STAGE/proc" "$STAGE/dev" "$STAGE/srv" \
 #     the baked mount-point dir — r9's sys_bind requires the target to
 #     EXIST and the paqfs root is read-only this era (no runtime mkdir).
 mkdir -p "$STAGE/net"
+# 2b. /n/wp (20-07, D-09): /lib/writeprobe.rc mounts ramfs here — the
+#     same baked-mount-point rule as /net (read-only paqfs root).
+mkdir -p "$STAGE/n/wp"
 
 # 3. binaries
 cp "$OUT/boot" "$STAGE/boot/boot"
@@ -163,6 +169,8 @@ cp "$OUT/tcpblast" "$STAGE/arm64/bin/tcpblast"
 cp "$OUT/tcpecho" "$STAGE/arm64/bin/tcpecho"
 # 20-02: forkstress bakes beside them (typed by hand / by 20-03's driver)
 cp "$OUT/forkstress" "$STAGE/arm64/bin/forkstress"
+# 20-07: rfdprobe bakes beside it (run by /lib/writeprobe.rc's fdsplit step)
+cp "$OUT/rfdprobe" "$STAGE/arm64/bin/rfdprobe"
 
 # 3b. 06-07 (D-12): the tier-1 sweep payload — h-prefixed binaries into
 #     /arm64/bin (the sweep invokes them as /bin/h* on r9 through the
@@ -254,6 +262,8 @@ done
 [ -f "$STAGE/arm64/bin/tcpblast" ] || err "manifest: arm64/bin/tcpblast missing"
 [ -f "$STAGE/arm64/bin/tcpecho" ] || err "manifest: arm64/bin/tcpecho missing"
 [ -f "$STAGE/arm64/bin/forkstress" ] || err "manifest: arm64/bin/forkstress missing"
+[ -f "$STAGE/arm64/bin/rfdprobe" ] || err "manifest: arm64/bin/rfdprobe missing"	# 20-07
+[ -f "$STAGE/lib/writeprobe.rc" ] || err "manifest: lib/writeprobe.rc missing from staged tree"	# 20-07
 # 06-07 (D-12): every tier-1 payload path is asserted pre-bake (T-06-15:
 # a stale bake would certify old binaries — presence of the just-staged
 # paths is the tripwire)
@@ -269,6 +279,7 @@ for p in root env proc dev srv fd bin tmp mnt; do
 	[ -d "$STAGE/$p" ] || err "manifest: mount-point dir /$p missing"
 done
 [ -d "$STAGE/net" ] || err "manifest: mount-point dir /net missing"	# 07-07 (see 2a)
+[ -d "$STAGE/n/wp" ] || err "manifest: mount-point dir /n/wp missing"	# 20-07 (see 2b)
 [ ! -e "$STAGE/boot/factotum" ] || err "manifest: /boot/factotum present — D-02 auth-stub-by-absence violated"
 
 # rcmain ships byte-verbatim (the amd64-safety constraint keys on image

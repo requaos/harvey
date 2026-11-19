@@ -685,3 +685,95 @@ HARDENED-57E2952: series green at the plan's N (17864 HVF gate forks, 0 fires); 
 PIN: r9 57e295242484237464a93a665577899e3aa4bc50 (Harvey 0dafd07ad)
 
 HARVEY-PUSH: done
+
+## Group B measurements
+
+Plan 20-07 (D-09). Kernel under test: the pinned r9 `57e2952` (`/nix/store/qc1i4nhl0slbgwcv8a9gnm877c3nmm57-r9-kernel-virt-57e2952`, the `boot-r9-tier1` app's `R9_KERNEL_PKG`; no `--override-input`, no `R9_OVERRIDE`). Host: darwin-arm64, qemu 11.1.2, shape `virt,gic-version=3`; HVF `-cpu host`, TCG `cortex-a72`. Image: `build/aarch64/bootfs.paq` sha256 `6824c143d7f46551e59f595e6717747d281da6750c9c6f541bb286cc27afbd29`, baked by the tier-1 gate run below; every write-flow and diagnostic run in this section booted that same file (the brkprobe runs have their own image, named in their subsection). Driver: an uncommitted copy of `tier1-r9.expect`'s spawn shape (`.build/p20-07-probe.expect` + `.build/p20-07-probe.sh`) that types one line at the `%` prompt and waits for a marker.
+
+### Write-flow transcript (`rc /lib/writeprobe.rc`, HVF and TCG)
+
+The HVF and TCG transcripts are byte-identical (`diff` empty). One run each:
+
+```
+WP-FAIL fdsplit rfdprobe: FAIL rffdg rffdg: rfork: bad flags for non-RFPROC
+WP-OK mount
+WP-OK create
+WP-FAIL write echo: write error: devmnt: the mounted tree is read-only this era [status: write error]
+WP-FAIL readback got:
+WP-FAIL mkdir mkdir: can't create /n/wp/d: create: directories unsupported this era [status: error]
+WP-FAIL union-create [status: error]
+WP-FAIL remove rm: /n/wp/f: syscall not implemented [status: syscall not implemented]
+WP-DONE
+```
+
+### Build result (A-venue, part 1)
+
+`ramfs` builds for arm64 by the per-target install rule. From `.build/subset-build.log`:
+
+```
+== subset cmd: ramfs (per-target install, 20-07 r9 writable venue)
+7^c -FTVw ramfs.c
+7^l  -o 7.ramfs ramfs.7
+o._cp 7.ramfs /arm64/bin/ramfs
+== boot chain: rfdprobe (20-07, b4 non-RFPROC fd split probe)
+```
+
+`arm64/bin/ramfs` is 97907 bytes with the arm64 a.out magic `00008c47`; `build/aarch64/out/rfdprobe` passed the magic loop. `mkimage.sh` baked `/arm64/bin/ramfs`, `/arm64/bin/rfdprobe`, `/lib/writeprobe.rc` and the empty mount point `/n/wp`, each with a manifest assert. `tiers/tier1-cmds.txt` is unchanged.
+
+**Build venue (deviation, Rule 3).** The first three `nix run .#boot-r9-tier1` attempts never reached the build. The lima guest's nix fetch of `git+file:///home/neilskinner.guest/harvey-build` failed on `sys/lib/postscript/troff/Hx: No such file or directory`, every time (captures `.build/p20-07-tier1-attempt{1,2,3}-hx.out`). Cause: the guest checkout's `.git` was copied from darwin and carried `core.ignorecase=true`, but the guest disk is case-sensitive. git there matched the missing `Hx` against the `HX` that rsync delivers, so the dirty-tree fetch listed `Hx` as present and then could not open it. Fix: `git config core.ignorecase false` in the guest's `~/harvey-build` only. No repo file changed and the 11 font files were not touched. To revert: `git -C ~/harvey-build config core.ignorecase true` in the guest. The fourth attempt built.
+
+### Tier-1 gate with the probes baked in (TCG, at the pin)
+
+`R9_ACCEL=tcg nix run .#boot-r9-tier1`, run after the final edit to `rfdprobe.c` and `writeprobe.rc`:
+
+```
+== expected on r9: 38 T1-OK markers + 23 T1-SKIP markers (computed)
+tier1-r9: ALL STAGES PASS — boot, one typed sweep line, float canary on r9, marker parity + exact SKIP set, T1-DONE, user-hooks-registered, no-unknown-device, no-unsupported-era
+exit=0 ramfs-in-tier-file=0
+```
+
+38 + 23 are the same expected-set sizes the 20-06 series printed (`boot-r9-tier1-tcg-20261118T205602`, `boot-r9-tier1-hvf-20261119T022907`). The capture has 38 `T1-OK` lines (`.build/p20-07-tier1-tcg.log`). So ramfs, `/n/wp`, rfdprobe and `writeprobe.rc` are in the image and no gate calls them. An earlier run of the same gate, before the `fdsplit` rework below, also passed with 38 + 23.
+
+### Write-flow steps mapped to the inventory
+
+What the kernel printed on the console for each failing step (identical on both accelerators):
+
+| Step | Kernel / console text | Inventory item |
+|------|-----------------------|----------------|
+| fdsplit | `rfdprobe: FAIL rffdg rffdg: rfork: bad flags for non-RFPROC` and `rfdprobe: FAIL rfcfdg rfcfdg: rfork: bad flags for non-RFPROC`; the children exit with `rffdg: rfork: bad flags for non-RFPROC` and `rfcfdg: rfork: bad flags for non-RFPROC` | **b4** (aarch64 `syscall.rs:1628`, both RFFDG and RFCFDG) |
+| write | `devmnt: the mounted tree is read-only this era` (echo's write error) | **b5** (`syscall.rs:326`) |
+| readback | empty: `/n/wp/f` exists (create passed) but holds no bytes, because the write failed | **b5**, downstream; no message of its own |
+| mkdir | `create: directories unsupported this era` | **b6** (`syscall.rs:1416`) |
+| union-create | `bind -ac /n/wp /lib/tier1` passed; then the create printed `/lib/tier1/wpu: rc: can't open: namec: device has no create` to the console (rc's redirect error is not routed to the captured fd 2), and `/n/wp/wpu` was not created | **b7**: `sys_create` resolves the parent with a plain open-mode `namec` and creates in the union's first member, the read-only `/lib/tier1`, without consulting the union for the `MCREATE` member `/n/wp`. b7 has no errstr of its own; the text is the first member's device error |
+| remove | `syscall 25 unimplemented`, errstr `syscall not implemented` | **b13** (REMOVE is loud-None in the aarch64 DISPATCH table) |
+
+Steps that passed: `mount` (`/bin/ramfs -m /n/wp`; sys/src/cmd/ramfs.c forks with `RFFDG|RFPROC|RFNAMEG|RFNOTEG` and mounts its own pipe) and `create` (a plain-file create through devmnt into ramfs). The two `syscall 10 unimplemented` lines in each capture come from the boot chain's FAUTH before the prompt. They are the designed no-auth fall-through and are not part of the probe.
+
+**A-venue holds.** ramfs builds, mounts and creates on the group-A kernel. The write flow fails only at the inventory arms: b5 (write, and readback after it), b6 (mkdir), b7 (union create) and b13 (remove).
+
+**A-rfork holds.** `fdsplit` is `WP-FAIL` with the kernel's `bad flags for non-RFPROC` errstr, carried in rfdprobe's own `FAIL rffdg` line. `/bin/ramfs` never reaches that path: the `mount` step passed.
+
+### New finding, outside b4–b7/b13 (for the checkpoint)
+
+**An fd table shared by a plain `rfork(RFPROC)` child is not released when its last sharer exits.** A backquote reader of such a process never sees end of file, so rc hangs. The first `writeprobe.rc` captured `fdsplit` with `` `{/bin/rfdprobe ...} ``. That hung on HVF after rfdprobe and both its children had exited (`.build/p20-07-wp-hvf-hang1.log`). Single-line reductions on the same kernel and image:
+
+| Typed line | HVF | TCG |
+|------------|-----|-----|
+| `` x=`{/bin/rfdprobe}; echo DIAGA $x `` | hangs (no `DIAGA` output; all three procs exited) | hangs |
+| `` x=`{/bin/rfdprobe -s}; echo DIAGS $x `` (one shared-table RFPROC child that exits at once; **no** bare rfork) | hangs | hangs |
+| `` x=`{/bin/forkstress -n 1}; echo DIAGF $x `` (control: `fork()`, a copied table) | completes: `DIAGF forkstress: start 1 forks … forkstress: ok 1 forks` | — |
+| `/bin/rfdprobe -s; echo DIAGT $status` (no pipe) | completes: `rfdprobe: share ok`, `DIAGT` with an empty status | — |
+| `` x=`{/bin/echo hi}; echo DIAGB $x `` (control) | completes: `DIAGB hi` | — |
+
+So a pipe write end held in an fd table shared through `rfork(RFPROC)` without `RFFDG`/`RFCFDG` stays open after every process holding that table has exited. Reading the code, `exit_tail` (aarch64 `syscall.rs` ~2093) drains the group only when `Arc::strong_count == 1`, so a reference to the shared group appears to outlive the child. That is a reading, not a measurement. The bare-rfork reject (b4) is not involved: `-s` makes no bare rfork. It is not one of b4–b7/b13. libthread's `proccreate` (RFPROC without RFFDG) and any lib9p server that uses it share tables this way.
+
+Effect on the probe: `fdsplit` now runs rfdprobe without a pipe (`if(/bin/rfdprobe) … $status`). rfdprobe's exit string is its own FAIL line, because this kernel's wait message carries the bare exit string with no `prog pid:` prefix. The `mount` step is also uncaptured, because the ramfs server child keeps its copy of the fd table for its whole life. rfdprobe keeps the `-s` mode as the reproducer.
+
+### Red steps per inventory item
+
+RED-STEP b4: fdsplit
+RED-STEP b5: write
+RED-STEP b6: mkdir
+RED-STEP b7: union-create
+
+Each line names the probe step that is `WP-FAIL` on this kernel because of that item, and it is the same on HVF and TCG. b4: rfdprobe's `FAIL rffdg` with `rfork: bad flags for non-RFPROC`, and also `FAIL rfcfdg`. b5: `devmnt: the mounted tree is read-only this era`; `readback` is red only as a consequence. b6: `create: directories unsupported this era`. b7: the create through the `-ac` union landed on the read-only first member (`namec: device has no create`) and not in `/n/wp`. b7's red is the absence of the union redirect, not a b7-specific errstr, so its green-after is the file appearing in `/n/wp`. No item reads `none`. The remove step is red for b13, which is outside 20-08's b4–b7 pin claim.

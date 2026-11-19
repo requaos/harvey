@@ -304,6 +304,15 @@ echo "== subset cmd: aan (per-target install + out/ harvest, 08-03)"
 (cd /sys/src/cmd && objtype=arm64 mk aan.install) || fail "cmd aan (per-target install)"
 cp /arm64/bin/aan "$HARVEY/build/aarch64/out/aan" || fail "harvest aan to out/"
 
+# 20-07: ramfs joins the image as the r9 writable venue under
+# measurement (D-09; /lib/writeprobe.rc mounts it on the baked /n/wp).
+# NOT a tier-list member — tiers/tier1-cmds.txt feeds three computed
+# expected-marker sets, and nothing emits a T1-OK ramfs.  Same
+# per-target install shape as dd and aan; the whole arm64/bin tree is
+# pulled back below.
+echo "== subset cmd: ramfs (per-target install, 20-07 r9 writable venue)"
+(cd /sys/src/cmd && objtype=arm64 mk ramfs.install) || fail "cmd ramfs (per-target install)"
+
 # 08-03: tcpblast + tcpecho — the NETIP-08 bidirectional soak machinery
 # (D-15: slirp proof now, the tap truth verdict is Phase 9's joint gate)
 # and the NETIP-03 tcp/7 echo server.  New payload sources living beside
@@ -323,6 +332,13 @@ echo "== boot chain: forkstress (20-02, WINDOWS #49 reproducer)"
 (cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw forkstress.c \
 	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/forkstress" forkstress.7 \
 	&& rm -f forkstress.7) || fail "forkstress"
+# 20-07: rfdprobe — the bare rfork(RFFDG)/rfork(RFCFDG) fd-group split
+# probe (inventory b4), run by /lib/writeprobe.rc's fdsplit step.  Baked
+# into the image; no gate calls it.  Same 7c -FTVw + 7l shape.
+echo "== boot chain: rfdprobe (20-07, b4 non-RFPROC fd split probe)"
+(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw rfdprobe.c \
+	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/rfdprobe" rfdprobe.7 \
+	&& rm -f rfdprobe.7) || fail "rfdprobe"
 
 # 06-05: tier-0 lib test binaries (D-06 — in-tree lib tests run on the
 # donor where they exist; subset-exec.sh stages them h*-style and the
@@ -420,6 +436,7 @@ if [ -z "$NATIVE_LINUX" ]; then
 		"$GUEST:$GUEST_DIR/build/aarch64/out/tcpblast" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/tcpecho" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/forkstress" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/rfdprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/hdrawtest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/harctest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/htdraw" \
@@ -439,6 +456,8 @@ done
 [ -x "$HARVEY/arm64/bin/dd" ] || err "arm64/bin/dd missing after rsync-back"
 # 07-07: the eighteenth — bind (the net-sweep's `bind -a '#l' /net`)
 [ -x "$HARVEY/arm64/bin/bind" ] || err "arm64/bin/bind missing after rsync-back"
+# 20-07: ramfs (the writable venue under measurement; not a tier member)
+[ -x "$HARVEY/arm64/bin/ramfs" ] || err "arm64/bin/ramfs missing after rsync-back"
 [ -x "$HARVEY/arm64/bin/ip/ipconfig" ] || err "arm64/bin/ip/ipconfig missing after rsync-back"
 [ -x "$HARVEY/arm64/bin/auth/factotum" ] || err "arm64/bin/auth/factotum missing after rsync-back"
 # 06-03: the tracer's additions — awk (G1 generator path) and the
@@ -464,6 +483,12 @@ magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/netblast" | tr -d ' \n')
 # 08-03: the six Phase-8 gate binaries (and 20-02's forkstress) carry
 # the same magic contract
 for f in ipconfig ping udpecho aan tcpblast tcpecho forkstress; do
+	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
+	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
+	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
+done
+# 20-07: the group-B measurement probes carry the same magic contract
+for f in rfdprobe; do
 	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
 	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"

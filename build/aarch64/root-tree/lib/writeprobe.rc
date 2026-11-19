@@ -1,0 +1,77 @@
+#!/bin/rc
+# writeprobe.rc — the r9 write-flow probe over a ramfs mount (20-07,
+# D-09).  Measures, one named step at a time, where the write flow
+# fails on the running kernel: the non-RFPROC fd-group split (b4), a
+# write through devmnt (b5), a directory create through a mount (b6),
+# a create through a union (b7) and remove (b13).  Typed by hand or by
+# a driver as `rc /lib/writeprobe.rc'; no gate calls it this plan.
+#
+# Output: one `WP-OK <step>' or `WP-FAIL <step> <errstr>' line per
+# step, in order fdsplit mount create write readback mkdir
+# union-create remove, then `WP-DONE'.  A failing step never stops
+# the probe.
+#
+# Dialect notes: a redirect OPEN failure is an uncatchable rc error
+# that would end the script, so every redirect into the mount runs in
+# an @{} subshell; the captured text is the subshell's stderr plus
+# `WPRC <status>' (empty status: the step passed).  The fdsplit and
+# mount steps are NOT captured (see each step): a backquote pipe would
+# never see EOF, so their output goes to the console and their exit
+# status names the failure.
+
+# wpreport STEP WORDS... — WORDS is a captured `... WPRC <status>'
+# list; an empty status (WPRC last) is WP-OK
+fn wpreport {
+	s=$1
+	shift
+	if(~ $"* *WPRC) echo WP-OK $s
+	if not echo WP-FAIL $s `{echo $* | sed 's/ *WPRC */ [status: /; s/$/]/'}
+}
+
+# fdsplit: bare rfork(RFFDG) and rfork(RFCFDG) (b4); independent of
+# the mount, so it runs first.  NOT captured: measured on the group-A
+# kernel (20-07), a backquote over rfdprobe never sees end of file
+# after rfdprobe exits, so its lines go to the console and the exit
+# status (rfdprobe's own FAIL line) names the failure.
+if(/bin/rfdprobe) echo WP-OK fdsplit
+if not echo WP-FAIL fdsplit $status
+
+# mount: sys/src/cmd/ramfs.c forks its server with RFPROC and mounts
+# its own pipe on the baked /n/wp; the server child keeps a copy of
+# the fd table for its life
+if(/bin/ramfs -m /n/wp) echo WP-OK mount
+if not echo WP-FAIL mount [status: $status]
+
+# create: a redirect onto a command that writes nothing (create only)
+out=`{@{/bin/test -d /n/wp >/n/wp/f} >[2=1]; echo WPRC $status}
+if(~ $"out *WPRC && ! /bin/test -e /n/wp/f) out=($out not-present-after-create)
+wpreport create $out
+
+# write: the known line through devmnt (b5)
+out=`{@{echo wp-probe-line >/n/wp/f} >[2=1]; echo WPRC $status}
+wpreport write $out
+
+# readback: the bytes come back verbatim
+got=`{cat /n/wp/f >[2=1]}
+if(~ $"got wp-probe-line) echo WP-OK readback
+if not echo WP-FAIL readback got: $got
+
+# mkdir: a DMDIR create through the mount (b6)
+out=`{mkdir /n/wp/d >[2=1]; echo WPRC $status}
+if(~ $"out *WPRC && ! /bin/test -d /n/wp/d) out=($out not-a-dir-after-mkdir)
+wpreport mkdir $out
+
+# union-create: /n/wp after the read-only /lib/tier1 with the create
+# flag; a new name created through the union must land in /n/wp (b7)
+out=`{bind -ac /n/wp /lib/tier1 >[2=1]; echo WPRC $status}
+if(~ $"out *WPRC) out=`{@{/bin/test -d /lib >/lib/tier1/wpu} >[2=1]; echo WPRC $status}
+if not out=(bind: $out)
+if(~ $"out *WPRC && ! /bin/test -e /n/wp/wpu) out=($out not-in-/n/wp-after-union-create)
+wpreport union-create $out
+
+# remove: rm through the mount (b13)
+out=`{rm /n/wp/f >[2=1]; echo WPRC $status}
+if(~ $"out *WPRC && /bin/test -e /n/wp/f) out=($out still-present-after-rm)
+wpreport remove $out
+
+echo WP-DONE
