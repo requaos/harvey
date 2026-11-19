@@ -813,3 +813,92 @@ A-brk holds: the lone-member arm works on aarch64 by demand paging; the x86_64 e
 - **The lima guest's `core.ignorecase=false`** was approved by the owner and is kept.
 
 D-09: ramfs-venue-brk-holds
+
+## Group B ports
+
+Plan 20-08. r9 `b82ee9d` (local, not pushed; `aarch64/src/syscall.rs` only, +47/-22) ports the aarch64 halves of b4 (non-RFPROC `rfork(RFFDG)` / `rfork(RFCFDG)`), b5 (devmnt write), b6 (DMDIR create) and b7 (union create: `walk_one_union` / `create_chan_union` with the `nomount` bit). `git diff origin/main..HEAD -- port/src` in r9 is empty. Harvey's pin is unchanged (`57e2952`); every run below takes the kernel through `--override-input` or the driver's kernel path.
+
+- **Kernels:** before = the pin, `/nix/store/qc1i4nhl0slbgwcv8a9gnm877c3nmm57-r9-kernel-virt-57e2952`, ELF sha256 `da4ab2da…9b73`. After = `/nix/store/cqiqfc81zxz5c5v91kb37s9b4adqc7vg-r9-kernel-virt-b82ee9d`, ELF sha256 `e130d40a41fc6484786701b4007cf0516ea05c89e8ff2b1fbfbfffa7dd49ee8c` (60524968 bytes; the pin's is 60517848). The kernel bytes change, as a code change must.
+- **Image:** `build/aarch64/bootfs.paq` sha256 `7960d4297ab99b354e83a78cf3b81775c310dada61ed951ff0f5d5636d225de5`, baked by the plan's TCG tier-1 run below (it carries the new sweep entry). Every before and after write-flow run here booted this same file.
+- **Driver:** `.build/p20-08-probe.sh`, an uncommitted copy of 20-07's launcher with the kernel package as a parameter, typing `rc /lib/writeprobe.rc` at the `%` prompt and waiting for `WP-DONE`. Host: darwin-arm64, qemu 11.1.2, `virt,gic-version=3`; HVF `-cpu host`, TCG `cortex-a72`.
+
+### Write-flow transcripts, before and after (same image)
+
+Before, kernel `57e2952`. HVF and TCG byte-identical, and identical to 20-07's transcript under `## Group B measurements`:
+
+```
+WP-FAIL fdsplit rfdprobe: FAIL rffdg rffdg: rfork: bad flags for non-RFPROC
+WP-OK mount
+WP-OK create
+WP-FAIL write echo: write error: devmnt: the mounted tree is read-only this era [status: write error]
+WP-FAIL readback got:
+WP-FAIL mkdir mkdir: can't create /n/wp/d: create: directories unsupported this era [status: error]
+WP-FAIL union-create [status: error]
+WP-FAIL remove rm: /n/wp/f: syscall not implemented [status: syscall not implemented]
+WP-DONE
+```
+
+After, kernel `b82ee9d`, HVF:
+
+```
+WP-OK fdsplit
+WP-OK mount
+WP-OK create
+WP-OK write
+WP-OK readback
+WP-OK mkdir
+WP-OK union-create
+WP-FAIL remove rm: /n/wp/f: syscall not implemented [status: syscall not implemented]
+WP-DONE
+```
+
+After, kernel `b82ee9d`, TCG (`diff` against the HVF transcript is empty):
+
+```
+WP-OK fdsplit
+WP-OK mount
+WP-OK create
+WP-OK write
+WP-OK readback
+WP-OK mkdir
+WP-OK union-create
+WP-FAIL remove rm: /n/wp/f: syscall not implemented [status: syscall not implemented]
+WP-DONE
+```
+
+### Red steps, before and after
+
+| 20-07 red step | Step | Before (HVF = TCG) | After (HVF = TCG) |
+|----------------|------|--------------------|-------------------|
+| RED-STEP b4 | fdsplit | WP-FAIL (`rfork: bad flags for non-RFPROC`) | WP-OK |
+| RED-STEP b5 | write | WP-FAIL (`devmnt: the mounted tree is read-only this era`) | WP-OK |
+| (b5, downstream) | readback | WP-FAIL (empty file) | WP-OK |
+| RED-STEP b6 | mkdir | WP-FAIL (`create: directories unsupported this era`) | WP-OK |
+| RED-STEP b7 | union-create | WP-FAIL (the create landed on the read-only first member) | WP-OK |
+| (b13) | remove | WP-FAIL (`syscall not implemented`) | WP-FAIL, unchanged: 20-14 owns REMOVE |
+
+`fdsplit` is the rfork port's step: no other step reaches the non-RFPROC branch (ramfs's own rfork carries RFPROC, and `mount` passed before the port too).
+
+### The sweep entry and the gate
+
+`tier1-sweep.rc` gained one r9-venue entry after `forkstress`. It prints `T1-OK writeprobe` only when the seven owned steps (fdsplit, mount, create, write, readback, mkdir, union-create) each printed `WP-OK`, and otherwise `T1-FAIL writeprobe <missing steps>`. `remove` is never required. `nix/tier1-r9.sh` lists `writeprobe` among the fixed expected names, so the expected OK set went from 38 to 39. The SKIP set is unchanged at 23. `tier1-r9.expect` is unchanged: its `no-unsupported-era` absence check already existed (20-01).
+
+Shape, measured while building it:
+
+- **No backquote over the probe.** The ramfs server keeps a copy of the fd table, and so the pipe writer, for its whole life. The probe writes into a pipe to awk, which copies each line to `/dev/cons`, collects the `WP-OK` names and exits at `WP-DONE` without waiting for end of file. Only awk's stdout is backquote-captured. The probe runs in its own namespace (`rfork n`), so `/n/wp` and the union bind on `/lib/tier1` do not leak into the sweep.
+- **r9's exec takes at most 128 bytes per argument** (`MAX_EXEC_ARG_LEN`, aarch64 `syscall.rs`). The first version of the entry passed a ~500-byte awk program. It failed on HVF and TCG with `/bin/hawk: string too long` (`process … exited: "can't exec: string too long"`), no WP lines and `post-pass FAILED — missing T1-OK writeprobe` (captures `.build/p20-08-tier1-{hvf,tcg}.out` of the first attempt were overwritten; the iteration rerun is `.build/p20-08-tier1-hvf-iter2.{out,log}`). The shipped program is 67 bytes, and the set check is in rc.
+
+The plan's verify command, against the local kernel (`--override-input r9 git+file:///Users/neilskinner/code/r9`, a full build):
+
+```
+hvf exit=0 ok=1 fail=0 okall=39 skip=23
+tcg exit=0 ok=1 fail=0 okall=39 skip=23
+```
+
+Both runs printed `== expected on r9: 39 T1-OK markers + 23 T1-SKIP markers (computed)` and `tier1-r9: ALL STAGES PASS … no-unsupported-era`. Captures: `.build/p20-08-tier1-{hvf,tcg}.{out,log}`.
+
+**At the current pin (`57e2952`), this sweep entry is `T1-FAIL writeprobe`**: the before transcript has five of the seven owned steps red. So the default `nix run .#boot-r9-tier1` (no override) reds from this commit until the pin advances to an r9 that carries `b82ee9d`. That needs the r9 push, which waits for the owner.
+
+### r9 boot-test profiles at b82ee9d (TCG)
+
+`cargo xtask boot-test --arch aarch64 --config <c>` on the working tree that became `b82ee9d`: virt 0 (14 s), virtlowecam 0 (4 s), virtpanic 0 (8 s), virtexec 0 (10 s), virtexec3 0 (1 s), virtmulti 0 (2 s), virtnotes 0 (2 s), virtnet 0 (9 s), virtip 0 (12 s). virtshell exits 1 with `dev_exec: config carries no initrd image`, as at 20-04: it is not an xtask boot-test profile by design. The virtshell kernel is the one both tier-1 runs above booted green.

@@ -716,5 +716,39 @@ if(~ $venue r9){
 	if not echo T1-FAIL forkstress
 }
 
+# writeprobe (20-08, the pin for the aarch64 rfork fd-group split,
+# devmnt write, DMDIR create and union create ports): run
+# /lib/writeprobe.rc (20-07) and map its WP- lines to one marker.
+# T1-OK writeprobe only when the seven steps these ports own each
+# printed WP-OK: fdsplit (b4, the only step that reaches rfork's
+# non-RFPROC branch), mount, create, write and readback (b5), mkdir
+# (b6) and union-create (b7).  Otherwise T1-FAIL writeprobe followed by
+# the step names that did not print WP-OK.  The remove step (b13) is
+# never required: 20-14 owns it.
+# The probe's own output must not be what a backquote waits on: the
+# ramfs server it starts keeps a copy of the fd table, and so the pipe
+# writer, for its life, so that pipe never sees end of file.  So the
+# probe writes into a pipe to awk, which copies every line to
+# /dev/cons, collects the WP-OK step names and, at WP-DONE, prints
+# them and exits without waiting for end of file.  Only awk's own
+# stdout is captured.  The awk program is kept short on purpose: r9's
+# exec takes at most 128 bytes per argument (measured 20-08: a longer
+# program failed with `can't exec: string too long').  wprun is a fn
+# producer (no subshell inside a backquote; see uniq) and runs the
+# probe in its own namespace (rfork n), so its /n/wp mount and its
+# union bind on /lib/tier1 do not leak into the sweep.  r9 venue only,
+# like forkstress; nix/tier1-r9.sh lists writeprobe among the fixed
+# expected names, so a silent entry reds the gate as
+# `missing T1-OK writeprobe'.
+if(~ $venue r9){
+	fn wprun { rfork n; rc /lib/writeprobe.rc }
+	wpok=`{wprun | $B/hawk '{print>"/dev/cons"}$1=="WP-OK"{k=k" "$2}$1=="WP-DONE"{print k;exit}'}
+	wpbad=()
+	for(s in fdsplit mount create write readback mkdir union-create)
+		if(! ~ $s $wpok) wpbad=($wpbad $s)
+	if(~ $#wpbad 0) echo T1-OK writeprobe
+	if not echo T1-FAIL writeprobe $wpbad
+}
+
 echo T1-DONE
 exit
