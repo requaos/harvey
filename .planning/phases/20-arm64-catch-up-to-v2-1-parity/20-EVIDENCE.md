@@ -502,7 +502,7 @@ D-01 and D-02 are met at the pin.
 
 20-03's `PORT-SRC-EDIT: YES` and the non-empty `port/src` diff stat above both flag a `port/src/` edit. So Harvey `master` is not pushed here. It waits for the owner's linux-host `nix build .#boot-iso` pass and the FOD re-wire (Task 3). After the owner reports that, the push gets its own checkpoint.
 
-HARVEY-PUSH: pending-fod
+The hold was written here as `HARVEY-PUSH: pending-fod` (Harvey `645963ed8`). It was lifted by the owner's boot-iso re-wire (r9 `ff2b632`, below), and the final Harvey state is recorded under `### Final pin and pushes`.
 
 ### Task 3: the owner's checks
 
@@ -668,3 +668,20 @@ The failed build attempt printed `SERIES boot-r9-tier1 accel=hvf runs=1 pass=0 f
 - So this series is green at the plan's N. It does not show that the hardening removed the residual. At 1.8e-5 per fork, showing it at 95% needs about ln(20)/1.8e-5 ≈ 166,000 clean forks. With net-smoke, the gate that fired (71 forks a boot, about 15 s), that is about 2,300 boots or about 9.6 h.
 
 HARDENED-57E2952: series green at the plan's N (17864 HVF gate forks, 0 fires); not yet distinguishable from the isb-only residual rate
+
+### Final pin and pushes
+
+**Owner decision (2026-11-19, relayed by the orchestrator):** option (b). The 57e2952 series is accepted at the plan's N. Harvey's r9 input is pinned to `57e2952`. WINDOWS #49 stays **open** with the residual-rate note and a long-measurement follow-up (about 2,300 net-smoke HVF boots, about 9.6 h, stop-on-fail off, on the pinned kernel). Pushing Harvey was approved.
+
+- **Pin:** Harvey `0dafd07ad` `chore(20-06): advance the r9 pin cec2299 -> 57e2952 lock-only (...)`. `nix flake update r9` landed on `57e295242484237464a93a665577899e3aa4bc50`, which equals r9 `origin/main`. The commit's file list is exactly `flake.lock`. `nix build github:requaos/r9/57e2952…#kernel-virt` gives the same store path (`qc1i4nhl…-r9-kernel-virt-57e2952`) and the same ELF sha256 (`da4ab2da…`) as the series kernel, so the pinned kernel is byte-identical to the kernel the series ran.
+- **Harvey push:** `git log origin/master..master` held only `658f7faee` and `0dafd07ad`. `git push origin master` (no force) printed `17df85ebc..0dafd07ad  master -> master`, and `origin/master` now equals `HEAD`.
+- **Pushes and commits made outside this plan, recorded as reported by the orchestrator:**
+  - r9 up to `cec2299` (`058b848` docs, `cec2299` x86_64 unlink-before-free): pushed by the coordinator on the owner's instructions.
+  - r9 `57e2952`: this plan committed it locally. The push was not the coordinator's; it was presumably the owner's.
+  - Harvey `b0e3cef8f` (pin r9 → `cec2299`, the x86_64 fix) and `17df85ebc` (the debug doc): made by the coordinator on the owner's instructions.
+  - Harvey `0d01baa43` (`nix/build.sh`: stage `/bin` tools via temp+rename, the `/bin/ls` CI fix): made by the coordinator; the owner pushed it.
+  - Earlier in the plan: the owner pushed Harvey through `645963ed8`, the orchestrator added `b41e7129a`, and the owner made the r9 `ff2b632` FOD re-wire and the `2226cc4` path remap.
+
+PIN: r9 57e295242484237464a93a665577899e3aa4bc50 (Harvey 0dafd07ad)
+
+HARVEY-PUSH: done

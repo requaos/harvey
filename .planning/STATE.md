@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
-stopped_at: Completed 20-05-PLAN.md
-last_updated: "2026-11-18T12:33:54.589Z"
+stopped_at: Completed 20-06-PLAN.md
+last_updated: "2026-11-19T13:54:16.466Z"
 last_activity: 2026-11-17
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: 8781e101c38754475ec4fcb3a8ae96fc312548c5
+state_head: 0dafd07adb2026169583d56872bb12117f6fd804
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 63
+  completed_plans: 64
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
-Plan: 6 of 17
+Plan: 7 of 17
 Status: In progress — 20-01, 20-02 complete (HVF fork-child root cause: missing isb after TTBR0 write; owner chose aarch64-fix, lower-bound N kept)
 Last activity: 2026-11-17 - Completed 20-01-PLAN.md
 
@@ -126,6 +126,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 20 P03 | 12h18m | 3 tasks | 6 files |
 | Phase 20 P04 | 12min | 3 tasks | 3 files |
 | Phase 20 P05 | 27 min | 2 tasks | 5 files |
+| Phase 20 P06 | 25h | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -311,6 +312,10 @@ Recent decisions affecting current work:
 - [Phase 20]: 20-05: D-06 is Branch A. The boot-chain trace fversion miss was the distiller keeping only the first tagged record per console line (glued fragments). trace.rs frag_records splits at every tag; REQUIRED_BC unchanged; 3 consecutive green fixed-harness runs
 - [Phase 20]: 20-05: donor-vm-build.sh is a documented prerequisite of the donor gates (stale guest 7c symptom: 7c: No such file or directory: u.h); donor venue green post-rename
 - [Phase 20]: 20-05: trace-boot.rc sweep-stage launch race (1 of 6 runs; child finishes before echo stop, harness hangs to 1800 s) deferred to the owner in deferred-items.md
+- [Phase 20]: 20-06: r9 group A pushed; Harvey pin advanced lock-only 8e4e730 -> 5f3ddb0 -> ff2b632 (owner boot-iso FOD re-wire) -> 2226cc4 (reproducible kernel-virt) -> 57e2952, pushed (Harvey 0dafd07ad)
+- [Phase 20]: 20-06: net-smoke HVF fired at 2226cc4 (fork-child user fault on corrupt rc argv, WINDOWS #49 class); r9 57e2952 adds dsb ishst before the TTBR writes and the full tlbi; its series green at N (smoke 1753, net-smoke 36, tier-1 10, TCG 3 each)
+- [Phase 20]: 20-06: WINDOWS #49 kept OPEN by owner decision; close criterion ~2,300 clean net-smoke HVF boots on the pinned kernel (isb-only residual ~1.8e-5/fork)
+- [Phase 20]: 20-06: r9 kernel-virt is reproducible since 2226cc4; check aarch64-neutral pins by kernel-virt ELF sha256 (57e2952: da4ab2dab941...) before re-running series
 
 ### Pending Todos
 
@@ -326,7 +331,7 @@ None yet.
 - 18-gap-review CR-03 OPEN (advisory, non-blocking per the #3304 evidence gate): the 18-07 TCP fix covers only connect-path sockets — AcceptPool::spawn_listener (r9 stack.rs) keeps smoltcp stock Nagle + 10ms delayed ACK, and x86_64 never calls tick_check, so a >2048-byte write into an ANNOUNCED connection (a secstore PUT of any real file) parks forever; the auth gate is green twice only because the committed DEMO object is 401 bytes. Fix is two set_* calls at the pool site + WR-04 pin legs; natural reopener: Phase 19 cpu/exportfs (needs exactly this class). Recorded open in 18-REVIEW-DISPOSITION with WR-03/WR-04/IN-06/IN-07
 - 19-08 RESOLVED (pass 3, 2026-11-15): the session-exit deadlock closed by the FIVE-layer chain (r9 22d40fb..56acaea, all pushed): the devssl direction split, the devmnt tag-mux (the named boot-race suspects eliminated STRUCTURALLY — the rebuilt tree booted q35cpu PASS x5 + the profile set on its first session), the session-teardown Drop, the note-interrupt fix, and devpipe's blocking write (the tier1 gate's measured paqfs root death — a THIRD race class the rebuilt tree exposed, root-caused and fixed). The gate is GREEN TWICE on KVM + the TCG leg GREEN + REDACTION-OK at the df4ad78 pin (evidence 19-08-gate-{pin-a,pin-b,tcg}.log); hosted CI observed SUCCESS at both pushed HEADs before each lock-only advance (runs 43711744441, 43717790664). Residual (recorded, non-blocking): devip's connect/listen/write-full block arms WAKE on notes but do not yet surface the interrupt — no measured caller; the data-read pair is the -G session's whole surface. DESK-06/CPU-04/DESK-04 closed by this plan's completion
 - objtype RENAMED aarch64 -> arm64 (quick 261117-bz5, 2026-11-17; Harvey 27cc1d25e/a15e787e9/cd0fa04d2). CORRECTED 20-06: r9 8e4e730 was never local only; it was on origin/main and pinned lock-only at Harvey 4a4f463e1. The arm64 r9 apps did not reach a green state at that pin for other reasons (the 19-08 note_pending compile break, fixed in 20-01). Since 20-06 the pin is r9 5f3ddb0 (Harvey 980f09c4e, r9 origin/main). The donor-venue gates are re-proven (20-05), and r9 `cargo xtask test` with port integration tests is green (20-04, 20-06). The host harness dir keeps the name build/aarch64/; r9's aarch64/ crate keeps its Rust name
-- 20-06 group A NOT YET GREEN AT THE FINAL PIN. The pin is r9 2226cc4 (Harvey adcd47cd3; reproducible kernel-virt sha256 d35373047a0f...). The boot-iso FOD was re-wired by the owner at r9 ff2b632, still holds at 2226cc4, and r9 hosted CI is green. Series at 2226cc4: smoke HVF 1753/1753, tier-1 HVF 10/10, TCG 3/3 each, but net-smoke HVF RED at run 21 of 36 (a fork-child user fault in rc searchpath on a corrupt argv word, WINDOWS #49 class). WINDOWS #49 is REOPENED (owner decision A); the work returns to 20-03 (dsb ishst hardening of r9 aarch64 vm::switch, local r9 commit, then the series again; a checkpoint comes before any pin or push). The earlier 5f3ddb0 series (net-smoke 36/36) no longer stands for this kernel. Harvey master is pushed to fd80a5691. Nothing in group B builds on this pin until group A is green
+- 20-06 group A CLOSED at r9 57e2952 (Harvey pin 0dafd07ad, pushed; reproducible kernel-virt sha256 da4ab2dab941...). On 2226cc4, net-smoke HVF went red at run 21 (a fork-child user fault on a corrupt rc argv word, WINDOWS #49 class). The owner chose to harden: r9 57e2952 puts dsb ishst before the TTBR writes and the full tlbi. Its series at the plan's N was green (HVF smoke 1753, net-smoke 36, tier-1 10; TCG 3 each), and the owner accepted it (decision b). WINDOWS #49 STAYS OPEN: the isb-only residual (~1.8e-5 per fork) cannot be separated by 17864 forks. Follow-up: about 2,300 net-smoke HVF boots clean on the pinned kernel. The boot-iso FOD was re-wired by the owner (ff2b632), and r9 hosted CI was green at ff2b632. Harvey hosted CI at the final push is not yet observed. Venue note: the lima guest's userland build can fail on the darwin HX/Hx case collision (sys/lib/postscript/troff)
 
 ### Roadmap Evolution
 
@@ -351,6 +356,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-18T12:33:53.592Z
-Stopped at: Completed 20-05-PLAN.md
+Last session: 2026-11-19T13:54:15.273Z
+Stopped at: Completed 20-06-PLAN.md
 Resume file: None
