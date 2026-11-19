@@ -624,3 +624,47 @@ netip: FAIL
 - **What it does not show:** whether the cause is a residual of the same TTBR/TLB ordering (the `dsb ishst` hardening that `## Root cause` lists was never added), a different defect (WINDOWS #50 is the other open HVF-only translation fault), or something the kernel changed between `8958c9e` and `2226cc4`. The kernel code from `8958c9e` to `2226cc4` differs only by `29f0c3d` (CI and xtask test), `5f3ddb0` (devShell), the FOD hash and the path remap, none of which touches kernel logic. No probe was run.
 
 AT-PIN-2226CC4: RED — boot-r9-net-smoke accel=hvf failed run 21 of 36 (user fault addr=0x1 in rc searchpath/strncmp, fork child pid 49; WINDOWS #49 class, not pushword); the other five series green
+
+### Hardening (owner decision A, back to the 20-03 work)
+
+The owner chose option A: reopen WINDOWS #49 (Harvey `a334e1edc`, row and JSON mirror `open`, the `645963ed8` re-close text corrected) and harden r9 `vm::switch`, starting with `dsb ishst`.
+
+- **r9 commit:** `57e295242484237464a93a665577899e3aa4bc50` `fix(20-06): dsb ishst before the TTBR writes and the full tlbi — the residual fork-child fault (WINDOWS #49)`. Its parent is `cec2299`, another session's x86_64 commit, which this plan did not touch. It changes one file, `aarch64/src/vm.rs`, +17 / -3.
+- **Change:** `dsb ishst` now goes ahead of `msr ttbr0_el1` (User arm) and `msr ttbr1_el1` (Kernel arm), and ahead of `tlbi vmalle1is` in `invalidate_all_tlb_entries`. The isb after each TTBR write (`cb9cde3`) is kept. A comment at the site gives the reason. The incoming process's tables are built by `rfork_copy` or a fault handler, now possibly in pages another process just freed (a page is really freed since `8958c9e`). Without the barrier, a walk may read a reused table page's stale contents.
+- **Binary check:** `llvm-objdump -d` on the built ELF shows `dsb ishst; msr TTBR0_EL1, x0; isb; tlbi vmalle1is; dsb ish; isb`.
+- **Battery:** `rustfmt --edition 2024 --check aarch64/src/vm.rs` passed. Inside `nix develop`, `cargo xtask check`, `clippy`, `test`, `build --arch aarch64 --config virtshell` and `build --arch aarch64` all exited 0.
+- **Kernel:** `/nix/store/qc1i4nhl0slbgwcv8a9gnm877c3nmm57-r9-kernel-virt-57e2952`, `kernel-virt.elf` sha256 `da4ab2dab941acb498e3aa8dd41cb6db7a9fb807d1ee1dda053984aa235c9b73` (60517848 bytes), no sandbox path.
+- **Push:** this plan committed `57e2952` locally only. When the series ended, r9 `origin/main` already pointed at `57e2952`, pushed outside this plan.
+
+KERNEL-VIRT-SHA256 57e2952: da4ab2dab941acb498e3aa8dd41cb6db7a9fb807d1ee1dda053984aa235c9b73
+
+### Series on the hardened kernel (r9 57e2952, rev-pinned override)
+
+`R9_OVERRIDE='git+file:///Users/neilskinner/code/r9?rev=57e295242484237464a93a665577899e3aa4bc50'`. Pinning the rev keeps any uncommitted r9 edits out of the source. `R9_STOP_ON_FAIL=1`. The block ran from 2026-11-19T01:47:12Z to 05:56:59Z with the same driver order. Every `run-*.out` names `qc1i4nhl…-r9-kernel-virt-57e2952`.
+
+- **Tier-1 HVF run 1 did not boot.** Its userland build failed in the lima guest before qemu ran: `error: opening file "/home/neilskinner.guest/harvey-build/sys/lib/postscript/troff/Hx": No such file or directory` while nix fetched `git+file:///home/neilskinner.guest/harvey-build`. `run-1.log` is 0 bytes. Darwin's case-insensitive checkout cannot hold both `HX` and `Hx`, the same collision behind the 11 pre-existing ` M sys/…` font entries. This is a build-venue failure, not a gate result, and no fork ran. It is not caused by this plan and is left for the owner.
+- **Same image for every series.** The other five series ran with `R9_SKIP_BUILD=1` on the arm64 userland from the 2226cc4 series' run 1 (`arm64/bin/rc` 2026-11-18T13:48-0500). Between that build and this block, Harvey changed only docs, CI, `flake.lock` (`b0e3cef8f`, made elsewhere, not read under the override) and `nix/build.sh` (`0d01baa43`, made elsewhere). The tier-1 HVF ×10 series was re-run after the block on the same image and override (`R9_SKIP_BUILD=1`).
+
+SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3280
+SERIES boot-r9-net-smoke accel=hvf runs=36 pass=36 fail=0 pushword=0 forks=2560
+SERIES boot-r9-smoke accel=hvf runs=1753 pass=1753 fail=0 pushword=0 forks=14024
+SERIES boot-r9-tier1 accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=984
+SERIES boot-r9-net-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=213
+SERIES boot-r9-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=24
+
+The failed build attempt printed `SERIES boot-r9-tier1 accel=hvf runs=1 pass=0 fail=1 pushword=0 forks=0` (directory `boot-r9-tier1-hvf-20261118T204712`, 0 forks). It is recorded here and not counted.
+
+| Series | Directory (`.build/hvf-series/`) | `pushword` | `user fault: unresolvable` | `not registered` | Notes |
+|--------|----------------------------------|------------|----------------------------|------------------|-------|
+| tier-1 HVF ×10 | `boot-r9-tier1-hvf-20261119T022907` | 0 | 0 | 0 | 328 forks/run, `T1-OK forkstress` in all 10 |
+| net-smoke HVF ×36 | `boot-r9-net-smoke-hvf-20261118T204720` | 0 | 0 | 0 | 35 runs 71 forks, 1 run 75 |
+| smoke HVF ×1753 | `boot-r9-smoke-hvf-20261118T205744` | 0 | 0 | 0 | 8 forks/run |
+| tier-1 / net-smoke / smoke TCG ×3 | `…-tcg-20261118T2056{02,31}`, `…T205718` | 0 | 0 | 0 | — |
+
+**What this series can and cannot show.** HVF gate forks, with forkstress excluded: 1280 + 2560 + 14024 = **17864 with 0 fires**.
+
+- The kernels carrying only the `cb9cde3` isb had 1 fire in about 54,600 HVF gate forks (8958c9e 17860, 5f3ddb0 17860, ff2b632 partial 2132, 2226cc4 16768). That is about 1.8e-5 per fork.
+- At that rate, a kernel no better than `2226cc4` would come through 17864 forks clean with probability e^(-0.33), about 0.72. At the 2226cc4 series' own rate (1 in 16768), the probability is about 0.34.
+- So this series is green at the plan's N. It does not show that the hardening removed the residual. At 1.8e-5 per fork, showing it at 95% needs about ln(20)/1.8e-5 ≈ 166,000 clean forks. With net-smoke, the gate that fired (71 forks a boot, about 15 s), that is about 2,300 boots or about 9.6 h.
+
+HARDENED-57E2952: series green at the plan's N (17864 HVF gate forks, 0 fires); not yet distinguishable from the isb-only residual rate
