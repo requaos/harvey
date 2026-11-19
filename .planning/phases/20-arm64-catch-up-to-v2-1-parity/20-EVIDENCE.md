@@ -919,3 +919,43 @@ boot-r9-smoke accel=hvf: STOPPED at 52 of 1753 runs, pass=52 fail=0 pushword=0 f
 ```
 
 The tier-1 runs carry the new `writeprobe` entry. Each prints 365 forks per run where 20-06 printed 328: the probe's forks. The run in flight when the series stopped has no RUN line and is not counted. The series log is copied to `.build/p20-08-series-b82ee9d.log`, and the per-run captures are under `.build/hvf-series/`.
+
+### Series at r9 7b598f2 (the 20-08 ports plus the debugger's fd-group fixes)
+
+r9 `7b598f2` contains `b82ee9d` (this plan) and the debugger's `3a1c9e5` (aarch64 `exit_tail` releases the fd-group reference before it diverges), `f8c2ac9` (a bare `rfork(RFCFDG)` gets a fresh table, and the bare split releases the old one; this edits this plan's `sys_rfork` hunk), `5893ae9` (aarch64 exit-path drains: one-at-a-time fd close and the #44 husk sweep) and `7b598f2` (the `sem_deregister_waiter` FIFO fix). Checks: `git merge-base --is-ancestor b82ee9d 7b598f2` and `git merge-base --is-ancestor 3a1c9e5 7b598f2` both hold. `57e2952..7b598f2` touches only `aarch64/src/{proc,syscall}.rs` and `x86_64/src/{proc,syscall}.rs`, with no `port/src` change.
+
+**Tier-1 gate at 7b598f2** (`--override-input r9 'git+file:///Users/neilskinner/code/r9?rev=7b598f2…'`, full build):
+
+```
+hvf exit=0 ok=1 fail=0 okall=39 skip=23
+tcg exit=0 ok=1 fail=0 okall=39 skip=23
+```
+
+Both runs print `expected on r9: 39 T1-OK markers + 23 T1-SKIP markers` and `ALL STAGES PASS`. With the driver at `7b598f2`, the writeprobe transcripts on HVF and TCG are byte-identical to each other and to the `b82ee9d` after-transcript above: seven `WP-OK` lines, then `WP-FAIL remove … syscall not implemented`. The image baked by these runs is bootfs sha256 `180a3c86d4f39373f3f31442cf062fb45de69ad88f0ea1ee995155ed2b7ac703`. It differs from the `7960d429…` image above, although the sources are the same; the bake is not byte-stable from run to run. Captures: `.build/p20-08-7b5-tier1-{hvf,tcg}.{out,log}`, `.build/p20-08-7b5-wp-{hvf,tcg}.transcript`.
+
+**Series**, in the 20-06 shape, with `R9_OVERRIDE='git+file:///Users/neilskinner/code/r9?rev=7b598f23f03af5aec779a2846801338bd6331f90'` and `R9_STOP_ON_FAIL=1`. Harvey was at `176723fc9`. It ran from 2026-11-19T17:43:45Z to 21:58:34Z:
+
+```
+SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3650
+SERIES boot-r9-net-smoke accel=hvf runs=36 pass=36 fail=0 pushword=0 forks=2556
+SERIES boot-r9-tier1 accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=1095
+SERIES boot-r9-net-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=213
+SERIES boot-r9-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=24
+SERIES boot-r9-smoke accel=hvf runs=1753 pass=1753 fail=0 pushword=0 forks=14024
+```
+
+That is 1808 of 1808 runs green and 21562 forks, with no `pushword` line. Every block booted `/nix/store/2inqg9mw20zfb9c8300zrhiy8x5l0nqv-r9-kernel-virt-7b598f2`. No capture in any block has a `Not registered`, `user fault` or `unresolvable` line. The tier-1 blocks carry the `writeprobe` entry: 365 forks per run. The series log is `.build/p20-08-series-7b598f2.log`, and the per-run captures are under `.build/hvf-series/boot-r9-*-20261119T12[4-5]*`.
+
+### Byte identity (aarch64 kernel-virt)
+
+| Kernel | Store path | ELF sha256 | Bytes |
+|--------|------------|------------|-------|
+| the pin (57e2952) | `qc1i4nhl…-r9-kernel-virt-57e2952` | `da4ab2dab941acb498e3aa8dd41cb6db7a9fb807d1ee1dda053984aa235c9b73` | 60517848 |
+| b82ee9d (Task 1 alone) | `cqiqfc81…-r9-kernel-virt-b82ee9d` | `e130d40a41fc6484786701b4007cf0516ea05c89e8ff2b1fbfbfffa7dd49ee8c` | 60524968 |
+| 7b598f2 (series kernel) | `2inqg9mw20zfb9c8300zrhiy8x5l0nqv-r9-kernel-virt-7b598f2` | `92cc905bdd4392b15291849d4fe475f01d4610e0a9f8c971f8d3b557f6f45578` | 60584848 |
+| 27f38a3 (r9 origin/main) | `193ys32r0j6m137cljadqy2dxzc2n60a-r9-kernel-virt-27f38a3` | `92cc905bdd4392b15291849d4fe475f01d4610e0a9f8c971f8d3b557f6f45578` | 60584848 |
+
+- **The 7b598f2 kernel is reproducible.** `nix build --rebuild` of `yhf7xknsbzl6b6mdxm0mff54f06vbrgh-r9-kernel-virt-7b598f2.drv` exits 0 with no `may not be deterministic`. It is the same store path the debugger reported (sha256 `92cc905b…`). `b82ee9d`'s `--rebuild` was clean too.
+- **27f38a3 equals 7b598f2 plus one `flake.nix` line**, the x86_64 boot-iso `outputHash` (`sha256-rl+HA3pg…` → `sha256-Dk1zd/JQ…`). `git diff --stat 7b598f2 27f38a3` lists only `flake.nix`.
+- **27f38a3's aarch64 kernel is byte-identical to the series kernel.** `nix eval` of `github:requaos/r9/27f38a3a916d829307cce60bb09e4ce50f361ced#packages.aarch64-darwin.kernel-virt.outPath` gives `193ys32r…-r9-kernel-virt-27f38a3`, the store path a Harvey pin to `27f38a3` would boot. `diff -r` of that path against `2inqg9mw…-7b598f2` is empty, and the ELF sha256 values are equal. The store path differs only because the source rev is part of the derivation name and inputs.
+- **The x86_64 kernel bytes change too** (`57e2952..7b598f2` touches `x86_64/src/{proc,syscall}.rs`). They are not measured here. The pin needs the linux-host `nix build .#boot-iso` against `27f38a3`'s new `outputHash` and the x64 gates, which the debugger is running separately.
