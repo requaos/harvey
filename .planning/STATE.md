@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
-stopped_at: Completed 20-06-PLAN.md
-last_updated: "2026-11-19T13:54:16.466Z"
+stopped_at: Completed 20-07-PLAN.md
+last_updated: "2026-11-19T15:47:12.990Z"
 last_activity: 2026-11-17
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: 0dafd07adb2026169583d56872bb12117f6fd804
+state_head: a7b2b1d6711645992f3ffa92577c00d46cabe33a
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 64
+  completed_plans: 65
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
-Plan: 7 of 17
+Plan: 8 of 17
 Status: In progress — 20-01, 20-02 complete (HVF fork-child root cause: missing isb after TTBR0 write; owner chose aarch64-fix, lower-bound N kept)
 Last activity: 2026-11-17 - Completed 20-01-PLAN.md
 
@@ -127,6 +127,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 20 P04 | 12min | 3 tasks | 3 files |
 | Phase 20 P05 | 27 min | 2 tasks | 5 files |
 | Phase 20 P06 | 25h | 3 tasks | 6 files |
+| Phase 20 P07 | 108 min | 3 tasks | 8 files |
 
 ## Accumulated Context
 
@@ -316,6 +317,8 @@ Recent decisions affecting current work:
 - [Phase 20]: 20-06: net-smoke HVF fired at 2226cc4 (fork-child user fault on corrupt rc argv, WINDOWS #49 class); r9 57e2952 adds dsb ishst before the TTBR writes and the full tlbi; its series green at N (smoke 1753, net-smoke 36, tier-1 10, TCG 3 each)
 - [Phase 20]: 20-06: WINDOWS #49 kept OPEN by owner decision; close criterion ~2,300 clean net-smoke HVF boots on the pinned kernel (isb-only residual ~1.8e-5/fork)
 - [Phase 20]: 20-06: r9 kernel-virt is reproducible since 2226cc4; check aarch64-neutral pins by kernel-virt ELF sha256 (57e2952: da4ab2dab941...) before re-running series
+- [Phase 20]: 20-07 D-09: owner chose ramfs-venue-brk-holds (ramfs is the b4-b7 venue; RED-STEP b4 fdsplit, b5 write, b6 mkdir, b7 union-create; lone-member brk not ported, brkprobe is a regression check only)
+- [Phase 20]: 20-07: shared-fd-table RFPROC pipe leak (backquote reader hangs) handed to a separate gsd-debugger, not fixed in 20-07
 
 ### Pending Todos
 
@@ -356,6 +359,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-19T13:54:15.273Z
-Stopped at: Completed 20-06-PLAN.md
+Last session: 2026-11-19T15:47:11.648Z
+Stopped at: Completed 20-07-PLAN.md
 Resume file: None

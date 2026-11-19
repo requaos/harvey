@@ -803,3 +803,13 @@ Kernel notes: none. No `user fault`, `unresolvable` or `panic` line appears in a
 **Invalid earlier runs (probe defect, not a kernel result).** The first two brkprobe builds reported `MISMATCH` on every run, 10 + 14 runs in `.build/p20-07-brk-v1/` and `.build/p20-07-brk-v2/`. Example: `MISMATCH addr=0x28bf8 phase=lone page=6 want=0x15 got=0x15`. want equalled got, and the first bad page was exactly the first page whose unmasked pattern `(page*31 + who*0x5a + 1)` exceeds 0xff: page 6 for who=1, page 3 for who=2 (the family child, `addr=0x24bd0`), and page 0 for who=4 (plain). So 7c on arm64 does not narrow a `uchar` function result before the caller compares it. The probe now masks with `& 0xff`, with a comment on why, and every run passes. The compiler behavior is recorded in `deferred-items.md`. It is not a kernel defect and not in this plan's scope.
 
 A-brk holds: the lone-member arm works on aarch64 by demand paging; the x86_64 eager-map change is not ported
+
+### Owner decision (D-09 checkpoint)
+
+**Owner decision (2026-11-19, relayed by the coordinator): `ramfs-venue-brk-holds`.** ramfs is the writable venue for the b4–b7 ports. 20-08 pins them through `T1-OK writeprobe` against the four RED-STEP lines above. The lone-member brk arm is not ported. brkprobe stays in the image as a regression check only.
+
+- **Finding 1 (the shared-fd-table pipe leak)** was handed to a separate gsd-debugger investigation. It is not fixed in 20-07.
+- **The 7c uchar-narrowing note** is in `deferred-items.md`.
+- **The lima guest's `core.ignorecase=false`** was approved by the owner and is kept.
+
+D-09: ramfs-venue-brk-holds

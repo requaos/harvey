@@ -21,3 +21,15 @@ Found during 20-06, at the second pin (5f3ddb0 -> ff2b632).
 - **Why it matters:** two kernels can't be compared byte for byte. So a pin change that doesn't touch aarch64 at all (here, the x86_64 boot-iso `outputHash` line) can't be shown to leave the tested kernel unchanged, and a byte-identity rule forces a fresh HVF series of about 4 hours.
 - **Fix:** strip or remap the build path at compile time so it doesn't vary, for example `--remap-path-prefix` in RUSTFLAGS for the kernel build, or `trim-paths` where the toolchain supports it. Then confirm that two `--rebuild` passes produce identical output.
 - **For now:** the owner stopped the at-pin series re-run on `ff2b632`. The `5f3ddb0` series (1753/36/10 HVF, all passing) stands for group A, because `ff2b632` changes only the x86_64 FOD hash.
+
+## 20-07: 7c (arm64) does not narrow a uchar function result
+
+Found during 20-07 Task 2 (the first two brkprobe builds; captures in `.build/p20-07-brk-v1/` and `.build/p20-07-brk-v2/`).
+
+- **What happens:** `static uchar pat(ulong off, int who){ return (off/Page)*31 + who*0x5a + 1; }`, compared as `p[i] != pat(i, who)` against the byte just stored, compares unequal exactly when the unmasked value exceeds 0xff. The first bad page was page 6 for who=1, page 3 for who=2 and page 0 for who=4, and the printed values were equal (`want=0x15 got=0x15`). The caller seems to use the full register, and neither side narrows the result to 8 bits. Compiled with `7c -FTVw`.
+- **Why not fixed here:** it is a compiler issue (`sys/src/cmd/7c`), outside 20-07's files. brkprobe masks with `& 0xff`, with a comment explaining why. Other arm64 code that returns `uchar`/`char`/`ushort` from a computed expression could be affected silently.
+- **Next step:** a three-line reproducer under 7c and the 7c/7l return-value code path (`sys/src/cmd/7c/cgen.c`, `sys/src/cmd/cc` for the function-return cast).
+
+## 20-07: the lima guest checkout's .git had core.ignorecase=true (venue fix applied)
+
+Found during 20-07 Task 1. The guest's `~/harvey-build/.git` was copied from darwin, and it carried `core.ignorecase=true` on a case-sensitive disk. Every `nix run .#boot-r9-tier1` build failed in the guest's nix fetch with `sys/lib/postscript/troff/Hx: No such file or directory` (3 of 3 attempts; 20-06 hit the same thing and avoided it with `R9_SKIP_BUILD=1`). Applied in the guest only: `git config core.ignorecase false`. No repo file changed. To revert: `git -C ~/harvey-build config core.ignorecase true`. The darwin-side HX/Hx collision itself (the 11 ` M sys/…` font entries) is untouched and still the owner's call.
