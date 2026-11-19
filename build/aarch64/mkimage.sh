@@ -80,6 +80,7 @@ done
 [ -s "$OUT/forkstress" ] || err "$OUT/forkstress missing — run sh build/aarch64/subset-build.sh first"
 # 20-07: the group-B measurement probe (b4 fd split; not gate-wired)
 [ -s "$OUT/rfdprobe" ] || err "$OUT/rfdprobe missing — run sh build/aarch64/subset-build.sh first"
+[ -s "$OUT/brkprobe" ] || err "$OUT/brkprobe missing — run sh build/aarch64/subset-build.sh first"	# 20-07: lone-member RFMEM brk probe
 SUBSET="rc grep cat cp date echo ls mkdir mv ps rm sed test wc"
 SUBSET="$SUBSET dd"	# 07-04: dd joins the image (D-07's sweep writer); append form keeps the edit insertion-only
 SUBSET="$SUBSET bind"	# 07-07: the net-sweep's `bind -a '#l' /net` execs /bin/bind (not an rc builtin)
@@ -171,6 +172,8 @@ cp "$OUT/tcpecho" "$STAGE/arm64/bin/tcpecho"
 cp "$OUT/forkstress" "$STAGE/arm64/bin/forkstress"
 # 20-07: rfdprobe bakes beside it (run by /lib/writeprobe.rc's fdsplit step)
 cp "$OUT/rfdprobe" "$STAGE/arm64/bin/rfdprobe"
+# 20-07: brkprobe (the lone-member RFMEM brk measurement; typed by hand)
+cp "$OUT/brkprobe" "$STAGE/arm64/bin/brkprobe"
 
 # 3b. 06-07 (D-12): the tier-1 sweep payload — h-prefixed binaries into
 #     /arm64/bin (the sweep invokes them as /bin/h* on r9 through the
@@ -263,6 +266,7 @@ done
 [ -f "$STAGE/arm64/bin/tcpecho" ] || err "manifest: arm64/bin/tcpecho missing"
 [ -f "$STAGE/arm64/bin/forkstress" ] || err "manifest: arm64/bin/forkstress missing"
 [ -f "$STAGE/arm64/bin/rfdprobe" ] || err "manifest: arm64/bin/rfdprobe missing"	# 20-07
+[ -f "$STAGE/arm64/bin/brkprobe" ] || err "manifest: arm64/bin/brkprobe missing"	# 20-07
 [ -f "$STAGE/lib/writeprobe.rc" ] || err "manifest: lib/writeprobe.rc missing from staged tree"	# 20-07
 # 06-07 (D-12): every tier-1 payload path is asserted pre-bake (T-06-15:
 # a stale bake would certify old binaries — presence of the just-staged

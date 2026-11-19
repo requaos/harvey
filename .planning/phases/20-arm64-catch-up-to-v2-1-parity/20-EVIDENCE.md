@@ -690,6 +690,13 @@ HARVEY-PUSH: done
 
 Plan 20-07 (D-09). Kernel under test: the pinned r9 `57e2952` (`/nix/store/qc1i4nhl0slbgwcv8a9gnm877c3nmm57-r9-kernel-virt-57e2952`, the `boot-r9-tier1` app's `R9_KERNEL_PKG`; no `--override-input`, no `R9_OVERRIDE`). Host: darwin-arm64, qemu 11.1.2, shape `virt,gic-version=3`; HVF `-cpu host`, TCG `cortex-a72`. Image: `build/aarch64/bootfs.paq` sha256 `6824c143d7f46551e59f595e6717747d281da6750c9c6f541bb286cc27afbd29`, baked by the tier-1 gate run below; every write-flow and diagnostic run in this section booted that same file (the brkprobe runs have their own image, named in their subsection). Driver: an uncommitted copy of `tier1-r9.expect`'s spawn shape (`.build/p20-07-probe.expect` + `.build/p20-07-probe.sh`) that types one line at the `%` prompt and waits for a marker.
 
+### Conclusions (details below)
+
+- **A-venue holds.** ramfs builds for arm64, mounts on `/n/wp` and creates. The write flow is red only at b5 (write), b6 (mkdir), b7 (union create) and b13 (remove).
+- **A-rfork holds.** The `fdsplit` step is red with `rfork: bad flags for non-RFPROC` (b4).
+- **A-brk holds: the lone-member arm works on aarch64 by demand paging; the x86_64 eager-map change is not ported.** 10/10 runs (5 HVF, 5 TCG) pass, plus the plain and family controls.
+- **New finding (unmapped):** a fd table shared through a plain `rfork(RFPROC)` child leaks a pipe writer past the last sharer's exit, so a backquote reader hangs (HVF and TCG). It is outside b4–b7/b13.
+
 ### Write-flow transcript (`rc /lib/writeprobe.rc`, HVF and TCG)
 
 The HVF and TCG transcripts are byte-identical (`diff` empty). One run each:
@@ -777,3 +784,22 @@ RED-STEP b6: mkdir
 RED-STEP b7: union-create
 
 Each line names the probe step that is `WP-FAIL` on this kernel because of that item, and it is the same on HVF and TCG. b4: rfdprobe's `FAIL rffdg` with `rfork: bad flags for non-RFPROC`, and also `FAIL rfcfdg`. b5: `devmnt: the mounted tree is read-only this era`; `readback` is red only as a consequence. b6: `create: directories unsupported this era`. b7: the create through the `-ac` union landed on the read-only first member (`namec: device has no create`) and not in `/n/wp`. b7's red is the absence of the union redirect, not a b7-specific errstr, so its green-after is the file appearing in `/n/wp`. No item reads `none`. The remove step is red for b13, which is outside 20-08's b4–b7 pin claim.
+
+### Lone-member RFMEM brk (A-brk)
+
+Probe: `build/aarch64/brkprobe.c`. The image is rebuilt with brkprobe baked in: `bootfs.paq` sha256 `30f61249173fb665f6e6034e76c31496558bc9965b0499d2be901c2d0c5999aa`. Same pinned kernel `qc1i4nhl…-r9-kernel-virt-57e2952`, no override. The tier-1 gate passed on TCG with this image: `38 T1-OK markers + 23 T1-SKIP markers (computed)`, `ALL STAGES PASS`. Typed line: `/bin/brkprobe; echo BRKST $status`. Default mode: phase lone, then phase family.
+
+Ten runs, identical output in every run:
+
+| Run | Accel | Output | Exit status |
+|-----|-------|--------|-------------|
+| 1–5 | HVF | `brkprobe: start break=0x21bd0` / `brkprobe: phase lone ok 8388608 (break 0x22bf8..0x822bf8)` / `brkprobe: phase family ok 8388608 (break 0x822bf8..0x1022bf8)` / `brkprobe: ok 8388608` | nil (`BRKST` with an empty status; `process 6 exited: ""`) |
+| 1–5 | TCG | the same four lines | nil |
+
+Controls, one run each per accelerator with the same output on both: `brkprobe -p` (plain growth, no fork) printed `phase plain ok 8388608 (break 0x21bd0..0x821bd0)`, nil. `brkprobe -f` (the family arm alone) printed `phase family ok 8388608 (break 0x21bd0..0x821bd0)`, nil.
+
+Kernel notes: none. No `user fault`, `unresolvable` or `panic` line appears in any of the 14 captures. Between the RFMEM child's exit (`process 7 exited: ""`) and `phase lone ok`, the HVF run-1 capture has exactly **2048** `fault: bss page-in` lines, one per 4 KiB page of the 8 MiB growth. The lone member's growth is served by the demand pager. The family phase has **0** page-ins in its range, because the family arm maps the growth into every member eagerly, as `rfmem_brk_set` documents.
+
+**Invalid earlier runs (probe defect, not a kernel result).** The first two brkprobe builds reported `MISMATCH` on every run, 10 + 14 runs in `.build/p20-07-brk-v1/` and `.build/p20-07-brk-v2/`. Example: `MISMATCH addr=0x28bf8 phase=lone page=6 want=0x15 got=0x15`. want equalled got, and the first bad page was exactly the first page whose unmasked pattern `(page*31 + who*0x5a + 1)` exceeds 0xff: page 6 for who=1, page 3 for who=2 (the family child, `addr=0x24bd0`), and page 0 for who=4 (plain). So 7c on arm64 does not narrow a `uchar` function result before the caller compares it. The probe now masks with `& 0xff`, with a comment on why, and every run passes. The compiler behavior is recorded in `deferred-items.md`. It is not a kernel defect and not in this plan's scope.
+
+A-brk holds: the lone-member arm works on aarch64 by demand paging; the x86_64 eager-map change is not ported
