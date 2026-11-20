@@ -762,20 +762,29 @@ if(~ $venue r9){
 # fds must be closed and the plain one open (a leak is T1-FAIL
 # cexeccreate after `cexecprobe: LEAK create fd=<n>' or `LEAK
 # create-existing fd=<n>').
+# rcloseprobe (20-11, the pin for r9 5629cf0, ORCLOSE remove-on-close
+# on local devices): /srv create ORCLOSE|OCEXEC gone after close, a dup
+# kept until the last close, an exiting child's ORCLOSE name gone after
+# wait, and the /env create and open arms in a fresh rfork(RFCENVG)
+# group (a leak is T1-FAIL rcloseprobe after `rcloseprobe: LEAK <leg>
+# <name>'; a failing run leaves its /srv/rcloseprobe.<pid>* names
+# behind until arm64 has remove(2), 20-14).
 # brkprobe (20-07, D-09 ramfs-venue-brk-holds): grow the break 8 MiB as
 # the lone member of an exited RFMEM family, then inside a live family,
 # and check every page; aarch64 demand-faults the lone member's growth,
-# and this keeps that measured.  Both run on their exit status.  r9
+# and this keeps that measured.  All run on their exit status.  r9
 # venue only, like forkstress: the binaries are baked into the r9 image
 # (mkimage.sh) and the donor and 9k venues do not carry them.
-# nix/tier1-r9.sh lists both among the fixed expected names, so a
+# nix/tier1-r9.sh lists each among the fixed expected names, so a
 # silent entry reds the gate as `missing T1-OK cexecprobe' (or
-# cexeccreate, or brkprobe).
+# cexeccreate, rcloseprobe, brkprobe).
 if(~ $venue r9){
 	if(/bin/cexecprobe) echo T1-OK cexecprobe
 	if not echo T1-FAIL cexecprobe
 	if(/bin/cexecprobe -c) echo T1-OK cexeccreate
 	if not echo T1-FAIL cexeccreate
+	if(/bin/rcloseprobe) echo T1-OK rcloseprobe
+	if not echo T1-FAIL rcloseprobe
 	if(/bin/brkprobe) echo T1-OK brkprobe
 	if not echo T1-FAIL brkprobe
 }
