@@ -1,8 +1,8 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "Fix the ORCLOSE gap now: ORCLOSE must take effect for local devices on both arches, so that /srv files etc. are removed on close. Plan 20-14 owns aarch64 remove (syscall 25 is unimplemented); if ORCLOSE needs that remove path on aarch64, checkpoint the overlap before implementing. Arch-only, otherwise checkpoint with the diff. Plan 20-11 adds `T1-OK cexeccreate` concurrently; don't edit tier1-sweep.rc."
 created: 2026-11-20T18:05:00Z
-updated: 2026-11-20T20:05:00Z
+updated: 2026-11-20T20:30:00Z
 ---
 
 ## Current Focus
@@ -11,8 +11,8 @@ bug_class: Bohrbug (by reading: no code path records or acts on ORCLOSE for a lo
 hypothesis: H1 (by reading, unambiguous) — r9 never records ORCLOSE on a chan (no CRCLOSE twin on Chan; open_chan and sys_create drop it for local devices) AND devsrv/devenv have no remove op, so a local file opened/created ORCLOSE is never removed at its last close; devmnt is already fine (ORCLOSE rides the Topen/Tcreate wire byte, the server removes at clunk)
 test: ALL DONE (option C) — rcloseprobe RED at 42203d8 → GREEN, HVF+TCG; host tests port/aarch64/x86_64 + port mutants; aarch64 TCG gates; x64 container gates + host tests; darwin + linux batteries; boot-iso re-derived and green at the committed HEAD; container removed
 expecting: owner confirmation; then the push of r9 5629cf0 + fa38402, a lock-only pin move, and the combined arm64 HVF series at fa38402 (kernel-virt d8be7228… → bd0d9696…)
-next_action: AWAITING human verification. On "confirmed fixed": move to resolved/, append the KB entry (Prevention block), commit. 20-11 adds `T1-OK rcloseprobe` (tier1_suggestion below); 20-14's aarch64 sys_remove routes through port::namec::remove_chan
-r9_commits: 5629cf0 fix (tree == tested 03c6038), fa38402 boot-iso bump — local on main, unpushed (origin/main 42203d8)
+next_action: DONE — owner confirmed fixed (relayed by the coordinator); r9 pushed to fa38402; archived to resolved/ with the KB entry. Follow-ups owned elsewhere: 20-11 adds `T1-OK rcloseprobe`; 20-14's aarch64 sys_remove routes through port::namec::remove_chan
+r9_commits: 5629cf0 fix (tree == tested 03c6038), fa38402 boot-iso bump — pushed by the coordinator (origin/main fa38402)
 harvey_commits: 1e6d8e79f test(debug): rcloseprobe (+ subset-build.sh/mkimage.sh wiring); this file
 arch_only_verdict: NOT POSSIBLE — (1) devsrv's registry is a private port static (port/src/devsrv.rs:59 `static SRV`) and EnvGroup's entries are private, so no arch code can remove an entry; (2) last-close detection needs a reference shared by the open's dups (Chan is copied by value per fd; arch code cannot add a Chan field); (3) the close paths that must act (exit drains, exec sweep, dup eviction, op-ref release in port/src/fdgrp.rs op_done) run port's close_chan
 overlap_with_20-14: ORCLOSE does NOT need syscall 25 (REMOVE) or an aarch64 sys_remove; it needs the DEVICE remove ops (devsrv::remove, devenv::remove — new in port) that REMOVE("/srv/x"), REMOVE("/env/x") would also dispatch to. x86_64's remove routing is arch-local (x86_64/src/syscall.rs:898 remove_chan, DEV_CAP only); the draft adds a second, port-side routing for the close path (namec::remove_if_last_rclose: DEV_SRV, DEV_ENV). 20-14 must decide whether aarch64's sys_remove (and x86_64's remove_chan) gain DEV_SRV/DEV_ENV arms over these ops, or route through one shared port dispatch
@@ -132,3 +132,16 @@ related_findings_not_fixed:
   - "devsrv: the donor's srvwrite refuses to post an fd carrying CCEXEC|CRCLOSE; r9's write does not (no measured caller posts such an fd)."
   - "EnvGroup::remove keeps insertion order (the donor swap-removes) — r9's deep_copy renumbering reads insertion order."
 tier1_suggestion: "marker `T1-OK rcloseprobe` — sweep line `if(/bin/rcloseprobe) echo T1-OK rcloseprobe` / `if not echo T1-FAIL rcloseprobe`, in the r9-venue block beside cexecprobe/cexeccreate; red at any pin without 5629cf0 (and each red run leaves 3 stale /srv/rcloseprobe.<pid>* names until aarch64 has remove)"
+
+## Prevention
+
+human_verification: owner confirmed fixed (2026-11-20, relayed by the coordinator); r9 pushed to fa38402
+
+five_whys (branched, from the AND-gate's two halves):
+  - code (flag half): why was an ORCLOSE file never removed? its chan carried no remove-on-close state → why? Chan had no CRCLOSE twin, and the OCEXEC work (19-10 cont 4, then create-ocexec-not-marked) taught one fd-state bit at a time, following the measured consumer (procexec) → why was that possible? there was no single place that records every fd-state bit of a mode word → actionable: namec::mark_fd_state records OCEXEC and ORCLOSE together, and every arm that yields an open chan calls it
+  - code (device half): why could even a recorded bit do nothing? devsrv and devenv had no remove op, and the only remove routing was arch-local (x86_64 remove_chan, devcap only) → why? REMOVE was ported per measured consumer (18-02's caphash) and the close path had no remove at all → actionable: one port dispatch (namec::remove_chan) shared by REMOVE and the close path, so a device that gains remove gains it for both
+  - test/environment: why no failing gate? no sweep entry creates or opens anything ORCLOSE (lib9p servers, rio and the plumber — the live callers — are not in the arm64 sweep), mounted ORCLOSE was already correct server-side, and a stale /srv name is silent (nothing reads /srv for it)
+
+why_not_caught: no gate existed for this class — no tier-1 or smoke entry opens or creates ORCLOSE, its live callers (lib9p postfd, rio, plumber) are not in the arm64 sweep, a leaked /srv or /env name fails nothing, and no host test covered devsrv/devenv removal (they had no remove)
+
+recurrence_guard: r9 fa38402 host tests `port/src/namec_tests.rs:{orclose_srv_entry_goes_at_the_last_close_only, orclose_remove_waits_for_an_in_flight_op_ref, orclose_env_key_goes_at_the_last_close}` (kill the close-arm-removed, last-close-guard-removed and mark-not-recorded mutants), `aarch64/src/syscall.rs:create_cexec_tests::created_orclose_srv_post_goes_at_the_last_close`, `x86_64/src/syscall.rs:tests::{created_orclose_srv_post_goes_at_the_last_close, remove_round_trips_through_the_devcap_arm_and_refuses_unported, remove_syscall_dispatches_and_refuses_loudly}` (verified present on origin/main and passing); Harvey boot reproducer `build/aarch64/rcloseprobe.c` (`rcloseprobe: ok` required; plan 20-11 wires `T1-OK rcloseprobe`); the shared `namec::mark_fd_state` / `namec::remove_chan` structure; KB pattern below
