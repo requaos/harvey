@@ -1177,6 +1177,43 @@ R9-PUSHED: 7d464ad0824c8e5fb92566a8b210862e9aabc9fe
 
 The pin stays at `1125a20` for now. `7d464ad` is CI-only, so the pinned kernel is byte-identical to the r9 `origin/main` kernel on every arch. Harvey `a71a45b8c` stays local.
 
+### r9 42203d8: the create(OCEXEC) fix (battery and the cexeccreate pin)
+
+The debugger session (`.planning/debug/create-ocexec-not-marked.md`) landed two commits on r9 `origin/main`, which the coordinator reported as `42203d8`:
+
+```
+42203d8 bump boot-iso hash for the create(OCEXEC) kernel change
+437b752 fix: create(OCEXEC) marks the new chan close-on-exec on both arches
+```
+
+`git diff --stat 7d464ad..42203d8` touches `aarch64/src/syscall.rs`, `x86_64/src/syscall.rs`, `x86_64/src/exec.rs` and `flake.nix`. The only `flake.nix` change is the boot-iso `outputHash`, from `sha256-Dk1zd/JQVH7PtNXrwUD+Yi3To3h1dZWIprofEutR6Yk=` to `sha256-L8Sm1tGU6KOyb3+XkzddGeqKe993L/akNm5xaqLjmV8=`. `port/src` is **empty** again (`PORT-SRC-EDIT: no` stands). The x86_64 diff is exactly `437b752`'s. The debugger ran the x64 TCG gates green in an amd64 container, so no x64 gate is owed here.
+
+**Battery at `42203d8`** (a clean short-path clone, `.build/r9-b42`, since removed; the same steps and toolchain as the `7d464ad` battery):
+
+- check, clippy, test, and the virtshell, virtchurn, aarch64-default, x86-64 and riscv64 builds all exit 0. `test` has 12 `ok.` results and no `FAILED`.
+- ureg-check exits 0 (35 and 26 fields match, negative control fired).
+- The virtchurn boot-test exits 0 with `steady=482 measured=143 <= ceiling=1772` bytes/exec.
+- Logs: `.build/p20-11-battery-42203d8/`.
+
+**aarch64 kernel at `42203d8`:** `/nix/store/sw5pfm8m3i83dqw4kxcp80452z39h1ii-r9-kernel-virt-42203d8`, `kernel-virt.elf` sha256 `d8be7228d31cc5d398d530a09196662402170bcec8dc12aa80bbbbec4bd57cb4`. This matches the coordinator's report.
+
+**The new gate entry (owner decision).** Harvey `68119abf8` adds `T1-OK cexeccreate` to the r9-venue block of `build/aarch64/tier1-sweep.rc`. It runs `/bin/cexecprobe -c`, the create leg from `3592699f0`. That leg self-execs as `/bin/cexecprobe -C <fd> <fd> <fd>`, with every argument far under exec's 128-byte cap. `nix/tier1-r9.sh` adds `cexeccreate` to the fixed expected names, so the computed expected OK set goes from 41 to 42. Like the other probes, the entry sits inside `if(~ $venue r9){…}`, so the donor and 9k venues do not run it.
+
+**TCG, red at the pin and green at the fix.** Harvey was at `68119abf8` for both runs, and both used the same freshly built userland:
+
+| Kernel | Invocation | Exit | Result |
+|---|---|---|---|
+| r9 `42203d8` (`sw5pfm8m…`) | `R9_ACCEL=tcg nix run .#boot-r9-tier1 --no-write-lock-file --override-input r9 'git+file:///Users/neilskinner/code/r9?rev=42203d8…'` (full build) | 0 | `expected on r9: 42 T1-OK markers + 23 T1-SKIP markers`; 42 distinct OK, 23 SKIP, 0 FAIL; `cexecprobe: ok`, `cexecprobe: create ok`; `ALL STAGES PASS` |
+| the pin r9 `1125a20` (`j0d1q06r…`) | `R9_SKIP_BUILD=1 R9_ACCEL=tcg nix run .#boot-r9-tier1 --no-write-lock-file` (no override) | 1 | `cexecprobe: ok`, then `cexecprobe: LEAK create fd=3`, `T1-FAIL cexeccreate`, `post-pass FAILED — missing T1-OK cexeccreate`; 41 distinct OK |
+
+- The pin bites. `1125a20` leaks the fd made by the new-file create arm, and `42203d8` closes it. The open leg (`T1-OK cexecprobe`) stays green on both.
+- Captures: `.build/p20-11-cc-{42203d8,1125a20}-tcg.{out,log}`.
+- From `68119abf8` until the pin moves past `437b752`, the default `nix run .#boot-r9-tier1` at the pin is red on `cexeccreate`. This is the same situation as cexecprobe at 20-10.
+
+**Forks per tier-1 boot.** Both captures count 373 `process N exited` lines, 2 more than 371 at `1125a20` without the entry. Excluding forkstress's 200 (`STRESSOR-RATE: not-fired`) leaves 173 ordinary forks. That gives ceil(2.99573 / (173 × 0.00576818)) = ceil(3.002) = 4, so the floor of 10 holds, as a preview. The formal `N-HVF boot-r9-tier1` restatement comes from the series' first capture at the pin.
+
+The combined HVF series is held. The owner also ordered an ORCLOSE fix, which changes kernel bytes on both arches. The final r9 rev, the lock-only pin move and the one combined series follow it.
+
 ### Donor gate (Task 2 step 3)
 
 `nix develop -c sh -c 'sh build/aarch64/subset-exec.sh >.build/p20-11-subset.out 2>&1; …'` ran at Harvey `699f3dcf9` from 2026-11-20T12:51:50Z to 12:52:36Z. No re-provision was needed:
