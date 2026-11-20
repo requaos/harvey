@@ -1220,6 +1220,14 @@ The owner approved the ORCLOSE fix as a `port/src` change: ORCLOSE plus shared d
 
 **THIS CHANGES THE PUSH RULE FOR GROUP B.** Once the final rev carries a `port/src` edit, `PORT-SRC-EDIT: no` above no longer holds for the pin. Under the 20-06 hold, Harvey `master` is not pushed after the series (`HARVEY-PUSH: pending-fod`). Nothing further builds on the pin until the owner's linux-host `nix build .#boot-iso` pass in Task 3.
 
+### Linux boot-iso check at r9 42203d8 (owner, relayed by the coordinator)
+
+On the linux host, the owner ran `nix build .#boot-iso` at r9 `42203d8`, the OCEXEC fix with `outputHash = "sha256-L8Sm1tGU6KOyb3+XkzddGeqKe993L/akNm5xaqLjmV8="`. It completed with no hash mismatch.
+
+BOOT-ISO-LINUX 42203d8: pass (no mismatch)
+
+This covers `42203d8` only. The ORCLOSE fix changes the x86_64 kernel bytes again, so a fresh linux-host boot-iso check is owed at the final rev before the Harvey push (Task 3 item 3).
+
 ### Donor gate (Task 2 step 3)
 
 `nix develop -c sh -c 'sh build/aarch64/subset-exec.sh >.build/p20-11-subset.out 2>&1; …'` ran at Harvey `699f3dcf9` from 2026-11-20T12:51:50Z to 12:52:36Z. No re-provision was needed:
