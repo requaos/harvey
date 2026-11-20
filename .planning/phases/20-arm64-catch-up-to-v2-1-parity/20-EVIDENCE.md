@@ -959,3 +959,53 @@ That is 1808 of 1808 runs green and 21562 forks, with no `pushword` line. Every 
 - **27f38a3 equals 7b598f2 plus one `flake.nix` line**, the x86_64 boot-iso `outputHash` (`sha256-rl+HA3pg…` → `sha256-Dk1zd/JQ…`). `git diff --stat 7b598f2 27f38a3` lists only `flake.nix`.
 - **27f38a3's aarch64 kernel is byte-identical to the series kernel.** `nix eval` of `github:requaos/r9/27f38a3a916d829307cce60bb09e4ce50f361ced#packages.aarch64-darwin.kernel-virt.outPath` gives `193ys32r…-r9-kernel-virt-27f38a3`, the store path a Harvey pin to `27f38a3` would boot. `diff -r` of that path against `2inqg9mw…-7b598f2` is empty, and the ELF sha256 values are equal. The store path differs only because the source rev is part of the derivation name and inputs.
 - **The x86_64 kernel bytes change too** (`57e2952..7b598f2` touches `x86_64/src/{proc,syscall}.rs`). They are not measured here. The pin needs the linux-host `nix build .#boot-iso` against `27f38a3`'s new `outputHash` and the x64 gates, which the debugger is running separately.
+
+## Churn gate (pre-fix)
+
+Plan 20-09 ported the x86_64 churn gate to aarch64 as the r9 boot-test profile `virtchurn`: r9 `ff1b155` (the kernel driver `aarch64/src/platform/virt/churngate.rs`, the `heap_stats`/`heap_census` wrappers, `config_virtchurn.toml`) and `3aa3eeb` (the xtask profile and markers). Harvey `783b13ed6` stages `churnmark` and `churnsem` into `build/aarch64/smoke-out/` for `cargo xtask initrd`.
+
+**Outcome in one line:** A5 holds for the exit path without the drains (about 16.4 KiB per exec, gate red). The exit path as it stands before 20-10 already has the drains, and the gate is green there (136 to 154 bytes per exec). The closing statement is at the end of this section.
+
+**What "pre-fix" means here.** The plan assumed the aarch64 exit tail still had the borrowed fd drain and no husk sweep. That was out of date by the time this plan ran. The debugger's r9 `3a1c9e5` (drop the detached fd-group Arc before `exit_tail` diverges) and `5893ae9` (one-at-a-time fd drain plus the #44 husk sweep, `proc::sweep_husk_payloads`) landed before 20-09 and are in the pin `27f38a3`. Those are the exit-half drains 20-10 Task 1 plans to port. So the gate was run in two places:
+
+- **As planned:** r9 `3aa3eeb`, the exit path as it stands before 20-10 (the pin `27f38a3` plus this plan's two commits). Three runs.
+- **Added:** the same two commits cherry-picked onto r9 `b82ee9d`, the 20-08 port commit, which comes just before `3a1c9e5`. This is the exit path without the drains. Three runs, in a scratch worktree that was removed afterwards; nothing was committed.
+
+Venue: `R9_HARVEY_DIR=/Users/neilskinner/code/harvey cargo xtask boot-test --arch aarch64 --config virtchurn`, TCG (`virt,gic-version=2`, cortex-a72, 1024M), darwin-aarch64.
+
+**Threshold:** `CEILING_BYTES_PER_EXEC = 1772` bytes per exec over the steady leg (iterations 41 to 1400). This is the x86_64 driver's constant, `max(3 x 420, 1024) + 512` from x86_64's first measured-green baseline. It is not re-derived from any aarch64 reading. The kernel prints it on the slope line, and the xtask post-pass re-derives `measured` from the raw `heap base`/`heap end` samples and the churn-leg print counts.
+
+### At r9 3aa3eeb (exit path with the debugger's drains)
+
+| Run | Exit | `heap one` (after exec 1) | census `one` | `heap end` (after exec 1400 + drain) | census `end` | steady (2..40) | measured (41..1400) | Verdict |
+|-----|------|------|------|------|------|------|------|------|
+| 1 | 0 | 81920 | live 0 / pooled 36 blocks 59776 B | 301312 | live 0 / pooled 135 blocks 179200 B | 482 | 147 | PASS |
+| 2 | 0 | 81920 | live 0 / pooled 36 blocks 59776 B | 311360 | live 0 / pooled 95 blocks 188992 B | 482 | 154 | PASS |
+| 3 | 0 | 81920 | live 0 / pooled 36 blocks 59776 B | 286784 | live 0 / pooled 106 blocks 164672 B | 482 | 136 | PASS |
+
+- Every run prints `churngate: DONE iterations=1400 semgens=39`. The post-pass counted 1361 `churnmark: ready` lines and 39 `churngate: semgen` lines. No capture has a `panic`, `Unhandled`, `user fault`, `unresolvable` or `Not registered` line.
+- The arena is 33554432 bytes. `heap start` is 51840 and `heap base` is 100736 in all three runs.
+- Each slope line reads `churngate: slope steady=482 measured=<n> ceiling=1772`. `semgens=39` and not 40 because the generation at iteration 35 falls in the baseline leg, which spawns none. x86_64 has the same count.
+- The census `live` column reads 0 blocks at every sample on aarch64. The verdict does not use it (the verdict rides the bump cursor), but it means the live/pooled split is not informative on this arch. Recorded in `deferred-items.md`.
+- Captures: `.build/p20-09-virtchurn-run{1,2,3}.{log,out}` (sha256 prefixes `36bf56df`, `6a5b3a54`, `b96a82d7`). r9 sha in `.build/p20-09-virtchurn-r9sha.txt`. An earlier trial run at the same kernel (before the Task 2 commit, identical xtask) read `measured=144`, PASS.
+
+### At r9 b82ee9d + the gate (exit path without the drains)
+
+| Run | Exit | `heap one` | census `one` | `heap base` (after exec 40) | steady (2..40) | churn leg until the panic | Verdict |
+|-----|------|------|------|------|------|------|------|
+| 1 | 1 | 81920 | live 0 / pooled 29 blocks 51264 B | 737344 | 16805 | 1095 marks + 32 gens, cursor 21078144, 18048 B/exec | FAIL |
+| 2 | 1 | 81920 | live 0 / pooled 29 blocks 51264 B | 737344 | 16805 | 1103 marks + 31 gens, cursor 21160064, 18009 B/exec | FAIL |
+| 3 | 1 | 81920 | live 0 / pooled 29 blocks 51264 B | 737344 | 16805 | 1088 marks + 30 gens, cursor 21012544, 18135 B/exec | FAIL |
+
+- The cursor climbs about 16.4 KiB per exec in the baseline leg, the x86_64 pre-17-02 size (WINDOWS #44: the ~8 KiB fd-group Arc plus the husk's retained group handles).
+- None of the three runs reaches the end sample. Each dies at about exec 1170 with `panicked at port/src/allocator.rs:300:9: allocator: header table exhausted`, about 21 MB into the 32 MiB arena. The xtask gate fails on the negative scan (`panic`), with the DONE line never printed.
+- The churn-leg column is computed from the per-exit `churngate: heap exit` lines up to the panic: (last cursor - base) / (marks + gens in the leg). It runs higher than the baseline because each churnsem generation's contenders exit too.
+- Captures: `.build/p20-09-virtchurn-predrain-run{1,2,3}.{log,out}`.
+
+### Kernel bytes
+
+- **aarch64 kernel-virt changes.** `nix build git+file:///Users/neilskinner/code/r9?rev=3aa3eeb…#kernel-virt` gives `jqv87m36…-r9-kernel-virt-3aa3eeb`, ELF sha256 `028044f52ad7872c8828e1add5cdcdca7eb1bfd4975813849d6c616dc232c247`, 60585720 bytes. The pinned `27f38a3` is `92cc905b…`, 60584848 bytes. The churn code is all under `cfg(dev_churn)`, but `exec_bootstrap`'s head moved into `exec_prologue` and lines shifted in `main.rs`, `proc.rs` and `syscall.rs`, so code layout and panic-location constants differ. The local virtshell debug ELF agrees: its loadable image differs from the `27f38a3` build in 618874 bytes, with section sizes unchanged. The pin did not move in this plan. Any pin move that carries `ff1b155` needs the 20-06-shape HVF series first; it can be batched with 20-10's r9 changes.
+- **x86_64 kernel bytes are unchanged.** A local `cargo xtask build --arch x86-64 --config q35churnshell` (the boot-iso kernel's config) gives ELF sha256 `b7a1e00bc371e0925f0c9ce619981ba2ba131ea166b0cbd51e53a5f57ed0d435` both before (r9 `27f38a3`) and after (`3aa3eeb`). The only non-aarch64 changes are the workspace `check-cfg` list and xtask. The boot-iso `outputHash` needs no re-derivation, and no x64 gate run is owed. `kernel-x64` is a linux-only flake package, so the nix-side comparison is left to the linux host.
+- The `virtshell` and `virtexec` configs still build. Their warning count (25) is unchanged.
+
+A5 holds: the exit path leaks 16805 bytes per exec on aarch64 when it lacks the debugger's drains (r9 `b82ee9d`), and the gate is red there (the kernel dies of allocator header-table exhaustion at about exec 1170). The exit path as it stands before 20-10 (r9 `3aa3eeb`, the pin `27f38a3` plus the gate) already carries those drains (`3a1c9e5`, `5893ae9`). There the slope is 136 to 154 bytes per exec against the 1772 threshold, so the gate is green before 20-10 and serves 20-10 as a regression pin.

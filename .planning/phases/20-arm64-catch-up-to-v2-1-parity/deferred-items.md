@@ -33,3 +33,11 @@ Found during 20-07 Task 2 (the first two brkprobe builds; captures in `.build/p2
 ## 20-07: the lima guest checkout's .git had core.ignorecase=true (venue fix applied)
 
 Found during 20-07 Task 1. The guest's `~/harvey-build/.git` was copied from darwin, and it carried `core.ignorecase=true` on a case-sensitive disk. Every `nix run .#boot-r9-tier1` build failed in the guest's nix fetch with `sys/lib/postscript/troff/Hx: No such file or directory` (3 of 3 attempts; 20-06 hit the same thing and avoided it with `R9_SKIP_BUILD=1`). Applied in the guest only: `git config core.ignorecase false`. No repo file changed. To revert: `git -C ~/harvey-build config core.ignorecase true`. The darwin-side HX/Hx collision itself (the 11 ` M sys/…` font entries) is untouched and still the owner's call.
+
+## 20-09: the heap census reads `live 0 blocks` at every sample on aarch64
+
+Found during 20-09 Task 3 (every virtchurn capture, `.build/p20-09-virtchurn-run*.log` and `-predrain-run*.log`).
+
+- **What happens:** `churngate: census <tag> live 0 blocks 0 bytes;` at start, one, base and end, while the pooled census grows (for example 36 to 135 blocks). This holds even in the pre-drain runs, where the cursor climbs about 16 KiB per exec. `QuickFit::split_census` (port/src/allocator.rs:601) counts a slot as live when it is `used` and on no free list. On aarch64 it finds none, so either the allocated blocks' header slots are not marked `used`, or they sit beyond the `high_main`/`high_reserve` bound the walk stops at.
+- **Why not fixed here:** the gate's verdict rides the bump cursor (`heap_stats`), not the census, so the gate is unaffected. The census code is in `port/src`, which this plan may not edit.
+- **Next step:** compare an x86_64 q35churn capture's census lines. If x86_64 also reads live 0, the census is wrong on both arches; if it does not, look at the aarch64 allocation path.
