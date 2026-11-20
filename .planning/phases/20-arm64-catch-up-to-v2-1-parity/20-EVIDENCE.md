@@ -1129,3 +1129,59 @@ SERIES boot-r9-smoke accel=hvf runs=1753 pass=1753 fail=0 pushword=0 forks=14024
 The owner chose `pin-1125a20`, and the coordinator pushed r9, so `origin/main` is now `1125a205ef6c2f8f8271d47f89d58a4434f2a307`. `nix flake update r9` moved `flake.lock` from `github:requaos/r9/27f38a3` to `github:requaos/r9/1125a20`. Only the `r9` node changed, and the locked rev equals r9 `origin/main`.
 
 The default gate at the new pin (`R9_ACCEL=hvf nix run .#boot-r9-tier1`, no override, full build) passes: `exit=0 cexec=1 brk=1 fail=0 okall=41 skip=23`, `ALL STAGES PASS`. It booted `/nix/store/j0d1q06rqc36ikf8p312fkqdqdzpyj3b-r9-kernel-virt-1125a20`, the same store path as the series kernel. So the pinned kernel is byte-identical to the one the 1808-run series tested. Capture: `.build/p20-10-tier1-pin1125-hvf.{out,log}`.
+
+## Group B at the pin
+
+Plan 20-11. It started on 2026-11-20 shortly before 12:51Z with Harvey HEAD at `699f3dcf9` and r9 `origin/main` at `1125a20`, the current pin. A separate debugger session is working on the r9 `create(..., OCEXEC)` defect (`.planning/debug/create-ocexec-not-marked.md`) at the same time. At this point it has made no r9 commit.
+
+### CI lane (Task 1)
+
+r9 `7d464ad` `ci(20-11): build aarch64 virtchurn in CI` adds the job `build-aarch64-virtchurn` to `.github/workflows/xtask.yml`, in the shape of `build-aarch64-virtshell`, running `cargo xtask build --arch aarch64 --config virtchurn --verbose`. Of the aarch64 configs, only `config_virtchurn.toml` carries `dev_churn`. Without this lane, no CI job compiles the 20-09 churn driver. The commit touches only that file (12 insertions).
+
+### r9 local battery (Task 1)
+
+r9 `main` is at `7d464ad`, and the tracked tree is clean. After `git fetch origin`, `git log --oneline origin/main..HEAD` lists one commit, this plan's own:
+
+```
+7d464ad ci(20-11): build aarch64 virtchurn in CI
+```
+
+Group B's r9 kernel work (20-08 `27f38a3` and before, 20-09 `ff1b155` and `3aa3eeb`, 20-10 `1125a20`) is already on `origin/main`, pushed by the coordinator at the 20-10 pin move.
+
+The battery ran in a clean clone of `7d464ad`, so it could not pick up uncommitted debugger work in `/Users/neilskinner/code/r9`. It ran inside `nix develop` (rustc 1.95.0-nightly 842bd5be2, QEMU 11.1.2). Each step's exit code:
+
+| Step | Exit |
+|------|------|
+| `cargo xtask check` | 0 |
+| `cargo xtask clippy` | 0 |
+| `cargo xtask test` | 0 (12 `test result: ok.` lines, no `FAILED`) |
+| `cargo xtask build --arch aarch64 --config virtshell` | 0 |
+| `cargo xtask build --arch aarch64 --config virtchurn` | 0 |
+| `cargo xtask build --arch aarch64` (raspi3b default) | 0 |
+| `cargo xtask build --arch x86-64` | 0 |
+| `cargo xtask build --arch riscv64` | 0 |
+| `R9_HARVEY_DIR=/Users/neilskinner/code/harvey cargo xtask ureg-check` | 0 (35 fields match `arm64/include/ureg.h`, 26 match `amd64/include/ureg.h`, negative control fired) |
+| `R9_HARVEY_DIR=… cargo xtask boot-test --arch aarch64 --config virtchurn` (TCG) | 0: `steady=482 measured=168 <= ceiling=1772 bytes/exec`, 1400 exec iterations, 1361 churnmark prints, 39 RFMEM generations |
+
+The first virtchurn attempt hung, and the hang came from the venue, not the kernel. The clone sat at a 145-byte path, and the console socket path (`<clone>/target/boot-test-virtchurn.sock`) was over the 104-byte macOS `sun_path` limit. qemu, holding the socket with `wait=on`, never got a client: it and xtask sat at 0% CPU for about 59 minutes. I killed them and re-ran from a short-path clone (`.build/r9-battery`, since removed), which passed in 31 s. The 168 B/exec reading is 13 B above 20-10's post-fix maximum (146, 154, 155), inside the 18 B pre-fix spread, and at 9% of the ceiling. Logs: `.build/p20-11-battery/` and `.build/p20-11-virtchurn.out`.
+
+`git diff --stat origin/main..HEAD -- port/src` is **empty**. Across all of group B, `git diff --stat 57e2952..7d464ad -- port/src` is also empty. Group B's x86_64 changes are `f8c2ac9` (bare `rfork(RFCFDG)`) and `7b598f2` (`sem_deregister_waiter`). The boot-iso hash bump in `27f38a3` (`3a1c9e5..7b598f2`) covers both. Nothing under `x86_64/` changes in `27f38a3..7d464ad`. `7d464ad` changes no kernel byte on any arch.
+
+PORT-SRC-EDIT: no
+
+R9-PUSH: pending-owner-approval (7d464ad, a fast-forward of one CI-only commit)
+
+### Donor gate (Task 2 step 3)
+
+`nix develop -c sh -c 'sh build/aarch64/subset-exec.sh >.build/p20-11-subset.out 2>&1; …'` ran at Harvey `699f3dcf9` from 2026-11-20T12:51:50Z to 12:52:36Z. No re-provision was needed:
+
+```
+subset-exec exit=0 done=1 r9only=0
+```
+
+- The script reported `== expected T1-OK marker set (computed from tier1-cmds.txt): 56 members + float-d01 + libtest ×2 + selfhost ×2`, then `== PASS: the tier-1 set executed on the 9front donor kernel (T1-DONE; float canary 0.333 green)`.
+- The capture `.build/9front-dist/subset-exec.log` has 61 distinct `T1-OK` names, 0 `T1-SKIP`, 0 `T1-FAIL`, one `T1-DONE` and no `panic`/`trap:` line.
+- No line in either the capture or `.build/p20-11-subset.out` mentions `forkstress`, `writeprobe`, `cexecprobe` or `brkprobe`. Group B's entries in the shared `tier1-sweep.rc` stay inside the r9-venue guard.
+- The expected set is the same as at 20-05.
+
+DONOR-GATE: pass 61 members
