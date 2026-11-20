@@ -1214,6 +1214,12 @@ The debugger session (`.planning/debug/create-ocexec-not-marked.md`) landed two 
 
 The combined HVF series is held. The owner also ordered an ORCLOSE fix, which changes kernel bytes on both arches. The final r9 rev, the lock-only pin move and the one combined series follow it.
 
+### ORCLOSE fix: port/src edit pre-approved (owner, relayed by the coordinator)
+
+The owner approved the ORCLOSE fix as a `port/src` change: ORCLOSE plus shared device-remove routing in port. It is in progress in a debugger session. It may add an `rcloseprobe` tier-1 marker. So the final rev's `git diff --stat 7d464ad..<final> -- port/src` will not be empty. Being owner-approved, that is not a stop for the battery.
+
+**THIS CHANGES THE PUSH RULE FOR GROUP B.** Once the final rev carries a `port/src` edit, `PORT-SRC-EDIT: no` above no longer holds for the pin. Under the 20-06 hold, Harvey `master` is not pushed after the series (`HARVEY-PUSH: pending-fod`). Nothing further builds on the pin until the owner's linux-host `nix build .#boot-iso` pass in Task 3.
+
 ### Donor gate (Task 2 step 3)
 
 `nix develop -c sh -c 'sh build/aarch64/subset-exec.sh >.build/p20-11-subset.out 2>&1; …'` ran at Harvey `699f3dcf9` from 2026-11-20T12:51:50Z to 12:52:36Z. No re-provision was needed:
