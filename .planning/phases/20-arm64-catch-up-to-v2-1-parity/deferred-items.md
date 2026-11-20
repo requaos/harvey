@@ -41,3 +41,11 @@ Found during 20-09 Task 3 (every virtchurn capture, `.build/p20-09-virtchurn-run
 - **What happens:** `churngate: census <tag> live 0 blocks 0 bytes;` at start, one, base and end, while the pooled census grows (for example 36 to 135 blocks). This holds even in the pre-drain runs, where the cursor climbs about 16 KiB per exec. `QuickFit::split_census` (port/src/allocator.rs:601) counts a slot as live when it is `used` and on no free list. On aarch64 it finds none, so either the allocated blocks' header slots are not marked `used`, or they sit beyond the `high_main`/`high_reserve` bound the walk stops at.
 - **Why not fixed here:** the gate's verdict rides the bump cursor (`heap_stats`), not the census, so the gate is unaffected. The census code is in `port/src`, which this plan may not edit.
 - **Next step:** compare an x86_64 q35churn capture's census lines. If x86_64 also reads live 0, the census is wrong on both arches; if it does not, look at the aarch64 allocation path.
+
+## 20-10: create(..., OCEXEC) does not mark the chan close-on-exec (both arches)
+
+Found during 20-10 Task 3, while checking that open's OCEXEC bit reaches `port::namec::open_chan` on aarch64 (it does: `sys_open` passes the full mode, and `open_chan` sets `cexec`).
+
+- **What happens:** `sys_create` on both arches (`aarch64/src/syscall.rs:1508`, `x86_64/src/syscall.rs:1480`) passes `mode & !(OEXCL | OCEXEC)` to `create_chan_union`, and nothing sets `cexec` on the created chan afterwards. In the donor, `create` with OCEXEC sets `CCEXEC` like `open` does. So a file created with OCEXEC survives exec. The existing-file arm (`open_chan(&existing, mode | OTRUNC)`) does record it.
+- **Why not fixed here:** cexecprobe exercises the open path, which is what libthread's procexec uses (`open(PIPEMNT "/data1", OWRITE|OCEXEC)`). The create path is the same on x86_64, so it is a parity gap on both arches, and fixing it is outside this plan's files.
+- **Next step:** set `c.cexec = mode & OCEXEC != 0` on the created chan in both arches' `sys_create` (arch code only), and give cexecprobe a create leg.

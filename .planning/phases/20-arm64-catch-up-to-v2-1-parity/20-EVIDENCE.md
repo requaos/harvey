@@ -1052,3 +1052,74 @@ Venue: the same as the pre-fix section. `R9_HARVEY_DIR=/Users/neilskinner/code/h
 The pre-fix gate was already green at `3aa3eeb` (A5 is false for that exit path), so the bar here is "no worse than pre-fix". The post-fix range (146 to 155) sits inside the pre-fix run-to-run spread (136 to 154; that spread is 18 B). The 6 B difference in means is 0.3% of the ceiling. Neither commit was expected to move the churn slope: churnmark opens no OCEXEC fd, so the close-on-exec sweep only walks an fd table with nothing to take. So the post-fix slope is no worse than pre-fix within measurement noise. Strictly, though, the third run (155) is above the best pre-fix run (136), and this section does not claim an improvement.
 
 **The other aarch64 boot-test profiles at `1125a20` (TCG):** virt 0 (13 s), virtlowecam 0 (4 s), virtpanic 0 (9 s), virtexec 0 (9 s), virtexec3 0 (2 s), virtmulti 0 (1 s), virtnotes 0 (2 s), virtnet 0 (9 s), virtip 0 (12 s). `virtshell` exits 1 with `panicked at aarch64/src/main.rs:580:9: dev_exec: config carries no initrd image`, the same as at 20-04 and 20-08. It is not an xtask boot-test profile by design; the tier-1 runs below boot its kernel. Outputs: `.build/p20-10-prof-<config>.out`, with the summary in `.build/p20-10-profiles.txt`.
+
+## Exec and brk pins (20-10)
+
+**The ports.** r9 `1125a20` (20-10 Task 2, on top of `3aa3eeb`) adds `close_on_exec_fds` to `aarch64/src/exec.rs`, x86_64's twin. It takes the OCEXEC-marked chans with `FdGroup::take_cexec` under the group lock and runs `port::namec::close_chan` on each one outside the lock. `exec_replace` calls it exactly once, after `check_seed_fit` and before `free_user_mappings`, so a failed exec closes nothing. brk takes the D-09 `ramfs-venue-brk-holds` branch: the only change is one doc-comment sentence above `rfmem_brk_set`'s one-member arm in `aarch64/src/proc.rs`. It records 20-07's measurement and that x86_64's eager mapping is deliberately not ported. `3aa3eeb..1125a20` touches only `aarch64/src/exec.rs` and `aarch64/src/proc.rs`, with no `port/src` change. Checks at `1125a20`:
+- `virtshell` builds, with aarch64 warnings unchanged at 25;
+- `cargo xtask test` is green;
+- `cargo test -p aarch64 --bins --target aarch64-apple-darwin` passes 29.
+
+**The sweep pin.** Harvey `61ad20f43` adds `build/aarch64/cexecprobe.c`. It opens `/lib/namespace` once `OREAD|OCEXEC` and once `OREAD`, execs `/bin/cexecprobe` with the two fd numbers, and checks that the first is closed and the second still open. subset-build.sh compiles and harvests it, and mkimage.sh bakes it to `/arm64/bin/cexecprobe` with a manifest assert. tier1-sweep.rc runs `/bin/cexecprobe` and `/bin/brkprobe` in a new r9-venue block after `writeprobe`. nix/tier1-r9.sh adds both names to the fixed `R9_EXPECT_OK` names, so the expected OK set grows from 39 to 41, and the 23 SKIPs are unchanged.
+
+**Tier-1 gate at r9 1125a20** (`--override-input r9 git+file:///Users/neilskinner/code/r9`, full build; kernel `/nix/store/j0d1q06rqc36ikf8p312fkqdqdzpyj3b-r9-kernel-virt-1125a20`):
+
+```
+hvf exit=0 cexec=1 brk=1 fail=0
+tcg exit=0 cexec=1 brk=1 fail=0
+```
+
+Both runs count 41 `T1-OK` and 23 `T1-SKIP` lines and print `ALL STAGES PASS`. The probe lines are the same on HVF and TCG:
+
+```
+cexecprobe: ok
+T1-OK cexecprobe
+brkprobe: start break=0x21bd0
+brkprobe: phase lone ok 8388608 (break 0x22bf8..0x822bf8)
+brkprobe: phase family ok 8388608 (break 0x822bf8..0x1022bf8)
+brkprobe: ok 8388608
+T1-OK brkprobe
+```
+
+Captures: `.build/p20-10-tier1-{hvf,tcg}.{out,log}` (log sha256 prefixes `453944c5`, `60d3a794`), with the summary in `.build/p20-10-tier1-summary.txt`.
+
+**The pin is red without the port.** The default gate at the Harvey pin, r9 `27f38a3` (`R9_SKIP_BUILD=1 R9_ACCEL=hvf nix run .#boot-r9-tier1`, no override, the same freshly built userland; kernel `193ys32r…-r9-kernel-virt-27f38a3`), exits 1:
+
+```
+cexecprobe: LEAK fd=3
+T1-FAIL cexecprobe
+tier1-r9: post-pass FAILED — missing T1-OK cexecprobe
+```
+
+`T1-OK brkprobe` is present at the pin as well, as expected: D-09 ported no brk code, so brkprobe is a regression pin, not a red-to-green one. Capture: `.build/p20-10-tier1-pinned-hvf.{out,log}` (log sha256 prefix `b9883799`). This also means the default gate stays red from `61ad20f43` until the pin advances to an r9 that carries `1125a20`, the same situation as 20-08's writeprobe before its pin move.
+
+### Kernel bytes at r9 1125a20
+
+| Kernel | Store path | ELF sha256 | Bytes |
+|--------|------------|------------|-------|
+| the pin (27f38a3) | `193ys32r0j6m137cljadqy2dxzc2n60a-r9-kernel-virt-27f38a3` | `92cc905bdd4392b15291849d4fe475f01d4610e0a9f8c971f8d3b557f6f45578` | 60584848 |
+| 3aa3eeb (20-09) | `jqv87m36…-r9-kernel-virt-3aa3eeb` | `028044f52ad7872c8828e1add5cdcdca7eb1bfd4975813849d6c616dc232c247` | 60585720 |
+| 1125a20 (20-10, the series kernel) | `j0d1q06rqc36ikf8p312fkqdqdzpyj3b-r9-kernel-virt-1125a20` | `3e86d2f12a7fe0df6640b75726abd0232fba99576ac3336fcbeea52fc88955c6` | 60598080 |
+
+- **x86_64 kernel bytes do not change.** `27f38a3..1125a20` touches `aarch64/`, `xtask/src/main.rs` and the workspace `Cargo.toml` `check-cfg` list, and nothing under `x86_64/` or `port/src`. 20-09 measured the x86_64 `q35churnshell` ELF as byte-identical across `27f38a3..3aa3eeb` (`b7a1e00b…`), and `3aa3eeb..1125a20` touches only `aarch64/src/{exec,proc}.rs`. So the boot-iso `outputHash` needs no re-derivation, and no x64 TCG gate run is owed.
+
+### Series at r9 1125a20 (20-09 and 20-10 together)
+
+This is one series in the 20-06 shape. It covers both of the r9 changes since the pin: 20-09's `ff1b155` and `3aa3eeb` (the churn gate, the `exec_prologue` split, and the code shifts that moved the aarch64 kernel bytes), and 20-10's `1125a20` (the close-on-exec sweep). It used `R9_OVERRIDE='git+file:///Users/neilskinner/code/r9?rev=1125a205ef6c2f8f8271d47f89d58a4434f2a307'` and `R9_STOP_ON_FAIL=1`. Harvey was at `61ad20f43`, with no Harvey commit until the series ended. It ran from 2026-11-20T01:28:39Z to 05:50:32Z, about 4 h 22 min, as the same block as 20-06 and 20-08. Run 1 rebuilt the userland, and every later block set `R9_SKIP_BUILD=1`.
+
+```
+SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3710
+SERIES boot-r9-net-smoke accel=hvf runs=36 pass=36 fail=0 pushword=0 forks=2556
+SERIES boot-r9-tier1 accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=1113
+SERIES boot-r9-net-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=213
+SERIES boot-r9-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=24
+SERIES boot-r9-smoke accel=hvf runs=1753 pass=1753 fail=0 pushword=0 forks=14024
+```
+
+- **1808 of 1808 runs were green**, with 21640 forks and no `pushword` line. `R9_STOP_ON_FAIL=1` never fired.
+- **Every block booted the tested kernel,** `/nix/store/j0d1q06rqc36ikf8p312fkqdqdzpyj3b-r9-kernel-virt-1125a20`, the one the tier-1 runs above booted. No capture in any block has a `Not registered`, `user fault`, `unresolvable` or `pushword but no argv` line.
+- **The tier-1 blocks carry the cexecprobe and brkprobe entries:** 371 forks per run, against 365 at 20-08.
+- **The kernel is reproducible.** `nix build --rebuild` of `hx6ldfbblyd14dqg552kvvb365naclap-r9-kernel-virt-1125a20.drv` exits 0 with no `may not be deterministic`.
+- **Logs:** the series log is `.build/p20-10-series-1125a20.log`, and the per-run captures are under `.build/hvf-series/boot-r9-*-20261119T20[234]*`.
+
+**For the pin.** A pin carrying `1125a20` would boot an aarch64 kernel whose bytes differ from the pin's (`3e86d2f1…` against `92cc905b…`). This series covers those bytes. The x86_64 kernel bytes do not change across `27f38a3..1125a20` (see `### Kernel bytes at r9 1125a20`), so the boot-iso `outputHash` stays and no x64 gate is owed. The steps that remain are the owner's: push r9 (`ff1b155`, `3aa3eeb`, `1125a20`), then a lock-only Harvey pin move, `27f38a3` -> `1125a20` or whatever rev the push produces. The default gate is red until then (`T1-FAIL cexecprobe` at `27f38a3`).
