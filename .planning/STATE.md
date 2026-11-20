@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
-stopped_at: Completed 20-08-PLAN.md
-last_updated: "2026-11-19T23:18:16.750Z"
+stopped_at: Completed 20-09-PLAN.md
+last_updated: "2026-11-20T00:33:51.522Z"
 last_activity: 2026-11-17
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: 83a508e18add1d382ae0869050fe93b8dccc20c4
+state_head: ee8a54f30427c0fe53564409e3692bcefff62ec1
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 66
+  completed_plans: 67
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
-Plan: 9 of 17
+Plan: 10 of 17
 Status: In progress — 20-01, 20-02 complete (HVF fork-child root cause: missing isb after TTBR0 write; owner chose aarch64-fix, lower-bound N kept)
 Last activity: 2026-11-17 - Completed 20-01-PLAN.md
 
@@ -129,6 +129,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 20 P06 | 25h | 3 tasks | 6 files |
 | Phase 20 P07 | 108 min | 3 tasks | 8 files |
 | Phase 20 P08 | 7h20m | 2 tasks | 5 files |
+| Phase 20 P09 | 41 min | 3 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -324,6 +325,8 @@ Recent decisions affecting current work:
 - [Phase 20]: Owner: one HVF series at r9 7b598f2 covers 20-08's ports and the debugger's fd-group fixes (1808/1808 green); the b82ee9d-only series was stopped and recorded
 - [Phase 20]: Owner: Harvey pinned to r9 27f38a3 (7b598f2 + boot-iso outputHash; aarch64 kernel byte-identical to the tested one) after the linux-host boot-iso --rebuild passed
 - [Phase 20]: writeprobe sweep entry requires fdsplit mount create write readback mkdir union-create; remove stays 20-14's
+- [Phase 20]: [20-09] The arm64 churn gate (r9 virtchurn) carries x86_64's 1772 B/exec ceiling unchanged; A5 holds on the drain-free exit path (r9 b82ee9d: 16805 B/exec, kernel dies of allocator header-table exhaustion near exec 1170) and the gate is green at r9 3aa3eeb (136-154 B/exec) because the debugger's 3a1c9e5/5893ae9 already ported the exit drains 20-10 Task 1 planned
+- [Phase 20]: [20-09] aarch64 kernel-virt bytes change at r9 ff1b155 (exec_prologue split + line shifts; 028044f5 vs pin 92cc905b) — a pin move carrying it needs the 20-06-shape HVF series (batch with 20-10); x86_64 q35churnshell bytes unchanged (no boot-iso re-derivation)
 
 ### Pending Todos
 
@@ -364,6 +367,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-19T23:18:15.437Z
-Stopped at: Completed 20-08-PLAN.md
+Last session: 2026-11-20T00:33:50.208Z
+Stopped at: Completed 20-09-PLAN.md
 Resume file: None
