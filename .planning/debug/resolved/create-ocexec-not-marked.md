@@ -1,8 +1,8 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "Fix a r9 kernel defect logged by Harvey plan 20-10 (.planning/phases/20-arm64-catch-up-to-v2-1-parity/deferred-items.md): on both aarch64 and x86_64, create(..., OCEXEC) strips the OCEXEC bit, so a newly created file stays open across exec. open(..., OCEXEC) is handled; 20-10 ported aarch64's close-on-exec sweep in r9 1125a20."
 created: 2026-11-20T12:40:00Z
-updated: 2026-11-20T17:30:00Z
+updated: 2026-11-20T18:00:00Z
 ---
 
 ## Current Focus
@@ -11,8 +11,8 @@ bug_class: Bohrbug (deterministic: RED on every run, HVF and TCG identical; no t
 hypothesis: H1 (RED-confirmed) — both arches' sys_create pass `mode & !(OEXCL|OCEXEC)` to create_chan_union (correct: the donor never hands OCEXEC to the device) but never set `cexec` on the returned chan afterwards (the donor chan.c:1516 `if(omode & OCEXEC) cnew->flag |= CCEXEC`), so exec's take_cexec sweep skips a created OCEXEC fd
 test: ALL DONE — probe RED→GREEN HVF+TCG; host tests both arches + mutants; aarch64 TCG smoke/net-smoke/tier1; x64 TCG auth/net-smoke/tier1; darwin + x86_64-linux xtask batteries; boot-iso FOD re-derived and green at the committed HEAD; container removed
 expecting: owner confirmation; then the owner's push of r9 437b752 + 42203d8, the lock-only pin move, and the combined arm64 HVF series (kernel-virt bytes change: 3e86d2f1… → d8be7228…)
-next_action: AWAITING human verification. On "confirmed fixed": move this file to .planning/debug/resolved/, append the KB entry from prevention_draft (Prevention block), commit both. Open owner decision: wire `cexecprobe -c` into tier1-sweep.rc (expected-set change) or leave it typed-by-hand
-r9_commits: 437b752 fix (tree == tested d961678), 42203d8 boot-iso hash bump — local on main, unpushed (origin/main 7d464ad)
+next_action: DONE — owner confirmed fixed (relayed by the coordinator); r9 pushed to 42203d8; session archived to resolved/ with the KB entry. The tier-1 wiring decision went to plan 20-11 (`T1-OK cexeccreate`, added by its executor). The ORCLOSE gap continues in .planning/debug/orclose-local-devices.md
+r9_commits: 437b752 fix (tree == tested d961678), 42203d8 boot-iso hash bump — pushed by the coordinator (origin/main 42203d8)
 harvey_commits: 3592699f0 test(debug): cexecprobe -c (build/aarch64/cexecprobe.c only); this file (docs(debug) commit)
 reasoning_checkpoint:
   hypothesis: "sys_create's new-file arm (both arches) strips OCEXEC before the device create — correct, donor-faithful — but never records it on the created chan afterwards, so Chan::cexec stays false and exec's take_cexec sweep leaves the fd in the table; the existing-file arm goes through namec::open_chan, which does record it"
@@ -201,7 +201,16 @@ files_changed: [r9 aarch64/src/syscall.rs, r9 x86_64/src/syscall.rs, r9 x86_64/s
 related_findings_not_fixed:
   - "ORCLOSE (remove-on-close) has no local-device implementation on either arch (it only rides the devmnt wire); REMOVE(25) is loud-None on aarch64. The live create(OCEXEC) callers (lib9p postfd, rio, plumber) pass OWRITE|ORCLOSE|OCEXEC, so their /srv posts outlive the server even with this fix."
   - "tier-1 wiring of the create leg is OPEN (owner decision): the default `cexecprobe` run is unchanged; adding `/bin/cexecprobe -c` to tier1-sweep.rc (new T1 name or folded into T1-OK cexecprobe) makes the gate red at any pin without 437b752 — not done (checkpoint rule)."
-prevention_draft:
-  why_not_caught: "no gate existed for this class — 20-10's cexecprobe pinned only the open arm (libthread procexec's shape), and the tier-1 sweep's creates are all plain; the port-side test (namec_tests::open_chan_records_oceexec_as_fd_state) covers open_chan only, and sys_create is arch code with no host test on either arch before this session"
-  recurrence_guard: "host tests aarch64/src/syscall.rs:create_cexec_tests::{created_ocexec_fd_is_taken_by_the_exec_sweep, create_records_ocexec_beside_the_other_create_bits} and x86_64/src/syscall.rs:tests::{the same two, create_syscall_ocexec_fd_is_closed_by_exec} (kill the mark-removed mutant); Harvey `cexecprobe -c` boot reproducer (`cexecprobe: create ok` required)"
-  kb_pattern: "fd state carried in mode bits (OCEXEC, ORCLOSE) must be recorded on EVERY arm that yields a chan — open, create-new, create-existing; when one arm learns a flag, grep the sibling arms the same day"
+
+## Prevention
+
+human_verification: owner confirmed fixed (2026-11-20, relayed by the coordinator); r9 pushed to 42203d8
+
+five_whys (branched, from the candidate_causes):
+  - code: why did a created OCEXEC fd survive exec? its chan's cexec was false → why? sys_create's new-file arm stripped OCEXEC for the device and never re-recorded it → why was that possible? fd state lives in the same mode word the device receives, and the strip and the record are two separate steps in the donor (Acreate) — the port of create kept the strip and dropped the record, with no single place that owned both → actionable: one helper (create_new_chan) owns the strip AND the mark, so neither can be ported without the other
+  - process/cross-arm: why did open have the mark and create not? 19-10 cont 4 taught open_chan OCEXEC because its live consumer (libthread procexec) opens, not creates; the fix followed the measured consumer, and the sibling arm (create) was not audited at the same time → actionable: when an fd-state bit is taught to one arm, grep every arm that yields a chan (open, create-new, create-existing)
+  - test/environment: why no failing gate? 20-10's cexecprobe pinned the open leg only, the tier-1 sweep's creates are plain, port's namec test covers open_chan only, and sys_create had no host test on either arch (aarch64's is not host-drivable)
+
+why_not_caught: no gate existed for this class — 20-10's cexecprobe pinned only the open arm (libthread procexec's shape), the tier-1 sweep's creates are all plain, the port-side test (namec_tests::open_chan_records_oceexec_as_fd_state) covers open_chan only, and sys_create had no host test on either arch
+
+recurrence_guard: r9 42203d8 host tests `aarch64/src/syscall.rs:create_cexec_tests::{created_ocexec_fd_is_taken_by_the_exec_sweep, create_records_ocexec_beside_the_other_create_bits}` and `x86_64/src/syscall.rs:tests::{created_ocexec_fd_is_taken_by_the_exec_sweep, create_records_ocexec_beside_the_other_create_bits, create_syscall_ocexec_fd_is_closed_by_exec}` (verified passing; they kill the mark-removed mutant, and the x86_64 dispatch test kills a helper bypass); Harvey `cexecprobe -c` boot reproducer (build/aarch64/cexecprobe.c, `cexecprobe: create ok` required; plan 20-11 wires it as `T1-OK cexeccreate`); KB pattern "an fd-state mode bit must be recorded on every arm that yields a chan"
