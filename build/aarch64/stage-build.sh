@@ -7,7 +7,7 @@
 # build/aarch64/smoke-out/, and copy the committed hello.7.out in verbatim
 # (the ABI bisect binary rides the initrd).  r9's
 # `cargo xtask initrd` then bakes smoke-out/{init,hello,smokefork,smokenote,
-# stacksmoke,smokesleep} into target/bootfs.paq via mkpaqfs.  Every staged
+# stacksmoke,smokesleep,churnmark,churnsem} into target/bootfs.paq via mkpaqfs.  Every staged
 # binary is R_MAGIC (0x8C47, BE) verified here before the rsync-back is
 # trusted.
 #
@@ -37,8 +37,11 @@ LOG="${STAGE_BUILD_LOG:-$HARVEY/.build/stage-build.log}"
 OUT="$HARVEY/build/aarch64/smoke-out"
 
 # The C sources this script stages: NAME.c -> smoke-out/NAME (7c/7l).
-# smokesleep is the interruptible-sleep smoke.
-STAGE_SRCS="init smokefork smokenote stacksmoke smokesleep"
+# smokesleep is the interruptible-sleep smoke.  20-09 adds the churn
+# pair for r9's virtchurn gate: churnmark (the exec-loop payload) and
+# churnsem (the RFMEM semacquire/semrelease contender), the
+# build/x86_64 twins; `cargo xtask initrd` bakes them beside /init.
+STAGE_SRCS="init smokefork smokenote stacksmoke smokesleep churnmark churnsem"
 
 err() { echo "error: $*" >&2; exit 1; }
 
@@ -86,7 +89,7 @@ set -e
 
 fail() { echo "STAGE-BUILD-FAIL: $1" >&2; exit 1; }
 
-STAGE_SRCS="init smokefork smokenote stacksmoke smokesleep"
+STAGE_SRCS="init smokefork smokenote stacksmoke smokesleep churnmark churnsem"
 STAGE="$HARVEY/build/aarch64/smoke-out"
 
 echo "== stage build provenance (Harvey's vendored toolchain):"
