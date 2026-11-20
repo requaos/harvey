@@ -141,6 +141,10 @@ None. The mitigations are in place as planned:
 - **T-20-27:** virtchurn passed 3 consecutive times at the final rev.
 - **T-20-SC:** no package was added.
 
+## Pin move (after the checkpoint)
+
+The owner chose `pin-1125a20`, and the coordinator pushed r9, so `origin/main` is `1125a20`. The pin move is lock-only: `flake.lock`'s `r9` node goes `27f38a3` -> `1125a20`, the only node changed. The default `nix run .#boot-r9-tier1` (HVF, no override) then passed with 41 OK, 23 SKIP and no `T1-FAIL`, booting the series kernel's own store path (`j0d1q06r…-r9-kernel-virt-1125a20`). The OCEXEC create defect in `deferred-items.md` is now in progress through a separate debugger session.
+
 ## Self-Check: PASSED
 
 - FOUND: build/aarch64/cexecprobe.c (tracked) and build/aarch64/out/cexecprobe (fresh, gitignored); `R9_EXPECT_OK=… cexecprobe brkprobe` grep = 1; `cexecprobe` in subset-build.sh = 8 and in mkimage.sh = 4

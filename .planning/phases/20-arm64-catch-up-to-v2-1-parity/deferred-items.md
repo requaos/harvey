@@ -44,6 +44,8 @@ Found during 20-09 Task 3 (every virtchurn capture, `.build/p20-09-virtchurn-run
 
 ## 20-10: create(..., OCEXEC) does not mark the chan close-on-exec (both arches)
 
+**Status: in progress (debug).** The owner chose to fix this now, through a separate debugger session (2026-11-20, after the 20-10 pin move to r9 `1125a20`).
+
 Found during 20-10 Task 3, while checking that open's OCEXEC bit reaches `port::namec::open_chan` on aarch64 (it does: `sys_open` passes the full mode, and `open_chan` sets `cexec`).
 
 - **What happens:** `sys_create` on both arches (`aarch64/src/syscall.rs:1508`, `x86_64/src/syscall.rs:1480`) passes `mode & !(OEXCL | OCEXEC)` to `create_chan_union`, and nothing sets `cexec` on the created chan afterwards. In the donor, `create` with OCEXEC sets `CCEXEC` like `open` does. So a file created with OCEXEC survives exec. The existing-file arm (`open_chan(&existing, mode | OTRUNC)`) does record it.

@@ -1123,3 +1123,9 @@ SERIES boot-r9-smoke accel=hvf runs=1753 pass=1753 fail=0 pushword=0 forks=14024
 - **Logs:** the series log is `.build/p20-10-series-1125a20.log`, and the per-run captures are under `.build/hvf-series/boot-r9-*-20261119T20[234]*`.
 
 **For the pin.** A pin carrying `1125a20` would boot an aarch64 kernel whose bytes differ from the pin's (`3e86d2f1…` against `92cc905b…`). This series covers those bytes. The x86_64 kernel bytes do not change across `27f38a3..1125a20` (see `### Kernel bytes at r9 1125a20`), so the boot-iso `outputHash` stays and no x64 gate is owed. The steps that remain are the owner's: push r9 (`ff1b155`, `3aa3eeb`, `1125a20`), then a lock-only Harvey pin move, `27f38a3` -> `1125a20` or whatever rev the push produces. The default gate is red until then (`T1-FAIL cexecprobe` at `27f38a3`).
+
+### Pin move to r9 1125a20 (owner: pin-1125a20)
+
+The owner chose `pin-1125a20`, and the coordinator pushed r9, so `origin/main` is now `1125a205ef6c2f8f8271d47f89d58a4434f2a307`. `nix flake update r9` moved `flake.lock` from `github:requaos/r9/27f38a3` to `github:requaos/r9/1125a20`. Only the `r9` node changed, and the locked rev equals r9 `origin/main`.
+
+The default gate at the new pin (`R9_ACCEL=hvf nix run .#boot-r9-tier1`, no override, full build) passes: `exit=0 cexec=1 brk=1 fail=0 okall=41 skip=23`, `ALL STAGES PASS`. It booted `/nix/store/j0d1q06rqc36ikf8p312fkqdqdzpyj3b-r9-kernel-virt-1125a20`, the same store path as the series kernel. So the pinned kernel is byte-identical to the one the 1808-run series tested. Capture: `.build/p20-10-tier1-pin1125-hvf.{out,log}`.
