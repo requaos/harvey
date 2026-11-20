@@ -1009,3 +1009,46 @@ Venue: `R9_HARVEY_DIR=/Users/neilskinner/code/harvey cargo xtask boot-test --arc
 - The `virtshell` and `virtexec` configs still build. Their warning count (25) is unchanged.
 
 A5 holds: the exit path leaks 16805 bytes per exec on aarch64 when it lacks the debugger's drains (r9 `b82ee9d`), and the gate is red there (the kernel dies of allocator header-table exhaustion at about exec 1170). The exit path as it stands before 20-10 (r9 `3aa3eeb`, the pin `27f38a3` plus the gate) already carries those drains (`3a1c9e5`, `5893ae9`). There the slope is 136 to 154 bytes per exec against the 1772 threshold, so the gate is green before 20-10 and serves 20-10 as a regression pin.
+
+## Churn gate (post-fix)
+
+Plan 20-10 Task 1 planned to port the aarch64 exit-path drains. They were already in r9 before 20-10 started, so Task 1 had no code to write. This section is its measurement.
+
+**What Task 1 asked for, against what r9 already had.** Every item is in the pin `27f38a3`:
+
+| Task 1 item | Where it is in r9 | Commit |
+|---|---|---|
+| `empty_pgrp`, `empty_env_group`, `empty_rendez_group` (lazy singletons, `empty_fdgroup`'s shape) | `aarch64/src/proc.rs` | `5893ae9` |
+| `sweep_husk_payloads`: the last-holder `take_mount_chans` close under a `LockNode`, the three group swaps, `slash`/`dot` dropped | `aarch64/src/proc.rs` (`release_pgrp` + `sweep_husk_payloads`) | `5893ae9` |
+| (1) `sys_exits` copies the message into a `[0u8; ERRMAX]` stack buffer and drops the `Vec` before the diverging call | `aarch64/src/syscall.rs` `sys_exits` | `5893ae9` |
+| (2) The owning drain: `drain_all()` under the lock, then `close_chan` and drop one chan at a time | `aarch64/src/proc.rs` `release_fd_group` | `5893ae9` (one at a time), `3a1c9e5` (the helper) |
+| (3) The detached fd group dropped before the tail | `release_fd_group` is a returning helper, so the detached `Arc` drops at its return | `3a1c9e5` |
+| (4) `exit_tail` calls `proc::sweep_husk_payloads(proc)` | `aarch64/src/syscall.rs` `exit_tail` | `5893ae9` |
+| The 20-09 `#[cfg(dev_churn)]` heap-exit marker kept | `exit_tail` | `ff1b155` (unchanged) |
+
+One placement differs from the plan's text, on purpose. The plan says to call the sweep "after the three queue resets and before `ProcState::Moribund`", which is where x86_64 has it. On aarch64, `5893ae9` calls it after `rendez_remove` and before `free_user_mappings`. The comment in place gives the reason: a mount chan's Tclunk can RPC-block, and an RPC needs the address space live, the same rule as the fd sweep. That order is at least as safe as x86_64's, so it was left alone. Task 1 therefore made no r9 commit. The debugger's history is in `.planning/debug/resolved/shared-fgrp-pipe-leak.md` and `.planning/debug/r9-fgrp-followups.md`.
+
+**The kernel measured:** r9 `1125a20`. That is `3aa3eeb` (the pin `27f38a3` plus 20-09's gate) plus 20-10 Task 2's close-on-exec sweep, so the reading covers the final r9 rev of this plan.
+
+Venue: the same as the pre-fix section. `R9_HARVEY_DIR=/Users/neilskinner/code/harvey cargo xtask boot-test --arch aarch64 --config virtchurn`, TCG (`virt,gic-version=2`, cortex-a72, 1024M), darwin-aarch64. Threshold: `CEILING_BYTES_PER_EXEC = 1772`, unchanged.
+
+| Run | Exit | `heap one` | census `one` | `heap end` | census `end` | steady (2..40) | measured (41..1400) | Verdict |
+|-----|------|------|------|------|------|------|------|------|
+| 1 | 0 | 81920 | live 0 / pooled 36 blocks 59776 B | 299520 | live 0 / pooled 122 blocks 177280 B | 482 | 146 | PASS |
+| 2 | 0 | 81920 | live 0 / pooled 36 blocks 59776 B | 311232 | live 0 / pooled 138 blocks 188992 B | 482 | 154 | PASS |
+| 3 | 0 | 81920 | live 0 / pooled 36 blocks 59776 B | 312704 | live 0 / pooled 151 blocks 190464 B | 482 | 155 | PASS |
+
+- Every run prints `churngate: DONE iterations=1400 semgens=39`. Each log has 1361 `churnmark: ready` lines and 39 `churngate: semgen` lines, and no `panic`, `Unhandled`, `user fault`, `unresolvable` or `Not registered` line. `heap start` is 51840 and `heap base` is 100736 in all three runs, as before.
+- Captures: `.build/p20-10-virtchurn-run{1,2,3}.{log,out}` (log sha256 prefixes `801c8905`, `b21b1fb0`, `81a3ca53`). The r9 sha is in `.build/p20-10-virtchurn-r9sha.txt`, and the per-run exits are in `.build/p20-10-virtchurn-runs.txt`.
+
+**Before and after.** Two "before" readings exist, so both are compared.
+
+| Kernel | Exit path | measured, 3 runs (B/exec) | Mean | Verdict |
+|---|---|---|---|---|
+| r9 `b82ee9d` + gate | no drains | about 16805 steady; dies near exec 1170 | n/a | FAIL 3/3 |
+| r9 `3aa3eeb` (20-09) | drains (`3a1c9e5`, `5893ae9`) | 147, 154, 136 | 145.7 | PASS 3/3 |
+| r9 `1125a20` (this plan) | drains + close-on-exec sweep | 146, 154, 155 | 151.7 | PASS 3/3 |
+
+The pre-fix gate was already green at `3aa3eeb` (A5 is false for that exit path), so the bar here is "no worse than pre-fix". The post-fix range (146 to 155) sits inside the pre-fix run-to-run spread (136 to 154; that spread is 18 B). The 6 B difference in means is 0.3% of the ceiling. Neither commit was expected to move the churn slope: churnmark opens no OCEXEC fd, so the close-on-exec sweep only walks an fd table with nothing to take. So the post-fix slope is no worse than pre-fix within measurement noise. Strictly, though, the third run (155) is above the best pre-fix run (136), and this section does not claim an improvement.
+
+**The other aarch64 boot-test profiles at `1125a20` (TCG):** virt 0 (13 s), virtlowecam 0 (4 s), virtpanic 0 (9 s), virtexec 0 (9 s), virtexec3 0 (2 s), virtmulti 0 (1 s), virtnotes 0 (2 s), virtnet 0 (9 s), virtip 0 (12 s). `virtshell` exits 1 with `panicked at aarch64/src/main.rs:580:9: dev_exec: config carries no initrd image`, the same as at 20-04 and 20-08. It is not an xtask boot-test profile by design; the tier-1 runs below boot its kernel. Outputs: `.build/p20-10-prof-<config>.out`, with the summary in `.build/p20-10-profiles.txt`.
