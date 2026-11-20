@@ -351,6 +351,12 @@ echo "== boot chain: cexecprobe (20-10, close-on-exec probe)"
 (cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw cexecprobe.c \
 	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/cexecprobe" cexecprobe.7 \
 	&& rm -f cexecprobe.7) || fail "cexecprobe"
+# rcloseprobe — the remove-on-close probe (ORCLOSE on local devices:
+# /srv and /env).  Same 7c -FTVw + 7l shape.
+echo "== boot chain: rcloseprobe (ORCLOSE remove-on-close probe)"
+(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw rcloseprobe.c \
+	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/rcloseprobe" rcloseprobe.7 \
+	&& rm -f rcloseprobe.7) || fail "rcloseprobe"
 
 # 06-05: tier-0 lib test binaries (D-06 — in-tree lib tests run on the
 # donor where they exist; subset-exec.sh stages them h*-style and the
@@ -451,6 +457,7 @@ if [ -z "$NATIVE_LINUX" ]; then
 		"$GUEST:$GUEST_DIR/build/aarch64/out/rfdprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/brkprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/cexecprobe" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/rcloseprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/hdrawtest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/harctest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/htdraw" \
@@ -503,7 +510,7 @@ for f in ipconfig ping udpecho aan tcpblast tcpecho forkstress; do
 done
 # 20-07: the group-B measurement probes (and 20-10's cexecprobe) carry
 # the same magic contract
-for f in rfdprobe brkprobe cexecprobe; do
+for f in rfdprobe brkprobe cexecprobe rcloseprobe; do
 	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
 	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"

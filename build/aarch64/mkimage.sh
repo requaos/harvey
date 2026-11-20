@@ -82,6 +82,7 @@ done
 [ -s "$OUT/rfdprobe" ] || err "$OUT/rfdprobe missing — run sh build/aarch64/subset-build.sh first"
 [ -s "$OUT/brkprobe" ] || err "$OUT/brkprobe missing — run sh build/aarch64/subset-build.sh first"	# 20-07: lone-member RFMEM brk probe
 [ -s "$OUT/cexecprobe" ] || err "$OUT/cexecprobe missing — run sh build/aarch64/subset-build.sh first"	# 20-10: close-on-exec probe
+[ -s "$OUT/rcloseprobe" ] || err "$OUT/rcloseprobe missing — run sh build/aarch64/subset-build.sh first"	# ORCLOSE remove-on-close probe
 SUBSET="rc grep cat cp date echo ls mkdir mv ps rm sed test wc"
 SUBSET="$SUBSET dd"	# 07-04: dd joins the image (D-07's sweep writer); append form keeps the edit insertion-only
 SUBSET="$SUBSET bind"	# 07-07: the net-sweep's `bind -a '#l' /net` execs /bin/bind (not an rc builtin)
@@ -177,6 +178,8 @@ cp "$OUT/rfdprobe" "$STAGE/arm64/bin/rfdprobe"
 cp "$OUT/brkprobe" "$STAGE/arm64/bin/brkprobe"
 # 20-10: cexecprobe (the close-on-exec pin; run by the tier-1 sweep, r9 venue)
 cp "$OUT/cexecprobe" "$STAGE/arm64/bin/cexecprobe"
+# rcloseprobe (the ORCLOSE remove-on-close probe: /srv and /env legs)
+cp "$OUT/rcloseprobe" "$STAGE/arm64/bin/rcloseprobe"
 
 # 3b. 06-07 (D-12): the tier-1 sweep payload — h-prefixed binaries into
 #     /arm64/bin (the sweep invokes them as /bin/h* on r9 through the
@@ -271,6 +274,7 @@ done
 [ -f "$STAGE/arm64/bin/rfdprobe" ] || err "manifest: arm64/bin/rfdprobe missing"	# 20-07
 [ -f "$STAGE/arm64/bin/brkprobe" ] || err "manifest: arm64/bin/brkprobe missing"	# 20-07
 [ -f "$STAGE/arm64/bin/cexecprobe" ] || err "manifest: arm64/bin/cexecprobe missing"	# 20-10
+[ -f "$STAGE/arm64/bin/rcloseprobe" ] || err "manifest: arm64/bin/rcloseprobe missing"	# ORCLOSE probe
 [ -f "$STAGE/lib/writeprobe.rc" ] || err "manifest: lib/writeprobe.rc missing from staged tree"	# 20-07
 # 06-07 (D-12): every tier-1 payload path is asserted pre-bake (T-06-15:
 # a stale bake would certify old binaries — presence of the just-staged
