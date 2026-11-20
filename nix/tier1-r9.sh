@@ -176,15 +176,17 @@ R9_INITRD="$HARVEY/build/aarch64/bootfs.paq"
 #     the donor termrc's line; the r9 boot's own stacksmoke stage covers
 #     it here) minus every SKIP-named member (the donor-guarded legs
 #     emit T1-SKIP on r9) — plus the fixed markers float-d01 (D-01),
-#     libtest-tdraw, forkstress and writeprobe.  These are fixed
-#     because no tiers/tier1-cmds.txt entry names them: float-d01 is a
-#     canary check, libtest-tdraw a libtest binary, forkstress (20-03,
-#     the WINDOWS #49 pin) a build/aarch64 fixture baked only into the
-#     r9 image, and writeprobe (20-08, the pin for the aarch64 rfork
-#     fd-group split, devmnt write and DMDIR/union create ports) the
-#     r9-only write-flow probe over a ramfs mount.  Listing them here
-#     makes a missing T1-OK forkstress or T1-OK writeprobe red the
-#     post-pass.  The SKIP set is extracted VERBATIM from
+#     libtest-tdraw, forkstress, writeprobe, cexecprobe and brkprobe.
+#     These are fixed because no tiers/tier1-cmds.txt entry names them:
+#     float-d01 is a canary check, libtest-tdraw a libtest binary,
+#     forkstress (20-03, the WINDOWS #49 pin) a build/aarch64 fixture
+#     baked only into the r9 image, writeprobe (20-08, the pin for the
+#     aarch64 rfork fd-group split, devmnt write and DMDIR/union create
+#     ports) the r9-only write-flow probe over a ramfs mount, cexecprobe
+#     (20-10, the pin for the aarch64 close-on-exec sweep) and brkprobe
+#     (20-07/20-10, the lone-member RFMEM brk pin, D-09) r9-only
+#     build/aarch64 fixtures.  Listing them here makes a missing T1-OK
+#     forkstress, writeprobe, cexecprobe or brkprobe red the post-pass.  The SKIP set is extracted VERBATIM from
 #     tier1-sweep.rc's r9-venue SKIP lines (the file is the source of
 #     truth). ---
 T1_SKIP=$("$GREP" -oE '(^|[[:space:]])echo T1-SKIP [A-Za-z0-9.-]+' "$HARVEY/build/aarch64/tier1-sweep.rc" \
@@ -210,7 +212,7 @@ for m in $T1_OK_ALL; do
 	*) T1_OK="$T1_OK $m" ;;
 	esac
 done
-R9_EXPECT_OK="$T1_OK float-d01 libtest-tdraw forkstress writeprobe"
+R9_EXPECT_OK="$T1_OK float-d01 libtest-tdraw forkstress writeprobe cexecprobe brkprobe"
 R9_EXPECT_SKIP="$T1_SKIP"
 export R9_EXPECT_OK R9_EXPECT_SKIP
 echo "== expected on r9: $(echo "$R9_EXPECT_OK" | wc -w | tr -d ' ') T1-OK markers + $(echo "$R9_EXPECT_SKIP" | wc -w | tr -d ' ') T1-SKIP markers (computed)"

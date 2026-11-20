@@ -345,6 +345,12 @@ echo "== boot chain: brkprobe (20-07, lone-member RFMEM brk probe)"
 (cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw brkprobe.c \
 	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/brkprobe" brkprobe.7 \
 	&& rm -f brkprobe.7) || fail "brkprobe"
+# 20-10: cexecprobe — the close-on-exec probe (D-03 exec half), run by
+# the tier-1 sweep's r9-venue entry.  Same 7c -FTVw + 7l shape.
+echo "== boot chain: cexecprobe (20-10, close-on-exec probe)"
+(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw cexecprobe.c \
+	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/cexecprobe" cexecprobe.7 \
+	&& rm -f cexecprobe.7) || fail "cexecprobe"
 
 # 06-05: tier-0 lib test binaries (D-06 — in-tree lib tests run on the
 # donor where they exist; subset-exec.sh stages them h*-style and the
@@ -444,6 +450,7 @@ if [ -z "$NATIVE_LINUX" ]; then
 		"$GUEST:$GUEST_DIR/build/aarch64/out/forkstress" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/rfdprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/brkprobe" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/cexecprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/hdrawtest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/harctest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/htdraw" \
@@ -494,8 +501,9 @@ for f in ipconfig ping udpecho aan tcpblast tcpecho forkstress; do
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
 	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
 done
-# 20-07: the group-B measurement probes carry the same magic contract
-for f in rfdprobe brkprobe; do
+# 20-07: the group-B measurement probes (and 20-10's cexecprobe) carry
+# the same magic contract
+for f in rfdprobe brkprobe cexecprobe; do
 	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
 	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"

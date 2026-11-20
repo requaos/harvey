@@ -750,5 +750,24 @@ if(~ $venue r9){
 	if not echo T1-FAIL writeprobe $wpbad
 }
 
+# cexecprobe (20-10, the pin for the aarch64 close-on-exec sweep): open
+# a file OREAD|OCEXEC and plain OREAD, exec itself, and check that the
+# OCEXEC fd was closed by the exec and the plain one was not (a leak is
+# T1-FAIL cexecprobe after `cexecprobe: LEAK fd=<n>').
+# brkprobe (20-07, D-09 ramfs-venue-brk-holds): grow the break 8 MiB as
+# the lone member of an exited RFMEM family, then inside a live family,
+# and check every page; aarch64 demand-faults the lone member's growth,
+# and this keeps that measured.  Both run on their exit status.  r9
+# venue only, like forkstress: the binaries are baked into the r9 image
+# (mkimage.sh) and the donor and 9k venues do not carry them.
+# nix/tier1-r9.sh lists both among the fixed expected names, so a
+# silent entry reds the gate as `missing T1-OK cexecprobe' (or brkprobe).
+if(~ $venue r9){
+	if(/bin/cexecprobe) echo T1-OK cexecprobe
+	if not echo T1-FAIL cexecprobe
+	if(/bin/brkprobe) echo T1-OK brkprobe
+	if not echo T1-FAIL brkprobe
+}
+
 echo T1-DONE
 exit
