@@ -1169,7 +1169,13 @@ The first virtchurn attempt hung, and the hang came from the venue, not the kern
 
 PORT-SRC-EDIT: no
 
-R9-PUSH: pending-owner-approval (7d464ad, a fast-forward of one CI-only commit)
+### r9 push (owner: option 3)
+
+At the Task 1 checkpoint the owner chose option 3: push r9 now, and do not move the pin until the debugger's OCEXEC fix lands. Then one battery, one lock-only pin move and one combined series cover both. The coordinator pushed `7d464ad`. After `git fetch origin`, `origin/main` equals local `main`, and the plan's verify printed `PUSHED-CLEAN`.
+
+R9-PUSHED: 7d464ad0824c8e5fb92566a8b210862e9aabc9fe
+
+The pin stays at `1125a20` for now. `7d464ad` is CI-only, so the pinned kernel is byte-identical to the r9 `origin/main` kernel on every arch. Harvey `a71a45b8c` stays local.
 
 ### Donor gate (Task 2 step 3)
 
