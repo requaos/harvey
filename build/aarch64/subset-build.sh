@@ -357,6 +357,13 @@ echo "== boot chain: rcloseprobe (ORCLOSE remove-on-close probe)"
 (cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw rcloseprobe.c \
 	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/rcloseprobe" rcloseprobe.7 \
 	&& rm -f rcloseprobe.7) || fail "rcloseprobe"
+# 20-12: sslprobe — the devssl round-trip and mount-over-ssl probe (the
+# arm64 consumer for the cpu-port devssl arms, D-09).  Baked into the
+# image; no gate calls it.  Same 7c -FTVw + 7l shape.
+echo "== boot chain: sslprobe (20-12, devssl round-trip + mount-over-ssl probe)"
+(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw sslprobe.c \
+	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/sslprobe" sslprobe.7 \
+	&& rm -f sslprobe.7) || fail "sslprobe"
 
 # 06-05: tier-0 lib test binaries (D-06 — in-tree lib tests run on the
 # donor where they exist; subset-exec.sh stages them h*-style and the
@@ -458,6 +465,7 @@ if [ -z "$NATIVE_LINUX" ]; then
 		"$GUEST:$GUEST_DIR/build/aarch64/out/brkprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/cexecprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/rcloseprobe" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/sslprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/hdrawtest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/harctest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/htdraw" \
@@ -510,7 +518,7 @@ for f in ipconfig ping udpecho aan tcpblast tcpecho forkstress; do
 done
 # 20-07: the group-B measurement probes (and 20-10's cexecprobe) carry
 # the same magic contract
-for f in rfdprobe brkprobe cexecprobe rcloseprobe; do
+for f in rfdprobe brkprobe cexecprobe rcloseprobe sslprobe; do
 	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
 	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
