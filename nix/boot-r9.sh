@@ -47,6 +47,15 @@
 #                  darwin-aarch64 when qemu supports it, tcg otherwise.
 #   R9_GICV2       =1 restores the v1.0 reference shape (gic-version=2,
 #                  cortex-a72, tcg) — a bisection escape hatch.
+#   R9_BOOTARGS    optional boot string for the kernel's ROOT env seed
+#                  (key=value pairs, e.g. "init=/arm64/init -c"); when
+#                  set and non-empty, step 3 writes it with fdtput -t s
+#                  onto /chosen of the DTB copy.  Unset or empty (the
+#                  default): no extra patch runs and the DTB copy is
+#                  byte-identical to the two-patch default.
+#   R9_BOOTARGS_PROP  the /chosen property name R9_BOOTARGS is written
+#                  to (default bootargs); only read when R9_BOOTARGS
+#                  is non-empty.
 #   R9_SKIP_BUILD  =1 skips step 1 (iteration hatch; see above).
 #   KERNDATE       pinned-build timestamp override; derived
 #                  from the HARVEY checkout's git log otherwise.
@@ -185,6 +194,18 @@ HI=$(printf '0x%x' $((END >> 32)))
 LO=$(printf '0x%x' $((END & 0xffffffff)))
 fdtput -t x "$DTB" /chosen linux,initrd-end "$HI" "$LO" \
 	|| err "fdtput linux,initrd-end patch failed"
+
+# opt-in boot string (20-13, ARM-10): with R9_BOOTARGS set and
+# non-empty, one more fdtput writes it as a string property on /chosen
+# of the throwaway copy (property name R9_BOOTARGS_PROP, default
+# bootargs) for the kernel's DTB bootconf reader.  Unset or empty:
+# nothing runs and the copy is byte-identical to the two-patch default.
+if [ -n "${R9_BOOTARGS:-}" ]; then
+	R9_BOOTARGS_PROP="${R9_BOOTARGS_PROP:-bootargs}"
+	echo "   bootargs: /chosen/$R9_BOOTARGS_PROP = '$R9_BOOTARGS'"
+	fdtput -t s "$DTB" /chosen "$R9_BOOTARGS_PROP" "$R9_BOOTARGS" \
+		|| err "fdtput /chosen $R9_BOOTARGS_PROP patch failed"
+fi
 
 # D-10: the standard boot speaks Ethernet — the always-on NIC rides every
 # composed boot (the flag shape Phase 9's HNET-02 single-sources into
