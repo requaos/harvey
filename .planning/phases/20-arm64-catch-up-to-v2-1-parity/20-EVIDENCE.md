@@ -1478,3 +1478,31 @@ Relayed by the coordinator at the Task 3 `checkpoint:decision`, 2026-11-21:
 - **Host-test route: A** (recorded above as `HOST-TEST-ROUTE: A`, owner-chosen, fix pending in 20-17 Task 1).
 
 PROFILE-DECISION: separate-profile
+
+## Bootconf delivery
+
+Plan 20-13 Task 1 (D-09, assumption A-carrier). Launcher seam: Harvey `da89798ec` (`R9_BOOTARGS` / `R9_BOOTARGS_PROP` in `nix/smoke-r9.sh` and `nix/boot-r9.sh`; `fdtput -t s` onto `/chosen` of the DTB copy only when `R9_BOOTARGS` is non-empty). Kernel: r9 `fa38402` plus an uncommitted scratch print in `main9` (after `DTB found at:`) that reported `/chosen/bootargs` and `/chosen/r9,bootconf`: present or absent, `property_value_bytes` length, and the bytes as text with NUL shown as `\0`. Built through `nix run .#boot-r9-smoke --no-write-lock-file --override-input r9 git+file:///Users/neilskinner/code/r9` (`r9-kernel-virt-wip`) with `R9_SKIP_BUILD=1`; the bake re-ran each time (`bootfs.paq` sha256 `a2a0b326…`). qemu 11.1.2 ELF boot: `-kernel kernel-virt.elf -dtb <patched copy>`, no `-append`. Shapes: hvf = `virt,gic-version=3 -cpu host`; tcg = `virt,gic-version=3 -cpu cortex-a72`; `R9_GICV2=1` = `virt,gic-version=2 -cpu cortex-a72` under tcg. Captures `.build/p20-13-t1-*.log`.
+
+| # | Run | `bootargs` | `r9,bootconf` | Bytes equal what was written (incl. NUL) | Gate |
+|---|---|---|---|---|---|
+| 1a | no `R9_BOOTARGS`, hvf | absent | absent | n/a (nothing injected) | exit 0, `ALL STAGES PASS` |
+| 1b | no `R9_BOOTARGS`, tcg | absent | absent | n/a (nothing injected) | exit 0, `ALL STAGES PASS` |
+| 1c | no `R9_BOOTARGS`, `R9_GICV2=1` | absent | absent | n/a (nothing injected) | exit 0, `ALL STAGES PASS` |
+| 2a | `R9_BOOTARGS='p20probe=one two'`, hvf | present, len 17 | absent | yes: `p20probe=one two\0` | exit 0, `ALL STAGES PASS` |
+| 2b | same, tcg | present, len 17 | absent | yes: `p20probe=one two\0` | exit 0, `ALL STAGES PASS` |
+| 3a | same string, `R9_BOOTARGS_PROP=r9,bootconf`, hvf | absent | present, len 17 | yes: `p20probe=one two\0` | exit 0, `ALL STAGES PASS` |
+| 3b | same, tcg | absent | present, len 17 | yes: `p20probe=one two\0` | exit 0, `ALL STAGES PASS` |
+| 4 | 300-byte string (`p20long=` + 292 `x`), hvf | present, len 301 | absent | yes: all 300 bytes then `\0` (compared byte-for-byte from the capture) | exit 0, `ALL STAGES PASS` |
+
+Reading:
+- qemu neither drops nor rewrites a `bootargs` that `fdtput` put in the blob, and adds none when none was written (runs 1a-1c). qemu only writes `/chosen/bootargs` for `-append`, and these launchers never pass `-append`.
+- The r9-owned name survives too (runs 3a/3b), so it stays available as a fallback, but the rule in the plan's objective picks `bootargs`.
+- The property value includes its terminating NUL (length = string + 1), so the Task 3 reader must cut at the first NUL.
+- The 300-byte string arrives whole: the DTB carrier has no length cap of its own below 256. The kernel reader's `MAX_CMDLINE` (256) is therefore what bounds it, and run 4's string is the over-long case Task 3 must panic on.
+- The default path is unchanged at every shape: no extra property, gate green.
+
+The scratch print was then removed (`git -C /Users/neilskinner/code/r9 checkout -- aarch64/src/main.rs`); `git status --porcelain` in r9 printed nothing.
+
+BOOTCONF-CARRIER: bootargs
+
+Pin control with the seam committed and `R9_BOOTARGS` unset: `R9_ACCEL=tcg R9_SKIP_BUILD=1 nix run .#boot-r9-smoke` (no override, `r9-kernel-virt-fa38402`, `y1gq491k…`) exit 0, `ALL STAGES PASS` (`.build/p20-13-t1-pin-tcg.out`).
