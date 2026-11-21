@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
-stopped_at: Completed 20-11-PLAN.md
-last_updated: "2026-11-21T02:32:57.386Z"
+stopped_at: Completed 20-12-PLAN.md
+last_updated: "2026-11-21T09:14:53.070Z"
 last_activity: 2026-11-17
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: e717ff53f7150b9f3806aba9503cb041af193608
+state_head: b29958b7cdfa9858839cc5957b9422e3f96794d3
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 69
+  completed_plans: 70
 ---
 
 # Project State
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
-Plan: 12 of 17
-Status: In progress — 20-01, 20-02 complete (HVF fork-child root cause: missing isb after TTBR0 write; owner chose aarch64-fix, lower-bound N kept)
-Last activity: 2026-11-17 - Completed 20-01-PLAN.md
+Plan: 13 of 17
+Status: In progress — 20-01..20-12 complete; group C measured (HOST-TEST-ROUTE A by owner choice, devcap via separate virtcpu profile); next 20-13 (DTB bootconf)
+Last activity: 2026-11-21 - Completed 20-12-PLAN.md
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 execution-complete pending verification; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
@@ -132,6 +132,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 20 P09 | 41 min | 3 tasks | 14 files |
 | Phase 20 P10 | 5h20m (4h22m series) | 3 tasks | 10 files |
 | Phase 20 P11 | 12h35m | 3 tasks | 6 files |
+| Phase 20 P12 | 5h41m | 3 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -336,6 +337,9 @@ Recent decisions affecting current work:
 - [Phase 20]: 20-11: r9 7d464ad adds the build-aarch64-virtchurn CI lane (dev_churn was uncompiled in CI); owner option 3 pushed it ahead of the pin
 - [Phase 20]: 20-11: owner added T1-OK cexeccreate (cexecprobe -c, pins r9 437b752 create(OCEXEC)) and T1-OK rcloseprobe (pins r9 5629cf0 ORCLOSE, owner-approved port/src); expected tier-1 OK set 41 -> 43; both red at 1125a20, green at fa38402 (TCG)
 - [Phase 20]: 20-11: group B closed at r9 fa38402 (Harvey pin c7cd176d2, lock-only); 1808/1808 series at N (HVF smoke 1753, net-smoke 36, tier-1 10; TCG 3 each), no override; tier-1 176 ordinary forks/boot (N stays at floor 10); donor gate pass 61; linux boot-iso FOD pass at fa38402 (owner)
+- [Phase 20]: 20-12: devcap profile route is separate-profile (owner): r9 profile virtcpu = virtshell devices + cap, package kernel-virt-cpu, Harvey app boot-r9-cpu; the four existing arm64 apps keep kernel-virt
+- [Phase 20]: 20-12: host-test route A (owner) over a measured B; the one-line aarch64/src/platform/mod.rs cfg(test) narrowing plus the xtask virtshell-cfg pass land in 20-17 Task 1
+- [Phase 20]: 20-12: #! fixtures must be baked mode 755 in bootfs.paq (ramfs refuses OEXEC, no chmod path this era); a working REMOVE consumer must target devcap/devenv/devsrv (devmnt has no Tremove)
 
 ### Pending Todos
 
@@ -377,6 +381,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-21T02:32:56.212Z
-Stopped at: Completed 20-11-PLAN.md
+Last session: 2026-11-21T09:14:51.760Z
+Stopped at: Completed 20-12-PLAN.md
 Resume file: None

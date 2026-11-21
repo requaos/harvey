@@ -1422,9 +1422,11 @@ Then `git checkout -- aarch64/src`; `git status --porcelain` printed nothing. `g
 
 **`new_user_proc` is not host-runnable on aarch64.** It allocates the root page table from `pagealloc` and maps it in the kernel page table; on the host `pagealloc` has no memory (`OutOfSpace`). The x86_64 one is host-runnable (its `MockStack` tests build on it). So the syscall-level `MockStack` pins do not port as-is in any route: they need either a host seam in `new_user_proc` or a test-only `Proc` constructor.
 
-HOST-TEST-ROUTE: B
+HOST-TEST-ROUTE: A
 
-Decided by steps 3, 4 and 5 on the tree as it stands: crate tests run on the host at the default cfg (32/32), and with the virtshell cfg the crate does not compile (step 4), so `dev_exec`-gated code cannot be tested on the host today. Consequence as planned for B: the pure functions are gated `#[cfg(any(test, dev_exec))]` in modules that build at the default cfg and are pinned there; the `MockStack`-dependent pins are not ported (and step 5 shows they would not run anyway: `new_user_proc` is not host-runnable).
+**Owner-chosen at the Task 3 checkpoint, fix pending.** The tree as measured gives route B (below). The owner chose A because the only obstacle is one aarch64-only line. The pending fix narrows the `cfg(test)` arm of the raspi3b glob gate in `aarch64/src/platform/mod.rs` to `all(test, not(platform = "virt"))`, and `cargo xtask test` then passes the virtshell cfg to the aarch64 leg (and selects that leg under the nix toolchain, which has no rustup). Both land in 20-17 Task 1: its action already says to "fix whatever 20-12 Task 1 found" in `TestStep::run` and to pass the cfg "the way the build step does". This plan commits no r9 source (its prohibition). 20-13 to 20-17 take their route-A branches. The `MockStack`-dependent syscall pins are still not ported as they are, because `new_user_proc` is not host-runnable (step 5).
+
+The measured route, before the owner's choice: B. Decided by steps 3, 4 and 5 on the tree as it stands: crate tests run on the host at the default cfg (32/32), and with the virtshell cfg the crate does not compile (step 4), so `dev_exec`-gated code cannot be tested on the host today. Consequence as planned for B: the pure functions are gated `#[cfg(any(test, dev_exec))]` in modules that build at the default cfg and are pinned there; the `MockStack`-dependent pins are not ported (and step 5 shows they would not run anyway: `new_user_proc` is not host-runnable).
 
 Finding for Task 3 (not a route input on its own): route A is one aarch64-only line away. The only obstacle to the virtshell cfg is the `platform/mod.rs` glob gate; with it narrowed (scratch, reverted) the crate compiled and ran 38/38 with `dev_exec` set, and a test inside `exec.rs` passed. Adopting A would mean 20-17 makes that one-line fix, passes the cfg from `cargo xtask test`, and still drops or re-seams the `MockStack` pins. Either way no `port/src/` edit is needed for the host-test battery.
 
@@ -1467,3 +1469,12 @@ DEVMNT-REMOVE: absent
 - **bootconf has no run-time consumer until c1 lands.** No DTB `bootargs` reader and no `cpurc` exist, so its baseline is source-only, as planned.
 
 **Venue note (HVF console).** A 295-byte typed line stalled on HVF: the echo stopped at byte 255, and the probe timed out at its done marker (`.build/p20-12-bang-hvf.log`). The same line ran in full on TCG. The aarch64 PL011 receive ring is 256 bytes (`CONS_RX_CAP`, `aarch64/src/platform/virt/pl011.rs:153`; the documented overflow drops bytes), and the burst overran it. Split into two lines of 189 and 98 bytes, the HVF run matched TCG. Any typed fixture line on arm64 should stay under 256 bytes.
+
+### Owner decisions (Task 3)
+
+Relayed by the coordinator at the Task 3 `checkpoint:decision`, 2026-11-21:
+
+- **Devcap profile route: `separate-profile`.** A new r9 profile `virtcpu` (virtshell's dev set plus `"cap"`), a new r9 package `kernel-virt-cpu` and a new Harvey app `boot-r9-cpu`. `boot-r9`, `boot-r9-smoke`, `boot-r9-net-smoke` and `boot-r9-tier1` keep booting the unchanged `kernel-virt` (`--config virtshell`). 20-15 and 20-16 take their primary (non-alternate) branches.
+- **Host-test route: A** (recorded above as `HOST-TEST-ROUTE: A`, owner-chosen, fix pending in 20-17 Task 1).
+
+PROFILE-DECISION: separate-profile
