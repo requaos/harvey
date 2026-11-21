@@ -1242,3 +1242,105 @@ subset-exec exit=0 done=1 r9only=0
 - The expected set is the same as at 20-05.
 
 DONOR-GATE: pass 61 members
+
+(This first donor run predates the `cexeccreate` and `rcloseprobe` sweep entries. It was re-run at the final Harvey HEAD; see `### Donor gate at the final sweep` below.)
+
+### r9 fa38402: the ORCLOSE fix (battery and the rcloseprobe pin)
+
+The coordinator reported the final rev as r9 `fa38402`, on `origin/main`. It sits two commits above `42203d8`:
+
+```
+fa38402 bump boot-iso hash for the ORCLOSE kernel change
+5629cf0 fix: ORCLOSE removes local files at the last close, through one shared remove dispatch
+```
+
+`fa38402` changes only `flake.nix`: the boot-iso `outputHash` goes from `sha256-L8Sm1tGU…` to `sha256-4vLm2Qsoq87i1cWN9Ief/9LCT2WlKibHnqlZzTKhjGk=`. `5629cf0` touches `aarch64/src/syscall.rs`, `x86_64/src/syscall.rs` and five `port/src` files. In `7d464ad..fa38402`, the x86_64 changes are exactly the debugger's `437b752` and `5629cf0`. The debugger ran the x64 TCG gates and the x86_64 host tests green in a container, so no x64 re-run is owed here.
+
+**PORT/SRC IS NOT EMPTY AT THE PIN (OWNER-APPROVED: ORCLOSE PLUS THE SHARED REMOVE DISPATCH).** `git diff --stat 7d464ad..fa38402 -- port/src`:
+
+```
+ port/src/dat.rs         | 20 ++++++++++++++-
+ port/src/devenv.rs      | 27 ++++++++++++++++++++
+ port/src/devsrv.rs      | 28 +++++++++++++++++++++
+ port/src/namec.rs       | 66 ++++++++++++++++++++++++++++++++++++++++++++-----
+ port/src/namec_tests.rs | 66 +++++++++++++++++++++++++++++++++++++++++++++++++
+ 5 files changed, 200 insertions(+), 7 deletions(-)
+```
+
+PORT-SRC-EDIT: YES (r9 5629cf0, owner-approved)
+
+**Battery at `fa38402`** (a clean short-path clone, `.build/r9-bfa`, since removed; the same steps and toolchain as before):
+
+- check, clippy, test, and the virtshell, virtchurn, aarch64-default, x86-64 and riscv64 builds all exit 0. `test` has 12 `ok.` results and no `FAILED`. The port lib tests go from 165 to 168 passed, the new `namec_tests`.
+- ureg-check exits 0.
+- The virtchurn boot-test exits 0 with `steady=482 measured=158 <= ceiling=1772` bytes/exec.
+- Logs: `.build/p20-11-battery-fa38402/`.
+
+**aarch64 kernel at `fa38402`:** `/nix/store/y1gq491ka27sslgzgkhl8rs9s6v32s5m-r9-kernel-virt-fa38402`, `kernel-virt.elf` sha256 `bd0d969651a6c7287940087d5e12fb5be88c8284704455f9010d85b583b18f81`. This matches the coordinator's report. `nix build --rebuild` of `1z4xf234…-r9-kernel-virt-fa38402.drv` exits 0 with no `may not be deterministic` line.
+
+**The gate entry.** The debugger's Harvey `1e6d8e79f` builds `build/aarch64/rcloseprobe.c` (subset-build.sh) and bakes it as `/arm64/bin/rcloseprobe` (mkimage.sh), but did not wire it into the sweep. Harvey `6fa102769` adds `T1-OK rcloseprobe` to the r9-venue block of `tier1-sweep.rc`, beside cexecprobe and cexeccreate, and adds `rcloseprobe` to the fixed expected names in `nix/tier1-r9.sh`. The computed expected OK set goes from 42 to 43.
+
+**TCG, red at the pin and green at the fix.** Harvey was at `6fa102769`. The green run did a full userland build, which rebuilt `rcloseprobe`. The red run reused that userland.
+
+| Kernel | Invocation | Exit | Result |
+|---|---|---|---|
+| r9 `fa38402` (`y1gq491k…`) | `R9_ACCEL=tcg nix run .#boot-r9-tier1 --no-write-lock-file --override-input r9 'git+file:///Users/neilskinner/code/r9?rev=fa38402…'` | 0 | `expected on r9: 43 T1-OK markers + 23 T1-SKIP markers`; 43 distinct OK, 23 SKIP, 0 FAIL, 376 forks; `cexecprobe: ok`, `cexecprobe: create ok`, `rcloseprobe: ok`; `ALL STAGES PASS` |
+| the pin r9 `1125a20` (`j0d1q06r…`) | `R9_SKIP_BUILD=1 R9_ACCEL=tcg nix run .#boot-r9-tier1 --no-write-lock-file` (no override) | 1 | `cexecprobe: LEAK create fd=3`, and `rcloseprobe: LEAK` on every leg (`srv`, `dup`, `exit`, `env`, `env-open`); `T1-FAIL cexeccreate`, `T1-FAIL rcloseprobe`; `post-pass FAILED — missing T1-OK cexeccreate`; 41 distinct OK |
+
+Captures: `.build/p20-11-rc-{fa38402,1125a20}-tcg.{out,log}`.
+
+### The pin
+
+Harvey `c7cd176d2` `chore(20-11): advance the r9 pin 1125a20 -> fa38402 lock-only (arm64 syscall-path parity + churn gate)`. Running `nix flake update r9` changed only the `r9` node's `lastModified`, `narHash` and `rev` (6 changed lines). The locked rev `fa38402ec3c9e18817b4d5c9c8b9052794dc2bab` equals r9 `origin/main`. `git show --name-only` on the pin commit prints exactly `flake.lock`.
+
+The pin move covers `7d464ad` (CI), `437b752` with `42203d8` (create(OCEXEC)), and `5629cf0` with `fa38402` (ORCLOSE).
+
+PIN: r9 fa38402ec3c9e18817b4d5c9c8b9052794dc2bab (Harvey c7cd176d2)
+
+### N for this series
+
+`N-SOURCE: lower-bound` (the `## N derivation` lines) and `STRESSOR-RATE: not-fired` are in force, so forkstress's 200 forks do not count. Run 1 of the tier-1 HVF block at the pin made 376 forks: 371 at 20-10, plus 2 for `cexecprobe -c`, plus 3 for `rcloseprobe`. The ordinary gate therefore makes 376 - 200 = **176** forks per boot. N = max(10, ceil(ln(0.05) / (176 × ln(1 - 0.00575157)))) = max(10, ceil(2.99573 / (176 × 0.00576818))) = max(10, ceil(2.99573 / 1.01520)) = max(10, ceil(2.951)) = max(10, 3) = **10**. The floor decides, as at 20-06. Smoke (8 forks per boot) and net-smoke (71) are unchanged, so their N lines stand at 1753 and 36.
+
+N-HVF boot-r9-tier1 = 10
+
+### Series at the pin (no override)
+
+The block ran from 2026-11-20T18:39:32Z to 23:16:58Z (about 4 h 37 min), with `R9_OVERRIDE` unset and `R9_STOP_ON_FAIL=1`. Run 1 of tier-1 HVF rebuilt the userland at the pin, and every later block set `R9_SKIP_BUILD=1`. The order was the 20-10 block's. `KERNDATE` was exported as the pin commit's time (`1795199925`), so a commit by a concurrent session could not move it. Harvey HEAD was `c7cd176d2` at both `SERIES-START` and `SERIES-END`.
+
+```
+SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3760
+SERIES boot-r9-net-smoke accel=hvf runs=36 pass=36 fail=0 pushword=0 forks=2556
+SERIES boot-r9-tier1 accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=1128
+SERIES boot-r9-net-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=213
+SERIES boot-r9-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=24
+SERIES boot-r9-smoke accel=hvf runs=1753 pass=1753 fail=0 pushword=0 forks=14024
+```
+
+- **1808 of 1808 runs were green.** No `pushword` line appeared, and `R9_STOP_ON_FAIL=1` never fired.
+- **Every block booted the pinned kernel,** `/nix/store/y1gq491ka27sslgzgkhl8rs9s6v32s5m-r9-kernel-virt-fa38402`, in every `run-*.out`. No `run-*.out` mentions `override`. No capture in any block has a `pushword but no argv`, `Not registered`, `user fault`, `unresolvable` or `panic` line.
+- **Every tier-1 run had 376 forks; every net-smoke HVF run had 71.**
+- **HVF gate forks, forkstress excluded:** 10 × 176 + 2556 + 14024 = 18340, with 0 fires. That is at least `FORKS-TARGET = 520`. The WINDOWS #49 residual note from 20-06 still applies: this series is green at the plan's N and does not separate the isb-only residual rate.
+- **The last tier-1 capture** (TCG run 3, `boot-r9-tier1-tcg-20261120T135024/run-3.log`) has `T1-OK forkstress` 1, `T1-OK writeprobe` 1, `T1-OK cexecprobe` 1, `T1-OK cexeccreate` 1, `T1-OK rcloseprobe` 1, `T1-OK brkprobe` 1, `T1-FAIL` 0, 43 distinct OK and 23 SKIP. The last HVF tier-1 capture (`boot-r9-tier1-hvf-20261120T133932/run-10.log`) has the same counts.
+- **Logs:** the series log is `.build/p20-11-series-fa38402.log`, and the per-run captures are under `.build/hvf-series/boot-r9-*-20261120T13{3,4,5}*`.
+
+### Donor gate at the final sweep
+
+The first donor run (above) was at `699f3dcf9`, before `68119abf8` and `6fa102769` edited the shared sweep. It was re-run at the pin commit `c7cd176d2` from 2026-11-20T23:21:26Z to 23:22:12Z: `nix develop -c sh -c 'sh build/aarch64/subset-exec.sh >.build/p20-11-subset-final.out 2>&1; …'`.
+
+```
+subset-exec exit=0 done=1 r9only=0
+```
+
+- The result is again `56 members + float-d01 + libtest ×2 + selfhost ×2` and `== PASS`.
+- The capture has 61 distinct `T1-OK`, 0 `T1-SKIP`, 0 `T1-FAIL`, one `T1-DONE`, and no `panic`/`trap:` line.
+- No line mentions `forkstress`, `writeprobe`, `cexecprobe`, `cexeccreate`, `rcloseprobe` or `brkprobe`, in either the capture or the `.out`.
+
+DONOR-GATE: pass 61 members
+
+### Linux boot-iso check at r9 fa38402 (owner, relayed by the coordinator)
+
+On the linux host, the owner ran `nix build .#boot-iso --rebuild` at r9 `fa38402` (`outputHash = "sha256-4vLm2Qsoq87i1cWN9Ief/9LCT2WlKibHnqlZzTKhjGk="`). It passed with no mismatch. This is the FOD pass the `port/src` hold waits for, so the `pending-fod` hold on the Harvey push is cleared. The push itself still waits for the owner's approval at the Task 3 checkpoint.
+
+BOOT-ISO-LINUX fa38402: pass
+
+HARVEY-PUSH-STATUS: awaiting owner approval (FOD hold cleared; Harvey master is ahead of origin/master, not pushed)

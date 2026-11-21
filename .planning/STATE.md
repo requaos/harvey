@@ -5,11 +5,11 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
-stopped_at: "Completed 20-10-PLAN.md (pin checkpoint pending: r9 push + lock-only pin to 1125a20)"
-last_updated: "2026-11-20T12:32:31.527Z"
+stopped_at: 20-11 Task 2 done (group B green at r9 fa38402 pin c7cd176d2); Task 3 owner checkpoint + Harvey push approval pending
+last_updated: "2026-11-21T00:02:11.129Z"
 last_activity: 2026-11-17
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: b3058291705554b31e80e414fe33d86119333d56
+state_head: c7cd176d21ce624aaf3dc54132384c3bdc16e06b
 progress:
   total_phases: 8
   completed_phases: 2
@@ -332,6 +332,9 @@ Recent decisions affecting current work:
 - [Phase 20]: 20-10: aarch64 close-on-exec sweep at r9 1125a20 (exec_replace, between check_seed_fit and free_user_mappings); brk takes D-09's no-code branch (comment only)
 - [Phase 20]: 20-10: cexecprobe + brkprobe are required r9 tier-1 sweep markers (expected OK 39 -> 41); the pin 27f38a3 reds on cexecprobe: LEAK until it advances
 - [Phase 20]: 20-10: one 20-06-shape series at r9 1125a20 covers 20-09 + 20-10: 1808/1808 green; x86_64 bytes unchanged, so no boot-iso hash work
+- [Phase 20]: 20-11: r9 7d464ad adds the build-aarch64-virtchurn CI lane (dev_churn was uncompiled in CI); owner option 3 pushed it ahead of the pin
+- [Phase 20]: 20-11: owner added T1-OK cexeccreate (cexecprobe -c, pins r9 437b752 create(OCEXEC)) and T1-OK rcloseprobe (pins r9 5629cf0 ORCLOSE, owner-approved port/src); expected tier-1 OK set 41 -> 43; both red at 1125a20, green at fa38402 (TCG)
+- [Phase 20]: 20-11: group B closed at r9 fa38402 (Harvey pin c7cd176d2, lock-only); 1808/1808 series at N (HVF smoke 1753, net-smoke 36, tier-1 10; TCG 3 each), no override; tier-1 176 ordinary forks/boot (N stays at floor 10); donor gate pass 61; linux boot-iso FOD pass at fa38402 (owner)
 
 ### Pending Todos
 
@@ -348,6 +351,7 @@ None yet.
 - 19-08 RESOLVED (pass 3, 2026-11-15): the session-exit deadlock closed by the FIVE-layer chain (r9 22d40fb..56acaea, all pushed): the devssl direction split, the devmnt tag-mux (the named boot-race suspects eliminated STRUCTURALLY — the rebuilt tree booted q35cpu PASS x5 + the profile set on its first session), the session-teardown Drop, the note-interrupt fix, and devpipe's blocking write (the tier1 gate's measured paqfs root death — a THIRD race class the rebuilt tree exposed, root-caused and fixed). The gate is GREEN TWICE on KVM + the TCG leg GREEN + REDACTION-OK at the df4ad78 pin (evidence 19-08-gate-{pin-a,pin-b,tcg}.log); hosted CI observed SUCCESS at both pushed HEADs before each lock-only advance (runs 43711744441, 43717790664). Residual (recorded, non-blocking): devip's connect/listen/write-full block arms WAKE on notes but do not yet surface the interrupt — no measured caller; the data-read pair is the -G session's whole surface. DESK-06/CPU-04/DESK-04 closed by this plan's completion
 - objtype RENAMED aarch64 -> arm64 (quick 261117-bz5, 2026-11-17; Harvey 27cc1d25e/a15e787e9/cd0fa04d2). CORRECTED 20-06: r9 8e4e730 was never local only; it was on origin/main and pinned lock-only at Harvey 4a4f463e1. The arm64 r9 apps did not reach a green state at that pin for other reasons (the 19-08 note_pending compile break, fixed in 20-01). Since 20-06 the pin is r9 5f3ddb0 (Harvey 980f09c4e, r9 origin/main). The donor-venue gates are re-proven (20-05), and r9 `cargo xtask test` with port integration tests is green (20-04, 20-06). The host harness dir keeps the name build/aarch64/; r9's aarch64/ crate keeps its Rust name
 - 20-06 group A CLOSED at r9 57e2952 (Harvey pin 0dafd07ad, pushed; reproducible kernel-virt sha256 da4ab2dab941...). On 2226cc4, net-smoke HVF went red at run 21 (a fork-child user fault on a corrupt rc argv word, WINDOWS #49 class). The owner chose to harden: r9 57e2952 puts dsb ishst before the TTBR writes and the full tlbi. Its series at the plan's N was green (HVF smoke 1753, net-smoke 36, tier-1 10; TCG 3 each), and the owner accepted it (decision b). WINDOWS #49 STAYS OPEN: the isb-only residual (~1.8e-5 per fork) cannot be separated by 17864 forks. Follow-up: about 2,300 net-smoke HVF boots clean on the pinned kernel. The boot-iso FOD was re-wired by the owner (ff2b632), and r9 hosted CI was green at ff2b632. Harvey hosted CI at the final push is not yet observed. Venue note: the lima guest's userland build can fail on the darwin HX/Hx case collision (sys/lib/postscript/troff)
+- 20-11 group B GREEN AT THE PIN r9 fa38402 (Harvey c7cd176d2, lock-only; reproducible kernel-virt sha256 bd0d9696...). At parity on arm64: rfork fd-group split, devmnt write, DMDIR/union create (20-08), the exit-path drains and husk sweep (3a1c9e5/5893ae9), close-on-exec on exec (1125a20) and on create (437b752), and ORCLOSE remove-on-close on /srv and /env through one shared remove dispatch (5629cf0, the owner-approved port/src edit). Churn gate (virtchurn, ceiling 1772 B/exec): 16805 B/exec on the drain-free exit path (b82ee9d) -> 136-168 B/exec since the drains (143, 158 at the 20-11 batteries). brk: D-09 ramfs-venue-brk-holds, with no code change; brkprobe stays a regression pin. Tier-1 now requires 43 OK (forkstress, writeprobe, cexecprobe, cexeccreate, rcloseprobe, brkprobe among them). The series was 1808/1808 at N. The donor gate passed (61). The owner's linux boot-iso FOD check passed at fa38402. The Harvey push and Task 3's hosted-CI checks wait for the owner
 
 ### Roadmap Evolution
 
@@ -372,6 +376,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-20T12:32:30.182Z
-Stopped at: Completed 20-10-PLAN.md (pin checkpoint pending: r9 push + lock-only pin to 1125a20)
-Resume file: None
+Last session: 2026-11-21T00:02:09.976Z
+Stopped at: 20-11 Task 2 done (group B green at r9 fa38402 pin c7cd176d2); Task 3 owner checkpoint + Harvey push approval pending
+Resume file: .planning/phases/20-arm64-catch-up-to-v2-1-parity/20-11-PLAN.md
