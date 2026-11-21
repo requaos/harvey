@@ -1536,3 +1536,79 @@ r9 `de03bf7` (local, unpushed): `check_cap_extents` in `aarch64/src/platform/vir
 | `boot-r9-net-smoke` tcg | `de03bf7` | 0 | present |
 
 All four print `pci: caps common@0x0+0x1000 notify@0x3000 isr@0x1000 device@0x2000 mult 4`, so the real device's boundary-exact notify cap is accepted. Captures: `.build/p20-13-t4-*.out`.
+
+## Exec and remove measurements
+
+Plan 20-14 Task 1 (D-09). Read-only. r9 at the local HEAD `de03bf7` (`fa38402` = the pin = `origin/main`, plus 20-13's `12bce96` and `de03bf7`, unpushed). Every line number below is at `de03bf7`. The plan's line numbers were taken at `8e4e730`. The aarch64 function lines still match; the x86_64 handler block now sits at 860-1025 and `exec_backing_for` at 1201.
+
+### MAX_ARGS
+
+- `aarch64/src/exec.rs:62`: `const MAX_ARGS: usize = 32;` (used at 377, 394, 412)
+- `x86_64/src/exec.rs:59`: `const MAX_ARGS: usize = 32;` (used by `shebang_pass` at 156 and by the seed checks at 391, 415)
+- The two syscall-side caps also agree: `MAX_EXEC_ARGS = 32` and `MAX_EXEC_ARG_LEN = 128`. aarch64 declares them inside `sys_exec` (`syscall.rs:1171-1172`); x86_64 declares them inside `copy_exec_args` (`syscall.rs:272-273`).
+
+MAX-ARGS: equal 32
+
+### aarch64 sys_exec against x86_64 copy_exec_args + exec_backing_for + sys_exec
+
+aarch64 `sys_exec` is `aarch64/src/syscall.rs:1170-1288`. The x86_64 counterparts are `copy_exec_args` (`x86_64/src/syscall.rs:267-296`), `EXEC_STAGE_CAP` (1192), `exec_backing_for` (1201-1251) and `sys_exec` (1258-1288). Statement by statement, the bodies match. Most differences are spelling only; one is an error string. Comments are not listed.
+
+**aarch64-only statements (all kept by the factoring):**
+
+| aarch64 line | Statement | x86_64 form | Where it lands after commit A |
+|---|---|---|---|
+| 1171-1172 | `const MAX_EXEC_ARGS` / `MAX_EXEC_ARG_LEN` local to `sys_exec` | local to `copy_exec_args` (272-273) | moves into `copy_exec_args`, values unchanged |
+| 1177 | `const EXEC_STAGE_CAP: usize = 16 * 1024 * 1024;` local to `sys_exec` | module-level `const` (1192) | moves into `exec_backing_for`, local there (the only user). Same value |
+| 1182, 1205 | `copy_user_str(proc, .., ..)` (the path and each argument) | `UserString::copy_from(..)?` (274, 291) | stays `copy_user_str` in `copy_exec_args`. aarch64 `copy_user_str` (`syscall.rs:233-235`) is a one-line wrapper over `UserString::copy_from`, so it is the same call |
+| 1197-1200 | `UserPtr::validated_only(proc, slot_va)` failure mapped to the aarch64-only errstr `exec: bad argv block` | `?` passes usermem's own error through (286) | **kept** in `copy_exec_args` as `.map_err(\|_\| "exec: bad argv block")?`, so the errstr on a bad argv slot is unchanged on arm64. This is the one error-text difference between the arches; it is not ported away |
+| 1263 | `ByteBacking::Mnt { file: alloc::sync::Arc::new(bytes) }` | `Arc::new(bytes)` with `use alloc::sync::Arc` (24) | kept with the full path in `exec_backing_for`. aarch64 `syscall.rs` does not import `Arc`, and the factoring commit adds no import |
+| 1278 | leaf: `.filter(\|c\| !c.is_empty()).last()` | `.rfind(\|c\| !c.is_empty())` (1272) | stays in `sys_exec` as written. Same result, and commit A changes no behavior or form beyond the split |
+| 1281 | `exec::exec_replace(proc, backing, name, &arg_slices, frame)` | `exec::exec_with_shebang(.., &mut \|proc, path\| exec_backing_for(proc, path))` (1275-1283) | unchanged by commit A; commit B swaps it for `exec_with_shebang` (the port itself) |
+
+**x86_64-only statements:** none beyond the factoring itself: `copy_exec_args` is `pub(crate)` and takes `proc: &Proc` (aarch64 `copy_user_str` and `UserPtr::validated_only` both take `&Proc`, so the same signature compiles), and `exec_backing_for` takes `&mut Proc` and returns `Result<ByteBacking, &'static str>`. x86_64 `sys_exec` has no statement aarch64 lacks once the shebang call is set aside.
+
+**What commit B needs that aarch64 already has:** `HDR_SIZE = 40` (`aarch64/src/exec.rs:44`, private, same module as the pre-pass), `ByteBacking::read_at` (`aarch64/src/proc.rs:187`, 624), `port::Result` (`exec.rs:16`), `exec_replace(proc, backing, name, args, frame: &mut TrapFrame) -> Result<u64>` (`exec.rs:309-315`, the x86_64 signature with `Ureg` -> `TrapFrame`). The 20-10 close-on-exec sweep lives inside `exec_replace`, so the pre-pass runs before it on every hop. That is x86_64's order.
+
+EXEC-DIVERGENCE: listed
+
+### Remove and wstat: port calls at the local HEAD
+
+The x86_64 handlers (`x86_64/src/syscall.rs:860-1025`) call these functions. Each one exists on the aarch64 side at `de03bf7` with the same signature:
+
+| Called by x86_64 | aarch64 / port at `de03bf7` |
+|---|---|
+| `port::namec::remove_chan(c: &Chan) -> Result<()>` (inside x86_64 `remove_chan`, 898-900) | `port/src/namec.rs:464-471`, the same function (port is shared) |
+| `namec::namec(path, slash, dot, &proc.pgrp, NamecMode::Open)` | imported at `aarch64/src/syscall.rs:31`; already used by aarch64 `sys_exec` (1224) |
+| `port::namec::close_chan(&c)` | used throughout aarch64 `syscall.rs` (1234, 1242, …) |
+| `Proc::fd_take(fd: u64) -> Option<Chan>` / `Proc::fd_store(fd: u64, c: Chan)` | `aarch64/src/proc.rs:968`, 978 |
+| `UserString::copy_from(proc: &Proc, va, max)` | `aarch64/src/usermem.rs:165`; imported at `syscall.rs:39` |
+| `UserSlice::new(proc: &mut Proc, va, len)` then `.as_slice()` | `aarch64/src/usermem.rs:42`; imported at `syscall.rs:39` |
+| `copy_user_str`, `sargs`, `err` | `aarch64/src/syscall.rs:233`, and the existing `sargs`/`err` (237) |
+| `ERRMAX` | imported at `syscall.rs:36` |
+
+Nothing is missing, so Task 4's handler block is a copy under the translation rule (`Ureg` -> `TrapFrame`). No new imports are needed.
+
+**The plan text is out of date on one point. The owner's direction already covers it.** Since r9 `5629cf0` ("ORCLOSE removes local files at the last close, through one shared remove dispatch"), x86_64 `remove_chan` is a one-line wrapper over `port::namec::remove_chan`, which already serves `DEV_CAP`, `DEV_SRV` and `DEV_ENV` and refuses every other device with `remove: device does not implement remove`. The plan's Task 4 says aarch64 `remove_chan` has "only the refusing default arm" and that the devcap arm lands in 20-15. The coordinator's constraint for this plan ("route aarch64 sys_remove (syscall 25) through the existing `port::namec::remove_chan` (added in r9 5629cf0), not a second dispatch") replaces that. As a result, at x86_64 parity on arm64:
+
+- `rm /env/<key>` (devenv) and `rm /srv/<name>` (devsrv) will **succeed** after Task 4. 20-12's devenv baseline `rm /env/p12` (`syscall 25 unimplemented`) is expected to become a clean removal, not the loud refusal the plan's Task 4 "Expected after" assumes.
+- The devcap remove arm (`crate::devcap::remove`, in port, not cfg-gated) is reachable through the same call as soon as a kernel can name `#¤` (namec's `'¤'` arm is `#[cfg(dev_cap)]`, which `virtcpu` turns on in 20-15). 20-15 then needs no `remove_chan` edit, only the profile.
+- `rm` on a devmnt file (`/n/wp/f`, ramfs) refuses with `remove: device does not implement remove`, as on x86_64.
+- The ORCLOSE close path already runs through `port::namec::close_chan` -> `remove_chan` on arm64 today (port code). Task 4 adds no second remove routing.
+
+`wstat_chan` (`x86_64/src/syscall.rs:908-910`) is still arch-local and refuses for every device. That ports as written.
+
+**DEVMNT-REMOVE re-confirmed: absent.** The pub fns of `port/src/devmnt.rs` at `de03bf7` are `set_contention_hook` (407), `contention_park` (418, `pub(crate)`), `set_contention_hook_for_test` (443), the `Mnt` methods `negotiate`, `msize`, `attach`, `walk`, `clone_fid`, `open`, `read`, `write`, `create`, `stat`, `clunk` (668-933), and the chan-level `fversion`, `attach`, `walk`, `clone_chan`, `open`, `read`, `write`, `create`, `stat`, `clunk`, `clunk_if_last`, `read_all` (959-1282). There is no `remove` and no `Tremove`. The only `remove` text in the file is `VecDeque::remove` at 554 and a comment at 565. `port::namec::remove_chan`'s doc comment (namec.rs:459-463) still reads "devmnt is not here this era". 20-12's line stands:
+
+DEVMNT-REMOVE: absent
+
+**writeprobe's `remove` step under each route.** The step is `rm /n/wp/f` (`build/aarch64/root-tree/lib/writeprobe.rc:72-75`), a ramfs file reached through devmnt. Under `refuse-loudly` it stays `WP-FAIL remove`, now with `remove: device does not implement remove` as its text instead of `syscall not implemented`. So the writeprobe and tier-1 expected sets do not change. It turns green only under `devmnt-remove`. The tier-1 sweep's `hrm` and `hchmod` legs (`tier1-sweep.rc:362-366`, 443-450) sit inside the donor-venue guard and print `T1-SKIP` on r9 (622), so neither route changes the tier-1 marker set.
+
+### The `#!` baseline case
+
+20-12's `#!` row: create and write succeed on ramfs, and then exec fails with `devmnt: server error: permission denied` / `can't exec: devmnt: server error`. **ramfs refuses the `OEXEC` open of the 0664 file before the kernel reads any header bytes.** So this is the mode-bit case, not the a.out-header case. In the factored code the refusal comes from `namec::open_chan(&c, OEXEC)` inside `exec_backing_for`, which runs before `exec_with_shebang` sees the backing. No chmod path works on any device this era (WSTAT refuses everywhere, on x86_64 too). Task 3's ramfs live check therefore cannot reach the pre-pass. The expected record is `SHEBANG-LIVE: deferred-to-20-16`, with the baked mode-755 fixture as the first live proof. Task 3 still runs the ramfs probe after commit B, to show that the refusal text is unchanged (ordinary exec untouched).
+
+### Exec route
+
+`MAX-ARGS` is `equal 32`, and each aarch64-only statement above has a place in the factoring (`copy_exec_args`, `exec_backing_for`, or `sys_exec` unchanged). Commit A can therefore be a pure split, and commit B is the x86_64 pre-pass with `Ureg` -> `TrapFrame`.
+
+EXEC-ROUTE: as-planned
