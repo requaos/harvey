@@ -1746,3 +1746,35 @@ Venue: a fresh Docker Desktop `linux/amd64` container (`ubuntu:24.04`, pre-exist
 r9 `105d48e` (`bump boot-iso hash for the devmnt Tremove kernel change`) wires the new value, local and unpushed. The aarch64 `kernel-virt` at `105d48e` is byte-identical to `9173af0` (sha256 `2834f1940449f7d5…`), so the flake edit does not touch the arm64 bytes. Container removed afterwards. The image, volume and container lists equal the pre-session snapshots, and no qemu processes remain.
 
 **Still owed:** the owner's linux `nix build .#boot-iso --rebuild` after the push, and the HVF pin series covering 20-13 and 20-14 at the pin checkpoint (KERNDATE fixed to the pin commit time).
+
+## Pin series (20-13 + 20-14) at r9 105d48e
+
+Owner-approved pin checkpoint, 2026-11-21. Step 1: the coordinator pushed r9 (`origin/main` = `105d48e`). Step 3: Harvey `4888b718b` is the lock-only pin move `fa38402 -> 105d48e`; only the r9 node in `flake.lock` changed. Step 4: the 20-06-shape series (scratchpad `series-105d48e.sh`, a copy of `series-fa38402.sh`) ran with no override, `R9_STOP_ON_FAIL=1` and `KERNDATE=1795275716` (the commit time of `4888b718b`). Every leg ran on kernel `r9-kernel-virt-105d48e`. Run 1 of the HVF tier1 leg rebuilt the userland and baked the image (4446658 bytes).
+
+```
+SERIES-START 2026-11-21T15:48:32Z harvey=4888b718b pin=105d48e263ea9823cfb598f40d2b006b24d1842c KERNDATE=1795275716
+SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3740
+SERIES boot-r9-net-smoke accel=hvf runs=23 pass=22 fail=1 pushword=0 forks=1607
+SERIES boot-r9-tier1 accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=1122
+SERIES boot-r9-net-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=213
+SERIES boot-r9-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=24
+boot-r9-smoke accel=hvf: stopped by the executor at run 20 (20/20 pass) after the net-smoke fire
+```
+
+**SERIES: RED.** HVF net-smoke run 23 of 36 failed (`.build/hvf-series/boot-r9-net-smoke-hvf-20261121T105011/run-23.{log,out}`). It was inside `rc /lib/netip-loopback.rc`, just after `netip: random ok`, at the `conv=`{cat /net/ipifc/clone}`` backquote:
+
+```
+process 48 exited: ""
+process 50 exited: ""
+user trap: unhandled ec=0x22 addr=0x00000000000318e7 pc=0x00000000000318e7
+process 49 exited: "fault"
+netip: FAIL clsmoke-r9-net: a fixture printed netip: FAIL — aborting (the failing stage is named on the wire)
+```
+
+- EC `0x22` is a PC alignment fault: user code branched to an odd address (`0x318e7`).
+- The capture has 0 `pushword but no argv` lines, so the series' `pushword` counter missed it.
+- Process 49 is the backquote's forked child. Processes 48 and 50, with small text page-ins (to `0x18000`), are the short commands. `0x318e7` lies far beyond those, consistent with rc's text. That points to a corrupted register or return address in a forked rc child: the same fork-child symptom class as WINDOWS #49 (20-02/20-03), with a new signature.
+- **Not yet attributed.** It is one fire in 23 HVF net-smoke boots (about 1607 forks at the fire). The `fa38402` series was green on this leg (36/36). Candidates are 20-13 (`12bce96` bootconf, `de03bf7` cap extents) and 20-14 (the exec split and `#!` pre-pass on every exec; REMOVE/WSTAT). The fault is in a forked child before any exec in that child, which argues against the exec path, but one fire cannot separate these. Also possible: a pre-existing rare defect at a rate the `fa38402` series did not reach.
+- TCG legs were all green (9/9).
+
+Step 5 (the Harvey push) was NOT run: the series is red. The HVF smoke ×1753 leg was stopped at run 20 (all green) so that HVF is free for the owner's next call. Harvey `master` stays local at `4888b718b` plus this evidence commit. r9 `origin/main` = `105d48e` is pushed, and Harvey's pin commit is unpushed.
