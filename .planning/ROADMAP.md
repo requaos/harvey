@@ -337,7 +337,7 @@ Plans:
 **Carried in from quick 261117-bz5 (unrun there):** the donor-venue gates (`build/aarch64/subset-exec.sh` merged /arm64 staging; `build/aarch64/trace-boot.rc` `bind /boot/ourinit /arm64/init`) and r9 `cargo test -p port` on nightly-2026-01-30.
 **Requirements**: ARM-01, ARM-02, ARM-03, ARM-04, ARM-05, ARM-06, ARM-07, ARM-08, ARM-09, ARM-10, ARM-11, ARM-12
 **Depends on:** Phase 19
-**Plans:** 10/17 plans executed
+**Plans:** 11/17 plans executed
 
 Plans (strictly sequential, one wave each — the plans share the one r9 checkout and the HVF timing series must not run under other load):
 
@@ -354,7 +354,7 @@ Plans (strictly sequential, one wave each — the plans share the one r9 checkou
 - [x] 20-08-PLAN.md — rfork fd-group split, devmnt write, DMDIR + union creates; writeprobe pin in the tier-1 sweep (ARM-06, ARM-07)
 - [x] 20-09-PLAN.md — arm64 churn gate (virtchurn) built and run against the unfixed exit path (ARM-07)
 - [x] 20-10-PLAN.md — exit-path drains + husk sweep, close-on-exec sweep, brk per measurement; churn gate green; cexecprobe + brkprobe pins (ARM-06, ARM-07)
-- [ ] 20-11-PLAN.md — group B close: push r9, lock-only pin, HVF series at the pin, push Harvey; owner checkpoint (ARM-03, ARM-05, ARM-07)
+- [x] 20-11-PLAN.md — group B close: push r9, lock-only pin, HVF series at the pin, push Harvey; owner checkpoint (ARM-03, ARM-05, ARM-07)
 
 *Group C — cpu-port arms*
 - [ ] 20-12-PLAN.md — measure aarch64 host-test compilability and an arm64 consumer + baseline for each cpu-port arm (sslprobe); owner checkpoint on the devcap profile route (ARM-11, ARM-12)

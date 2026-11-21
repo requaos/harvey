@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
-stopped_at: 20-11 Task 2 done (group B green at r9 fa38402 pin c7cd176d2); Task 3 owner checkpoint + Harvey push approval pending
-last_updated: "2026-11-21T00:02:11.129Z"
+stopped_at: Completed 20-11-PLAN.md
+last_updated: "2026-11-21T02:32:57.386Z"
 last_activity: 2026-11-17
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: c7cd176d21ce624aaf3dc54132384c3bdc16e06b
+state_head: e717ff53f7150b9f3806aba9503cb041af193608
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 68
+  completed_plans: 69
 ---
 
 # Project State
@@ -29,7 +29,7 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
-Plan: 11 of 17
+Plan: 12 of 17
 Status: In progress — 20-01, 20-02 complete (HVF fork-child root cause: missing isb after TTBR0 write; owner chose aarch64-fix, lower-bound N kept)
 Last activity: 2026-11-17 - Completed 20-01-PLAN.md
 
@@ -131,6 +131,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 20 P08 | 7h20m | 2 tasks | 5 files |
 | Phase 20 P09 | 41 min | 3 tasks | 14 files |
 | Phase 20 P10 | 5h20m (4h22m series) | 3 tasks | 10 files |
+| Phase 20 P11 | 12h35m | 3 tasks | 6 files |
 
 ## Accumulated Context
 
@@ -376,6 +377,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-21T00:02:09.976Z
-Stopped at: 20-11 Task 2 done (group B green at r9 fa38402 pin c7cd176d2); Task 3 owner checkpoint + Harvey push approval pending
-Resume file: .planning/phases/20-arm64-catch-up-to-v2-1-parity/20-11-PLAN.md
+Last session: 2026-11-21T02:32:56.212Z
+Stopped at: Completed 20-11-PLAN.md
+Resume file: None

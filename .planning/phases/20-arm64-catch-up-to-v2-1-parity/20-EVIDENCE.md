@@ -1345,6 +1345,21 @@ BOOT-ISO-LINUX fa38402: pass
 
 ### Harvey push (owner: approve push)
 
-The owner approved the push at the Task 3 checkpoint. Before it, `git log origin/master..master` held exactly the 16 commits the checkpoint listed, `699f3dcf9..34941cc0a`: 11 from this plan and 5 from the debugger sessions. `git push origin master` (no force) printed `699f3dcf9..34941cc0a  master -> master`. After `git fetch origin`, `origin/master` equals `HEAD` (`34941cc0ace0a6e0c378d49ae006856627ee38a4`), and the plan's check printed `HARVEY-PUSHED`. The 11 pre-existing font/postscript modifications stayed unstaged.
+The owner approved the push at the Task 3 checkpoint. Before it, `git log origin/master..master` held exactly the 16 commits the checkpoint listed, `699f3dcf9..34941cc0a`: 9 from this plan and 7 from the debugger sessions (`3592699f0`, `dd7a2069f`, `aa9517288`, `291849414`, `1e6d8e79f`, `19c8ab8ac`, `4528f2d6a`). The checkpoint's "11 and 5" split was a miscount; the commit list itself was right. `git push origin master` (no force) printed `699f3dcf9..34941cc0a  master -> master`. After `git fetch origin`, `origin/master` equals `HEAD` (`34941cc0ace0a6e0c378d49ae006856627ee38a4`), and the plan's check printed `HARVEY-PUSHED`. The 11 pre-existing font/postscript modifications stayed unstaged.
 
 HARVEY-PUSH: done
+
+### Owner checks (Task 3)
+
+The coordinator verified these through `gh` and relayed them as the owner's "approved".
+
+- **r9 xtask at `fa38402`:** all 8 jobs pass: `lint`, `tests`, `build-aarch64`, `build-aarch64-virtshell`, `build-aarch64-virtchurn` (the new lane), `build-x86_64`, `build-riscv64`, `boot-test-x86-64`.
+- **Harvey at `34941cc0a`:**
+  - r9-shell (run 44846197796): `boot-smoke`, `net-smoke`, `auth-smoke-x64`, `net-smoke-x64` pass.
+  - phase6-userspace (run 44846197787): `tier-2`, `x86_64-poolpanic`, `tier-r9`, `tier-9k`, `wave0-host` pass.
+  - harvey (run 44846197768): passes.
+- **The tier-9k capture** (the CI-only Harvey-kernel venue that copies the shared `tier1-sweep.rc`): `T1-VENUE-PASS ok=36 skip=22+2libtest fail=0 done=yes svc=9/0 … verdict=PASS`. It has 0 lines matching any of the six r9-only markers (forkstress, writeprobe, cexecprobe, cexeccreate, rcloseprobe, brkprobe), and 0 parse or syntax errors.
+- **Linux boot-iso at `fa38402`:** pass (above).
+- **Churn:** 20-09 found the leak present on aarch64 (A5 holds: 16805 B/exec on the drain-free exit path at `b82ee9d`). So the gate catches a real defect, and no regression-pin-only acceptance was needed.
+
+OWNER-CHECKS: approved
