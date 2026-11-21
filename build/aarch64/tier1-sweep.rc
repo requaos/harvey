@@ -717,14 +717,14 @@ if(~ $venue r9){
 }
 
 # writeprobe (20-08, the pin for the aarch64 rfork fd-group split,
-# devmnt write, DMDIR create and union create ports): run
-# /lib/writeprobe.rc (20-07) and map its WP- lines to one marker.
-# T1-OK writeprobe only when the seven steps these ports own each
-# printed WP-OK: fdsplit (b4, the only step that reaches rfork's
-# non-RFPROC branch), mount, create, write and readback (b5), mkdir
-# (b6) and union-create (b7).  Otherwise T1-FAIL writeprobe followed by
-# the step names that did not print WP-OK.  The remove step (b13) is
-# never required: 20-14 owns it.
+# devmnt write, DMDIR create and union create ports; 20-14 added
+# remove): run /lib/writeprobe.rc (20-07) and map its WP- lines to one
+# marker.  T1-OK writeprobe only when all eight steps printed WP-OK:
+# fdsplit (b4, the only step that reaches rfork's non-RFPROC branch),
+# mount, create, write and readback (b5), mkdir (b6), union-create
+# (b7) and remove (b13: REMOVE(25) through the mount, devmnt's Tremove
+# via port's remove_chan).  Otherwise T1-FAIL writeprobe followed by
+# the step names that did not print WP-OK.
 # The probe's own output must not be what a backquote waits on: the
 # ramfs server it starts keeps a copy of the fd table, and so the pipe
 # writer, for its life, so that pipe never sees end of file.  So the
@@ -744,7 +744,7 @@ if(~ $venue r9){
 	fn wprun { rfork n; rc /lib/writeprobe.rc }
 	wpok=`{wprun | $B/hawk '{print>"/dev/cons"}$1=="WP-OK"{k=k" "$2}$1=="WP-DONE"{print k;exit}'}
 	wpbad=()
-	for(s in fdsplit mount create write readback mkdir union-create)
+	for(s in fdsplit mount create write readback mkdir union-create remove)
 		if(! ~ $s $wpok) wpbad=($wpbad $s)
 	if(~ $#wpbad 0) echo T1-OK writeprobe
 	if not echo T1-FAIL writeprobe $wpbad
