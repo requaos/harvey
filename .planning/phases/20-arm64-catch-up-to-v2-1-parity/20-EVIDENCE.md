@@ -1612,3 +1612,129 @@ DEVMNT-REMOVE: absent
 `MAX-ARGS` is `equal 32`, and each aarch64-only statement above has a place in the factoring (`copy_exec_args`, `exec_backing_for`, or `sys_exec` unchanged). Commit A can therefore be a pure split, and commit B is the x86_64 pre-pass with `Ureg` -> `TrapFrame`.
 
 EXEC-ROUTE: as-planned
+
+## Group C ports
+
+Plan 20-14 Tasks 3 and 4. Owner answer at the Task 2 checkpoint (relayed by the coordinator, 2026-11-21): **`devmnt-remove`**, with `EXEC-ROUTE: as-planned` confirmed and `rm` on `/env` and `/srv` expected to succeed. The owner approved a `port/src` edit for exactly this scope: a devmnt Tremove plus a `DEV_MNT` arm in `port::namec::remove_chan`, so `rm` works through mounts on both arches. **THIS PLAN EDITS `port/src` AND CHANGES x86_64 KERNEL BYTES. The boot-iso FOD is re-derived below. The owner's linux `nix build .#boot-iso --rebuild` is still owed after the push, and 20-17's FOD pass must start from the hash committed here.** Task 4 was re-planned inline for that answer (recorded as a deviation in 20-14-SUMMARY.md).
+
+r9 commits (local `main`, unpushed, on 20-13's `de03bf7`):
+
+| r9 commit | Scope | Files |
+|---|---|---|
+| `49ba196` | `refactor(20-14)`: factor aarch64 `sys_exec` into `copy_exec_args` + `exec_backing_for` (no behavior change) | `aarch64/src/syscall.rs` |
+| `7adb773` | `feat(20-14)`: aarch64 `#!` exec pre-pass | `aarch64/src/exec.rs`, `aarch64/src/syscall.rs` |
+| `98feebc` | `feat(20-14)`: devmnt Tremove and a `DEV_MNT` arm in `namec::remove_chan` (owner-approved port scope) | `port/src/devmnt.rs`, `port/src/namec.rs`, `port/tests/devmnt_test.rs`, `x86_64/src/syscall.rs` (doc comment only) |
+| `9173af0` | `feat(20-14)`: aarch64 REMOVE/WSTAT/FWSTAT dispatch with stat validation | `aarch64/src/syscall.rs` |
+
+aarch64 kernels: `de03bf7` `/nix/store/7yhxmy64r1mpy74l6zbmdpipk6ry608s-r9-kernel-virt-de03bf7` (sha256 `fbaa6dd5a1b7fc1e…`), `9173af0` `/nix/store/7pras6x2djs2mb90vqjn9k914izgdpbj-r9-kernel-virt-9173af0` (sha256 `2834f1940449f7d5…`). Probes were typed through the uncommitted driver copy `.build/p20-14-probe.sh` + `.build/p20-14-probe.expect` (the 20-12 shape, `P_KERNEL_PKG` set per run) on the image the gate runs baked. Transcripts below drop the `fault:`, `sched:` and `process N exited` noise lines. HVF and TCG gave identical text on every probe.
+
+### Gates
+
+| After | Gate | HVF | TCG | Kernel |
+|---|---|---|---|---|
+| `49ba196` (commit A) | smoke / net-smoke / tier1 | 0 / 0 / 0 | — | `r9-kernel-virt-49ba196` |
+| `7adb773` (commit B) | smoke / net-smoke / tier1 | 0 / 0 / 0 | — | `r9-kernel-virt-7adb773` |
+| `9173af0` (all four) | smoke / net-smoke / tier1 | 0 / 0 / 0 | 0 / 0 / 0 | `r9-kernel-virt-9173af0` |
+
+Every run was `R9_ACCEL=<acc> nix run .#<app> --no-write-lock-file --override-input r9 git+file:///Users/neilskinner/code/r9`. Captures: `.build/p20-14-t3a-*.out`, `.build/p20-14-t3-*.out`, `.build/p20-14-t4-*-{hvf,tcg}.out`. After the last tier1 run, `build/aarch64/tier1-r9.log` has `T1-FAIL` count 0, 43 `T1-OK` and 23 `T1-SKIP`, and `T1-OK writeprobe`. These are local-override runs, not the pin HVF series. That series is held until this plan's pin checkpoint, as the owner directed.
+
+### `#!` exec (Task 3)
+
+**ramfs probe (20-12's line).** The text is unchanged, as Task 1 predicted: ramfs refuses the OEXEC open of a 0664 file inside `exec_backing_for`, before the pre-pass sees the file.
+
+```
+% /bin/ramfs -m /n/wp; echo '#!/arm64/bin/echo SHEBANG-OK' >/n/wp/sb; /n/wp/sb x1 x2; echo PR-''RUN1 $status; ...
+devmnt: server error: permission denied
+/n/wp/sb: devmnt: server error
+PR-RUN1 can't exec: devmnt: server error
+```
+
+**A baked `#!` file is live-proven.** Task 1 missed this, and it changes the expected `deferred-to-20-16`. devroot does not check the mode bits on an OEXEC open. So `/lib/writeprobe.rc` (mode 0644 in the image, first line `#!/bin/rc`) is an exec-able script on the pre-ported kernel's own image.
+
+| Kernel | `/lib/writeprobe.rc a1 a2` |
+|---|---|
+| `de03bf7` (before; TCG, `.build/p20-14-bangbase-de03bf7-tcg.log`) | `/lib/writeprobe.rc: exec: bad a.out magic (not R_MAGIC arm64)`, then `PR-RUN2 can't exec: exec: bad a.out magic (not R_MAGIC arm64)` |
+| `7adb773` (after; HVF and TCG, `.build/p20-14-bang-{hvf,tcg}.log`) | the script runs under `/bin/rc` end to end: `rfdprobe: ok`, `WP-OK fdsplit` … `WP-OK union-create`, `WP-FAIL remove …` (the pre-Task-4 kernel), `WP-DONE` |
+
+**argv order, read back live from `/proc/<pid>/args`** (`.build/p20-14-bangargs-{hvf,tcg}.log`, kernel `7adb773`):
+
+```
+% /lib/writeprobe.rc a1 a2 >/dev/null >[2=1] & sleep 1; echo PR-''ARGS $apid `{cat /proc/$apid/args}; wait; echo PR-''DONE
+sleep: namec: does not exist
+PR-ARGS 6 writeprobe.rc /lib/writeprobe.rc a1 a2
+```
+
+That is the donor order `[elem, #! tokens after the first (none for #!/bin/rc), file, caller argv after argv[0]]`. The interpreter `/bin/rc` resolved through `exec_backing_for` and ran the script. (`sleep` is not in the image; the backquote still landed while the probe was running.)
+
+**Three-level `#!` chain: not run live.** No image file has an interpreter that is itself a `#!` script. A ramfs file cannot be exec'd (above), and only devroot files are exec-able without a mode check. The `exec: hash-bang recursion too deep` reject and the 32-byte line bound are pinned on the host in 20-17 Task 1 and live in 20-16's baked fixture. The code is x86_64's `exec_with_shebang`, unchanged apart from the `TrapFrame` type.
+
+SHEBANG-LIVE: ok
+
+(ok = a real `#!` file exec'd through the pre-pass on HVF and TCG, with the argv order read back. The plan's ramfs case is unreachable, and the depth-3 reject is deferred to 20-16/20-17.)
+
+### REMOVE / WSTAT / FWSTAT (Task 4, the `devmnt-remove` answer)
+
+| Probe | Before (`fa38402`, 20-12) | After (`9173af0`, HVF = TCG) |
+|---|---|---|
+| `rm /n/wp/f` (ramfs via devmnt) | `syscall 25 unimplemented`; `rm: /n/wp/f: syscall not implemented`; the name still listed | `PR-RM1` status empty; `ls /n/wp` prints nothing (removed) |
+| `rm /env/p14` (devenv) | `rm: /env/p12: syscall not implemented`; still listed | `PR-RM2` status empty; `ls: /env/p14: namec: does not exist` |
+| `rm /lib/writeprobe.rc` (devroot) | — | `rm: /lib/writeprobe.rc: remove: device does not implement remove` |
+| `rm '#c/cons'` (devcons) | — | `rm: #c/cons: remove: device does not implement remove` |
+| `hchmod 755 /n/wp` (devmnt) | `chmod: can't wstat /n/wp/sb: syscall not implemented` | `chmod: can't wstat /n/wp: wstat: device does not implement wstat` |
+| `hchmod 600 /env/cputype` (devenv) | `chmod: can't wstat /env/cputype: syscall not implemented` | `chmod: can't wstat /env/cputype: wstat: device does not implement wstat` |
+| writeprobe `remove` step | `WP-FAIL remove rm: /n/wp/f: syscall not implemented [status: syscall not implemented]` (also on `7adb773`) | `WP-OK remove` |
+
+Captures: `.build/p20-14-rm-{hvf,tcg}.log`, `.build/p20-14-wp-{hvf,tcg}.log`. The after-port writeprobe run, in full (HVF; TCG is identical):
+
+```
+% rc /lib/writeprobe.rc; rm /lib/writeprobe.rc; echo PR-''RM3 $status; rm '#c/cons'; echo PR-''RM4 $status; echo PR-''DONE
+rfdprobe: ok
+WP-OK fdsplit
+WP-OK mount
+WP-OK create
+WP-OK write
+WP-OK readback
+WP-OK mkdir
+WP-OK union-create
+devmnt: server error: file does not exist
+WP-OK remove
+WP-DONE
+rm: /lib/writeprobe.rc: remove: device does not implement remove
+PR-RM3 remove: device does not implement remove
+rm: #c/cons: remove: device does not implement remove
+PR-RM4 remove: device does not implement remove
+PR-DONE
+```
+
+(The `file does not exist` line before `WP-OK remove` is the probe's own `test -e /n/wp/f` walk-miss after the rm. Other `file does not exist` lines are create's walk-misses and are dropped above.)
+
+**devmnt remove design.** Tremove consumes the fid it is handed (remove(5): clunked even if the remove fails), but the walked chan still owns its fid `Arc`, and `close_chan`'s `clunk_if_last` Tclunks it after `sys_remove` returns. So `devmnt::remove` Tremoves a zero-name-walk clone of the walked fid (create's clone-then-transform shape). The chan's own fid is clunked exactly once at close, and neither side leaks a fid. Cost: one extra Twalk RPC per remove. The donor instead marks the chan dead after `mntremove` (`c->type = 0`); r9's close dispatch has no such mark. `remove_if_last_rclose` still never routes a `DEV_MNT` chan, because devmnt's ORCLOSE rides the Topen/Tcreate mode byte. The donor's mount-point guard (Eismtpt) is still not carried, as on x86_64.
+
+**Host pins (darwin, `cargo xtask test` rc 0, 237 passed / 0 failed; port lib 168 unchanged):** `devmnt_test` 16 → 18. The new pins are `devmnt_remove_rides_a_clone_and_close_clunks_the_walked_fid_once` and `devmnt_remove_refused_is_loud_and_leaks_no_fid`, and the fake server gains a TREMOVE arm. Manual mutants were killed by both pins: Tremove on the chan's own fid (no clone), and the `DEV_MNT` arm removed. `cargo test -p aarch64 --bins --target aarch64-apple-darwin` 32/32. `cargo xtask build` rc 0 for `--arch aarch64 --config virtshell`, `--arch aarch64` and `--arch x86-64`. The only warnings in the edited files are the two pre-existing unused imports at `aarch64/src/syscall.rs:29` and `:36`.
+
+**Note on a cargo mtime race:** the first `cargo xtask test` after the manual mutants reported the two new pins failing against the mutant. The restore `cp` landed in the same second as the mutant build, so cargo kept the stale artifact. After `touch`, the run was green. The committed tree is the green one.
+
+REMOVE-ROUTE: devmnt-remove
+
+**writeprobe / tier-1 expected set: NOT changed (owner checkpoint pending).** `T1-OK writeprobe` still requires only the seven steps (`build/aarch64/tier1-sweep.rc:747`, `for(s in fdsplit mount create write readback mkdir union-create)`), and its comment still says "The remove step (b13) is never required: 20-14 owns it." The proposed change is to add `remove` to that list and rewrite the comment. Doing so needs a userland rebuild and an image bake before the next tier1 run. It is returned as a checkpoint before any edit.
+
+### x86_64 obligations (the port edit changes x86_64 kernel bytes)
+
+Venue: a fresh Docker Desktop `linux/amd64` container (`ubuntu:24.04`, pre-existing image, not pulled), `--privileged`, single-user nix 2.36.0 with `sandbox = false` and `filter-syscalls = false`, a non-root `builder`, gcc installed. The container held clones of a scratch Harvey clone at `a5945e533` and a scratch r9 clone at `9173af0`, later `105d48e`. Scripts: scratchpad `p2014x64/{setup,gates,final}.sh`. The first `gates.sh` attempt exited 127 on every step: `docker exec` without `-e USER=builder` leaves nix off PATH. It was rerun with `USER` set. The knowledge-base recipe now needs `-e USER=builder` alongside `-e HOME`.
+
+| Step | Base `de03bf7` | Fix `9173af0` / `105d48e` |
+|---|---|---|
+| `cargo test -p x86_64 --bins --target x86_64-unknown-linux-gnu` | 116 passed | 116 passed / 0 failed (the remove/wstat/fwstat and shebang pins included) |
+| `cargo test -p port --test devmnt_test` | — | 18 passed |
+| `kernel-x64.elf` | `8b9d216d73e5cfc31b71f2052f513d873835be25c994e05a9844003a9c7343b4` (25882864 B) | `e791e863016458741a9a0ecc8ee0c7bb0bb816c4ce1377f4a162ebb630a60676` (25890360 B): **CHANGES** |
+| `boot-r9-auth-x64` (TCG, `--override-input r9` the fix) | — | rc 0, 390 s, `ALL STAGES PASS`, kernel `r9-kernel-x64-9173af0` |
+| `boot-r9-net-smoke-x64` | — | rc 0, 286 s, `ALL STAGES PASS` |
+| `boot-r9-tier1-x64` | — | rc 0, 212 s, `ALL STAGES PASS`, 38 `T1-OK` + 0 `T1-SKIP` (computed), 0 `T1-FAIL` |
+| `nix build .#boot-iso` with the old hash | — | specified `sha256-4vLm2Qsoq87i1cWN9Ief/9LCT2WlKibHnqlZzTKhjGk=`, got `sha256-B2nbReb8JTQ5siowrpd7RoIniEb8Fs2mEkv04ldE810=` |
+| wired clone | — | built green, `boot.iso` sha256 `b93fd3225b725a4b1d61231391b716998ea751943d84c374c1db455e4941999b`; `boot-iso --rebuild` rc 0; `kernel-x64 --rebuild` rc 0 |
+| committed HEAD `105d48e` (fetched into the container) | — | `kernel-x64` `e791e863…` (= the tested bytes); an UNMODIFIED `#boot-iso` rc 0, `boot.iso` `b93fd322…`; `--rebuild` rc 0 |
+| `cargo xtask check / clippy / test` at `105d48e` | — | rc 0 / 0 / 0; warnings 63 / 82 / 23 (the counts recorded at `5629cf0`); test 237 passed / 0 failed |
+
+r9 `105d48e` (`bump boot-iso hash for the devmnt Tremove kernel change`) wires the new value, local and unpushed. The aarch64 `kernel-virt` at `105d48e` is byte-identical to `9173af0` (sha256 `2834f1940449f7d5…`), so the flake edit does not touch the arm64 bytes. Container removed afterwards. The image, volume and container lists equal the pre-session snapshots, and no qemu processes remain.
+
+**Still owed:** the owner's linux `nix build .#boot-iso --rebuild` after the push, and the HVF pin series covering 20-13 and 20-14 at the pin checkpoint (KERNDATE fixed to the pin commit time).
