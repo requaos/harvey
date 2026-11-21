@@ -364,6 +364,16 @@ echo "== boot chain: sslprobe (20-12, devssl round-trip + mount-over-ssl probe)"
 (cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw sslprobe.c \
 	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/sslprobe" sslprobe.7 \
 	&& rm -f sslprobe.7) || fail "sslprobe"
+# fpprobe — the user FP/SIMD state probe: q0..q31, FPCR and FPSR must
+# survive syscalls, yields, blocks and preemption, a fork child inherits
+# them and an exec starts from zero.  fpprobeasm.s carries the q-register
+# and FPCR/FPSR moves (WORD-encoded); 7a assembles it beside the C.
+# Baked into the image; no gate calls it.
+echo "== boot chain: fpprobe (user FP/SIMD state probe)"
+(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw fpprobe.c \
+	&& objtype=arm64 7a fpprobeasm.s \
+	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/fpprobe" fpprobe.7 fpprobeasm.7 \
+	&& rm -f fpprobe.7 fpprobeasm.7) || fail "fpprobe"
 
 # 06-05: tier-0 lib test binaries (D-06 — in-tree lib tests run on the
 # donor where they exist; subset-exec.sh stages them h*-style and the
@@ -466,6 +476,7 @@ if [ -z "$NATIVE_LINUX" ]; then
 		"$GUEST:$GUEST_DIR/build/aarch64/out/cexecprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/rcloseprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/sslprobe" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/fpprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/hdrawtest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/harctest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/htdraw" \
@@ -518,7 +529,7 @@ for f in ipconfig ping udpecho aan tcpblast tcpecho forkstress; do
 done
 # 20-07: the group-B measurement probes (and 20-10's cexecprobe) carry
 # the same magic contract
-for f in rfdprobe brkprobe cexecprobe rcloseprobe sslprobe; do
+for f in rfdprobe brkprobe cexecprobe rcloseprobe sslprobe fpprobe; do
 	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
 	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
