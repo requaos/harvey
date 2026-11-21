@@ -1363,3 +1363,71 @@ The coordinator verified these through `gh` and relayed them as the owner's "app
 - **Churn:** 20-09 found the leak present on aarch64 (A5 holds: 16805 B/exec on the drain-free exit path at `b82ee9d`). So the gate catches a real defect, and no regression-pin-only acceptance was needed.
 
 OWNER-CHECKS: approved
+
+## Group C measurements
+
+Plan 20-12 (D-09). r9 at `fa38402` (= the Harvey pin = r9 `origin/main`); pre-phase base `8e4e730`. Host darwin-arm64. Toolchain: r9's default devShell (`nix develop` in `/Users/neilskinner/code/r9`), `rustc 1.95.0-nightly (842bd5be2 2026-01-29)`, host triple `aarch64-apple-darwin`, std present for that triple in the sysroot, no `rustup` on PATH. The base worktree's own devShell does not evaluate on darwin (`grub-2.14 ... not available on the requested hostPlatform`, the research Pitfall 4 failure, fixed after `8e4e730`), so the base runs used the HEAD devShell with `cd` into the worktree. `rust-toolchain.toml` is identical at both revs, so the compiler is the same.
+
+### Host-test compilability (Task 1)
+
+**Step 1: `cfg(test)` sites under `aarch64/src` at `fa38402`** (`grep -rc 'cfg(test)' aarch64/src`): vm.rs 4, proc.rs 4, vmdebug.rs 3, registers.rs 2, syscall.rs 1, allocator.rs 1 (a comment), platform/virt/churngate.rs 1. Test modules: `vm::tests`, `registers::tests`, `proc::{rfmem_tests, sem_tests, fdgrp_release_tests, husk_sweep_tests}`, `vmdebug::tests`, `syscall::create_cexec_tests` (the 20-11 debugger's create(OCEXEC)/ORCLOSE pins; the planner's "syscall.rs 0" predates it), `platform::virt::churngate::tests`. The research record "aarch64 has none" was already wrong at `8e4e730` (18 host tests there).
+
+**Step 2: `cargo xtask test --verbose`** exit 0. It executes exactly one command, `cargo test --package port --lib --tests` (port lib 168 passed, then the port integration files). No `--package aarch64 --bins` leg is executed. Why: `RustupState::new()` shells out to `rustup target list --installed`, which fails (no rustup in the nix devShell), so `installed_targets` is empty and `std_supported_target("aarch64")` returns `None`. Under rustup it would also need the current toolchain name to end in `aarch64-apple-darwin` (or an `aarch64-unknown-linux-gnu` target installed); the aarch64 leg is skipped on this host as the code stands.
+
+**Step 3 and 4: the leg run directly.**
+
+| Rev | Command | Compile | Tests | Pass |
+|---|---|---|---|---|
+| `fa38402` | `cargo test --package aarch64 --bins --target aarch64-apple-darwin` (default cfg) | ok (4 unused-import warnings) | 32 | 32 |
+| `fa38402` | same with `RUSTFLAGS='--cfg platform="virt" --cfg dev_exec --cfg dev_bootchain --cfg dev_ether --cfg dev_ip'` (virtshell cfg, the set `apply_platform_config` derives from `config_virtshell.toml`) | **fails**, 4 errors | — | — |
+| `8e4e730` | default cfg | ok | 18 | 18 |
+| `8e4e730` | virtshell cfg | **fails**, 6 errors | — | — |
+
+The HEAD virtshell failure, first lines (all four errors are the same shape, at main.rs:153, 238, 697, 698):
+
+```
+error[E0659]: `devcons` is ambiguous
+   --> aarch64/src/main.rs:153:15
+    |
+153 |     platform::devcons::set_dtb_va(dtb_va);
+    |               ^^^^^^^ ambiguous name
+    |
+    = note: ambiguous because of multiple glob imports of a name in the same module
+note: `devcons` could refer to the module imported here
+   --> aarch64/src/platform/mod.rs:12:9
+    |
+ 12 | pub use crate::platform::virt::*;
+note: `devcons` could also refer to the module imported here
+   --> aarch64/src/platform/mod.rs:22:9
+    |
+ 22 | pub use crate::platform::raspi3b::*;
+error: could not compile `aarch64` (bin "aarch64" test) due to 4 previous errors; 4 warnings emitted
+```
+
+Classification: **other** (not asm/target-feature, not linker, not `no_main`, not a missing std item). It is a glob-import collision in `aarch64/src/platform/mod.rs`: the `pub use crate::platform::raspi3b::*` line is gated `any(test, platform = "raspi3b", not(any(platform = "virt", platform = "raspi4b")))`, so under `cfg(test)` it is glob-imported beside `virt::*` even when `platform = "virt"`, and `devcons` exists in both. The base has the same four E0659 errors plus the two research compile-drift errors (`missing field note_pending in initializer of PipeHooks` / `DevipHooks`) that group A fixed.
+
+**Step 4a: base control.** Default cfg compiles and passes at both revs; virtshell cfg fails to compile at both revs, with the same E0659 collision. Plans 01-11 introduced no host-test break (they removed two compile errors and added 14 host tests).
+
+HOST-TEST-BASE: same
+
+**Step 5: scratch probes (reverted).** A `#[cfg(test)]` module was appended to `aarch64/src/exec.rs` (`assert!(super::parse_aout(&[0u8; 4]).is_err())`) and one to `aarch64/src/syscall.rs` (`crate::proc::new_user_proc("t1").expect(..)`, the x86_64 `MockStack::new` first line).
+
+| Cfg | exec.rs scratch test | syscall.rs scratch test |
+|---|---|---|
+| default | compiled, discovered (`--list`: 34 tests), **passes** | compiled, discovered, **fails at run time**: `error:pagealloc:allocate_physpage:failed to allocate: OutOfSpace`, then the panic `construction succeeds: "proc: root table page alloc failed"` |
+| virtshell (unmodified tree) | not compiled (the E0659 collision) | not compiled |
+| virtshell + a one-line scratch edit to `platform/mod.rs` (the raspi3b glob gated `all(test, not(platform = "virt"))` instead of `test`) | compiled, **passes**; the run is 38 passed / 0 failed (the default 32, the exec scratch test, and the 5 `platform::virt::churngate::tests`) | compiled, **fails** with the same `OutOfSpace` |
+
+Then `git checkout -- aarch64/src`; `git status --porcelain` printed nothing. `git worktree remove --force "$TMPDIR/r9-p20-12-base"`; `git worktree list` shows one worktree.
+
+**`new_user_proc` is not host-runnable on aarch64.** It allocates the root page table from `pagealloc` and maps it in the kernel page table; on the host `pagealloc` has no memory (`OutOfSpace`). The x86_64 one is host-runnable (its `MockStack` tests build on it). So the syscall-level `MockStack` pins do not port as-is in any route: they need either a host seam in `new_user_proc` or a test-only `Proc` constructor.
+
+HOST-TEST-ROUTE: B
+
+Decided by steps 3, 4 and 5 on the tree as it stands: crate tests run on the host at the default cfg (32/32), and with the virtshell cfg the crate does not compile (step 4), so `dev_exec`-gated code cannot be tested on the host today. Consequence as planned for B: the pure functions are gated `#[cfg(any(test, dev_exec))]` in modules that build at the default cfg and are pinned there; the `MockStack`-dependent pins are not ported (and step 5 shows they would not run anyway: `new_user_proc` is not host-runnable).
+
+Finding for Task 3 (not a route input on its own): route A is one aarch64-only line away. The only obstacle to the virtshell cfg is the `platform/mod.rs` glob gate; with it narrowed (scratch, reverted) the crate compiled and ran 38/38 with `dev_exec` set, and a test inside `exec.rs` passed. Adopting A would mean 20-17 makes that one-line fix, passes the cfg from `cargo xtask test`, and still drops or re-seams the `MockStack` pins. Either way no `port/src/` edit is needed for the host-test battery.
+
+PROFILE-FACT: kernel-virt builds --config virtshell
+
+From r9 `flake.nix` line 437 (`kernel-virt` derivation, buildPhase: `cargo xtask build --arch aarch64 --config virtshell`; installs `kernel-virt.elf`). Other users of the config name: r9 CI job `build-aarch64-virtshell` (`.github/workflows/xtask.yml:50-56`) and a comment at `flake.nix:327`. No other r9 derivation builds it. Harvey never names the config: its four arm64 apps `boot-r9`, `boot-r9-smoke`, `boot-r9-net-smoke` and `boot-r9-tier1` (`flake.nix:473-476`) all export `R9_KERNEL_PKG=${r9.packages.${system}.kernel-virt}`, so a change to `config_virtshell.toml` changes the kernel under all four.
