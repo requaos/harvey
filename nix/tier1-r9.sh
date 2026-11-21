@@ -177,7 +177,7 @@ R9_INITRD="$HARVEY/build/aarch64/bootfs.paq"
 #     it here) minus every SKIP-named member (the donor-guarded legs
 #     emit T1-SKIP on r9) — plus the fixed markers float-d01 (D-01),
 #     libtest-tdraw, forkstress, writeprobe, cexecprobe, cexeccreate,
-#     rcloseprobe and brkprobe.
+#     rcloseprobe, brkprobe and fpprobe.
 #     These are fixed because no tiers/tier1-cmds.txt entry names them:
 #     float-d01 is a canary check, libtest-tdraw a libtest binary,
 #     forkstress (20-03, the WINDOWS #49 pin) a build/aarch64 fixture
@@ -187,11 +187,12 @@ R9_INITRD="$HARVEY/build/aarch64/bootfs.paq"
 #     (20-10, the pin for the aarch64 close-on-exec sweep), cexeccreate
 #     (20-11, `cexecprobe -c', the pin for r9 437b752's create(OCEXEC)
 #     on both create arms), rcloseprobe (20-11, the pin for r9
-#     5629cf0's ORCLOSE remove-on-close on /srv and /env) and brkprobe
-#     (20-07/20-10, the lone-member RFMEM brk pin, D-09) r9-only
+#     5629cf0's ORCLOSE remove-on-close on /srv and /env), brkprobe
+#     (20-07/20-10, the lone-member RFMEM brk pin, D-09) and fpprobe
+#     (the pin for r9 2edfdf8's per-proc user FP/SIMD state) r9-only
 #     build/aarch64 fixtures.  Listing them here makes a missing T1-OK
-#     forkstress, writeprobe, cexecprobe, cexeccreate, rcloseprobe or
-#     brkprobe red the post-pass.  The SKIP set is extracted VERBATIM from
+#     forkstress, writeprobe, cexecprobe, cexeccreate, rcloseprobe,
+#     brkprobe or fpprobe red the post-pass.  The SKIP set is extracted VERBATIM from
 #     tier1-sweep.rc's r9-venue SKIP lines (the file is the source of
 #     truth). ---
 T1_SKIP=$("$GREP" -oE '(^|[[:space:]])echo T1-SKIP [A-Za-z0-9.-]+' "$HARVEY/build/aarch64/tier1-sweep.rc" \
@@ -217,7 +218,7 @@ for m in $T1_OK_ALL; do
 	*) T1_OK="$T1_OK $m" ;;
 	esac
 done
-R9_EXPECT_OK="$T1_OK float-d01 libtest-tdraw forkstress writeprobe cexecprobe cexeccreate rcloseprobe brkprobe"
+R9_EXPECT_OK="$T1_OK float-d01 libtest-tdraw forkstress writeprobe cexecprobe cexeccreate rcloseprobe brkprobe fpprobe"
 R9_EXPECT_SKIP="$T1_SKIP"
 export R9_EXPECT_OK R9_EXPECT_SKIP
 echo "== expected on r9: $(echo "$R9_EXPECT_OK" | wc -w | tr -d ' ') T1-OK markers + $(echo "$R9_EXPECT_SKIP" | wc -w | tr -d ' ') T1-SKIP markers (computed)"

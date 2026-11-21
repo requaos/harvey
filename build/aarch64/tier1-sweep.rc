@@ -789,5 +789,20 @@ if(~ $venue r9){
 	if not echo T1-FAIL brkprobe
 }
 
+# fpprobe (the pin for r9 2edfdf8, per-proc user FP/SIMD state): a
+# program's q0..q31, FPCR and FPSR must survive syscalls, yields,
+# blocks and EL0 preemption between two workers, a fork child must
+# inherit them and an exec'd image must start from zero (a failure is
+# T1-FAIL fpprobe after `fpprobe: BAD <leg> ...' lines).  Its preempt
+# leg makes the kernel print one `sched: switch' line per tick switch.
+# r9 venue only, like forkstress: the binary is baked into the r9 image
+# (mkimage.sh) and the donor and 9k venues do not carry it.
+# nix/tier1-r9.sh lists fpprobe among the fixed expected names, so a
+# silent entry reds the gate as `missing T1-OK fpprobe'.
+if(~ $venue r9){
+	if(/bin/fpprobe) echo T1-OK fpprobe
+	if not echo T1-FAIL fpprobe
+}
+
 echo T1-DONE
 exit
