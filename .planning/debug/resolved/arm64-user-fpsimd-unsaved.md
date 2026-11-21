@@ -1,16 +1,16 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "r9 aarch64 never saves or restores user FP/SIMD registers (V0-V31, FPCR, FPSR) across traps, syscalls or context switches, while the kernel itself is built with NEON; any FP/SIMD-using user program can see corrupted vector registers (side finding of .planning/debug/fork-child-pc-align-fault.md)"
 created: 2026-11-21T20:05:00Z
-updated: 2026-11-21T21:28:00Z
+updated: 2026-11-21T21:45:00Z
 ---
 
 ## Current Focus
 
 hypothesis: CONFIRMED — r9 aarch64 keeps no user FP/SIMD context: trap frame and swtch Context are GPR-only, CPACR leaves FP untrapped, and the kernel itself is NEON-compiled, so (a) kernel codegen clobbers q0/q1 inside syscalls/fork/IRQs, (b) every switch leaves the previous proc's q0-q31/FPCR/FPSR live for the next, (c) fork children and exec'd images start with arbitrary state
-test: DONE — fix r9 2edfdf8 (local main, unpushed) verified: probe red→green HVF+TCG (host-built and guest-built userland), 7/7 boot mutants killed, battery green, TCG+HVF smoke/net-smoke/tier1 green (T1-OK float-d01), x86_64 bytes identical
-expecting: owner confirmation at the human-verify checkpoint, and a decision on wiring `T1-OK fpprobe` into the tier-1 sweep
-next_action: on "confirmed fixed" + marker approval — add the tier1-sweep.rc r9-venue entry and nix/tier1-r9.sh R9_EXPECT_OK name, run tier-1 TCG once, archive to resolved/ + KB entry; the HVF pin series moves the Harvey r9 pin (not this session)
+test: DONE — fix r9 2edfdf8 (pushed by the coordinator) verified: probe red→green HVF+TCG (host-built and guest-built userland), 7/7 boot mutants killed, battery green, TCG+HVF smoke/net-smoke/tier1 green (T1-OK float-d01), x86_64 bytes identical
+expecting: RESOLVED — owner: "keep this design, confirmed fixed"; `T1-OK fpprobe` wired (Harvey 13f00747b)
+next_action: none here. Follow-ups (x86_64 per-proc FPU/SSE state, note-handler FP save on both arches, the explicit kernel-SIMD API) continue in .planning/debug/fpu-x64-notes-kernel-simd.md; the HVF pin series moves Harvey's r9 pin (105d48e) to >= 2edfdf8 — required now that tier-1 expects T1-OK fpprobe
 bug_class: Bohrbug (deterministic: byte-identical BAD lines on HVF and TCG)
 
 reasoning_checkpoint:
@@ -108,6 +108,27 @@ started: always (aarch64 port never had FP/SIMD context)
   checked: r9 landing — real checkout fast-forwarded main 46a5c87 → 2edfdf8 (fetched from the scratch clone; no push); clippy, aarch64 host tests and xtask test re-run on the committed content (the battery above ran before rustfmt reflowed one assert)
   found: clippy rc 0, 82 warnings (= base); aarch64 host tests 37/37; xtask test 237 passed, 0 failed
   implication: committed content green
+
+- timestamp: 2026-11-21T21:40:00Z
+  checked: owner decision (via coordinator): design kept, confirmed fixed, r9 2edfdf8 pushed by the coordinator; `T1-OK fpprobe` approved (43 → 44 expected T1-OK). Wired: tier1-sweep.rc r9-venue entry + nix/tier1-r9.sh R9_EXPECT_OK; tier-1 run after a userland rebuild (subset-build.sh, guest dir harvey-build-fp) from scratch clone harvey-sb at e2f61268b + the edits, R9_OVERRIDE r9 2edfdf8 ($SP/fp/series-t1/, $SP/fp/series-t1red/)
+  found: TCG (with rebuild) PASS 44 T1-OK incl. `T1-OK fpprobe` + `T1-OK float-d01`; HVF PASS 44 T1-OK; red control on r9 46a5c87 (TCG): `fpprobe: FAIL fork exec switch preempt`, `T1-FAIL fpprobe`, post-pass `missing T1-OK fpprobe`. Committed Harvey 13f00747b. Harvey's flake.lock still pins r9 105d48e → tier-1 at that pin now reds on fpprobe until the pin series moves it
+  implication: the regression guard is a gate, not just a baked probe
+
+## Prevention
+
+five_whys:
+  - branch: "code — no user FP/SIMD context"
+    why1: "the aarch64 trap frame (= Harvey's Ureg, 35 GPR/system words) and swtch's Context carry no vector state"
+    why2: "the aarch64 port grew GPR-first from the donor's ABI; rc and the early sweep binaries use no FP, so nothing failed"
+    why3: "the x86_64 twin set the precedent 'FP survives in place because the kernel never touches it' (14-08) and recorded the switch half as an era limit — the aarch64 port never had even that half because its kernel DID touch FP"
+    actionable: "a per-proc FP save area with install/leave hooks, and a probe that interleaves two FP users"
+  - branch: "config — NEON kernel"
+    why1: "lib/aarch64-unknown-none-elf.json carried +neon,+fp-armv8 (the hardfloat default), so LLVM used vector registers for struct zeroing and popcount"
+    why2: "no rule said the kernel must be FP-free on aarch64 (x86_64's target spec is soft-float by construction; the aarch64 JSON was copied from the hardfloat builtin)"
+    actionable: "softfloat target + a host test that pins it"
+why_not_caught: "no gate existed for this class — every arm64 gate binary (rc, coreutils, net tools) is integer-only except awk's single float canary (one process, no interleaved FP peer, and FPCR default happens to be 0 everywhere); no probe held vector state across a kernel entry"
+recurrence_guard: "Harvey tier-1 `T1-OK fpprobe` (build/aarch64/tier1-sweep.rc r9-venue entry; nix/tier1-r9.sh R9_EXPECT_OK) reds on any leg; r9 host tests aarch64/src/fpu.rs fpu::tests::{restore_then_save_round_trips_every_register_and_both_control_words, zero_round_trips, save_reads_the_control_words_restore_wrote, kernel_target_spec_keeps_fp_simd_out_of_kernel_code} (the last kills a +neon revert without a boot)"
+reference_design: "this arm64 design — FP-free kernel (softfloat target), eager per-proc save at leave / restore at install, copy on fork, zero on exec — is the reference for the x86_64 port (owner decision 2026-11-21)"
 
 ## Resolution
 
