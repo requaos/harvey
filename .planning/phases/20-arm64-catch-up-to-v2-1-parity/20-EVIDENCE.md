@@ -1343,4 +1343,8 @@ On the linux host, the owner ran `nix build .#boot-iso --rebuild` at r9 `fa38402
 
 BOOT-ISO-LINUX fa38402: pass
 
-HARVEY-PUSH-STATUS: awaiting owner approval (FOD hold cleared; Harvey master is ahead of origin/master, not pushed)
+### Harvey push (owner: approve push)
+
+The owner approved the push at the Task 3 checkpoint. Before it, `git log origin/master..master` held exactly the 16 commits the checkpoint listed, `699f3dcf9..34941cc0a`: 11 from this plan and 5 from the debugger sessions. `git push origin master` (no force) printed `699f3dcf9..34941cc0a  master -> master`. After `git fetch origin`, `origin/master` equals `HEAD` (`34941cc0ace0a6e0c378d49ae006856627ee38a4`), and the plan's check printed `HARVEY-PUSHED`. The 11 pre-existing font/postscript modifications stayed unstaged.
+
+HARVEY-PUSH: done
