@@ -95,7 +95,7 @@ Reactivates the arm64 leg (objtype `arm64`; r9 crate `aarch64/`). Supersedes the
 - [x] **ARM-05**: Each group of r9 changes reaches Harvey push-before-pin as its own lock-only `flake.lock` commit, with the gates re-greened at the pin without `--override-input`
 - [ ] **ARM-06**: The aarch64 halves of the v2.1 syscall-path fixes are ported: non-RFPROC rfork fd-group split, devmnt write, DMDIR and union creates, exit-path drains and husk sweep, fd-drain cascade, close-on-exec sweep, and the lone-member brk arm where the defect is measured to exist
 - [x] **ARM-07**: Every ARM-06 port has a live arm64 pin: a writable venue in the tier-1 sweep, and an arm64 churn gate that pins the exit-leak fix
-- [ ] **ARM-08**: The `#!` exec pre-pass and the REMOVE / WSTAT / FWSTAT dispatch arms with stat validation are ported to aarch64
+- [x] **ARM-08**: The `#!` exec pre-pass and the REMOVE / WSTAT / FWSTAT dispatch arms with stat validation are ported to aarch64
 - [ ] **ARM-09**: devcap and devssl are served on arm64 (device arms, tick hook, fd-resolve hook, `mount` over a `#D` chan), and the virtio capability-extent hardening (`check_cap_extents`) is ported
 - [x] **ARM-10**: Boot configuration reaches the ROOT env seed on arm64 through DTB `/chosen/bootargs` (merge, never replace; absent string leaves the boot byte-identical)
 - [ ] **ARM-11**: An arm64 fixture gate exercises the cpu-port arms live (bootconf, `#!`, REMOVE over devcap, devssl) and is green on HVF at the pin
@@ -190,7 +190,7 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | ARM-05 | Phase 20 | Complete |
 | ARM-06 | Phase 20 | Pending |
 | ARM-07 | Phase 20 | Complete |
-| ARM-08 | Phase 20 | Pending |
+| ARM-08 | Phase 20 | Complete |
 | ARM-09 | Phase 20 | Pending |
 | ARM-10 | Phase 20 | Complete |
 | ARM-11 | Phase 20 | Pending |

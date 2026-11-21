@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
-stopped_at: Completed 20-13-PLAN.md
-last_updated: "2026-11-21T13:28:29.251Z"
+stopped_at: Completed 20-14-PLAN.md
+last_updated: "2026-11-21T15:37:45.937Z"
 last_activity: 2026-11-21
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: 3bc95787b23f559a93da5b3535d8b8058ef5a6ae
+state_head: d67f23a529d11fe5211ae5c1f57ee50b1b08fef9
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 71
+  completed_plans: 72
 ---
 
 # Project State
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
-Plan: 14 of 17
-Status: In progress — 20-01..20-13 complete; arm64 DTB bootconf (carrier /chosen/bootargs, owner-confirmed) + aarch64 check_cap_extents landed as local r9 12bce96/de03bf7 (unpushed, pin still fa38402); next 20-14
-Last activity: 2026-11-21 - Completed 20-13-PLAN.md
+Plan: 15 of 17
+Status: In progress — 20-01..20-14 complete; arm64 #! exec + REMOVE/WSTAT/FWSTAT and a devmnt Tremove (rm through mounts, both arches; x86_64 boot-iso hash re-derived) landed as local r9 49ba196..105d48e on 20-13's 12bce96/de03bf7 (unpushed, pin still fa38402); pin checkpoint pending (r9 push, lock-only pin move, one HVF series for 20-13+20-14, owner linux boot-iso check at 105d48e); next 20-15
+Last activity: 2026-11-21 - Completed 20-14-PLAN.md
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 execution-complete pending verification; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
@@ -134,6 +134,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 20 P11 | 12h35m | 3 tasks | 6 files |
 | Phase 20 P12 | 5h41m | 3 tasks | 5 files |
 | Phase 20 P13 | 4h9m | 4 tasks | 6 files |
+| Phase 20 P14 | 120 min | 4 tasks | 9 files |
 
 ## Accumulated Context
 
@@ -344,6 +345,9 @@ Recent decisions affecting current work:
 - [Phase 20]: Owner: the arm64 bootconf carrier is /chosen/bootargs (chosen-bootargs); launchers keep R9_BOOTARGS_PROP=bootargs
 - [Phase 20]: aarch64 reads the DTB boot string at the exec_bootstrap call site after devcons::init so the CmdlineTooLong panic is visible; the churn driver keeps the compiled seed only
 - [Phase 20]: The smoke expect fast-fail on 'panic' truncates the panic message line; named panics are proven through nix run .#boot-r9
+- [Phase 20]: Owner: arm64 remove route devmnt-remove; devmnt Tremove (on a clone of the walked fid) + DEV_MNT arm in port::namec::remove_chan makes rm work through mounts on both arches (r9 98feebc); x86_64 bytes changed, boot-iso outputHash re-derived (r9 105d48e)
+- [Phase 20]: aarch64 #! exec pre-pass and REMOVE/WSTAT/FWSTAT dispatch at x86_64 parity (r9 7adb773, 9173af0); sys_remove routes through port::namec::remove_chan
+- [Phase 20]: Owner: require-remove; T1-OK writeprobe requires all eight steps including remove (Harvey d67f23a52)
 
 ### Pending Todos
 
@@ -385,6 +389,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-21T13:28:27.935Z
-Stopped at: Completed 20-13-PLAN.md
+Last session: 2026-11-21T15:37:44.602Z
+Stopped at: Completed 20-14-PLAN.md
 Resume file: None

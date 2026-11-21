@@ -1716,7 +1716,15 @@ PR-DONE
 
 REMOVE-ROUTE: devmnt-remove
 
-**writeprobe / tier-1 expected set: NOT changed (owner checkpoint pending).** `T1-OK writeprobe` still requires only the seven steps (`build/aarch64/tier1-sweep.rc:747`, `for(s in fdsplit mount create write readback mkdir union-create)`), and its comment still says "The remove step (b13) is never required: 20-14 owns it." The proposed change is to add `remove` to that list and rewrite the comment. Doing so needs a userland rebuild and an image bake before the next tier1 run. It is returned as a checkpoint before any edit.
+**writeprobe / tier-1 expected set: changed by owner decision (`require-remove`, relayed 2026-11-21).** `T1-OK writeprobe` now requires all eight steps (`build/aarch64/tier1-sweep.rc:747`, `for(s in fdsplit mount create write readback mkdir union-create remove)`), and the comment was rewritten. Harvey `d67f23a52`. `nix/tier1-r9.sh` is unchanged: it already lists `writeprobe` among its required markers. Full pipeline (userland build, then bake, then gate) against r9 `105d48e`:
+
+| Run | Exit | T1-FAIL / T1-OK / T1-SKIP | writeprobe |
+|---|---|---|---|
+| HVF (`.build/p20-14-req-tier1-hvf.{out,log}`) | 0 | 0 / 43 / 23 | `WP-OK remove`, `T1-OK writeprobe` |
+| TCG (`.build/p20-14-req-tier1-tcg.{out,log}`) | 0 | 0 / 43 / 23 | `WP-OK remove`, `T1-OK writeprobe` |
+| negative control: TCG, `R9_SKIP_BUILD=1`, r9 `7adb773` (no REMOVE) (`.build/p20-14-req-neg-tcg.{out,log}`) | 1 | — | `WP-FAIL remove rm: /n/wp/f: syscall not implemented …`, `T1-FAIL writeprobe remove`, `tier1-r9: post-pass FAILED — missing T1-OK writeprobe` |
+
+A final TCG `R9_SKIP_BUILD=1` run on `105d48e` (exit 0, `T1-OK writeprobe`) leaves the tree's tier1 log green. The image is paqfs-compressed, so the new line cannot be grepped from `bootfs.paq`. The bake follows the edit (`bootfs.paq` 10:22:02 > `tier1-sweep.rc` 10:20:53), and the negative control proves the baked sweep requires `remove`.
 
 ### x86_64 obligations (the port edit changes x86_64 kernel bytes)
 
