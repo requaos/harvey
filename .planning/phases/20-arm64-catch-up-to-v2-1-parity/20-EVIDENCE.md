@@ -1506,3 +1506,33 @@ The scratch print was then removed (`git -C /Users/neilskinner/code/r9 checkout 
 BOOTCONF-CARRIER: bootargs
 
 Pin control with the seam committed and `R9_BOOTARGS` unset: `R9_ACCEL=tcg R9_SKIP_BUILD=1 nix run .#boot-r9-smoke` (no override, `r9-kernel-virt-fa38402`, `y1gq491k…`) exit 0, `ALL STAGES PASS` (`.build/p20-13-t1-pin-tcg.out`).
+
+### Owner decision (Task 2)
+
+Relayed by the coordinator, 2026-11-21: **`chosen-bootargs`**. The reader takes `/chosen/bootargs`; `R9_BOOTARGS_PROP` keeps its default in both launchers (unchanged since `da89798ec`).
+
+### Reader, parser and seed merge (Task 3)
+
+r9 `12bce96` (local, unpushed): new `aarch64/src/platform/virt/bootconf.rs` (`read_bootargs`, `BootArgs::from_raw`, `parse_bootconf_pairs`, `Bootconf`, `BootconfError`), `pub mod bootconf` gated `any(test, dev_exec)`, and the `main.rs` wiring. `git diff --stat origin/main..HEAD -- port/src` is empty. `cargo xtask build --arch aarch64` succeeded for all 13 configs (default, raspi4b, virt, virtexec, virtexec3, virtchurn, virtip, virtnet, virtnotes, virtmulti, virtpanic, virtlowecam, virtshell) with no new warning.
+
+| Check | Kernel | Result |
+|---|---|---|
+| `R9_ACCEL=hvf R9_BOOTARGS="p20probe=one two" nix run .#boot-r9-smoke` (override, full build) | `r9-kernel-virt-12bce96` | exit 0, `ALL STAGES PASS`; the capture has `devenv: seeded cputype=arm64 nobootprompt=embed readparts=0` then `devenv: bootconf p20probe=one two` (count 1) |
+| same, `R9_SKIP_BUILD=1`, no `R9_BOOTARGS` | `12bce96` | exit 0, `ALL STAGES PASS`; `bootconf-lines=0 seed-lines=1` |
+| same, `R9_BOOTARGS="=bad"` | `12bce96` | exit 1. The smoke driver's fast-fail on `panic` killed qemu at `panicked` (the capture ends `ctr_el0: … / panicked`), before the second line of the panic arrived, so `named=0` in `smoke-r9.log`. The same boot through `nix run .#boot-r9` (plain qemu on stdout) shows `panicked at aarch64/src/main.rs:746:31:` / `bootconf: DTB bootargs parse failed: InvalidBootconfToken` (`.build/p20-13-t3-bad-hvf-direct.out`) |
+| `nix run .#boot-r9`, the 300-byte string | `12bce96` | `panicked at aarch64/src/platform/virt/bootconf.rs:110:31:` / `bootconf: DTB bootargs parse failed: CmdlineTooLong`; no seed line (`.build/p20-13-t3-long-hvf-direct.out`) |
+
+Parser behaviours, checked against `mb2.rs` 896-960 by reading and also by a scratch host test, since reverted (route-A scratch edit to `platform/mod.rs`, virtshell cfg, 38/38 passed): the empty string gives 0 pairs; `init=/arm64/init -c` gives one pair; `a=1 b=x=y` gives two pairs in order; a leading bare token and `=bad` give `InvalidBootconfToken`; 33 pairs give `TooManyBootconfPairs` and 32 parse; 257 bytes give `CmdlineTooLong` and 256 are accepted; bytes after the first NUL are ignored. Duplicate keys: a loader pair naming `cputype`, `nobootprompt` or `readparts` is appended after the compiled pair and handed to `seed_root_group` unchanged (T-20-34 accepted, behavior not changed here).
+
+### Capability extents (Task 4)
+
+r9 `de03bf7` (local, unpushed): `check_cap_extents` in `aarch64/src/platform/virt/pci.rs`, gated `any(test, dev_ether)`. It is called directly after `Caps::parse`, `bar == 4` is still enforced for all four caps, and the device match requires `length >= 8`. Scratch host test, since reverted (same route-A scratch, 38/38 passed): the live caps pass at `bar_size` 0x4000 (notify ends exactly at 0x4000); a zero length, an extent past the BAR (including `offset = u32::MAX`), common 0x3f, device 6 and 7, and an absent device cap are rejected; common 0x40 and device 8 pass.
+
+| Gate (override, full build) | Kernel | Exit | NIC bind line |
+|---|---|---|---|
+| `boot-r9-smoke` hvf | `r9-kernel-virt-de03bf7` | 0 | `#l0: virtio: 1000Mbps: 52:54:00:12:34:56` |
+| `boot-r9-net-smoke` hvf | `de03bf7` | 0 | present |
+| `boot-r9-smoke` tcg | `de03bf7` | 0 | present |
+| `boot-r9-net-smoke` tcg | `de03bf7` | 0 | present |
+
+All four print `pci: caps common@0x0+0x1000 notify@0x3000 isr@0x1000 device@0x2000 mult 4`, so the real device's boundary-exact notify cap is accepted. Captures: `.build/p20-13-t4-*.out`.
