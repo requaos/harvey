@@ -66,6 +66,35 @@ jobs:
       - name: composed net smoke (boot-r9-net-smoke)
         run: nix run .#boot-r9-net-smoke
 
+  # 20-17 (ARM-11): the arm64 cpu fixture gate's hosted leg.  One boot
+  # on the r9 kernel-virt-cpu package (virtshell's dev set plus devcap)
+  # with init=/arm64/init -c on /chosen/bootargs: the baked #! cpurc
+  # runs every cpu-port leg (#! exec, the wstat/fwstat/remove
+  # refusals, devcap's caphash write/reject/remove, devssl's round
+  # trip and mount) and build/aarch64/cpu-r9.expect requires each
+  # marker exactly once.  Hosted runners are KVM-less, so this is the
+  # TCG leg; its timeout is the boot-smoke scale (unmeasured on a
+  # hosted runner before the first push).  The capture is uploaded in
+  # phase6.yml's shape.  Supply chain: the same pinned checkout,
+  # nix-installer and upload-artifact SHAs as the sibling jobs.
+  cpu-smoke:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90 # TCG scale; the gate's own per-stage timeouts localize failures
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4 — API-resolved 2026-11-06 (the 06-08 rule)
+      - name: install nix
+        # pinned SHA (see header): the supply-chain rule
+        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
+      - name: arm64 cpu fixture gate (boot-r9-cpu)
+        run: nix run .#boot-r9-cpu
+      - name: upload the retained gate log
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: cpu-smoke-log
+          path: build/aarch64/cpu-r9.log
+          if-no-files-found: warn
+
   # 16-06 (HNET-01): the x64 composed net gate's hosted leg — the
   # re-keyed gate consumes the emitter's slirp argv (the D-04 hostfwd
   # pair as pinned TOML data, ONE emission path) and observes both
