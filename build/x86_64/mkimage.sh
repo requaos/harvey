@@ -410,6 +410,7 @@ TIER1_RELS=$(
 [ -s "$HARVEY/amd64/init" ] || err "$HARVEY/amd64/init missing — run sh build/x86_64/subset-build.sh first (stage/init)"
 [ -s "$CHAIN_OUT/boot" ] || err "$CHAIN_OUT/boot missing — run sh build/x86_64/subset-build.sh first (9k/boot)"
 [ -s "$BIN/paqfs" ] || err "$BIN/paqfs missing — run sh build/x86_64/subset-build.sh first"
+[ -s "$STAGE_SRC/fpprobe" ] || err "$STAGE_SRC/fpprobe missing — run sh build/x86_64/stage-build.sh first (the FPU/SSE state probe)"
 
 STAGE3="$TMPD/root-tier"
 mkdir -p "$STAGE3"
@@ -444,6 +445,10 @@ for rel in $TIER1_RELS; do
 	cp "$BIN/$rel" "$STAGE3/amd64/bin/h${rel##*/}"
 done
 cp "$HARVEY/build/x86_64/tier1-sweep.rc" "$STAGE3/lib/tier1-sweep.rc"
+# fpprobe (the user FPU/SSE state probe — fork, exec, switch, preempt
+# and note legs; the aarch64 image's /bin/fpprobe twin): baked beside
+# the sweep payload, typed by hand (no sweep entry yet)
+cp "$STAGE_SRC/fpprobe" "$STAGE3/amd64/bin/fpprobe"
 printf 'alpha bravo charlie\n__SUBSET_GREP_LINE__\n' > "$STAGE3/lib/tier1/sentinel.txt"
 _md5=$(md5sum "$STAGE3/lib/tier1/sentinel.txt" | cut -d' ' -f1)
 _sha1=$(sha1sum "$STAGE3/lib/tier1/sentinel.txt" | cut -d' ' -f1)
@@ -467,7 +472,7 @@ for p in boot/boot boot/paqfs amd64/init amd64/bin/rc \
 	amd64/bin/ls amd64/bin/cat amd64/bin/echo amd64/bin/ps \
 	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
 	usr/glenda/lib/profile lib/tier1-sweep.rc lib/tier1/sentinel.txt \
-	lib/tier1/nm-input.6; do
+	lib/tier1/nm-input.6 amd64/bin/fpprobe; do
 	[ -f "$STAGE3/$p" ] || err "tier manifest: $p missing from staged tree"
 	echo "tier manifest: /$p staged"
 done

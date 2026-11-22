@@ -57,6 +57,9 @@ GREP=$(command -v /usr/bin/grep || command -v grep) || err "no host grep found"
 for f in $STAGE_SRCS; do
 	[ -f "$HARVEY/build/x86_64/$f.c" ] || err "build/x86_64/$f.c missing"
 done
+for f in fpprobe.c fpprobeasm.s; do
+	[ -f "$HARVEY/build/x86_64/$f" ] || err "build/x86_64/$f missing"
+done
 [ "$(uname -s)" = "Linux" ] || err "build/x86_64/stage-build.sh is native-linux only (sudo unshare; no lima leg — the aarch64 driver's darwin venue does not carry)"
 
 # host toolchain for the namespace build (subset-build.sh's ensure,
@@ -122,6 +125,13 @@ for f in $STAGE_SRCS; do
 	echo "== stage compile: build/x86_64/$f.c -> smoke-out/$f"
 	(cd "$HARVEY/build/x86_64" && objtype=amd64 6c -FTVw "$f.c" && objtype=amd64 6l -o "$STAGE/$f" "$f.6" && rm -f "$f.6") || fail "$f"
 done
+# fpprobe — the user FPU/SSE state probe (build/aarch64/fpprobe.c's
+# twin): the C driver plus fpprobeasm.s's BYTE-encoded FXSAVE64/
+# FXRSTOR64 helpers, so 6a assembles beside 6c.  mkimage.sh bakes it
+# into the TIER image only (/amd64/bin/fpprobe); no gate runs it yet.
+echo "== stage compile: build/x86_64/fpprobe.c + fpprobeasm.s -> smoke-out/fpprobe"
+(cd "$HARVEY/build/x86_64" && objtype=amd64 6c -FTVw fpprobe.c && objtype=amd64 6a fpprobeasm.s \
+	&& objtype=amd64 6l -o "$STAGE/fpprobe" fpprobe.6 fpprobeasm.6 && rm -f fpprobe.6 fpprobeasm.6) || fail "fpprobe"
 
 # the leg-1 staging rule: the marker IS /amd64/init (D-08/D-09 — one
 # binary, two names; mkimage.sh's identity guard pins it)
@@ -318,7 +328,7 @@ fi
 # every staged binary must carry the amd64 a.out magic (S_MAGIC
 # 0x8A97, BE) — the A1 real-binary proof, asserted on real 6.out bytes
 # and printed as evidence
-for f in $STAGE_SRCS init; do
+for f in $STAGE_SRCS init fpprobe; do
 	[ -s "$OUT/$f" ] || err "build/x86_64/smoke-out/$f missing after stage"
 	magic=$(od -An -tx1 -N4 "$OUT/$f" | tr -d ' \n')
 	[ "$magic" = "00008a97" ] || err "build/x86_64/smoke-out/$f: bad magic $magic (want 00008a97)"
