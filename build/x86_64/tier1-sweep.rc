@@ -331,5 +331,18 @@ if(~ $factctl 1){
 }
 if not echo T1-FAIL factotum
 
+# fpprobe (the pin for r9's per-proc FPU/SSE state, the note-handler FP
+# save and the notify handler-alignment fix): a program's x87, MMX,
+# XMM0-15 and MXCSR state must survive syscalls, yields, blocks and
+# ring-3 preemption between two workers, a fork child must inherit it,
+# an exec'd image must start from the default state, and a note handler
+# must not change the state of the code it interrupted (a failure is
+# T1-FAIL fpprobe after `fpprobe: BAD <leg> ...' lines).  The binary is
+# baked into the tier image only (mkimage.sh); nix/tier1-r9-x64.sh lists
+# fpprobe among the expected names, so a silent entry reds the gate as
+# `missing T1-OK fpprobe'.
+if(/bin/fpprobe) echo T1-OK fpprobe
+if not echo T1-FAIL fpprobe
+
 echo T1-DONE
 exit

@@ -185,7 +185,7 @@ for m in $T1_OK_ALL; do
 	*) T1_OK="$T1_OK $m" ;;
 	esac
 done
-R9_EXPECT_OK="$T1_OK float-d01"
+R9_EXPECT_OK="$T1_OK float-d01 fpprobe"
 R9_EXPECT_SKIP="$T1_SKIP"
 export R9_EXPECT_OK R9_EXPECT_SKIP
 echo "== expected on r9: $(echo "$R9_EXPECT_OK" | wc -w | tr -d ' ') T1-OK markers + $(echo "$R9_EXPECT_SKIP" | wc -w | tr -d ' ') T1-SKIP markers (computed)"
