@@ -1,16 +1,16 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "owner (via coordinator, 2026-11-22): fix WINDOWS #71 in r9 x86_64 with option A — IA32_FMASK (x86_64/src/cpu.rs fmask(), decision D-02a) masks only IF and syscallentry has no cld, so user TF/DF/NT/AC reach the kernel on SYSCALL (TF: #DB at the first kernel instruction on the user stack; DF: forward rep movs copy backwards; NT: set in a note handler reaches NOTED's IRETQ (0ffcec6) → #GP → kernel halt; AC reaches the kernel). Widen FMASK to IF|TF|DF|NT|AC as Linux does; user flags still return via R11/the saved frame; record the D-02a reversal; confirm NOTED/IRETQ does not carry user NT/IOPL into a bad state. Red/green probe on the x64 venue (DF copy, AC, NT in a note handler, TF via popf); host tests + mutants; x64 TCG auth/net-smoke/tier1 in an amd64 container; x86_64 host tests; r9 xtask check/clippy/test; re-derive boot-iso outputHash; aarch64 kernel bytes unchanged; arch-only; local commits; no WINDOWS.md edits; no AI attribution"
 created: 2026-11-22T14:00:00Z
-updated: 2026-11-22T17:30:00Z
+updated: 2026-11-22T18:00:00Z
 ---
 
 ## Current Focus
 
 hypothesis: CONFIRMED and fixed — H1 (WINDOWS #71) IA32_FMASK = IF only let user TF/DF/NT/AC into ring 0; H2 the IDT entry kept the user's DF; H3 intrspecial's rdgsbase #UD'd on CPU0 (no CR4.FSGSBASE), so every #DB — incl. the legitimate ring-3 single-step — halted the kernel
 test: DONE — r9 local main e6e5220 → 116bcc2 (10f675e FMASK, 6f8de40 intrcommon cld, f1cd71b intrspecial rdmsr, 116bcc2 boot-iso hash; unpushed); Harvey c15b1bbab (amd64 fpprobe flags leg, gated by the existing `T1-OK fpprobe`; no new marker)
-expecting: owner/coordinator human verification; the coordinator marks #71 fixed (WINDOWS.md untouched here) and decides how to ledger H2/H3
-next_action: on "confirmed fixed": archive to resolved/, append the knowledge-base entry (Prevention block below), commit the docs. The x64 tier-1 at Harvey c15b1bbab needs r9 >= 116bcc2 (e6e5220 halts in the flags leg) — the pin series must advance Harvey's r9 pin after the push
+expecting: DONE — owner confirmed fixed 2026-11-22 and kept all three commits; the coordinator pushed r9 main = 116bcc2
+next_action: archived. Follow-ups done in Harvey right after: amd64/ABI.md entry-flags text, WINDOWS #71 fixed + two new rows (IDT DF, intrspecial RDGSBASE) fixed, lock-only pin e6e5220 → 116bcc2, quick pin pass recorded in 20-EVIDENCE.md
 scratch: SP=/private/tmp/claude-501/-Users-neilskinner-code-harvey/55ded085-3397-4d2c-931d-1d3a7a81443a/scratchpad — $SP/xfl/{r9 (scratch r9 + mut-*/diag-* branches), r9.git, r9m, r9-base, fixture/, probe/, fx.sh, r1/r2/r3a/r3b scripts + *-summary.txt + captures, bat-base/bat-fix/bat-final, kernel-x64-{base,4bc5242,fix,mut-fmask-if}.elf, pa/fpprobe}
 bug_class: Bohrbug (deterministic trust-boundary bug; every red/green/mutant boot reproduced first time, ~25-85 s each)
 known_pattern_candidate: "noted-psr-trust — follow_ups DECISION (x86_64 entry flags, WINDOWS #71)"
@@ -162,7 +162,7 @@ verification:
     fixed_on_reapply: true — "4bc5242 / f1cd71b (code-identical) / 116bcc2 green"
   x86_64_bytes: "CHANGED — kernel-x64.elf 01adbea3… (e6e5220) → 3535848bdab363f226360c172caf95dc699a493e2c7a9ebf6af68ad10cb77ad4 (116bcc2, 28050432 B); boot-iso outputHash re-derived (sha256-TIzwBaHF0R4m31l6EbW2IU3rkUl73g6ljlNE0S5hGFY=), wired build green, --rebuild deterministic"
   aarch64_bytes: "UNCHANGED — kernel-virt 0b17869d…, kernel-virt-cpu b2da7e46… byte-identical to e6e5220: no HVF series needed"
-  guardrail_verdict: accepted (pending human verification)
+  guardrail_verdict: accepted — owner confirmed fixed 2026-11-22 (all three commits kept; r9 116bcc2 pushed by the coordinator)
 noted_iretq_audit: "force_user_return clears IOPL and sets IF but does NOT clear NT (nor TF/DF/AC/RF/ID) in the restored image — and does not need to: IRETQ's #GP condition is the kernel's LIVE RFLAGS.NT, never the image, and after the fix no kernel context can hold NT (SYSCALL masks it, interrupt/exception gates clear it, swtch carries no flags but every kernel context starts clean); the image's NT/TF/DF/AC load into ring 3 only, where a CPL3 POPFQ could set them anyway (ntimage proves it: ring 3 runs with the image's NT, blocks, and takes a second NOTED IRETQ without fault). FMASK makes NT moot there"
 follow_ups:
   - "Harvey amd64/ABI.md still documents the donor's entry mask (`Flags mask on entry: Sfmask = If ONLY ... TF/DF pass through untouched`, and `Sfmask = If (IF only — see Wire contract)` in the MSR-arming list): for r9 the mask is IF|TF|DF|NT|AC and the user's flags still return unchanged via R11 / the NOTED frame. Not edited here (this session commits only debug files and probe wiring) — for the coordinator"
