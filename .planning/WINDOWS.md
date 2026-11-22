@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 54
+open_count: 55
 waived_count: 3
 fixed_count: 12
-total_count: 69
-last_updated: 2026-11-22T08:30:00.000Z
+total_count: 70
+last_updated: 2026-11-22T09:40:00.000Z
 ---
 
 # Broken Windows Ledger
@@ -84,6 +84,7 @@ last_updated: 2026-11-22T08:30:00.000Z
 | 68 | 17 | deviation | build/x86_64/services-r9-x64.log | 132 | services-x64 gate faults at the dns stage: kernel NULL-call (PF pc=0x0) after devmnt cs error — pre-existing, A/B-proven identical at pins b02408cad and 02218e88c; last green services run was the 15-08 era; root cause open (17-04-deferred-items.md) | open |  | 2026-11-12T23:34:20.636Z |  |
 | 69 | 17 | deviation | build/x86_64/tier1-sweep.rc |  | 17-05: the tier1 gate's date check passes on a pre-existing display quirk, not a real epoch — hdate -n == 0 every r9-x64 kernel this era (r9 devcons serves no /dev/bintime; libc nsec() returns 0 on the failed open) and the sweep's *20[0-9][0-9]* expectation is met only because ctime(0) under the EST timezone data displays 'Feb 7 2006'; identical at r9 63bfda9 (pre) and 59d28fa (post), live-measured both sides; root fix belongs to the clock-seam owner (Phase-14's no-RTC era shape) | open |  | 2026-11-13T01:59:58.328Z |  |
 | 70 | 20 | todo | r9:aarch64/src/proc.rs | 1753 | aarch64 sched_loop resumes a Ready proc that is not blocked_in_kernel (preempted at EL0, or a fork child's first run) with a bare trap_return (Resume::Return) — no note boundary on that return to EL0, so a note posted while the proc was off the CPU waits for its next tick, syscall or demand fault (the fault-return boundary landed in r9 5f7c4e1). x86_64 has no such path (a preempted proc resumes inside its own IRQ trap()). Deferred, needs its own design: delivering, or the no-handler kill, from sched-loop context (scheduler stack, PROC_TABLE lock, exit_tail re-entering the scheduler). Found by debug session arm64-fault-return-notes; the fpprobe note-fault round's criterion (no later than the first fault) stays valid when it lands | open |  | 2026-11-22T08:30:00.000Z |  |
+| 71 | 20 | deviation | r9:x86_64/src/cpu.rs | 50 | x86_64 SYSCALL entry keeps user RFLAGS bits: IA32_FMASK = IF only (cpu.rs fmask(), documented D-02a) and syscallentry has no cld, so a user's TF (single-step #DB at the first kernel instruction, on the still-user stack), DF (the Rust kernel assumes DF=0; forward rep movs would copy backwards), NT (set inside a note handler it reaches the NOTED return's IRETQ, r9 0ffcec6, with the kernel's RFLAGS.NT=1: #GP(0) in IA-32e mode, kernel halt) and AC reach the kernel. Not reproduced (audit against SDM/QEMU semantics). Options: A widen FMASK to IF+TF+DF+NT+AC (reverses D-02a; user flags still return via R11/the frame; the only option that stops the TF #DB), B keep D-02a and reset flags in the entry stub (cld, clear NT/AC/TF; cannot stop the TF #DB). Either changes x86 bytes (x64 container gates + boot-iso hash). DEFERRED by the owner. Found by debug session noted-psr-trust | open |  | 2026-11-22T09:40:00.000Z |  |
 
 ````json
 [
@@ -981,6 +982,19 @@ last_updated: 2026-11-22T08:30:00.000Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-22T08:30:00.000Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 71,
+    "kind": "deviation",
+    "phase": "20",
+    "file": "r9:x86_64/src/cpu.rs",
+    "line": 50,
+    "description": "x86_64 SYSCALL entry keeps user RFLAGS bits: IA32_FMASK = IF only (cpu.rs fmask(), documented D-02a) and syscallentry has no cld, so a user's TF (single-step #DB at the first kernel instruction, on the still-user stack), DF (the Rust kernel assumes DF=0; forward rep movs would copy backwards), NT (set inside a note handler it reaches the NOTED return's IRETQ, r9 0ffcec6, with the kernel's RFLAGS.NT=1: #GP(0) in IA-32e mode, kernel halt) and AC reach the kernel. Not reproduced (audit against SDM/QEMU semantics). Options: A widen FMASK to IF+TF+DF+NT+AC (reverses D-02a; user flags still return via R11/the frame; the only option that stops the TF #DB), B keep D-02a and reset flags in the entry stub (cld, clear NT/AC/TF; cannot stop the TF #DB). Either changes x86 bytes (x64 container gates + boot-iso hash). DEFERRED by the owner. Found by debug session noted-psr-trust",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-22T09:40:00.000Z",
     "resolved_at": null,
     "milestone": "v2.1"
   }
