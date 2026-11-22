@@ -9,7 +9,7 @@
 # post-fix N-green series.
 #
 # usage: build/aarch64/repeat-gate.sh <app> <count>
-#   <app>    boot-r9-smoke | boot-r9-net-smoke | boot-r9-tier1
+#   <app>    boot-r9-smoke | boot-r9-net-smoke | boot-r9-tier1 | boot-r9-cpu
 #   <count>  number of runs (positive integer)
 #
 # Env contract:
@@ -25,8 +25,13 @@
 # Each run is one `nix run .#<app> --no-write-lock-file` under bash
 # (zsh does not word-split the flag list; the app scripts are bash).
 # The app removes its capture before launch, so the harness points the
-# app's capture variable (R9_SMOKE_LOG, or R9_TIER1_LOG for tier-1)
-# straight at the series file:
+# app's capture variable straight at the series file.  Per app:
+#   boot-r9-smoke, boot-r9-net-smoke  R9_SMOKE_LOG
+#   boot-r9-tier1                     R9_TIER1_LOG
+#   boot-r9-cpu                       R9_CPU_LOG (the app's default
+#                                     capture is build/aarch64/cpu-r9.log;
+#                                     20-17 added the cpu gate)
+# The series files:
 #   $R9_SERIES_DIR/<app>-<accel>-<stamp>/run-<i>.log   serial capture
 #   $R9_SERIES_DIR/<app>-<accel>-<stamp>/run-<i>.out   stdout+stderr
 #   $R9_SERIES_DIR/<app>-<accel>-<stamp>/series.tsv    one row per run
@@ -47,7 +52,7 @@
 set -u
 
 usage() {
-	echo "usage: $0 boot-r9-smoke|boot-r9-net-smoke|boot-r9-tier1 <count>" >&2
+	echo "usage: $0 boot-r9-smoke|boot-r9-net-smoke|boot-r9-tier1|boot-r9-cpu <count>" >&2
 	exit 2
 }
 
@@ -59,6 +64,10 @@ boot-r9-smoke|boot-r9-net-smoke)
 	LOGVAR=R9_SMOKE_LOG ;;
 boot-r9-tier1)
 	LOGVAR=R9_TIER1_LOG ;;
+boot-r9-cpu)
+	# nix/cpu-r9.sh writes build/aarch64/cpu-r9.log unless R9_CPU_LOG
+	# names another path
+	LOGVAR=R9_CPU_LOG ;;
 *)
 	usage ;;
 esac
