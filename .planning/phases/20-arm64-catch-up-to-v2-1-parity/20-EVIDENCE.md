@@ -1981,3 +1981,85 @@ CAP-WRITER: unreached (`echo: write error: pwrite: unknown device` on HVF and TC
 `PORT-EDIT-NEEDED` is `no`. A-cap holds (compiles ungated, the tick hook falls back to 0, and the cap kernel passes the smoke gate). A-ssl holds as far as source can show: fversion needs no change, and the missing pieces are the two pread/pwrite arms, the `sys_mount` check and the fd-resolve hook. A-writer is not contradicted: the write is unreached, and the gate it would meet passed live twice. Plan corrections for Task 3: step 4 (`remove_chan`) is already done by 20-14, and step 6 (`sys_fversion`) changes nothing.
 
 ARMS-ROUTE: aarch64-only
+
+## Cpu boot-path measurement
+
+Plan 20-16 Task 1 (D-09). Nothing under `build/aarch64/root-tree` or in r9 is committed by this task.
+
+**Kernel route.** `CAP-PROFILE: virtcpu`, so the plan's scratch method was used: `"cap"` was added to the `dev` list of `../r9/aarch64/lib/config_virtshell.toml` as an uncommitted edit, which made the override's `kernel-virt` build from `exec, bootchain, cap, ether, ip`. That equals `config_virtcpu.toml`'s list. `diff` of the two TOMLs shows nothing else but comments (the `[qemu]` keys are identical), so no other difference was applied. Both boots ran on `/nix/store/95ivd01h3i2bkvh6nr21r7kn5wflp9vx-r9-kernel-virt-wip` (r9 `821db85` plus the scratch key). The edit was reverted with `git -C ../r9 checkout -- aarch64/lib/config_virtshell.toml` after the second boot. `git -C ../r9 status --porcelain --untracked-files=no` then printed nothing, and HEAD is still `821db85`.
+
+**Command** (both under `bash`, from the Harvey root):
+`R9_SKIP_BUILD=1 R9_BOOTARGS='init=/arm64/init -c' R9_ACCEL=<hvf|tcg> R9_SMOKE_LOG=$PWD/.build/p20-16-bootpath-<accel>.log nix run .#boot-r9-smoke --no-write-lock-file --override-input r9 git+file:///Users/neilskinner/code/r9`. The userland in `build/aarch64/out` was the 10:33 build from 20-15. No Harvey source has changed since then, so `R9_SKIP_BUILD=1` was used. The bake ran on each boot.
+
+**Scratch cpurc** (uncommitted; a copy is kept at `.build/p20-16-scratch-cpurc`; mode 755 in the working tree; first line `#!/arm64/bin/rc`). It runs these in order:
+1. `echo P20-CPURC-RAN`
+2. `/arm64/bin/echo P20-FULLPATH-OK`
+3. `if(~ $status '') echo P20-IF-STATUS-OK` / `if not echo P20-IF-STATUS-FAIL $status`
+4. `/arm64/bin/ls -l '#¤'`, then `echo P20-LS-STATUS $status`
+5. `@{/arm64/bin/echo -n 0123456789abcdefghij >'#¤/caphash'}`, then the same `if` / `if not` ladder printing `P20-CAPHASH-OK` or `P20-CAPHASH-FAIL $status`
+6. `` echo P20-USER `{/arm64/bin/cat '#c/user'} ``
+7. `/arm64/bin/stacksmoke`
+8. `echo P20-CPURC-END`
+
+Then it returns.
+
+**Deviation (measurement method).** The scratch cpurc also runs `/arm64/bin/stacksmoke`, which the plan's step 1 does not list. A cpu boot never runs termrc, so without this the smoke driver would have waited out its 600 s `stacksmoke` stage on every boot. With the real binary's real marker in place, the driver went on to drive the rc that init starts after cpurc: it typed commands and waited for prompts, and also sent DEL, `exit` and expected the restart. That is direct evidence for `AFTER-CPURC`. Because of it, the smoke app exited 0 (`smoke-r9: ALL STAGES PASS`) on both boots. That pass is incidental: it is not a cpu gate result, and only the captures are read.
+
+**Captures:** `.build/p20-16-bootpath-{hvf,tcg}.log`, with app output in `.build/p20-16-bootpath-{hvf,tcg}.out`. HVF and TCG show the same markers in the same order. Line numbers differ only because of interleaved `fault:` and `sched:` lines.
+
+| Check | HVF | TCG |
+|---|---|---|
+| kernel line `devenv: bootconf init=/arm64/init -c` | present, line 1839 (after `devenv: seeded cputype=arm64 nobootprompt=embed readparts=0`, before `devroot: /boot/boot open`) | present, line 1839 |
+| `P20-CPURC-RAN` / `P20-CPURC-END` | present, lines 2063 / 2188 | present, lines 2072 / 2217 |
+| full-path command (`/arm64/bin/echo`) | ran (`P20-FULLPATH-OK`) | ran |
+| `if` on `$status` / `if not` (unbraced) | ran (`P20-IF-STATUS-OK`) | ran |
+| quoted `'#¤'` path (`ls -l`) | ran: both files listed, `P20-LS-STATUS` empty | ran, identical |
+| `@{ }` subshell around a redirect into `#¤` | ran, `P20-CAPHASH-OK` | ran, `P20-CAPHASH-OK` |
+| backquote `` `{...} `` | ran (`P20-USER glenda`) | ran |
+| after `P20-CPURC-END` | `init: starting /bin/rc`, then rc's `% ` prompt (line 2254, `% echo r9shell7`) | same (prompt at line 2284) |
+| forks (`process N exited` lines) | 20 in the whole boot: 11 through `P20-CPURC-END`, 14 through `init: starting /bin/rc`; the other 6 are the smoke driver's commands | identical: 20 / 11 / 14 |
+
+HVF excerpt, the cpurc body (`fault:` and `sched:` lines dropped):
+
+```
+P20-CPURC-RAN
+process 6 exited: ""
+P20-FULLPATH-OK
+process 7 exited: ""
+P20-IF-STATUS-OK
+process 8 exited: ""
+---w-------   10 glenda glenda 0 Feb  7  2006 '#¤/caphash'
+---w--w--w-   10 glenda glenda 0 Feb  7  2006 '#¤/capuse'
+process 9 exited: ""
+P20-LS-STATUS 
+process 10 exited: ""
+process 11 exited: ""
+P20-CAPHASH-OK
+process 12 exited: ""
+process 13 exited: ""
+P20-USER glenda
+process 14 exited: ""
+stacksmoke: depth 64 ok, checksum 2088960
+process 15 exited: ""
+P20-CPURC-END
+process 16 exited: ""
+process 5 exited: ""
+process 4 exited: ""
+
+init: starting /bin/rc
+```
+
+The capture after `P20-CPURC-END`, up to the prompt (HVF; TCG is the same apart from `sched:` lines; this window is the 30 lines minus the `fault:` page-in noise): `process 16 exited: ""`, `process 5 exited: ""`, `process 4 exited: ""`, an empty line, `init: starting /bin/rc`, then about 55 `fault:` page-in lines while the new rc loads, then `% ` (the smoke driver's `echo r9shell7` is echoed after it). No `init: rc exit status` line is printed, because the cpurc rc exited with an empty status (`fexec` prints that line only for a non-empty status). Process 4 is init's `fexec` child (`rc -c /rc/bin/cpurc`), and process 5 is the `#!`-exec'd `/arm64/bin/rc /rc/bin/cpurc`. This is the first time the bootconf seam (20-13), the `#!` pre-pass (20-14) and init's cpu path have met, and they work together. The kernel prints no exec trace for the script; the `#!` pre-pass is shown by the script running at all.
+
+Other notes:
+- `init: can't open #c/sysname: namec: does not exist` appears on both boots. It is not specific to the cpu path: it also appears once in a terminal smoke capture (`build/aarch64/smoke-r9.log`) and in the 20-14 confidence tier-1 captures. The gate must not treat it as a failure.
+- The `#¤` listing shows the boot user passes devcap's eve gate in the cpu context (cpurc runs under init as `glenda` = hostowner). The `caphash` write returned without error.
+- Task 3's wstat probe on `/lib/namespace` has not been measured live. Its expected text (`wstat: device does not implement wstat`) was seen in 20-14 on devmnt and devenv. `remove` on a `/lib` file gave `remove: device does not implement remove` in 20-14. Task 3's first run records what the kernel actually returns, and the gate asserts only what that run showed.
+- The device's short-write text for `caphash` is `devcap: i/o count too small` (read from `port/src/devcap.rs` write QHASH, `HASHLEN` = 20). Task 3's `cpuprobe cap` step 3 asserts it after its first run shows it.
+
+CPURC-RUNS: yes
+AFTER-CPURC: prompt (`init: starting /bin/rc` then rc's `% ` prompt; the post-cpurc rc took typed commands, and `exit` gave a second `init: starting /bin/rc` and a fresh prompt, HVF and TCG)
+CPU-CAP-LEG: write-ok
+CPU-GATE-ROUTE: as-planned
+
+Reading for Tasks 3 and 4: every idiom the fixture needs ran on arm64's rc. The cap leg can assert a successful write. After `cpurc: DONE`, the driver stages `init: starting /bin/rc` and then the `% ` prompt, as the record shows. No prohibition on `init: starting /bin/rc` is added, because a good boot prints it.
