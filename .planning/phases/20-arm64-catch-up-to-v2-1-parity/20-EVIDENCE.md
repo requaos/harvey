@@ -2146,3 +2146,26 @@ with `cpu-r9: cpurc leg FAILED: cap (the cpuprobe/sslprobe line above names the 
 **Forks per boot.** Each of the five green captures has 17 `process N exited` lines, all of them before the final prompt (the gate types nothing). This is the figure 20-17 derives `N-HVF boot-r9-cpu` from (floor 36).
 
 CPU-FORKS-PER-BOOT = 17
+
+## Pin at r9 821db85 (20-15 + 20-16; full series deferred to phase end by owner)
+
+The owner batched 20-15's pin move with this plan's. r9 `origin/main` is `821db85` (pushed by the coordinator): `505494e` (aarch64 devcap + devssl arms and hooks) and `821db85` (virtcpu profile + `kernel-virt-cpu` package) on top of `c94bc9b`. `git diff --stat c94bc9b 821db85` touches only `aarch64/lib/config_virtcpu.toml`, `aarch64/src/main.rs`, `aarch64/src/syscall.rs` and `flake.nix` (28 added lines, none naming `outputHash|kernel-x64|grub2|xorriso`). No `port/src` or x86_64 bytes changed, so the boot-iso hash stays `sha256-JQ/47nON4oZPk1SxxM5zkHARxCrH23ShgR9sJJCltCY=`: no FOD re-derive, no amd64 container gates and no owner linux boot-iso check are owed for this move.
+
+**Pin move.** Harvey `fd80f6a70` is the lock-only move `c94bc9b -> 821db85` (`nix flake update r9`; only the r9 node's `lastModified`, `narHash` and `rev` changed). At the new pin, `boot-r9-cpu` is present without an override (5 `boot-r9*` apps on aarch64-darwin: `boot-r9`, `boot-r9-cpu`, `boot-r9-net-smoke`, `boot-r9-smoke`, `boot-r9-tier1`).
+
+**Quick pass at the pin** (no override; `KERNDATE=1795366613` = the commit time of `fd80f6a70`; the first run rebuilt the userland and baked a 4522322-byte image, and the rest used `R9_SKIP_BUILD=1`):
+
+| Gate | Accel | Exit | Result | Kernel |
+|---|---|---|---|---|
+| `boot-r9-tier1` | HVF | 0 | `ALL STAGES PASS`; 44 OK / 23 SKIP / 0 FAIL | `r9-kernel-virt-821db85` |
+| `boot-r9-tier1` | TCG | 0 | `ALL STAGES PASS`; 44 OK / 23 SKIP / 0 FAIL | `r9-kernel-virt-821db85` |
+| `boot-r9-smoke` | HVF | 0 | `ALL STAGES PASS` | `r9-kernel-virt-821db85` |
+| `boot-r9-net-smoke` | HVF | 0 | `ALL STAGES PASS` | `r9-kernel-virt-821db85` |
+| `boot-r9-cpu` (new) | HVF | 0 | `cpu-r9: ALL STAGES PASS`; 0 `cpurc: FAIL`; 17 forks | `r9-kernel-virt-cpu-821db85` |
+| `boot-r9-cpu` (new) | TCG | 0 | `cpu-r9: ALL STAGES PASS`; 0 `cpurc: FAIL`; 17 forks | `r9-kernel-virt-cpu-821db85` |
+
+Captures: `.build/p20-16-conf-*.{out,log}`. Tier-1 x64 (39) was not re-run, because no x86_64 bytes changed in the range.
+
+SERIES-AT-PIN: deferred-to-phase-end (owner); confidence pass green at 821db85
+
+**Still owed:** the Harvey push of the local commits (20-15's and 20-16's, plus `fd80f6a70`) needs the owner's approval; that is this plan's closing checkpoint. The full HVF series, `boot-r9-cpu` included, runs once at the end of phase 20.
