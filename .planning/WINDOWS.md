@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 52
+open_count: 51
 waived_count: 4
-fixed_count: 14
-total_count: 70
-last_updated: 2026-11-22T19:03:17.039Z
+fixed_count: 17
+total_count: 72
+last_updated: 2026-11-22T20:34:58.236Z
 ---
 
 # Broken Windows Ledger
@@ -84,7 +84,9 @@ last_updated: 2026-11-22T19:03:17.039Z
 | 68 | 17 | deviation | build/x86_64/services-r9-x64.log | 132 | services-x64 gate faults at the dns stage: kernel NULL-call (PF pc=0x0) after devmnt cs error — pre-existing, A/B-proven identical at pins b02408cad and 02218e88c; last green services run was the 15-08 era; root cause open (17-04-deferred-items.md) | open |  | 2026-11-12T23:34:20.636Z |  |
 | 69 | 17 | deviation | build/x86_64/tier1-sweep.rc |  | 17-05: the tier1 gate's date check passes on a pre-existing display quirk, not a real epoch — hdate -n == 0 every r9-x64 kernel this era (r9 devcons serves no /dev/bintime; libc nsec() returns 0 on the failed open) and the sweep's *20[0-9][0-9]* expectation is met only because ctime(0) under the EST timezone data displays 'Feb 7 2006'; identical at r9 63bfda9 (pre) and 59d28fa (post), live-measured both sides; root fix belongs to the clock-seam owner (Phase-14's no-RTC era shape) | open |  | 2026-11-13T01:59:58.328Z |  |
 | 70 | 20 | todo | r9:aarch64/src/proc.rs | 1753 | aarch64 sched_loop resumes a Ready proc that is not blocked_in_kernel (preempted at EL0, or a fork child's first run) with a bare trap_return (Resume::Return) — no note boundary on that return to EL0, so a note posted while the proc was off the CPU waits for its next tick, syscall or demand fault (the fault-return boundary landed in r9 5f7c4e1). x86_64 has no such path (a preempted proc resumes inside its own IRQ trap()). Deferred, needs its own design: delivering, or the no-handler kill, from sched-loop context (scheduler stack, PROC_TABLE lock, exit_tail re-entering the scheduler). Found by debug session arm64-fault-return-notes; the fpprobe note-fault round's criterion (no later than the first fault) stays valid when it lands. Deferred by the owner to the SMP work. | open |  | 2026-11-22T08:30:00.000Z |  |
-| 71 | 20 | deviation | r9:x86_64/src/cpu.rs | 50 | x86_64 SYSCALL entry keeps user RFLAGS bits: IA32_FMASK = IF only (cpu.rs fmask(), documented D-02a) and syscallentry has no cld, so a user's TF (single-step #DB at the first kernel instruction, on the still-user stack), DF (the Rust kernel assumes DF=0; forward rep movs would copy backwards), NT (set inside a note handler it reaches the NOTED return's IRETQ, r9 0ffcec6, with the kernel's RFLAGS.NT=1: #GP(0) in IA-32e mode, kernel halt) and AC reach the kernel. Not reproduced (audit against SDM/QEMU semantics). Options: A widen FMASK to IF+TF+DF+NT+AC (reverses D-02a; user flags still return via R11/the frame; the only option that stops the TF #DB), B keep D-02a and reset flags in the entry stub (cld, clear NT/AC/TF; cannot stop the TF #DB). Either changes x86 bytes (x64 container gates + boot-iso hash). DEFERRED by the owner. Found by debug session noted-psr-trust | open |  | 2026-11-22T09:40:00.000Z |  |
+| 71 | 20 | deviation | r9:x86_64/src/cpu.rs | 50 | x86_64 SYSCALL entry keeps user RFLAGS bits: IA32_FMASK = IF only (cpu.rs fmask(), documented D-02a) and syscallentry has no cld, so a user's TF (single-step #DB at the first kernel instruction, on the still-user stack), DF (the Rust kernel assumes DF=0; forward rep movs would copy backwards), NT (set inside a note handler it reaches the NOTED return's IRETQ, r9 0ffcec6, with the kernel's RFLAGS.NT=1: #GP(0) in IA-32e mode, kernel halt) and AC reach the kernel. Not reproduced (audit against SDM/QEMU semantics). Options: A widen FMASK to IF+TF+DF+NT+AC (reverses D-02a; user flags still return via R11/the frame; the only option that stops the TF #DB), B keep D-02a and reset flags in the entry stub (cld, clear NT/AC/TF; cannot stop the TF #DB). Either changes x86 bytes (x64 container gates + boot-iso hash). DEFERRED by the owner. Found by debug session noted-psr-trust | fixed | r9 10f675e (IA32_FMASK = IF\|TF\|DF\|NT\|AC, the Linux set — option A, owner 2026-11-22; reverses D-02a's If-only value, recorded in x86_64/src/cpu.rs fmask()'s doc) + 116bcc2 (boot-iso hash). Reproduced first: on e6e5220 Harvey's amd64 fpprobe flags leg (c15b1bbab) halts the kernel with `trap GP` at trap_return's iretq while ring 0 holds the user's NT — NT set in a handler before noted, NT in the saved Ureg, and a blocking syscall whose NT reached another process's IRETQ through swtch (which carries no RFLAGS); with the other two fixes in place a FMASK=IF mutant gives `trap DB` at syscallentry's first instruction with the user RSP; a DIAG kernel shows AC in ring 0 at syscall entry on e6e5220 and no TF/DF/NT/AC on the fix. TCG cannot show the SYSCALL-DF half (QEMU drops DF on SYSCALL itself), so host tests cpu::tests::{fmask_clears_the_flags_the_kernel_must_not_inherit, fmask_is_exactly_if_tf_df_nt_ac} pin every bit. NOTED's IRETQ needs no NT clearing: its #GP reads the kernel's live NT, which no kernel context can hold after the fix. x64 tier-1 (39 T1-OK, fpprobe ok) / auth / net-smoke green at 116bcc2. Debug session .planning/debug/resolved/x86-syscall-entry-flags.md; owner confirmed fixed 2026-11-22; r9 116bcc2 pushed by the coordinator. | 2026-11-22T09:40:00.000Z | 2026-11-22T20:34:39.922Z |
+| 72 | 20 | deviation | r9:x86_64/src/trap.rs | 335 | x86_64 interrupt/exception entry keeps the user's DF: the IDT gates clear TF, NT and RF (and IF) but architecturally keep DF and AC, and intrcommon ran no cld, so an interrupt taken while ring 3 held DF (amd64 libc memmove's backward copy runs STD ... CLD) ran trap(), the IRQ handlers and note delivery with every compiler_builtins rep movs/stos copying backwards (the Rust kernel relies on SysV DF=0). Reproduced on r9 e6e5220 by fpprobe flags-dfirq: kernel `trap PF` in MCSLock::unlock (a smashed stack LockNode) with DF set in the kernel flags. AC stays inert at CPL0 until SMAP. Found by debug session x86-syscall-entry-flags (WINDOWS #71 sibling) | fixed | r9 6f8de40 (cld first in intrcommon; a CLAC note for SMAP). Red on e6e5220: fpprobe flags-dfirq → kernel `trap PF` (smashed stack LockNode, DF in the kernel flags); green at 116bcc2; the no-cld mutant reds it again; host test trap::tests::intrcommon_clears_df_before_calling_trap. Debug session .planning/debug/resolved/x86-syscall-entry-flags.md; owner confirmed fixed 2026-11-22; r9 116bcc2 pushed by the coordinator. | 2026-11-22T20:34:40.116Z | 2026-11-22T20:34:58.042Z |
+| 73 | 20 | deviation | r9:x86_64/src/trap.rs | 279 | x86_64 intrspecial (the #DB, NMI, #BP and #DF entry) chose its SWAPGS by comparing RDGSBASE with the Mach, but RDGSBASE needs CR4.FSGSBASE, which the boot CPU never sets (l.S: TCG qemu64 cannot), so the instruction raised #UD inside the entry and every such exception ended in a kernel `trap UD` halt — including a ring-3 single-step (POPFQ TF) or int3, a user-triggerable kernel halt, and the legitimate ring-3 #DB that the #71 FMASK fix produces. Reproduced on r9 e6e5220 by fpprobe flags-tf: kernel `trap UD` at intrspecial's rdgsbaseq. Found by debug session x86-syscall-entry-flags (WINDOWS #71 sibling) | fixed | r9 f1cd71b (intrspecial reads IA32_GS_BASE with rdmsr, rax/rcx/rdx saved, the same KMACH comparison). Red on e6e5220: fpprobe flags-tf → kernel `trap UD` at intrspecial's rdgsbaseq; green at 116bcc2 (the ring-3 single-step kills only the child, `sys: trap`); the rdgsbase mutant reds it again; host test trap::tests::entry_asm_uses_no_fsgsbase_instruction. Debug session .planning/debug/resolved/x86-syscall-entry-flags.md; owner confirmed fixed 2026-11-22; r9 116bcc2 pushed by the coordinator. | 2026-11-22T20:34:40.291Z | 2026-11-22T20:34:58.236Z |
 
 ````json
 [
@@ -992,10 +994,36 @@ last_updated: 2026-11-22T19:03:17.039Z
     "file": "r9:x86_64/src/cpu.rs",
     "line": 50,
     "description": "x86_64 SYSCALL entry keeps user RFLAGS bits: IA32_FMASK = IF only (cpu.rs fmask(), documented D-02a) and syscallentry has no cld, so a user's TF (single-step #DB at the first kernel instruction, on the still-user stack), DF (the Rust kernel assumes DF=0; forward rep movs would copy backwards), NT (set inside a note handler it reaches the NOTED return's IRETQ, r9 0ffcec6, with the kernel's RFLAGS.NT=1: #GP(0) in IA-32e mode, kernel halt) and AC reach the kernel. Not reproduced (audit against SDM/QEMU semantics). Options: A widen FMASK to IF+TF+DF+NT+AC (reverses D-02a; user flags still return via R11/the frame; the only option that stops the TF #DB), B keep D-02a and reset flags in the entry stub (cld, clear NT/AC/TF; cannot stop the TF #DB). Either changes x86 bytes (x64 container gates + boot-iso hash). DEFERRED by the owner. Found by debug session noted-psr-trust",
-    "status": "open",
-    "reason": "",
+    "status": "fixed",
+    "reason": "r9 10f675e (IA32_FMASK = IF|TF|DF|NT|AC, the Linux set — option A, owner 2026-11-22; reverses D-02a's If-only value, recorded in x86_64/src/cpu.rs fmask()'s doc) + 116bcc2 (boot-iso hash). Reproduced first: on e6e5220 Harvey's amd64 fpprobe flags leg (c15b1bbab) halts the kernel with `trap GP` at trap_return's iretq while ring 0 holds the user's NT — NT set in a handler before noted, NT in the saved Ureg, and a blocking syscall whose NT reached another process's IRETQ through swtch (which carries no RFLAGS); with the other two fixes in place a FMASK=IF mutant gives `trap DB` at syscallentry's first instruction with the user RSP; a DIAG kernel shows AC in ring 0 at syscall entry on e6e5220 and no TF/DF/NT/AC on the fix. TCG cannot show the SYSCALL-DF half (QEMU drops DF on SYSCALL itself), so host tests cpu::tests::{fmask_clears_the_flags_the_kernel_must_not_inherit, fmask_is_exactly_if_tf_df_nt_ac} pin every bit. NOTED's IRETQ needs no NT clearing: its #GP reads the kernel's live NT, which no kernel context can hold after the fix. x64 tier-1 (39 T1-OK, fpprobe ok) / auth / net-smoke green at 116bcc2. Debug session .planning/debug/resolved/x86-syscall-entry-flags.md; owner confirmed fixed 2026-11-22; r9 116bcc2 pushed by the coordinator.",
     "recorded_at": "2026-11-22T09:40:00.000Z",
-    "resolved_at": null,
+    "resolved_at": "2026-11-22T20:34:39.922Z",
+    "milestone": "v2.1"
+  },
+  {
+    "id": 72,
+    "kind": "deviation",
+    "phase": "20",
+    "file": "r9:x86_64/src/trap.rs",
+    "line": 335,
+    "description": "x86_64 interrupt/exception entry keeps the user's DF: the IDT gates clear TF, NT and RF (and IF) but architecturally keep DF and AC, and intrcommon ran no cld, so an interrupt taken while ring 3 held DF (amd64 libc memmove's backward copy runs STD ... CLD) ran trap(), the IRQ handlers and note delivery with every compiler_builtins rep movs/stos copying backwards (the Rust kernel relies on SysV DF=0). Reproduced on r9 e6e5220 by fpprobe flags-dfirq: kernel `trap PF` in MCSLock::unlock (a smashed stack LockNode) with DF set in the kernel flags. AC stays inert at CPL0 until SMAP. Found by debug session x86-syscall-entry-flags (WINDOWS #71 sibling)",
+    "status": "fixed",
+    "reason": "r9 6f8de40 (cld first in intrcommon; a CLAC note for SMAP). Red on e6e5220: fpprobe flags-dfirq → kernel `trap PF` (smashed stack LockNode, DF in the kernel flags); green at 116bcc2; the no-cld mutant reds it again; host test trap::tests::intrcommon_clears_df_before_calling_trap. Debug session .planning/debug/resolved/x86-syscall-entry-flags.md; owner confirmed fixed 2026-11-22; r9 116bcc2 pushed by the coordinator.",
+    "recorded_at": "2026-11-22T20:34:40.116Z",
+    "resolved_at": "2026-11-22T20:34:58.042Z",
+    "milestone": "v2.1"
+  },
+  {
+    "id": 73,
+    "kind": "deviation",
+    "phase": "20",
+    "file": "r9:x86_64/src/trap.rs",
+    "line": 279,
+    "description": "x86_64 intrspecial (the #DB, NMI, #BP and #DF entry) chose its SWAPGS by comparing RDGSBASE with the Mach, but RDGSBASE needs CR4.FSGSBASE, which the boot CPU never sets (l.S: TCG qemu64 cannot), so the instruction raised #UD inside the entry and every such exception ended in a kernel `trap UD` halt — including a ring-3 single-step (POPFQ TF) or int3, a user-triggerable kernel halt, and the legitimate ring-3 #DB that the #71 FMASK fix produces. Reproduced on r9 e6e5220 by fpprobe flags-tf: kernel `trap UD` at intrspecial's rdgsbaseq. Found by debug session x86-syscall-entry-flags (WINDOWS #71 sibling)",
+    "status": "fixed",
+    "reason": "r9 f1cd71b (intrspecial reads IA32_GS_BASE with rdmsr, rax/rcx/rdx saved, the same KMACH comparison). Red on e6e5220: fpprobe flags-tf → kernel `trap UD` at intrspecial's rdgsbaseq; green at 116bcc2 (the ring-3 single-step kills only the child, `sys: trap`); the rdgsbase mutant reds it again; host test trap::tests::entry_asm_uses_no_fsgsbase_instruction. Debug session .planning/debug/resolved/x86-syscall-entry-flags.md; owner confirmed fixed 2026-11-22; r9 116bcc2 pushed by the coordinator.",
+    "recorded_at": "2026-11-22T20:34:40.291Z",
+    "resolved_at": "2026-11-22T20:34:58.236Z",
     "milestone": "v2.1"
   }
 ]
