@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
-stopped_at: Completed 20-16-PLAN.md (Harvey push checkpoint pending)
-last_updated: "2026-11-22T17:05:52.583Z"
+stopped_at: Completed 20-17-PLAN.md
+last_updated: "2026-11-22T18:33:23.397Z"
 last_activity: 2026-11-22
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: f98f2c9e93a9c5b4d42f27efc1a55cc50d38df25
+state_head: 3f16b791dcba30be4c85b349aea6a9998239a9b0
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 74
+  completed_plans: 75
 ---
 
 # Project State
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
 Plan: 17 of 17
-Status: In progress — 20-01..20-16 complete; pin r9 821db85 (Harvey fd80f6a70, lock-only, batched 20-15+20-16; r9 origin/main = 821db85); quick pass green at the pin (tier-1 HVF+TCG 44/23/0, smoke + net-smoke HVF, boot-r9-cpu HVF+TCG); boot-r9-cpu = the arm64 cpu fixture gate (3x HVF + 1x TCG green, red at cap on kernel-virt, CPU-FORKS-PER-BOOT = 17); Harvey local commits from 20-15 and 20-16 UNPUSHED — the Harvey push needs an owner checkpoint; full HVF series deferred to the end of phase 20 (owner); next 20-17
-Last activity: 2026-11-22 - 20-16 complete: boot-r9-cpu gate (owner as-planned), pin 821db85
+Status: Execution complete — 20-01..20-17 complete; pin r9 e6e5220 (Harvey 97cb3c7bb, lock-only; r9 origin/main = e6e5220); Harvey pushed at 3f16b791d with hosted CI green on both repos (incl. cpu-smoke, test-aarch64-host, build-aarch64-virtcpu); confidence pass green at the pin; full HVF series deferred to the owner's SMP work; phase 20 ready for verification
+Last activity: 2026-11-22 - 20-17 complete: aarch64 host-test battery, group C pinned at r9 e6e5220, Harvey pushed
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 execution-complete pending verification; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
@@ -137,6 +137,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 20 P14 | 120 min | 4 tasks | 9 files |
 | Phase 20 P15 | 55 min | 4 tasks | 5 files |
 | Phase 20 P16 | 100 min | 4 tasks | 10 files |
+| Phase 20 P17 | 3h10m (series stopped by owner) | 4 tasks | 14 files |
 
 ## Accumulated Context
 
@@ -355,6 +356,9 @@ Recent decisions affecting current work:
 - [Phase 20]: 20-16 owner as-planned: boot-r9-cpu stages init: starting /bin/rc then the % prompt after cpurc: DONE (AFTER-CPURC: prompt measured HVF+TCG)
 - [Phase 20]: 20-16: boot-r9-cpu lives in its own optionalAttrs keyed on r9 kernel-virt-cpu, absent at older pins
 - [Phase 20]: 20-16 owner batching: 20-15+20-16 pin move done as ONE lock-only move c94bc9b -> 821db85 (Harvey fd80f6a70), quick pass green, full series deferred to phase end
+- [Phase 20]: Owner: full 20-06-shape HVF series stopped at r9 e6e5220 and deferred to the upcoming SMP work; partial (tier-1 HVF 10/10, net-smoke HVF 12/12) and the quick confidence pass green at the pin
+- [Phase 20]: 20-17: aarch64 host-test battery (route A) — cargo xtask test runs the aarch64 crate at default + virtshell cfg under nix; r9 CI lanes build-aarch64-virtcpu + test-aarch64-host green at e6e5220
+- [Phase 20]: 20-17: group C closed at r9 e6e5220 (Harvey 97cb3c7bb lock-only, pushed 3f16b791d; hosted CI green incl. cpu-smoke); N-HVF boot-r9-cpu = 36
 
 ### Pending Todos
 
@@ -397,6 +401,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-22T17:05:51.004Z
-Stopped at: Completed 20-16-PLAN.md (Harvey push checkpoint pending)
+Last session: 2026-11-22T18:33:22.056Z
+Stopped at: Completed 20-17-PLAN.md
 Resume file: None

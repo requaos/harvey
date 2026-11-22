@@ -99,7 +99,7 @@ Reactivates the arm64 leg (objtype `arm64`; r9 crate `aarch64/`). Supersedes the
 - [x] **ARM-09**: devcap and devssl are served on arm64 (device arms, tick hook, fd-resolve hook, `mount` over a `#D` chan), and the virtio capability-extent hardening (`check_cap_extents`) is ported
 - [x] **ARM-10**: Boot configuration reaches the ROOT env seed on arm64 through DTB `/chosen/bootargs` (merge, never replace; absent string leaves the boot byte-identical)
 - [x] **ARM-11**: An arm64 fixture gate exercises the cpu-port arms live (bootconf, `#!`, REMOVE over devcap, devssl) and is green on HVF at the pin
-- [ ] **ARM-12**: An aarch64 host-test battery pins the ported pure logic (shebang pass, stat validation, bootconf parser, cap extents), by the route the host-compilability measurement selects
+- [x] **ARM-12**: An aarch64 host-test battery pins the ported pure logic (shebang pass, stat validation, bootconf parser, cap extents), by the route the host-compilability measurement selects
 
 ## Future Requirements
 
@@ -194,7 +194,7 @@ Each requirement maps to exactly one phase. Populated at roadmap creation (v2.1 
 | ARM-09 | Phase 20 | Complete |
 | ARM-10 | Phase 20 | Complete |
 | ARM-11 | Phase 20 | Complete |
-| ARM-12 | Phase 20 | Pending |
+| ARM-12 | Phase 20 | Complete |
 
 **Coverage:**
 - v2.1 requirements: 58 total (46 from the v2.1 roadmap + 12 ARM added with Phase 20)

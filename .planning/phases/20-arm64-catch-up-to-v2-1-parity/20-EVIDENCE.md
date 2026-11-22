@@ -2300,3 +2300,20 @@ The last cpu capture (TCG) has one each of the seven markers `cpurc: RAN`, `SHEB
 ### Records
 
 The 20-13 carrier answer was `chosen-bootargs`, so `.planning/REQUIREMENTS.md` ARM-10 is not touched. `.planning/STATE.md` records the phase's arm64 parity line.
+
+### Harvey push and owner checks (Task 4)
+
+`git log origin/master..master` held exactly this plan's five commits: `204b7f6d3`, `0151ef255`, `5c3f2c239`, `97cb3c7bb` and `3f16b791d`. The push was `git push origin master` with no force, and printed `8ca399870..3f16b791d  master -> master`. The plan's check printed `HARVEY-PUSHED`.
+
+HARVEY-PUSH: done
+
+- **r9 at `e6e5220`:** green, owner-reported through the coordinator. This includes the new `build-aarch64-virtcpu` and `test-aarch64-host` (`ubuntu-24.04-arm`) lanes.
+- **Harvey at `3f16b791d`** (checked with `gh run list` / `run view`):
+  - r9-shell `45053709426`: `boot-smoke`, `net-smoke`, `cpu-smoke` (new), `net-smoke-x64` and `auth-smoke-x64` pass.
+  - phase6-userspace `45053709441`: `tier-r9`, `tier-9k`, `tier-2`, `x86_64-poolpanic` and `wave0-host` pass.
+  - harvey `45053709410`: `build` passes.
+- **The tier-9k capture:** `T1-VENUE-PASS ok=36 skip=22+2libtest fail=0 done=yes svc=9/0 … accel=kvm commit=3f16b791d…`. It has 0 lines naming any r9-only probe (forkstress, writeprobe, cexecprobe, cexeccreate, rcloseprobe, brkprobe, fpprobe).
+- **Linux boot-iso:** no x86_64 or `port/src` byte has changed since `c94bc9b`, where the owner's `nix build .#boot-iso --rebuild` passed.
+- **The parity line** (`REMOVE-ROUTE: devmnt-remove`, plus the not-ported pin list under `## Host-test battery`): accepted with the owner's Task 4 approval.
+
+OWNER-CHECKS: approved
