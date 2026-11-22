@@ -337,7 +337,7 @@ Plans:
 **Carried in from quick 261117-bz5 (unrun there):** the donor-venue gates (`build/aarch64/subset-exec.sh` merged /arm64 staging; `build/aarch64/trace-boot.rc` `bind /boot/ourinit /arm64/init`) and r9 `cargo test -p port` on nightly-2026-01-30.
 **Requirements**: ARM-01, ARM-02, ARM-03, ARM-04, ARM-05, ARM-06, ARM-07, ARM-08, ARM-09, ARM-10, ARM-11, ARM-12
 **Depends on:** Phase 19
-**Plans:** 14/17 plans executed
+**Plans:** 15/17 plans executed
 
 Plans (strictly sequential, one wave each — the plans share the one r9 checkout and the HVF timing series must not run under other load):
 
@@ -360,6 +360,6 @@ Plans (strictly sequential, one wave each — the plans share the one r9 checkou
 - [x] 20-12-PLAN.md — measure aarch64 host-test compilability and an arm64 consumer + baseline for each cpu-port arm (sslprobe); owner checkpoint on the devcap profile route (ARM-11, ARM-12)
 - [x] 20-13-PLAN.md — DTB bootconf: launcher seam, delivery measurement, owner checkpoint on the carrier, reader + pair parser + ROOT env seed merge; virtio check_cap_extents (ARM-10, ARM-09)
 - [x] 20-14-PLAN.md — exec and remove measurements; owner checkpoint on the remove route; `#!` exec pre-pass (sys_exec factored first); REMOVE/WSTAT/FWSTAT dispatch with stat validation (ARM-08)
-- [ ] 20-15-PLAN.md — devcap/devssl baseline on a cap kernel; owner checkpoint; devcap + devssl arms and hooks; the devcap-carrying kernel by the chosen route (virtcpu profile + kernel-virt-cpu) (ARM-09)
+- [x] 20-15-PLAN.md — devcap/devssl baseline on a cap kernel; owner checkpoint; devcap + devssl arms and hooks; the devcap-carrying kernel by the chosen route (virtcpu profile + kernel-virt-cpu) (ARM-09)
 - [ ] 20-16-PLAN.md — cpu boot-path measurement; owner checkpoint; arm64 cpu fixture (cpurc, shebangecho, cpuprobe), the boot-r9-cpu gate (ARM-11)
 - [ ] 20-17-PLAN.md — the aarch64 host-test battery; group C close: CI lanes, push r9, lock-only pin, HVF series at the pin for four gates, records, push Harvey; owner checkpoint (ARM-03, ARM-05, ARM-11, ARM-12)

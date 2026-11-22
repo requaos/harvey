@@ -5,16 +5,16 @@ milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
-stopped_at: Completed 20-14-PLAN.md
-last_updated: "2026-11-22T13:29:21.922Z"
+stopped_at: Completed 20-15-PLAN.md
+last_updated: "2026-11-22T16:15:34.352Z"
 last_activity: 2026-11-22
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: 8160ec3f3480e546ba0d51826ab09536cf4eaecf
+state_head: a4f5393279ad9e91b4d4bf256da728c4e5424690
 progress:
   total_phases: 8
   completed_phases: 2
   total_plans: 75
-  completed_plans: 72
+  completed_plans: 73
 ---
 
 # Project State
@@ -29,9 +29,9 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 ## Current Position
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
-Plan: 15 of 17
-Status: In progress — 20-01..20-14 complete; r9 pin advanced to c94bc9b (Harvey 8160ec3f3, lock-only; origin/main = c94bc9b: 20-13/20-14 ports + the fork-child I-cache fix, user FP/SIMD, async notes/NSAVE, aarch64 fault-return notes); owner linux boot-iso --rebuild PASSED at c94bc9b; confidence pass green at the pin; full HVF series deferred to the end of phase 20 (owner); Harvey push pending owner decision; next 20-15
-Last activity: 2026-11-22 - 20-14 pin checkpoint: pin at r9 c94bc9b, confidence pass green, full series deferred to phase end
+Plan: 16 of 17
+Status: In progress — 20-01..20-15 complete; pin r9 c94bc9b (Harvey 8160ec3f3); 20-15 local r9 commits 505494e (aarch64 devcap/devssl arms + hooks) and 821db85 (virtcpu profile + kernel-virt-cpu package) UNPUSHED, no port/src or x86_64 byte change; sslprobe green HVF/TCG, devcap live on virtcpu; full HVF series deferred to the end of phase 20 (owner); r9 push + pin move need an owner checkpoint (confidence pass only); next 20-16
+Last activity: 2026-11-22 - 20-15 complete: devssl + devcap on arm64 (proceed-aarch64-only), CAP-PROFILE: virtcpu
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 execution-complete pending verification; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
@@ -135,6 +135,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | Phase 20 P12 | 5h41m | 3 tasks | 5 files |
 | Phase 20 P13 | 4h9m | 4 tasks | 6 files |
 | Phase 20 P14 | 120 min | 4 tasks | 9 files |
+| Phase 20 P15 | 55 min | 4 tasks | 5 files |
 
 ## Accumulated Context
 
@@ -349,6 +350,7 @@ Recent decisions affecting current work:
 - [Phase 20]: aarch64 #! exec pre-pass and REMOVE/WSTAT/FWSTAT dispatch at x86_64 parity (r9 7adb773, 9173af0); sys_remove routes through port::namec::remove_chan
 - [Phase 20]: Owner: require-remove; T1-OK writeprobe requires all eight steps including remove (Harvey d67f23a52)
 - [Phase 20]: Owner: full 20-06-shape HVF series deferred to the end of phase 20 (one series covering everything); 20-14 pin at r9 c94bc9b rests on a confidence pass (tier1 HVF+TCG, smoke + net-smoke HVF) and the partial series (all green); owner linux boot-iso --rebuild PASSED at c94bc9b
+- [Phase 20]: 20-15: owner proceed-aarch64-only — devcap/devssl arms built under aarch64/ only (r9 505494e), virtcpu profile + kernel-virt-cpu package (r9 821db85); no port/src edit; remove_chan and sys_fversion already satisfied
 
 ### Pending Todos
 
@@ -390,6 +392,6 @@ Items acknowledged and deferred at milestone close, most recent first:
 
 ## Session Continuity
 
-Last session: 2026-11-21T15:37:44.602Z
-Stopped at: Completed 20-14-PLAN.md
+Last session: 2026-11-22T16:15:32.810Z
+Stopped at: Completed 20-15-PLAN.md
 Resume file: None
