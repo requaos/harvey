@@ -1,10 +1,10 @@
 ---
 schema_version: 1
-open_count: 53
+open_count: 54
 waived_count: 3
 fixed_count: 12
-total_count: 68
-last_updated: 2026-11-19T00:00:00.000Z
+total_count: 69
+last_updated: 2026-11-22T08:30:00.000Z
 ---
 
 # Broken Windows Ledger
@@ -83,6 +83,7 @@ last_updated: 2026-11-19T00:00:00.000Z
 | 67 | 17 | deviation | build/x86_64/root-tree/lib/churn-cats.rc |  | rc userland malloc pool corrupts under sustained backquote churn (~428+ iterations, poisoned-header signature) — found by 17-02's composed churn leg; repro committed; deferred to 17-03's rc rows | open |  | 2026-11-12T21:27:16.731Z |  |
 | 68 | 17 | deviation | build/x86_64/services-r9-x64.log | 132 | services-x64 gate faults at the dns stage: kernel NULL-call (PF pc=0x0) after devmnt cs error — pre-existing, A/B-proven identical at pins b02408cad and 02218e88c; last green services run was the 15-08 era; root cause open (17-04-deferred-items.md) | open |  | 2026-11-12T23:34:20.636Z |  |
 | 69 | 17 | deviation | build/x86_64/tier1-sweep.rc |  | 17-05: the tier1 gate's date check passes on a pre-existing display quirk, not a real epoch — hdate -n == 0 every r9-x64 kernel this era (r9 devcons serves no /dev/bintime; libc nsec() returns 0 on the failed open) and the sweep's *20[0-9][0-9]* expectation is met only because ctime(0) under the EST timezone data displays 'Feb 7 2006'; identical at r9 63bfda9 (pre) and 59d28fa (post), live-measured both sides; root fix belongs to the clock-seam owner (Phase-14's no-RTC era shape) | open |  | 2026-11-13T01:59:58.328Z |  |
+| 70 | 20 | todo | r9:aarch64/src/proc.rs | 1753 | aarch64 sched_loop resumes a Ready proc that is not blocked_in_kernel (preempted at EL0, or a fork child's first run) with a bare trap_return (Resume::Return) — no note boundary on that return to EL0, so a note posted while the proc was off the CPU waits for its next tick, syscall or demand fault (the fault-return boundary landed in r9 5f7c4e1). x86_64 has no such path (a preempted proc resumes inside its own IRQ trap()). Deferred, needs its own design: delivering, or the no-handler kill, from sched-loop context (scheduler stack, PROC_TABLE lock, exit_tail re-entering the scheduler). Found by debug session arm64-fault-return-notes; the fpprobe note-fault round's criterion (no later than the first fault) stays valid when it lands | open |  | 2026-11-22T08:30:00.000Z |  |
 
 ````json
 [
@@ -967,6 +968,19 @@ last_updated: 2026-11-19T00:00:00.000Z
     "status": "open",
     "reason": "",
     "recorded_at": "2026-11-13T01:59:58.328Z",
+    "resolved_at": null,
+    "milestone": "v2.1"
+  },
+  {
+    "id": 70,
+    "kind": "todo",
+    "phase": "20",
+    "file": "r9:aarch64/src/proc.rs",
+    "line": 1753,
+    "description": "aarch64 sched_loop resumes a Ready proc that is not blocked_in_kernel (preempted at EL0, or a fork child's first run) with a bare trap_return (Resume::Return) — no note boundary on that return to EL0, so a note posted while the proc was off the CPU waits for its next tick, syscall or demand fault (the fault-return boundary landed in r9 5f7c4e1). x86_64 has no such path (a preempted proc resumes inside its own IRQ trap()). Deferred, needs its own design: delivering, or the no-handler kill, from sched-loop context (scheduler stack, PROC_TABLE lock, exit_tail re-entering the scheduler). Found by debug session arm64-fault-return-notes; the fpprobe note-fault round's criterion (no later than the first fault) stays valid when it lands",
+    "status": "open",
+    "reason": "",
+    "recorded_at": "2026-11-22T08:30:00.000Z",
     "resolved_at": null,
     "milestone": "v2.1"
   }
