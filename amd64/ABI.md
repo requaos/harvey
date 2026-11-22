@@ -43,9 +43,22 @@ donor is Harvey's own kernel.
   pushes NO hardware frame; the kernel's entry routine software-builds
   the hardware half of the Ureg (see "Entry state" below).
 - **Result:** register `AX` (`ureg->ax = ar0.p`, `syscall.c:280`).
-- **Flags mask on entry:** `Sfmask = If` ONLY (`vsvm.c:185`) — the
-  SYSCALL instruction clears IF (and the FMASK bits) on entry; TF/DF
-  pass through untouched.
+- **Flags on entry:** the kernel runs with `IF`, `TF`, `DF`, `NT` and
+  `AC` clear whatever user code set (POPFQ can set all but IF). r9
+  arms `Sfmask = If|Tf|Df|Nt|Ac` (0x44700, the Linux set; r9 10f675e,
+  `x86_64/src/cpu.rs` `fmask()`), so the SYSCALL instruction clears
+  them on entry, and r9's interrupt/exception entry `intrcommon` runs
+  `cld` before any kernel code (r9 6f8de40 — the IDT gates clear TF
+  and NT but keep DF). The user's own RFLAGS are untouched: SYSCALL
+  saves them in `R11` before masking, the entry stores `R11` as
+  `ureg->flags`, and `SYSRETQ` (or NOTED's `IRETQ`) restores them, so
+  user code sees its own TF/DF/NT/AC after every syscall (a TF
+  single-step traps in ring 3 after the syscall returns). This is not
+  a wire change. The 9k donor arms `Sfmask = If` ONLY (`vsvm.c:185`)
+  and lets TF/DF reach its kernel, which is safe there because every
+  6c string instruction in it sets the direction itself; r9's Rust
+  kernel relies on DF=0 at every call, and a user TF/NT in ring 0
+  crashed it (WINDOWS #71 — the reversal of D-02a's If-only value).
 
 ## User-side stub shape
 
@@ -225,7 +238,9 @@ TSS-rsp0 mechanism.
 - `Star = SSEL(SiU32CS, SsRPL3)<<48 | SSEL(SiCS, SsRPL0)<<32`
   (SYSRET takes CS from STAR[63:48]+16, SS from STAR[63:48]+8);
 - `Lstar = syscallentry`;
-- `Sfmask = If` (IF only — see Wire contract);
+- `Sfmask = If` on the 9k donor; r9 arms `If|Tf|Df|Nt|Ac` (0x44700,
+  r9 10f675e) and clears DF at its IDT entry (r9 6f8de40) — see Wire
+  contract;
 - kernel `GSbase` = the per-CPU Mach pointer, `KernelGSbase` = 0
   (user GS base is 0; user code does not use GS).
 
