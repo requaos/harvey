@@ -60,3 +60,64 @@ TEXT	fpstore(SB), 1, $-4
 	WORD	$0xd53b4421	/* mrs x1, fpsr */
 	WORD	$0xf9010401	/* str x1, [x0, #0x208] */
 	RETURN
+
+/*
+ * gprspin(b): the note leg's register round.  Load a sentinel into
+ * R1-R16 and R19-R23 (R0 holds b; R17 is the linker's temporary, R18
+ * the platform register, R24 counts down, R25 takes the flag, R26-R28
+ * are 7c's extern registers and SB), spin until the note handler sets
+ * b[0] (or R24 runs out), then store the registers to b[1..21] for the
+ * C side to compare: noted(NCONT) after an asynchronous note must give
+ * every one of them back.
+ */
+TEXT	gprspin(SB), 1, $-4
+	MOV	$0x1111111111111101, R1
+	MOV	$0x1111111111111102, R2
+	MOV	$0x1111111111111103, R3
+	MOV	$0x1111111111111104, R4
+	MOV	$0x1111111111111105, R5
+	MOV	$0x1111111111111106, R6
+	MOV	$0x1111111111111107, R7
+	MOV	$0x1111111111111108, R8
+	MOV	$0x1111111111111109, R9
+	MOV	$0x111111111111110a, R10
+	MOV	$0x111111111111110b, R11
+	MOV	$0x111111111111110c, R12
+	MOV	$0x111111111111110d, R13
+	MOV	$0x111111111111110e, R14
+	MOV	$0x111111111111110f, R15
+	MOV	$0x1111111111111110, R16
+	MOV	$0x1111111111111113, R19
+	MOV	$0x1111111111111114, R20
+	MOV	$0x1111111111111115, R21
+	MOV	$0x1111111111111116, R22
+	MOV	$0x1111111111111117, R23
+	MOV	$0x80000000, R24
+spin:
+	MOVW	(R0), R25
+	CBNZ	R25, done
+	SUB	$1, R24
+	CBNZ	R24, spin
+done:
+	MOV	R1, 8(R0)
+	MOV	R2, 16(R0)
+	MOV	R3, 24(R0)
+	MOV	R4, 32(R0)
+	MOV	R5, 40(R0)
+	MOV	R6, 48(R0)
+	MOV	R7, 56(R0)
+	MOV	R8, 64(R0)
+	MOV	R9, 72(R0)
+	MOV	R10, 80(R0)
+	MOV	R11, 88(R0)
+	MOV	R12, 96(R0)
+	MOV	R13, 104(R0)
+	MOV	R14, 112(R0)
+	MOV	R15, 120(R0)
+	MOV	R16, 128(R0)
+	MOV	R19, 136(R0)
+	MOV	R20, 144(R0)
+	MOV	R21, 152(R0)
+	MOV	R22, 160(R0)
+	MOV	R23, 168(R0)
+	RETURN

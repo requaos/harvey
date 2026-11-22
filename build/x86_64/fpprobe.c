@@ -1,5 +1,6 @@
 #include <u.h>
 #include <libc.h>
+#include <ureg.h>
 
 /*
  * fpprobe — user FPU/SSE register survival probe (r9 x86_64; the
@@ -36,17 +37,28 @@
  *	preempt	-w workers only spin (-p rounds, default 4, of -s
  *		iterations): none blocks, so the timer tick must preempt each
  *		in ring 3 and run the other
- *	note	a child with a notify handler loads a pattern and takes a
- *		note twice: written to its own /proc/N/note (delivered at the
- *		write's return) and an alarm that interrupts a blocking
- *		sleep (delivered at the sleep's return, after a switch
- *		away and back).  r9 x86_64 delivers notes only at a syscall
- *		boundary — an alarm cannot interrupt ring-3 code — so the
- *		aarch64 probe's spinning variant does not apply here.  The
- *		handler first stores what it started with (it must be a copy
- *		of the interrupted state), loads a different pattern, and
- *		returns with noted(NCONT); the interrupted code must then
- *		find its own pattern (9front's notify/noted FP save)
+ *	note	a child with a notify handler takes notes five ways:
+ *		sync	written to its own /proc/N/note (delivered at the
+ *			write's return)
+ *		sleep	an alarm interrupts a blocking sleep (delivered at
+ *			the sleep's return, after a switch away and back)
+ *		spin	an alarm interrupts integer code in ring 3
+ *			(delivered on the interrupt return)
+ *		regs	an alarm interrupts gprspin (fpprobeasm.s), which
+ *			holds a sentinel in every general register it may
+ *			use, CX and R11 included: noted(NCONT) must restore
+ *			them all, so it cannot return through SYSRET (which
+ *			loads CX and R11 with the return pc and flags)
+ *		nsave	the handler retargets the saved pc at a trampoline
+ *			and calls noted(NSAVE); the trampoline must start
+ *			with the interrupted code's FP state, take a second
+ *			note (NSAVE re-enables notes), restore the pc and
+ *			noted(NRSTR) back to the program (notify(2))
+ *		For the first three the handler first stores what it
+ *		started with (it must be a copy of the interrupted state),
+ *		loads a different pattern, and returns with noted(NCONT);
+ *		the interrupted code must then find its own pattern
+ *		(9front's notify/noted FP save)
  *
  * usage: fpprobe [-n rounds] [-p rounds] [-s spin] [-w workers]
  * Prints `fpprobe: ok' and exits nil, or one `fpprobe: BAD <leg> ...'
@@ -71,6 +83,7 @@ static int prounds = 4;
 static long spinn = 20000000;
 static int nworker = 2;
 static long sink;
+static volatile long vsink;
 static uchar entryraw[Nfx+16];
 
 static void
@@ -387,29 +400,79 @@ workers(char *leg, int seed0, int spinonly)
 }
 
 /* the note leg's handler state (the handler runs in the same process) */
-static uchar nraw[2][Nfx+16];
-static uchar *hpat, *hentry;
-static volatile int nseen;
+enum {
+	Mwrite,	/* the note is written to our own /proc/N/note */
+	Msleep,	/* an alarm interrupts a blocking sleep */
+	Mspin,	/* an alarm interrupts integer code */
+};
+static uchar nraw[4][Nfx+16];
+static uchar *hpat, *hentry, *hnow, *tentry;
+static volatile int nseen, nsave, nested, tramped, nsavefail;
+static uintptr savedpc;
+static int nfdg;
+static uvlong gregs[16];	/* gprspin: [0] the handler's flag, [1..12] the registers */
+
+/* fpprobeasm.s */
+extern void	gprspin(uvlong *b);
+
+static void
+copyfx(uchar *dst, uchar *src)
+{
+	int i;
+
+	for(i = 0; i < Nfx; i++)
+		dst[i] = src[i];
+}
+
+/* the NSAVE trampoline: entered at the retargeted pc on the handler's stack */
+static void
+tramp(void *u, char *msg)
+{
+	struct Ureg *ur;
+
+	USED(msg);
+	fpstore(tentry);	/* first: NSAVE must have restored the interrupted state */
+	ur = u;
+	tramped++;
+	write(nfdg, "fpprobe2", 8);	/* notes are enabled again: this one nests */
+	ur->ip = savedpc;
+	noted(NRSTR);
+}
 
 static void
 nhandler(void *u, char *msg)
 {
-	USED(u);
-	fpstore(hentry);	/* first: the state the handler started with */
+	struct Ureg *ur;
+
+	fpstore(hnow);	/* first: the state the handler started with */
+	ur = u;
+	if(strcmp(msg, "fpprobe2") == 0){
+		nested++;
+		noted(NCONT);
+	}
 	if(strcmp(msg, "alarm") != 0 && strcmp(msg, "fpprobe") != 0)
 		noted(NDFLT);
+	copyfx(hentry, hnow);
+	gregs[0] = 1;
 	fpload(hpat);
 	nseen++;
+	if(nsave){
+		savedpc = ur->ip;
+		ur->ip = (uintptr)tramp;
+		noted(NSAVE);
+		nsavefail = 1;	/* noted returned: NSAVE was refused */
+		ur->ip = savedpc;
+	}
 	noted(NCONT);
 }
 
 /*
- * One note round: load seed's pattern, take a note, compare.  The
+ * One FP note round: load seed's pattern, take a note, compare.  The
  * synchronous note is written through an fd opened beforehand, so only
  * the write stub runs inside the window.
  */
 static int
-noteround(char *leg, int seed, int nfd)
+noteround(char *leg, int seed, int mode)
 {
 	uchar wraw[Nfx+16], graw[Nfx+16], *want, *got;
 	long i;
@@ -420,12 +483,21 @@ noteround(char *leg, int seed, int nfd)
 	pattern(want, seed, 0);
 	nseen = 0;
 	fpload(want);
-	if(nfd < 0){
+	switch(mode){
+	case Mwrite:
+		write(nfdg, "fpprobe", 7);
+		break;
+	case Msleep:
 		alarm(50);
 		for(i = 0; i < 20 && nseen == 0; i++)
 			sleep(1000);
-	}else
-		write(nfd, "fpprobe", 7);
+		break;
+	case Mspin:
+		alarm(50);
+		for(i = 0; i < 200000000 && nseen == 0; i++)
+			vsink += i;
+		break;
+	}
 	fpstore(got);
 	if(nseen != 1){
 		print("fpprobe: BAD %s handler ran %d times\n", leg, nseen);
@@ -437,11 +509,71 @@ noteround(char *leg, int seed, int nfd)
 	return bad;
 }
 
+/* the register round: every register gprspin uses survives an async note */
+static int
+regsround(void)
+{
+	static char *name[] = { "ax", "bx", "cx", "dx", "si", "di", "r8", "r9", "r10", "r11", "r12" };
+	static uvlong want[] = {
+		0x1111111111111101ULL, 0x1111111111111102ULL, 0x1111111111111103ULL,
+		0x1111111111111104ULL, 0x1111111111111105ULL, 0x1111111111111106ULL,
+		0x1111111111111108ULL, 0x1111111111111109ULL, 0x111111111111110aULL,
+		0x111111111111110bULL, 0x111111111111110cULL,
+	};
+	int i, bad;
+
+	gregs[0] = 0;
+	nseen = 0;
+	alarm(50);
+	gprspin(gregs);
+	if(nseen != 1){
+		print("fpprobe: BAD note-regs handler ran %d times\n", nseen);
+		return -1;
+	}
+	bad = 0;
+	for(i = 0; i < nelem(want); i++)
+		if(gregs[1+i] != want[i]){
+			print("fpprobe: BAD note-regs %s want=%llux got=%llux\n", name[i], want[i], gregs[1+i]);
+			bad = -1;
+		}
+	return bad;
+}
+
+/* the NSAVE round: trampoline, a nested note, NRSTR back */
+static int
+nsaveround(void)
+{
+	uchar wraw[Nfx+16], graw[Nfx+16], *want, *got;
+	int bad;
+
+	want = aligned(wraw);
+	got = aligned(graw);
+	pattern(want, 24, 0);
+	nseen = nested = tramped = nsavefail = 0;
+	nsave = 1;
+	fpload(want);
+	write(nfdg, "fpprobe", 7);
+	fpstore(got);
+	nsave = 0;
+	if(nsavefail){
+		print("fpprobe: BAD note-nsave noted(NSAVE) refused\n");
+		return -1;
+	}
+	if(nseen != 1 || tramped != 1 || nested != 1){
+		print("fpprobe: BAD note-nsave handler %d trampoline %d nested %d (want 1 1 1)\n", nseen, tramped, nested);
+		return -1;
+	}
+	bad = check("note-nsave", 24, 0, want, got);
+	if(check("note-tramp-entry", 24, 0, want, tentry) < 0)
+		bad = -1;
+	return bad;
+}
+
 static int
 noteleg(void)
 {
 	char path[64];
-	int pid, bad, nfd;
+	int pid, bad;
 
 	pid = rfork(RFPROC|RFFDG);
 	if(pid < 0){
@@ -452,10 +584,12 @@ noteleg(void)
 		return reap("note");
 	hpat = aligned(nraw[0]);
 	hentry = aligned(nraw[1]);
+	hnow = aligned(nraw[2]);
+	tentry = aligned(nraw[3]);
 	pattern(hpat, 21, 0);
 	snprint(path, sizeof path, "/proc/%d/note", getpid());
-	nfd = open(path, OWRITE);
-	if(nfd < 0){
+	nfdg = open(path, OWRITE);
+	if(nfdg < 0){
 		print("fpprobe: BAD note open %s: %r\n", path);
 		exits("bad");
 	}
@@ -464,9 +598,15 @@ noteleg(void)
 		exits("bad");
 	}
 	bad = 0;
-	if(noteround("note-sync", 22, nfd) < 0)
+	if(noteround("note-sync", 22, Mwrite) < 0)
 		bad = -1;
-	if(noteround("note-alarm", 23, -1) < 0)
+	if(noteround("note-sleep", 23, Msleep) < 0)
+		bad = -1;
+	if(noteround("note-spin", 25, Mspin) < 0)
+		bad = -1;
+	if(regsround() < 0)
+		bad = -1;
+	if(nsaveround() < 0)
 		bad = -1;
 	exits(bad < 0? "bad": nil);
 	return 0;
