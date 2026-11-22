@@ -1815,3 +1815,99 @@ The HVF net-smoke leg that went red at `105d48e` (run 23) is 36/36 here. Series 
 Kernel `r9-kernel-virt-c94bc9b` on every run. Captures: `.build/p20-14-conf-*.{out,log}`.
 
 SERIES-AT-PIN: deferred-to-phase-end (owner); confidence pass green at c94bc9b
+
+## Devcap and devssl baseline
+
+Plan 20-15 Task 1 (D-09). Read-only for r9: no arm written, no r9 commit. r9 at `c94bc9b` (= the Harvey pin = `origin/main`), clean before and after. Host darwin-arm64, r9's default devShell (`rustc 1.95.0-nightly (842bd5be2 2026-01-29)`). Every line number below is at `c94bc9b`.
+
+### A-cap from source
+
+- `port/src/lib.rs:54-60` declares `pub mod devcap;` with **no cfg** (its comment: "Compiles everywhere (aarch64 included … the namec registry arm is cfg(dev_cap)-gated"). `port/src/lib.rs:71-76` declares `pub mod devssl;` with no cfg either.
+- Every place `dev_cap` is consulted (`grep -rn dev_cap port/src aarch64/src x86_64/src Cargo.toml xtask/src`, comments excluded): `port/src/namec.rs:98` (`#[cfg(dev_cap)]` on the `'¤' => devcap::attach()` registry arm) and `x86_64/src/main.rs:478` (`#[cfg(dev_cap)]` on `port::devcap::set_tick_hook`). `Cargo.toml:50` declares `cfg(dev_cap)` in the workspace check-cfg; `xtask/src/config.rs:39` derives `dev_<name>` from the TOML `dev` list. Nothing under `aarch64/src` names `dev_cap` today.
+- Unregistered tick hook: no panic. `ticks_now()` (`devcap.rs:120-123`) is `TICK_HOOK.lock(..).map_or(0, |f| f())`, so `addcap` records `ticks: 0`. The field is never read (`devcap.rs:81-90`, the donor's dead field). A second registration asserts (`devcap.rs:113-118`, `"devcap: tick hook registered twice"`).
+- devcap's own walk/open/stat/remove dispatch is already in port: `namec.rs:149` (walk), `426` (open), `467` (remove, inside `remove_chan`), `516` (stat). Only pread/pwrite are arch-side.
+
+### A-ssl and A-aarch64-only from source
+
+**fversion.** aarch64 `sys_fversion` (`aarch64/src/syscall.rs:870-907`) has no device check: it takes the fd and calls `port::devmnt::fversion(&mut chan, msize, ..)`. That body is statement-for-statement x86_64's (`x86_64/src/syscall.rs:789-821`). 917685c did not change x86_64 `sys_fversion`; its fversion half (item 3 of the commit message) is in port: `devmnt.rs:1009` (`if chan.dev != DEV_PIPE && chan.dev != DEV_SSL`) and the `ChanIo` read/write dispatch at `devmnt.rs:274-282`, which already routes `DEV_SSL` to `devssl::{read,write}`. Both are shared, so arm64 has them already.
+
+SSL-FVERSION: unrestricted
+
+**mount.** aarch64 `sys_mount` `syscall.rs:953` still reads `if chan.dev != DEV_PIPE || chan.mode & OMASK != ORDWR`. x86_64 `syscall.rs:856-865` (917685c's only x86_64/src hunk) accepts `DEV_PIPE` or `DEV_SSL`. Task 3 step 5 ports it.
+
+**x86_64 arm inventory** (every non-test `DEV_CAP` / `DEV_SSL` match arm or check in `x86_64/src/syscall.rs`, i.e. above its first `#[cfg(test)]`; the `port::dat` import at 28-29 names both):
+
+| # | x86_64 site | Arm | port function called | Exists at `c94bc9b` with that signature |
+|---|---|---|---|---|
+| 1 | `syscall.rs:357-369` (`sys_pwrite`) | `DEV_CAP` (inline, completes the syscall: `fd_op_done` then maps `CapErr`) | `port::devcap::write(c: &mut Chan, buf: &[u8]) -> core::result::Result<u64, CapErr>` | yes, `devcap.rs:244`; `CapErr::{Static(&'static str), InvalidCapability(Vec<u8>)}` at `devcap.rs:142-148` |
+| 2 | `syscall.rs:370` (`sys_pwrite`) | `DEV_SSL` | `port::devssl::write(c: &mut Chan, buf: &[u8]) -> Result<u64>` | yes, `devssl.rs:805` |
+| 3 | `syscall.rs:414` (`sys_pread`) | `DEV_CAP` | `port::devcap::read(c: &mut Chan, buf: &mut [u8], offset: u64) -> Result<u64>` | yes, `devcap.rs:298` |
+| 4 | `syscall.rs:415` (`sys_pread`) | `DEV_SSL` | `port::devssl::read(c: &mut Chan, buf: &mut [u8], offset: u64) -> Result<u64>` | yes, `devssl.rs:586` |
+| 5 | `syscall.rs:859` (`sys_mount`) | accepts `DEV_SSL` beside `DEV_PIPE` (ORDWR still required) | `port::devmnt::fversion` / `attach` (already called by aarch64 `sys_mount`) | yes |
+| 6 | `syscall.rs:276-279` | `err_dyn(proc, &str) -> u64` (needed by row 1) | `Proc::set_errstr` | aarch64 has `err` only (`syscall.rs:258-261`); `set_errstr` is the same call `err` uses |
+
+Not on the list, and why: remove, stat, fstat, seek and close have no `DEV_CAP`/`DEV_SSL` arm in x86_64/src. They route through port: aarch64 `remove_chan` (`syscall.rs:1114-1116`) is already a one-line wrapper over `port::namec::remove_chan` (20-14), which serves `DEV_CAP` at `namec.rs:467`. `sys_stat`/`sys_fstat` call `namec::stat_chan` (aarch64 `syscall.rs:1040`, `1067`), which serves both at `namec.rs:516-517`. Close goes through `port::namec::close_chan` (`DEV_SSL` arm at `namec.rs:634-636`). `sys_seek` has no device arm on either arch for these two. So Task 3's step 4 (a `DEV_CAP` arm in `remove_chan`) is **already satisfied by 20-14**; Task 3 has nothing to add there.
+
+**Hooks** (x86_64 `main.rs`):
+
+| x86_64 | Registration | aarch64 counterpart needed |
+|---|---|---|
+| `main.rs:478-479` | `#[cfg(dev_cap)] port::devcap::set_tick_hook(platform::timer::ticks)` | `crate::platform::timer::ticks` exists (`aarch64/src/platform/virt/timer.rs:40`, `pub fn ticks() -> u64`; `platform/virt/mod.rs:19` declares `pub mod timer` ungated); aarch64 already passes it to `devip::stack::set_clock` (`main.rs:718`) |
+| `main.rs:523` | `port::devssl::set_fd_resolve_hook(proc::current_fd_resolve)` (ungated) | `aarch64/src/proc.rs:2481` `pub fn current_fd_resolve(fd: u64) -> Option<Chan>` = devssl's `FdResolve` (`devssl.rs:332`, `fn(u64) -> Option<Chan>`); aarch64 already registers it with `devdup` and `devsrv` (`main.rs:723-727`) |
+
+Neither hook is registered on aarch64 today (`grep -rn 'devssl::set_fd_resolve_hook\|devcap::set_tick_hook' aarch64/src` is empty). Without the devssl hook, the `fd N` ctl verb would fail with `devssl: fd resolve hook not registered` (`devssl.rs:344-353`), so the hook is part of A-ssl.
+
+Every port function and hook setter the arms and hooks need exists with the x86_64 signature. Nothing outside `aarch64/` is missing.
+
+PORT-EDIT-NEEDED: no
+
+### Live devcap baseline (scratch `cap` kernel)
+
+**Builds.** `cargo xtask build --arch aarch64 --config virtshell` at the unmodified tree: rc 0 (25 warnings, the pre-existing set). Then the scratch, uncommitted edit `dev = ["exec", "bootchain", "cap", "ether", "ip"]` in `aarch64/lib/config_virtshell.toml`, same command: rc 0, `Finished`, no error. `port::devcap` compiles both without and with `dev_cap`; the cap build also compiles `namec.rs`'s `'¤'` arm (the live `#¤` attach below proves it).
+
+CAP-COMPILES-UNGATED: yes
+
+**Gate on the scratch kernel.** `R9_ACCEL=<acc> R9_SKIP_BUILD=1 nix run .#boot-r9-smoke --no-write-lock-file --override-input r9 git+file:///Users/neilskinner/code/r9` built `/nix/store/8pnid1xkg1g8276kxl5j41h495kbss5d-r9-kernel-virt-wip` and printed `smoke-r9: ALL STAGES PASS` on HVF (exit 0) and TCG (exit 0), including the `no-unknown-device` stage. Captures `.build/p20-15-t1-capsmoke-{hvf,tcg}.out`.
+
+**Probes.** Driver: the uncommitted copy `.build/p20-14-probe.sh` + `.build/p20-14-probe.expect` (20-12's method: the `¤` typed as UTF-8 inside the `P_CMD` line), `P_KERNEL_PKG` = the scratch kernel above, on the `bootfs.paq` the smoke run baked. Two typed lines, each on a fresh boot and under 256 bytes (206 and 135 bytes); `rm` runs last because a successful caphash remove hides it for the rest of the boot. Transcripts drop `fault:`, `sched:` and `process N exited` lines. **HVF and TCG gave identical text** (`.build/p20-15-t1-cap{A,B}-{hvf,tcg}.log`):
+
+```
+% echo PR-''U `{cat '#c/user'} `{cat '#c/hostowner'}; ls -l '#¤'; echo PR-''1 $status; cat '#¤/caphash'; echo PR-''2 $status; echo -n 0123456789abcdefghij >'#¤/caphash'; echo PR-''3 $status; echo PR-''DONE
+PR-U glenda glenda
+ls: #¤: pread: unknown device
+PR-1 errors
+cat: error reading #¤/caphash: pread: unknown device
+PR-2 error reading #¤/caphash: pread: unknown device
+echo: write error: pwrite: unknown device
+PR-3 write error
+PR-DONE
+```
+
+```
+% echo -n glenda@bogus@key >'#¤/capuse'; echo PR-''4 $status; rm '#¤/caphash'; echo PR-''5 $status; ls -l '#¤'; echo PR-''DONE $status
+echo: write error: pwrite: unknown device
+PR-4 write error
+PR-5 
+ls: #¤: pread: unknown device
+PR-DONE errors
+```
+
+| # | Probe | Baseline (HVF = TCG) | Where it stops |
+|---|---|---|---|
+| 1 | `ls -l '#¤'` | `ls: #¤: pread: unknown device` | attach, walk, stat and the OREAD dir open succeed in port; the dir read falls through the aarch64 `sys_pread` default arm |
+| 2 | `cat '#¤/caphash'` | `cat: error reading #¤/caphash: pread: unknown device` | the open succeeds (`devcap::open`'s eve gate passes for glenda); the read falls through. After the port the expected text is devcap's own `devcap: permission denied` (`devcap.rs:331`) |
+| 3 | 20-byte write to `caphash` as the boot user | `echo: write error: pwrite: unknown device` | the OWRITE open passed `devcap::open`'s eve gate (`devcap.rs:199-200`); the write falls through the aarch64 `sys_pwrite` default arm |
+| 4 | bogus `capuse` write | `echo: write error: pwrite: unknown device` | same default arm; the device's `invalid capability glenda@bogus@key` (`devcap.rs:268-272`) is not reached |
+| 5 | `rm '#¤/caphash'` | **succeeds** (status empty), then `ls` still fails at the dir read | REMOVE already reaches `devcap::remove` through `port::namec::remove_chan` (20-14); eve passes, `ncapdir` shrinks |
+
+**CAP-WRITER.** The caphash write never reached the device. From source, the boot user passes the eve gate: `iseve()` (`port/src/devcons.rs:288-295`) compares `current_user()` with the stored hostowner, or `glenda` when the hostowner is empty. Probe A reads both as `glenda`. `devcap::write`'s QHASH branch (`devcap.rs:246-249`) applies the same `iseve()` check that `devcap::open` already passed live in probe 3 (the open returned an fd, and the failure came at pwrite), and a 20-byte buffer meets `HASHLEN` = `SHA1DLEN` = 20 (`devcap.rs:54`, `250-252`). Probe 5 is a second live eve pass: `devcap::remove` succeeded under the same `iseve()` gate (`devcap.rs:359-361`). So once the pwrite arm lands, the boot user's write should return 20.
+
+CAP-WRITER: unreached (`echo: write error: pwrite: unknown device` on HVF and TCG: the aarch64 `sys_pwrite` has no `DEV_CAP` arm; the boot user `glenda` = hostowner `glenda` passed the same `iseve()` gate live at the caphash OWRITE open and at the caphash remove, so it is expected to pass the write's gate, `devcap.rs:246-249`)
+
+**Revert.** `git -C /Users/neilskinner/code/r9 checkout -- aarch64/lib/config_virtshell.toml`; `git status --porcelain` printed nothing; `grep -c '"cap"' aarch64/lib/config_virtshell.toml` = 0; HEAD still `c94bc9b`. No qemu left running.
+
+### Route
+
+`PORT-EDIT-NEEDED` is `no`. A-cap holds (compiles ungated, the tick hook falls back to 0, and the cap kernel passes the smoke gate). A-ssl holds as far as source can show: fversion needs no change, and the missing pieces are the two pread/pwrite arms, the `sys_mount` check and the fd-resolve hook. A-writer is not contradicted: the write is unreached, and the gate it would meet passed live twice. Plan corrections for Task 3: step 4 (`remove_chan`) is already done by 20-14, and step 6 (`sys_fversion`) changes nothing.
+
+ARMS-ROUTE: aarch64-only
