@@ -1,16 +1,16 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "follow-ups of arm64-user-fpsimd-unsaved (owner, via coordinator, 2026-11-21): (a) x86_64 per-process FPU/SSE save/restore at context switch, copy on fork, reset on exec, following the arm64 reference design (the x86_64 kernel is already SSE-free); (b) note handlers on aarch64 (and x86_64 if the same applies) must save the interrupted FP state at notify and restore it at noted, as 9front does; (c) an explicit kernel-SIMD API on aarch64 and x86_64 (Linux kernel_neon_begin/end, kernel_fpu_begin/end shape: scoped guard + with_simd closure, nested begin panics by name, preemption/IRQ policy explicit, kernel stays built without FP, one example SIMD routine used only by a host test and a boot self-test)"
 created: 2026-11-21T21:55:00Z
-updated: 2026-11-22T02:08:00Z
+updated: 2026-11-22T02:40:00Z
 ---
 
 ## Current Focus
 
 hypothesis: CONFIRMED and fixed — (a) x86_64 kept the FPU/SSE registers in place across switches, fork and exec; (b) both arches handed a note handler's FP state to the interrupted code; (c) no kernel-SIMD API; plus a separate x86_64 defect the probe exposed: notify refused handlers not 4-byte aligned
 test: DONE — r9 3f69729 (local main, unpushed: d07fdbe aarch64, 4eafbfc x86_64, d76d872 notify, 3f69729 boot-iso hash); Harvey b77d134fc (arm64 note leg) + the amd64 probe/wiring commit (no marker)
-expecting: owner verification, and a decision on the x64 tier-1 marker `T1-OK fpprobe` (proposal diff below; scratch $SP/fp2/x64-marker-proposal.diff)
-next_action: on approval — add the x64 sweep entry + nix/tier1-r9-x64.sh R9_EXPECT_OK fpprobe (39 expected T1-OK), run the x64 tier-1 once in a fresh amd64 container, commit; then archive this session + KB entry. The HVF pin series moves Harvey's r9 pin (105d48e) to 3f69729 — required: aarch64 tier-1 T1-OK fpprobe now needs >= d07fdbe
+expecting: RESOLVED — owner: "confirmed fixed", x64 marker approved (A); r9 3f69729 pushed by the coordinator; x64 `T1-OK fpprobe` landed (Harvey 26910c78e)
+next_action: none here — the three follow-ups (x86 async note delivery with an iretq NOTED, NSAVE on both arches, per-CPU FP bookkeeping) continue in .planning/debug/notes-async-nsave-percpu-fp.md
 reference_design: "arm64 (r9 2edfdf8): FP-free kernel, eager per-proc save at leave / restore at install, copy on fork, zero on exec — the reference for x86_64 (owner decision)"
 rules: "arch-only (port/src needs a checkpoint with the diff); red/green probes; host tests; aarch64 HVF/TCG gates; x86_64 bytes change → x64 TCG auth, net-smoke, tier1 in an amd64 container + x86_64 host tests + boot-iso outputHash re-derived and committed locally + cleanup; local commits only; checkpoint before any new tier-1 expected marker on either arch"
 
@@ -95,6 +95,28 @@ started: always
   checked: final aarch64 gates on the LANDED r9 3f69729 (nix r9-kernel-virt-3f69729) from harvey-sb at the final scratch wiring: tier-1 TCG with a userland rebuild, smoke/net-smoke TCG, smoke/net-smoke/tier-1 HVF ($SP/fp2/series-final/); r9's own aarch64 boot tests on the landed tree (real checkout)
   found: all 6 gates PASS; tier-1 44 T1-OK with `fpprobe: ok` (note leg) on TCG and HVF; every boot prints the kernel-SIMD selftest ok line. Boot tests: virt, virtexec, virtexec3, virtmulti, virtnotes, virtpanic, virtchurn, virtip, virtnet, virtlowecam PASS — identical to base; virtshell rc=1 identical to base (no initrd by design; the selftest line prints before the panic)
   implication: no aarch64 regression, including the note path (virtnotes) and the 2048-proc churn profile (+1 MB .data per FpState field — churn's .data was already 4.58 MB)
+
+- timestamp: 2026-11-22T02:38:00Z
+  checked: owner decision (A) and the landing — x64 sweep entry + nix/tier1-r9-x64.sh R9_EXPECT_OK fpprobe committed (Harvey 26910c78e); x64 tier-1 run once in a FRESH amd64 container (r9x64fp2: ubuntu:24.04, nix 2.36) on Harvey 26910c78e, r9 3f69729 (pushed), full default pipeline incl. the amd64 userland build, TCG ($SP/x64fp2/step1-summary.txt)
+  found: `== expected on r9: 39 T1-OK markers + 0 T1-SKIP markers (computed)`, tier1-r9-x64 ALL STAGES PASS, 39 T1-OK incl. `T1-OK fpprobe` (`fpprobe: ok`), `fpu: kernel-SIMD selftest ok (... 0x1983c6d50a18d707c9d74d9a42c59f27)`, 648 s
+  implication: the x64 marker is a live gate; the x64 tier-1 now needs r9 >= 3f69729
+
+## Prevention
+
+five_whys:
+  - branch: "code — x86_64 FPU/SSE never saved per proc"
+    why1: "14-08 recorded 'no per-proc FXSAVE on context switch' as an era limit — correct only while FP-using images never interleave"
+    why2: "the x64 gates ran one FP user at a time (the tier-1 sweep is sequential; awk's float canary is a single process)"
+    actionable: "port the arm64 reference design; pin it with an interleaving probe on the x64 gate"
+  - branch: "code — note handlers shared the interrupted FP state"
+    why1: "the note path was ported Ureg-first from the donor's notify/noted, without fpunotify/fpunoted (the donor's FP half lives in fpu.c)"
+    actionable: "note_fpsave recorded at delivery, restored at NOTED; a probe handler that uses FP"
+  - branch: "code/config — x86 notify alignment"
+    why1: "sys_notify's `handler & 3` check was copied from aarch64, where instructions are word-aligned"
+    why2: "no x86 gate binary installed a notify handler at an unaligned address that was then exercised by a note (rc's handler, by layout luck)"
+    actionable: "drop the alignment test; host test with odd text addresses"
+why_not_caught: "no gate existed for these classes — no probe interleaved two FPU users on x86, no probe used FP inside a note handler, and no x86 test registered a notify handler at an unaligned address; the x86 host tests also could not run on the darwin host (they need the amd64 container)"
+recurrence_guard: "Harvey tier-1 `T1-OK fpprobe` on BOTH gates (aarch64: build/aarch64/tier1-sweep.rc + nix/tier1-r9.sh, now with the note leg; x64: build/x86_64/tier1-sweep.rc + nix/tier1-r9-x64.sh); r9 host tests aarch64/src/fpu.rs + x86_64/src/fpu.rs fpu::tests::* (ownership, kernel-SIMD guard, xor_fold16, target spec) and x86_64/src/syscall.rs tests::notify_accepts_a_handler_at_an_odd_text_address; the dev_exec boot selftest `fpu: kernel-SIMD selftest ok` on every exec-profile boot of both arches"
 
 ## Resolution
 
