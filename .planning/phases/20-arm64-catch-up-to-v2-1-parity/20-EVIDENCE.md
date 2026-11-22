@@ -2254,4 +2254,49 @@ The series shape at the pin: smoke HVF ×1753, net-smoke HVF ×36, tier-1 HVF ×
 
 Harvey `204b7f6d3` `test(20-17): repeat-gate accepts boot-r9-cpu` adds `boot-r9-cpu` to the allowlist, mapped to `R9_CPU_LOG`. The app's default capture is `build/aarch64/cpu-r9.log`. A one-run check, `R9_SKIP_BUILD=1 R9_ACCEL=hvf … repeat-gate.sh boot-r9-cpu 1`, printed `SERIES boot-r9-cpu accel=hvf runs=1 pass=1 fail=0 pushword=0 forks=17`, and the capture landed in the series dir as `run-1.log`. `repeat-gate.sh not-a-gate 1` still exits 2.
 
-R9-PUSH: awaiting owner approval (checkpoint before the push, the pin move and the series)
+The owner approved the r9 push, the lock-only pin move, the full series and the Harvey push at the Task 2 checkpoint. The coordinator pushed r9: `origin/main` = `e6e522047a307b2c558ac3795ef7f9f8f3bd433c`, and the plan's check printed `PUSHED-CLEAN`.
+
+R9-PUSH: done (e6e5220, by the coordinator on owner approval)
+
+### The pin
+
+Harvey `97cb3c7bb` `chore(20-17): advance the r9 pin 821db85 -> e6e5220 lock-only (arm64 cpu-port arms: bootconf, #!, remove/wstat, devcap, devssl, cap extents)`. `nix flake update r9` changed only the r9 node's `lastModified`, `narHash` and `rev`. The locked rev is `e6e522047a307b2c558ac3795ef7f9f8f3bd433c`, which equals r9 `origin/main`. `git show --name-only` on the pin commit prints exactly `flake.lock`. With no override there are five `boot-r9*` apps on aarch64-darwin, `boot-r9-cpu` among them.
+
+PIN: r9 e6e522047a307b2c558ac3795ef7f9f8f3bd433c (Harvey 97cb3c7bb)
+
+### Series at the pin: stopped by the owner, partial
+
+The full series started at 2026-11-22T17:36:40Z, with no override, `KERNDATE=1795368971` (the pin commit's time) and `R9_STOP_ON_FAIL=1`. Harvey was at `97cb3c7bb`. Block order: tier-1 HVF ×10 (run 1 rebuilt the userland at the pin), net-smoke HVF ×36, cpu HVF ×36, the TCG ×3 blocks, then smoke HVF ×1753. At about 17:41Z the owner stopped it, relayed by the coordinator, and deferred the full series to the upcoming SMP work, a new plan. Only this session's own process tree was killed: the series script, `repeat-gate.sh`, and the running `nix run` with its expect and qemu.
+
+```
+SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3890
+SERIES-PARTIAL boot-r9-net-smoke accel=hvf runs=12 pass=12 fail=0 pushword=0 forks=852 (of N=36; run 13 killed mid-boot by the owner's stop, not counted)
+```
+
+- The tier-1 block is complete at its N. Every run had 389 forks and booted `r9-kernel-virt-e6e5220`. No `.out` mentions `override`, and no capture has a `pushword but no argv`, `user fault` or `panic` line. The last capture (`.build/hvf-series/boot-r9-tier1-hvf-20261122T123640/run-10.log`) has 44 distinct `T1-OK`, 23 `T1-SKIP` and 0 `T1-FAIL`. It has one each of `T1-OK forkstress`, `writeprobe`, `cexecprobe`, `cexeccreate`, `rcloseprobe`, `brkprobe` and `fpprobe`.
+- The net-smoke block finished 12 runs before the stop, all green with 71 forks each (`.build/hvf-series/boot-r9-net-smoke-hvf-20261122T123833/`). Run 13 was killed mid-boot and is not counted.
+- The cpu, TCG and smoke blocks never started.
+- Series log: `.build/p20-17-series-e6e5220.log`.
+
+SERIES-AT-PIN: deferred-to-SMP-work (owner); partial series green (tier-1 HVF 10/10, net-smoke HVF 12/12 before the stop); confidence pass green at e6e5220
+
+The `N-HVF` lines above (`boot-r9-cpu = 36`, `boot-r9-tier1 = 10`, plus the standing `smoke = 1753` and `net-smoke = 36`) are what the deferred series owes.
+
+### Quick confidence pass at the pin (owner-directed)
+
+No override, `KERNDATE=1795368971`, and `R9_SKIP_BUILD=1` on the userland that tier-1 HVF run 1 built at the pin. It ran 2026-11-22T18:09:50Z to 18:10:55Z, with Harvey at `97cb3c7bb`. Captures are `.build/p20-17-conf-<app>-<accel>.{out,log}`, and the log is `.build/p20-17-conf.log`.
+
+| Gate | Accel | Exit | Result | Forks | Kernel |
+|---|---|---|---|---|---|
+| `boot-r9-tier1` | HVF | 0 | `ALL STAGES PASS`; 44 OK / 23 SKIP / 0 FAIL; the seven r9 probe markers once each | 389 | `r9-kernel-virt-e6e5220` |
+| `boot-r9-tier1` | TCG | 0 | `ALL STAGES PASS`; 44 OK / 23 SKIP / 0 FAIL; the seven r9 probe markers once each | 389 | `r9-kernel-virt-e6e5220` |
+| `boot-r9-smoke` | HVF | 0 | `ALL STAGES PASS` | 8 | `r9-kernel-virt-e6e5220` |
+| `boot-r9-net-smoke` | HVF | 0 | `ALL STAGES PASS` | 71 | `r9-kernel-virt-e6e5220` |
+| `boot-r9-cpu` | HVF | 0 | `cpu-r9: ALL STAGES PASS`; 0 `cpurc: FAIL` | 17 | `r9-kernel-virt-cpu-e6e5220` |
+| `boot-r9-cpu` | TCG | 0 | `cpu-r9: ALL STAGES PASS`; 0 `cpurc: FAIL` | 17 | `r9-kernel-virt-cpu-e6e5220` |
+
+The last cpu capture (TCG) has one each of the seven markers `cpurc: RAN`, `SHEBANG-OK /lib/shebangecho`, `STAT-OK`, `CAP-OK`, `REMOVE-OK`, `SSL-OK` and `cpurc: DONE`, and 0 `cpurc: FAIL`. Tier-1 x64 (39) was not re-run, because no x86_64 bytes changed since `c94bc9b`.
+
+### Records
+
+The 20-13 carrier answer was `chosen-bootargs`, so `.planning/REQUIREMENTS.md` ARM-10 is not touched. `.planning/STATE.md` records the phase's arm64 parity line.
