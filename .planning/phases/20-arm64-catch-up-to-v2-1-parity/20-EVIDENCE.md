@@ -1615,6 +1615,46 @@ EXEC-ROUTE: as-planned
 
 ## Group C ports
 
+### devssl and devcap arms (20-15 Tasks 3 and 4)
+
+Owner answer at the 20-15 Task 2 checkpoint (relayed 2026-11-22): **`proceed-aarch64-only`**, with the two plan corrections recorded as already satisfied. No file under `port/src/` is touched (`git diff --stat origin/main..HEAD -- port/src` is empty).
+
+r9 `505494e` (local, unpushed, on `c94bc9b`) `feat(20-15): aarch64 devcap + devssl arms and hooks`: `err_dyn`; pwrite `DEV_CAP` (returns the fd with `fd_op_done` before its `return match`, `CapErr::Static` -> `err`, `InvalidCapability` -> `err_dyn` lossy) and `DEV_SSL`; pread `DEV_CAP` and `DEV_SSL`; `sys_mount` accepts `DEV_PIPE` or `DEV_SSL` (ORDWR still required); `main.rs` `#[cfg(dev_cap)] port::devcap::set_tick_hook(crate::platform::timer::ticks)` and ungated `port::devssl::set_fd_resolve_hook(proc::current_fd_resolve)`. `cargo xtask build --arch aarch64 --config virtshell` rc 0 (25 warnings, the pre-existing set; no new warning); `cargo test -p aarch64 --bins --target aarch64-apple-darwin` 57/57.
+
+Inventory from `## Devcap and devssl baseline`: row 1 pwrite `DEV_CAP` ported; row 2 pwrite `DEV_SSL` ported; row 3 pread `DEV_CAP` ported; row 4 pread `DEV_SSL` ported; row 5 `sys_mount` ported; row 6 `err_dyn` ported; both hooks ported. Plan step 4 (`remove_chan` devcap arm): **already satisfied** by r9 `9173af0` (20-14: aarch64 `remove_chan` = `port::namec::remove_chan`, whose `DEV_CAP` arm is `namec.rs:467`; live in the baseline's probe 5). Plan step 6 (`sys_fversion`): **already satisfied**, no change. aarch64 `sys_fversion` has no device restriction, and 917685c's fversion half is in port (`devmnt.rs:1009`, `ChanIo` at `274-282`).
+
+**sslprobe after the port** (kernel `r9-kernel-virt-wip` = the `505494e` tree, `/nix/store/m2lbp55qxmf532xsgvz4y1r3nnn50fgg-…`; driver `.build/p20-14-probe.sh`; captures `.build/p20-15-t3-ssl{,m}-{hvf,tcg}.log`). Before (20-12, HVF = TCG): `sslprobe: FAIL pushssl0: pread: unknown device`, status `pushssl0`, for both forms.
+
+HVF:
+```
+% /bin/sslprobe; echo PR-''DONE $status
+sslprobe: ok roundtrip
+PR-DONE 
+% /bin/sslprobe -m; echo PR-''DONE $status
+sslprobe: ok roundtrip
+devmnt: server error: file does not exist
+sslprobe: ok mount
+PR-DONE 
+```
+TCG:
+```
+% /bin/sslprobe; echo PR-''DONE $status
+sslprobe: ok roundtrip
+PR-DONE 
+% /bin/sslprobe -m; echo PR-''DONE $status
+sslprobe: ok roundtrip
+devmnt: server error: file does not exist
+sslprobe: ok mount
+PR-DONE 
+```
+(The `file does not exist` line is the walk miss before `create(/n/wp/…)` over the ssl-carried ramfs mount, the same diagnostic writeprobe's create shows.)
+
+**Gates on `505494e`** (HVF, override, the first run rebuilt the userland): `boot-r9-smoke` 0, `boot-r9-net-smoke` 0, `boot-r9-tier1` 0 (44 OK / 23 SKIP / 0 FAIL); kernel `r9-kernel-virt-505494e`; captures `.build/p20-15-t1-boot-r9-*.out`. devcap is not reachable on virtshell (no `'¤'` registry arm without `cap`); its after-port transcript is Task 4's, on the virtcpu kernel.
+
+<!-- 20-15-task4 -->
+
+### devmnt remove and `#!` (20-14)
+
 Plan 20-14 Tasks 3 and 4. Owner answer at the Task 2 checkpoint (relayed by the coordinator, 2026-11-21): **`devmnt-remove`**, with `EXEC-ROUTE: as-planned` confirmed and `rm` on `/env` and `/srv` expected to succeed. The owner approved a `port/src` edit for exactly this scope: a devmnt Tremove plus a `DEV_MNT` arm in `port::namec::remove_chan`, so `rm` works through mounts on both arches. **THIS PLAN EDITS `port/src` AND CHANGES x86_64 KERNEL BYTES. The boot-iso FOD is re-derived below. The owner's linux `nix build .#boot-iso --rebuild` is still owed after the push, and 20-17's FOD pass must start from the hash committed here.** Task 4 was re-planned inline for that answer (recorded as a deviation in 20-14-SUMMARY.md).
 
 r9 commits (local `main`, unpushed, on 20-13's `de03bf7`):
