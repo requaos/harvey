@@ -3,13 +3,12 @@ gsd_state_version: "1.0"
 milestone: v2.1
 milestone_name: x86_64 Pivot + r9 Kernel Flush-Out
 current_phase: 20
-current_phase_name: arm64 catch-up to v2.1 parity
-status: executing
-stopped_at: Completed 20-17-PLAN.md
-last_updated: "2026-11-22T18:33:23.397Z"
+status: completed
+stopped_at: Phase 20 complete — all phases complete
+last_updated: "2026-11-22T18:52:48.867Z"
 last_activity: 2026-11-22
-last_activity_desc: Completed 20-01-PLAN.md
-state_head: 3f16b791dcba30be4c85b349aea6a9998239a9b0
+last_activity_desc: Phase 20 complete
+state_head: 38ebcbd363f64ea3af1f780c00b6b473d15cbc64
 progress:
   total_phases: 8
   completed_phases: 2
@@ -28,10 +27,10 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 ## Current Position
 
-Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
-Plan: 17 of 17
-Status: Execution complete — 20-01..20-17 complete; pin r9 e6e5220 (Harvey 97cb3c7bb, lock-only; r9 origin/main = e6e5220); Harvey pushed at 3f16b791d with hosted CI green on both repos (incl. cpu-smoke, test-aarch64-host, build-aarch64-virtcpu); confidence pass green at the pin; full HVF series deferred to the owner's SMP work; phase 20 ready for verification
-Last activity: 2026-11-22 - 20-17 complete: aarch64 host-test battery, group C pinned at r9 e6e5220, Harvey pushed
+Phase: 20
+Plan: Not started
+Status: All phases complete
+Last activity: 2026-11-22 — Phase 20 complete
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 execution-complete pending verification; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
@@ -52,6 +51,7 @@ Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 compl
 | 17 | 8 | - | - |
 | 18 | 8 | - | - |
 | 19 | 10 | - | - |
+| 20 | 17 | - | - |
 
 **Recent Trend:** n/a (milestone start)
 **Per-Plan Metrics:**
@@ -402,5 +402,5 @@ Items acknowledged and deferred at milestone close, most recent first:
 ## Session Continuity
 
 Last session: 2026-11-22T18:33:22.056Z
-Stopped at: Completed 20-17-PLAN.md
+Stopped at: Phase 20 complete — all phases complete
 Resume file: None

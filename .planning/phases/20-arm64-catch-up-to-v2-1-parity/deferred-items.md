@@ -42,9 +42,9 @@ Found during 20-09 Task 3 (every virtchurn capture, `.build/p20-09-virtchurn-run
 - **Why not fixed here:** the gate's verdict rides the bump cursor (`heap_stats`), not the census, so the gate is unaffected. The census code is in `port/src`, which this plan may not edit.
 - **Next step:** compare an x86_64 q35churn capture's census lines. If x86_64 also reads live 0, the census is wrong on both arches; if it does not, look at the aarch64 allocation path.
 
-## 20-10: create(..., OCEXEC) does not mark the chan close-on-exec (both arches)
+## 20-10: create(..., OCEXEC) does not mark the chan close-on-exec (both arches) — RESOLVED at r9 437b752
 
-**Status: in progress (debug).** The owner chose to fix this now, through a separate debugger session (2026-11-20, after the 20-10 pin move to r9 `1125a20`).
+**Status: RESOLVED** in r9 437b752 (in the final pin e6e5220; pinned by T1-OK cexeccreate). Originally: The owner chose to fix this now, through a separate debugger session (2026-11-20, after the 20-10 pin move to r9 `1125a20`).
 
 Found during 20-10 Task 3, while checking that open's OCEXEC bit reaches `port::namec::open_chan` on aarch64 (it does: `sys_open` passes the full mode, and `open_chan` sets `cexec`).
 

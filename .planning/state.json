@@ -100,9 +100,9 @@
     }
   ],
   "next": {
-    "command": "/gsd-progress --next",
-    "label": "Advance to the next step",
-    "reason": "Phase 20 (15 of 19 roadmap phases complete) · executing"
+    "command": "/gsd-progress",
+    "label": "Show progress",
+    "reason": "Unsure of state — showing progress"
   },
-  "updated_at": "2026-11-22T17:05:34.488Z"
+  "updated_at": "2026-11-22T18:52:48.896Z"
 }

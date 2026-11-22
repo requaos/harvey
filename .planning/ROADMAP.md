@@ -52,7 +52,7 @@ Full detail: `.planning/milestones/v2.0-ROADMAP.md`
 - [x] **Phase 17: r9 Kernel Flush-Out** - *(cross-repo: `../r9`)* the open Phase-7/8 CR/WR backlog + known kernel windows closed under real userspace load, every fix landing with a pin (completed 2026-11-13)
 - [x] **Phase 18: In-Guest p9sk1 Auth Domain** - hash-paired bake-time domain generator, `/dev/random` from x86_64 entropy + devcap `#¤`, keyfs/authsrv on tcp/567, loopback probe green before any drawterm (completed 2026-11-14)
 - [x] **Phase 19: CPU Service + Drawterm + rio Desktop** - `cpu -R` end-to-end, flake drawterm, rio in-session only, full-chain smoke + clean-checkout proof on linux-x86_64 (completed 2026-11-17)
-- [ ] **Phase 20: arm64 catch-up to v2.1 parity**
+- [x] **Phase 20: arm64 catch-up to v2.1 parity** (completed 2026-11-22)
 
 ## Phase Details
 
@@ -337,7 +337,7 @@ Plans:
 **Carried in from quick 261117-bz5 (unrun there):** the donor-venue gates (`build/aarch64/subset-exec.sh` merged /arm64 staging; `build/aarch64/trace-boot.rc` `bind /boot/ourinit /arm64/init`) and r9 `cargo test -p port` on nightly-2026-01-30.
 **Requirements**: ARM-01, ARM-02, ARM-03, ARM-04, ARM-05, ARM-06, ARM-07, ARM-08, ARM-09, ARM-10, ARM-11, ARM-12
 **Depends on:** Phase 19
-**Plans:** 17/17 plans executed
+**Plans:** 17/17 plans complete
 
 Plans (strictly sequential, one wave each — the plans share the one r9 checkout and the HVF timing series must not run under other load):
 
