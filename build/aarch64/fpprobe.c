@@ -17,7 +17,7 @@
  * and libc syscall stubs run, none of which touch FP/SIMD registers, so
  * any difference was made by the kernel.
  *
- * Legs (all four must pass for `fpprobe: ok'):
+ * Legs (all five must pass for `fpprobe: ok'):
  *	fork	load a pattern, rfork(RFPROC|RFFDG); parent and child both
  *		store and compare (the child must inherit the registers)
  *	exec	a child loads a pattern and execs `fpprobe -e'; the new image
@@ -36,6 +36,13 @@
  *		run the other (a woken sleeper never preempts a spinner on
  *		r9 — it resumes only from the sched loop — so the switch
  *		leg's spin rarely overlaps a peer)
+ *	note	a child with a notify handler loads a pattern and takes a
+ *		note twice: posted to itself (delivered at the write's
+ *		return) and an alarm (delivered while it spins at EL0).  The
+ *		handler first stores what it started with (it must be a copy
+ *		of the interrupted state), loads a different pattern, and
+ *		returns with noted(NCONT); the interrupted code must then
+ *		find its own pattern (9front's notify/noted FP save)
  *
  * usage: fpprobe [-n rounds] [-p rounds] [-s spin] [-w workers]
  * Prints `fpprobe: ok' and exits nil, or one `fpprobe: BAD <leg> ...'
@@ -62,6 +69,7 @@ static int prounds = 8;
 static long spinn = 2000000;
 static int nworker = 2;
 static long sink;
+static volatile long vsink;
 static uvlong entryraw[Nw+2];
 
 static void
@@ -198,6 +206,81 @@ execleg(void)
 		exits("exec");
 	}
 	return reap("exec");
+}
+
+/* the note leg's handler state (the handler runs in the same process) */
+static uvlong nraw[2][Nw+2];
+static uvlong *hpat, *hentry;
+static volatile int nseen;
+
+static void
+nhandler(void *u, char *msg)
+{
+	USED(u);
+	if(strcmp(msg, "alarm") != 0 && strcmp(msg, "fpprobe") != 0)
+		noted(NDFLT);
+	fpstore(hentry);
+	fpload(hpat);
+	nseen++;
+	noted(NCONT);
+}
+
+/* one note round: load seed's pattern, take a note, compare */
+static int
+noteround(char *leg, int seed, int async)
+{
+	uvlong wraw[Nw+2], graw[Nw+2], *want, *got;
+	long i;
+	int bad;
+
+	want = aligned(wraw);
+	got = aligned(graw);
+	pattern(want, seed, 0);
+	nseen = 0;
+	fpload(want);
+	if(async){
+		alarm(20);
+		for(i = 0; i < 2000000000 && nseen == 0; i++)
+			vsink += i;
+	}else
+		postnote(PNPROC, getpid(), "fpprobe");
+	fpstore(got);
+	if(nseen != 1){
+		print("fpprobe: BAD %s handler ran %d times\n", leg, nseen);
+		return -1;
+	}
+	bad = check(leg, seed, 0, want, got);
+	if(check("note-entry", seed, 0, want, hentry) < 0)
+		bad = -1;
+	return bad;
+}
+
+static int
+noteleg(void)
+{
+	int pid, bad;
+
+	pid = rfork(RFPROC|RFFDG);
+	if(pid < 0){
+		print("fpprobe: BAD note rfork: %r\n");
+		return -1;
+	}
+	if(pid != 0)
+		return reap("note");
+	hpat = aligned(nraw[0]);
+	hentry = aligned(nraw[1]);
+	pattern(hpat, 21, 0);
+	if(notify(nhandler) < 0){
+		print("fpprobe: BAD note notify: %r\n");
+		exits("bad");
+	}
+	bad = 0;
+	if(noteround("note-sync", 22, 0) < 0)
+		bad = -1;
+	if(noteround("note-alarm", 23, 1) < 0)
+		bad = -1;
+	exits(bad < 0? "bad": nil);
+	return 0;
 }
 
 /* the exec'd image: every word stored at entry must be zero */
@@ -343,6 +426,8 @@ main(int argc, char *argv[])
 		strcat(fails, " switch");
 	if(workers("preempt", 1+Maxworker, 1) < 0)
 		strcat(fails, " preempt");
+	if(noteleg() < 0)
+		strcat(fails, " note");
 	if(fails[0] == 0){
 		print("fpprobe: ok\n");
 		exits(nil);
