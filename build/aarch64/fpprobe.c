@@ -37,7 +37,7 @@
  *		run the other (a woken sleeper never preempts a spinner on
  *		r9 — it resumes only from the sched loop — so the switch
  *		leg's spin rarely overlaps a peer)
- *	note	a child with a notify handler takes notes six ways:
+ *	note	a child with a notify handler takes notes seven ways:
  *		sync	written to its own /proc/N/note (delivered at the
  *			write's return)
  *		sleep	an alarm interrupts a blocking sleep (delivered at
@@ -52,6 +52,10 @@
  *			with the interrupted code's FP state, take a second
  *			note (NSAVE re-enables notes), restore the pc and
  *			noted(NRSTR) back to the program (notify(2))
+ *		mask	the handler sets D, A, I and F in the saved psr and
+ *			returns NCONT; the program must still take the
+ *			tick: an alarm armed afterwards must interrupt
+ *			integer code that makes no syscall
  *		fault	a note pending when a child (resumed from the
  *			sched loop, which is no note boundary) takes its
  *			first demand fault must be delivered at that
@@ -234,7 +238,7 @@ enum {
 };
 static uvlong nraw[4][Nw+2];
 static uvlong *hpat, *hentry, *hnow, *tentry;
-static volatile int nseen, nsave, nested, tramped, nsavefail;
+static volatile int nseen, nsave, nested, tramped, nsavefail, nmask;
 static uintptr savedpc;
 static int nfdg;
 static uvlong gregs[24];	/* gprspin: [0] the handler's flag, [1..21] the registers */
@@ -298,6 +302,8 @@ nhandler(void *u, char *msg)
 		nsavefail = 1;	/* noted returned: NSAVE was refused */
 		ur->pc = savedpc;
 	}
+	if(nmask)
+		ur->psr |= 0x3c0;	/* D, A, I, F: noted must not honour them */
 	noted(NCONT);
 }
 
@@ -505,6 +511,40 @@ faultround(void)
 	return bad;
 }
 
+/*
+ * The mask round: noted takes only the condition flags from the saved
+ * Ureg, so a handler that sets the exception mask bits in ur->psr must
+ * not leave its program running at EL0 with interrupts masked, where
+ * the tick could never preempt it.  After the note, an alarm is armed
+ * and integer code spins with no syscall: only a tick posts and
+ * delivers the alarm.  Run last: on a kernel that honours the bits the
+ * child stays masked until it exits.
+ */
+static int
+maskround(void)
+{
+	long i;
+
+	nseen = 0;
+	nmask = 1;
+	write(nfdg, "fpprobe", 7);
+	nmask = 0;
+	if(vget(&nseen) != 1){
+		print("fpprobe: BAD note-mask handler ran %d times\n", vget(&nseen));
+		return -1;
+	}
+	nseen = 0;
+	alarm(20);
+	for(i = 0; i < 200000000 && vget(&nseen) == 0; i++)
+		vsink += i;
+	if(vget(&nseen) != 1){
+		alarm(0);
+		print("fpprobe: BAD note-mask no tick after the handler set DAIF in the saved psr (alarm not delivered, %ld iterations)\n", i);
+		return -1;
+	}
+	return 0;
+}
+
 static int
 noteleg(void)
 {
@@ -545,6 +585,8 @@ noteleg(void)
 	if(nsaveround() < 0)
 		bad = -1;
 	if(faultround() < 0)
+		bad = -1;
+	if(maskround() < 0)
 		bad = -1;
 	exits(bad < 0? "bad": nil);
 	return 0;
