@@ -85,6 +85,7 @@ done
 [ -s "$OUT/rcloseprobe" ] || err "$OUT/rcloseprobe missing — run sh build/aarch64/subset-build.sh first"	# ORCLOSE remove-on-close probe
 [ -s "$OUT/sslprobe" ] || err "$OUT/sslprobe missing — run sh build/aarch64/subset-build.sh first"	# 20-12: devssl probe
 [ -s "$OUT/fpprobe" ] || err "$OUT/fpprobe missing — run sh build/aarch64/subset-build.sh first"	# user FP/SIMD state probe
+[ -s "$OUT/cpuprobe" ] || err "$OUT/cpuprobe missing — run sh build/aarch64/subset-build.sh first"	# 20-16: cpu fixture stat/cap legs
 SUBSET="rc grep cat cp date echo ls mkdir mv ps rm sed test wc"
 SUBSET="$SUBSET dd"	# 07-04: dd joins the image (D-07's sweep writer); append form keeps the edit insertion-only
 SUBSET="$SUBSET bind"	# 07-07: the net-sweep's `bind -a '#l' /net` execs /bin/bind (not an rc builtin)
@@ -186,6 +187,8 @@ cp "$OUT/rcloseprobe" "$STAGE/arm64/bin/rcloseprobe"
 cp "$OUT/sslprobe" "$STAGE/arm64/bin/sslprobe"
 # fpprobe (user FP/SIMD register survival across traps, switches, fork and exec; typed by hand)
 cp "$OUT/fpprobe" "$STAGE/arm64/bin/fpprobe"
+# 20-16: cpuprobe (the cpu fixture's stat and cap legs; run by /rc/bin/cpurc on a cpu boot)
+cp "$OUT/cpuprobe" "$STAGE/arm64/bin/cpuprobe"
 
 # 3b. 06-07 (D-12): the tier-1 sweep payload — h-prefixed binaries into
 #     /arm64/bin (the sweep invokes them as /bin/h* on r9 through the
@@ -220,8 +223,25 @@ cp "$HARVEY/build/aarch64/netaddr.rc" "$STAGE/lib/netaddr.rc"
 #    is ABSENT (auth-stub-by-absence)
 for p in boot/boot boot/paqfs arm64/init arm64/bin/stacksmoke \
 	rc/lib/rcmain rc/bin/termrc lib/namespace adm/timezone/local \
-	usr/glenda/lib/profile; do
+	usr/glenda/lib/profile rc/bin/cpurc lib/shebangecho; do
 	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree"
+done
+
+# 5c. 20-16 (ARM-11): the cpu fixture.  /rc/bin/cpurc and
+#     /lib/shebangecho are #! scripts (the kernel's exec pre-pass reads
+#     the head), shipped mode 755 from the committed skeleton (git mode
+#     100755; the tar copy in step 1 keeps it).  shebangecho's whole #!
+#     line must fit the donor's 32-byte bound.  Only init -c (the cpu
+#     launcher's boot string) runs cpurc; terminal boots never do.
+for p in rc/bin/cpurc lib/shebangecho; do
+	[ "$(head -c 2 "$STAGE/$p")" = '#!' ] || err "manifest: $p lacks the #! head bytes"
+	# find -perm with an octal mode is an exact match on BSD and GNU find
+	[ -n "$(find "$STAGE/$p" -perm 755)" ] || err "manifest: $p is not mode 755 in the staged tree"
+done
+[ "$(wc -c < "$STAGE/lib/shebangecho" | tr -d ' ')" -le 32 ] \
+	|| err "manifest: lib/shebangecho exceeds the 32-byte #! line bound"
+for p in arm64/bin/cpuprobe arm64/bin/sslprobe; do
+	[ -f "$STAGE/$p" ] || err "manifest: $p missing from staged tree (the cpu fixture's probes)"
 done
 
 # 5b. 07-04 payload manifest (D-07/D-08): the net test payload must be

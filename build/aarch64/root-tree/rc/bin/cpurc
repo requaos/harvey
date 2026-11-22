@@ -1,0 +1,41 @@
+#!/arm64/bin/rc
+# cpurc — the arm64 cpu fixture (20-16, ARM-11).  init runs it only on
+# a cpu boot: the launcher nix/cpu-r9.sh writes init=/arm64/init -c as
+# the DTB boot string, the kernel seeds it into the env, boot execs
+# init -c, and init's cpustart runs rc -c /rc/bin/cpurc.  This file is
+# itself exec'd through the kernel's #! pre-pass.  Terminal boots
+# (termrc) never run it.
+#
+# Legs, in order; each prints its marker on success or
+# `cpurc: FAIL <leg>' otherwise, and the next leg always runs:
+#   shebang  /lib/shebangecho is `#!/arm64/bin/echo SHEBANG-OK': its
+#            output line is the marker, so the #! token reached the
+#            interpreter ahead of the script path
+#   stat     cpuprobe stat (wstat, fwstat, remove refusals by name)
+#   cap      cpuprobe cap (caphash write, capuse refusal, short write)
+#   remove   rm the devcap caphash file, then test it is gone; must
+#            follow cap, because the removal lasts for the boot
+#   ssl      sslprobe -m (devssl round trip and a mount over ssl)
+# The script returns; init then starts its own rc.
+#
+# Dialect: flat if / if not ladders, full /arm64/bin paths, no braced
+# if not, no fd dups.
+/arm64/bin/echo cpurc: RAN
+
+if(! /lib/shebangecho) /arm64/bin/echo cpurc: FAIL shebang
+
+if(/arm64/bin/cpuprobe stat) /arm64/bin/echo STAT-OK
+if not /arm64/bin/echo cpurc: FAIL stat
+
+if(/arm64/bin/cpuprobe cap) /arm64/bin/echo CAP-OK
+if not /arm64/bin/echo cpurc: FAIL cap
+
+/arm64/bin/rm '#¤/caphash'
+if(! ~ $status '') /arm64/bin/echo cpurc: FAIL remove rm
+if(/arm64/bin/test -e '#¤/caphash') /arm64/bin/echo cpurc: FAIL remove present
+if not /arm64/bin/echo REMOVE-OK
+
+if(/arm64/bin/sslprobe -m) /arm64/bin/echo SSL-OK
+if not /arm64/bin/echo cpurc: FAIL ssl
+
+/arm64/bin/echo cpurc: DONE

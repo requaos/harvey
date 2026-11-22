@@ -374,6 +374,13 @@ echo "== boot chain: fpprobe (user FP/SIMD state probe)"
 	&& objtype=arm64 7a fpprobeasm.s \
 	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/fpprobe" fpprobe.7 fpprobeasm.7 \
 	&& rm -f fpprobe.7 fpprobeasm.7) || fail "fpprobe"
+# 20-16: cpuprobe — the cpu fixture's stat and cap legs (ARM-11), run by
+# the baked /rc/bin/cpurc on a cpu boot (nix run .#boot-r9-cpu).  Same
+# 7c -FTVw + 7l shape.
+echo "== boot chain: cpuprobe (20-16, cpu fixture stat + cap legs)"
+(cd "$HARVEY/build/aarch64" && objtype=arm64 7c -FTVw cpuprobe.c \
+	&& objtype=arm64 7l -o "$HARVEY/build/aarch64/out/cpuprobe" cpuprobe.7 \
+	&& rm -f cpuprobe.7) || fail "cpuprobe"
 
 # 06-05: tier-0 lib test binaries (D-06 — in-tree lib tests run on the
 # donor where they exist; subset-exec.sh stages them h*-style and the
@@ -477,6 +484,7 @@ if [ -z "$NATIVE_LINUX" ]; then
 		"$GUEST:$GUEST_DIR/build/aarch64/out/rcloseprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/sslprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/fpprobe" \
+		"$GUEST:$GUEST_DIR/build/aarch64/out/cpuprobe" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/hdrawtest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/harctest" \
 		"$GUEST:$GUEST_DIR/build/aarch64/out/htdraw" \
@@ -529,7 +537,7 @@ for f in ipconfig ping udpecho aan tcpblast tcpecho forkstress; do
 done
 # 20-07: the group-B measurement probes (and 20-10's cexecprobe) carry
 # the same magic contract
-for f in rfdprobe brkprobe cexecprobe rcloseprobe sslprobe fpprobe; do
+for f in rfdprobe brkprobe cexecprobe rcloseprobe sslprobe fpprobe cpuprobe; do
 	[ -s "$HARVEY/build/aarch64/out/$f" ] || err "build/aarch64/out/$f missing after rsync-back"
 	magic=$(od -An -tx1 -N4 "$HARVEY/build/aarch64/out/$f" | tr -d ' \n')
 	[ "$magic" = "00008c47" ] || err "build/aarch64/out/$f: bad magic $magic (want 00008c47)"
