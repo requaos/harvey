@@ -1,16 +1,16 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "owner (via coordinator, 2026-11-22): fix the aarch64 `noted` IRQ-mask trust bug now — noted must not let user-supplied PSR bits set DAIF (or other privileged bits); sanitize the restored SPSR to a safe EL0 value, checking against the donor's noted()/9front; also check every other path that restores a user-writable Ureg/SPSR (NRSTR, NSAVE chains, any sigreturn-like or debug paths) and x86_64's equivalent (RFLAGS IF/IOPL in noted via IRETQ) for the same class. Red/green probe: a handler sets the mask bits in the Ureg, returns NCONT, then spins — it must still be preemptible. Host tests; mutant; aarch64 HVF/TCG gates; if x86_64 changes, x64 container gates + boot-iso hash; local commits only; keep it focused"
 created: 2026-11-22T08:40:00Z
-updated: 2026-11-22T09:25:00Z
+updated: 2026-11-22T09:45:00Z
 ---
 
 ## Current Focus
 
 hypothesis: CONFIRMED and fixed — aarch64 noted honoured every SPSR bit of the user-writable saved Ureg except M[3:0]
 test: DONE — r9 local main 5f7c4e1 → c94bc9b (unpushed); Harvey fpprobe note round "mask" (this commit); no new tier-1 marker
-expecting: owner verification + a DECISION on the x86_64 kernel-entry flags (FMASK = IF only / no cld — see Evidence 08:50 and Resolution.follow_ups)
-next_action: on "confirmed fixed" — archive this session + KB entry. The pin series needs r9 >= c94bc9b for the arm64 tier-1 (fpprobe's mask round) and one subset-build
+expecting: DONE — owner confirmed fixed 2026-11-22; coordinator pushed r9 c94bc9b; the x86_64 entry-flags issue is DEFERRED (WINDOWS #71)
+next_action: archived. The pin series needs r9 >= c94bc9b for the arm64 tier-1 (fpprobe's mask round) and one subset-build
 bug_class: Bohrbug (deterministic trust-boundary bug)
 reasoning_checkpoint:
   hypothesis: "force_psr_el0t clears only M[3:0], so user-set DAIF bits in the saved Ureg reach SPSR_EL1 and the eret masks IRQs at EL0"
