@@ -2169,3 +2169,89 @@ Captures: `.build/p20-16-conf-*.{out,log}`. Tier-1 x64 (39) was not re-run, beca
 SERIES-AT-PIN: deferred-to-phase-end (owner); confidence pass green at 821db85
 
 **Still owed:** the Harvey push of the local commits (20-15's and 20-16's, plus `fd80f6a70`) needs the owner's approval; that is this plan's closing checkpoint. The full HVF series, `boot-r9-cpu` included, runs once at the end of phase 20.
+
+## Host-test battery
+
+Plan 20-17 Task 1 (ARM-12, `HOST-TEST-ROUTE: A`). r9 `02c3d28` `test(20-17): aarch64 host-test battery for the cpu-port pure logic`, on top of `821db85` (local, unpushed at this point). Host darwin-arm64, r9's default devShell (`rustc 1.95.0-nightly (842bd5be2 2026-01-29)`, no rustup).
+
+**What changed, all aarch64 or xtask (no `port/src`):**
+- `aarch64/src/platform/mod.rs`: the raspi3b glob re-export's `test` arm is narrowed to `all(test, not(platform = "virt"))`. This is the owner's route-A fix for the E0659 `devcons` collision measured at 20-12.
+- `aarch64/src/main.rs`: the `textcopy::selftest()` call block is gated `all(not(test), dev_exec, …)`. The callee has been gated `not(test)` since `46a5c87`, which landed after 20-12. Without this gate, the virtshell-cfg test build stopped at E0425, a second failure that the 20-12 measurement predates.
+- `xtask/src/main.rs` `TestStep::run`: when rustup finds no target (nix), the aarch64 leg falls back to `rustc -vV`'s host triple, on an aarch64 host only. It then runs the crate a second time under the virtshell profile's cfg set. That set comes from the new `config::apply_to_test_step`, the build step's own `apply_platform_config` plus `build.rustflags`. The x86_64 and riscv64 legs keep their rustup-only selection. The port leg is unchanged.
+- The four test modules: `exec::shebang_tests`, `syscall::stat_wire_tests`, `platform::virt::bootconf::bootconf_tests` and `platform::virt::pci::cap_extents_tests`. Every function was already reachable at the virtshell cfg: `bootconf` is gated `any(test, dev_exec)` since 20-13, `check_cap_extents` is gated `any(test, dev_ether)` since 20-13, and `shebang_pass` and `valid_stat_wire` are ungated. So no new gate was needed on a pure function.
+
+**Red before:** at `821db85`, `cargo xtask test --verbose` ran only `cargo test --package port --lib --tests`, with no aarch64 leg at all. Run by hand, the virtshell-cfg aarch64 build failed to compile (E0659 ×4 at 20-12; at `821db85`, after the mod.rs fix alone, E0425 `textcopy::selftest` at `main.rs:441`).
+
+**Green after** (`cargo xtask test --verbose`, three commands):
+
+| Leg | Command | Result |
+|---|---|---|
+| port | `cargo test --package port --lib --tests` | 168 + integration files, all ok |
+| aarch64, default cfg | `cargo test --package aarch64 --bins --target aarch64-apple-darwin` | 71 passed (57 before) |
+| aarch64, virtshell cfg | same `--config "build.rustflags='--cfg platform=\"virt\" --cfg dev_exec --cfg dev_bootchain --cfg dev_ether --cfg dev_ip'"` | 87 passed (62 with the mod.rs fix alone) |
+
+Per function (the plan's verify counts `test … ok` lines by name across both legs: `shebang=12 stat_wire=16 bootconf=6 cap_extents=5 bad=0`):
+
+| Function | Tests (each runs in the legs shown) | Behaviors pinned |
+|---|---|---|
+| `shebang_pass` (6, both legs) | `shebang_non_marker_heads_yield_no_rewrite`, `shebang_one_token_builds_the_donor_argv_order`, `shebang_flag_tokens_precede_the_script_path`, `shebang_unterminated_line_is_rejected`, `shebang_empty_token_lists_are_rejected`, `shebang_argv_growth_respects_max_args` | no marker means no rewrite (a 7l header, `# comment`, `!#`, n < 2, empty); `#!/bin/rc -x` on `f` with `[f, a]` gives interpreter `/bin/rc` and argv `[f, -x, f, a]`; no newline inside 32 bytes is rejected (newline at byte 31 ok, 32 rejected; the bound follows `n`); empty token lists are rejected; exactly MAX_ARGS = 32 accepted, 33 is `exec: too many args` |
+| `valid_stat_wire` + routing (8, both legs) | `valid_stat_wire_accepts_well_formed_records`, `…_rejects_a_48_byte_buffer`, `…_rejects_a_size_field_that_disagrees_with_the_length`, `…_rejects_a_string_count_that_overruns`, `…_rejects_trailing_bytes`, `wstat_with_a_valid_stat_wire_refuses_loudly_never_zero`, `remove_routes_devsrv_and_refuses_unported_devices`, `remove_and_stat_wire_consumer_slots_carry_named_handlers` | the minimal 49-byte record with four empty strings is Ok; 48 bytes, a disagreeing size, an overrunning count and trailing bytes are each `malformed stat buffer`; a valid buffer over devcons is `wstat: device does not implement wstat`; devsrv's remove arm removes, and devcons is `remove: device does not implement remove`; the REMOVE, _WSTAT, _FWSTAT, WSTAT and FWSTAT dispatch slots are armed |
+| `parse_bootconf_pairs` + `BootArgs::from_raw` (6, virtshell leg) | `bootconf_empty_and_absent_strings_parse_to_zero_pairs`, `bootconf_multi_word_init_is_one_pair`, `bootconf_pairs_keep_order_and_literal_equals`, `bootconf_leading_continuation_and_empty_key_are_invalid`, `bootconf_pair_and_length_caps_are_loud`, `bootconf_bytes_after_the_first_nul_are_ignored` | the six 20-13 Task 3 behaviors: empty or absent gives zero pairs; `init=/arm64/init -c` is one pair; order is kept and `=` inside a value is literal; a leading continuation or empty key is `InvalidBootconfToken`; 32 pairs ok and 33 is `TooManyBootconfPairs`; 256 bytes ok and 257 is `CmdlineTooLong`; bytes after the NUL are ignored (and don't count toward the cap) |
+| `check_cap_extents` (5, virtshell leg) | `cap_extents_admit_the_live_virt_shape`, `cap_extents_reject_zero_length_caps`, `cap_extents_reject_extents_past_the_bar_end`, `cap_extents_reject_undersized_common_and_device_configs`, `cap_extents_reject_an_absent_device_capability` | the live layout (the arm64 net boots' `pci: caps common@0x0+0x1000 notify@0x3000 isr@0x1000 device@0x2000`, BAR 0x4000, notify ending exactly at it) is Ok; zero length (including offset == bar_size), one byte past the BAR, the u32-wrap pair, `common.length = 0x3f`, `device.length = 6` and `7`, and an absent device cap are each rejected with the function's exact message; 0x40 and 8 pass |
+
+On the `<behavior>` line `[rc, -x, f, a]`: the function's argv[0] is `elem`, the script's own name, per the donor (sysproc.c:308-309) and x86_64. The interpreter `/bin/rc` is returned in the separate `interpreter` field. The test pins both: with `elem = f` the argv is `[f, -x, f, a]`.
+
+**x86_64 pins not ported, with the live leg that covers each:**
+
+| x86_64 pin | Why not ported | Live coverage |
+|---|---|---|
+| `exec::plain_aout_head_is_not_a_script` (second half: `exec_replace` short read) | needs `new_user_proc` (not host-runnable on aarch64: pagealloc `OutOfSpace`, 20-12) | first half ported (`shebang_non_marker_heads_yield_no_rewrite`); every gate execs plain a.outs |
+| `exec::exec_with_shebang_installs_the_interpreter_image` | `new_user_proc` | `boot-r9-cpu` shebang leg: cpurc runs the `#!` `/lib/shebangecho`, which prints `SHEBANG-OK /lib/shebangecho` |
+| `exec::shebang_recursion_is_capped_at_two_with_a_loud_reject` | `new_user_proc` | **none live.** The depth cap (`MAX_SHEBANG_DEPTH = 2`, exec.rs:421-428) is ported code with no gate that exercises a third `#!` hop. Recorded as a known gap. |
+| `syscall::remove_syscall_dispatches_and_refuses_loudly` | `MockStack` (built on `new_user_proc`) | cpurc's remove leg (exact `remove: …` refusals); slot armed (pinned by `remove_and_stat_wire_consumer_slots_carry_named_handlers`) |
+| `syscall::wstat_syscall_validates_then_refuses` | `MockStack` | cpuprobe stat leg: the exact wstat refusal and `malformed stat buffer` |
+| `syscall::fwstat_syscall_over_an_open_fd_refuses_loudly` | `MockStack` | cpuprobe stat leg: the exact fwstat refusal |
+| `syscall::remove_round_trips_…` (devcap half: caphash removal as eve) | needs the user hook installed as eve (`TEST_USER`, x86_64-only test scaffolding) | cpuprobe cap leg plus cpurc's `rm '#¤/caphash'` (as glenda = eve) |
+| `syscall::other_loud_none_slots_stay_unarmed` | aarch64's loud-None set differs by design (each arch arms its measured set) | n/a |
+| `mb2::cmdline_tag_*` (multiboot2 tag framing, `InvalidCmdlineTag`) | x86_64 carrier only; aarch64 reads `/chosen/bootargs` | `boot-r9-cpu` requires the `devenv: bootconf init=/arm64/init -c` line (`read_bootargs` through the DTB) |
+| `pci::bar_assignment_rejects_naturally_misaligned_window_bases` | not part of `check_cap_extents`; aarch64 takes its window from the DTB `ranges` | net-smoke's `pci: bar4 … readback` line |
+
+**No kernel behavior change.** Both kernels were rebuilt with `nix build .#kernel-virt .#kernel-virt-cpu` at `e6e5220` and compared section by section with the `821db85` store paths (`llvm-objcopy --dump-section`). For each kernel, `.text` and `.rodata` are identical. `.data` differs in 13 bytes, each one exactly +3: these are the `line` fields of the panic `Location` records after the three comment lines added in `main.rs`, at a 24-byte stride. `cargo xtask build --arch aarch64 --config virtshell` and `--config virtcpu` both build. `boot-r9-cpu` ran on HVF with `--override-input r9 git+file:///Users/neilskinner/code/r9` at `f94cf12`, and again at `e6e5220`: exit 0, `cpu-r9: ALL STAGES PASS`, kernel `r9-kernel-virt-cpu-<rev>`, 17 forks, 0 `cpurc: FAIL` (`.build/p20-17-t1-cpu-hvf{,-e6e5220}.out`). `R9_SKIP_BUILD=1` was set, because no Harvey source changed since the 20-16 bake. `f94cf12` was the first battery commit. It was re-cut as `02c3d28` (adding the dispatch-slot pin; no non-test byte changed) before anything was pushed.
+
+## Group C at the pin
+
+Plan 20-17 Tasks 2 and 3.
+
+### r9 pre-push battery (Task 2)
+
+r9 `main` is local `e6e5220`. Two commits sit on `origin/main` = `821db85`, and each matches this plan:
+- `02c3d28` `test(20-17): aarch64 host-test battery for the cpu-port pure logic` (Task 1)
+- `e6e5220` `ci(20-17): build aarch64 virtcpu and run the aarch64 host tests in CI`. This adds the `build-aarch64-virtcpu` job and the `test-aarch64-host` job on `runs-on: ubuntu-24.04-arm`.
+
+The group C r9 work from 20-13 to 20-16 is already on `origin/main`: 20-13 and 20-14 through `105d48e` and the debugger range to `c94bc9b`, then 20-15's `505494e` and `821db85`. 20-16 committed no r9 file.
+
+The tracked tree is clean. Inside `nix develop`: `cargo xtask check`, `clippy`, `test`, and `build --arch aarch64` for `--config virtshell`, `virtcpu`, `virtchurn` and the default config all pass (`R9-BATTERY-GREEN`). `R9_HARVEY_DIR=… cargo xtask ureg-check` passes (26 fields, and the negative control fires). `nix build .#kernel-virt .#kernel-virt-cpu --no-link` passes (`r9-kernel-virt-e6e5220`, `r9-kernel-virt-cpu-e6e5220`).
+
+`git diff --stat origin/main..HEAD -- port/src`: empty (0 lines).
+`git diff --stat origin/main..HEAD -- flake.nix`: empty (0 lines).
+
+No group C summary flags a `port/src` edit after `c94bc9b`, and the owner's linux boot-iso check passed at `c94bc9b` (`## Pin at r9 c94bc9b`). From `c94bc9b` to `e6e5220` no `port/src` or x86_64 byte changes, so the boot-iso hash `sha256-JQ/47nON4oZPk1SxxM5zkHARxCrH23ShgR9sJJCltCY=` stands. That also means no x64 container gate is owed and no Harvey push hold applies.
+
+### N for this series
+
+`N-SOURCE: lower-bound` (`P-LO = 0.00575157`) and `STRESSOR-RATE: not-fired` are in force. ln(0.05) = -2.99573 and ln(1 - P-LO) = -0.00576818.
+
+- **boot-r9-cpu (new; floor 36).** A fresh capture today (the harness check run, `.build/p20-17-harness-check/…/run-1.log`, pinned `821db85`; and both Task 1 runs) has 17 `process N exited` lines, equal to 20-16's `CPU-FORKS-PER-BOOT = 17`. N = max(36, ceil(2.99573 / (17 × 0.00576818))) = max(36, ceil(2.99573 / 0.0980591)) = max(36, ceil(30.55)) = max(36, 31) = **36**. The floor decides.
+- **boot-r9-tier1 (floor 10).** The last tier-1 captures at the image as it stands (`.build/p20-16-conf-boot-r9-tier1-{hvf,tcg}.log`; no Harvey source changed since) have 389 forks each, and 44 distinct `T1-OK`. forkstress's 200 do not count, which leaves 189 forks per boot. N = max(10, ceil(2.99573 / (189 × 0.00576818))) = max(10, ceil(2.99573 / 1.09019)) = max(10, ceil(2.748)) = **10**. The floor decides.
+- **smoke (8 forks/boot) and net-smoke (71)** are unchanged, so their `N-HVF` lines at `## N derivation` stand: 1753 and 36.
+
+N-HVF boot-r9-tier1 = 10
+N-HVF boot-r9-cpu = 36
+
+The series shape at the pin: smoke HVF ×1753, net-smoke HVF ×36, tier-1 HVF ×10 and cpu HVF ×36, then TCG ×3 of each, for 1835 + 12 = 1847 runs. Estimated wall clock is about 4.4 h, of which smoke is about 3.9 h.
+
+### Harness
+
+Harvey `204b7f6d3` `test(20-17): repeat-gate accepts boot-r9-cpu` adds `boot-r9-cpu` to the allowlist, mapped to `R9_CPU_LOG`. The app's default capture is `build/aarch64/cpu-r9.log`. A one-run check, `R9_SKIP_BUILD=1 R9_ACCEL=hvf … repeat-gate.sh boot-r9-cpu 1`, printed `SERIES boot-r9-cpu accel=hvf runs=1 pass=1 fail=0 pushword=0 forks=17`, and the capture landed in the series dir as `run-1.log`. `repeat-gate.sh not-a-gate 1` still exits 2.
+
+R9-PUSH: awaiting owner approval (checkpoint before the push, the pin move and the series)
