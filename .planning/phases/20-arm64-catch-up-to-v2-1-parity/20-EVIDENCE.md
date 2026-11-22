@@ -1778,3 +1778,40 @@ netip: FAIL clsmoke-r9-net: a fixture printed netip: FAIL — aborting (the fail
 - TCG legs were all green (9/9).
 
 Step 5 (the Harvey push) was NOT run: the series is red. The HVF smoke ×1753 leg was stopped at run 20 (all green) so that HVF is free for the owner's next call. Harvey `master` stays local at `4888b718b` plus this evidence commit. r9 `origin/main` = `105d48e` is pushed, and Harvey's pin commit is unpushed.
+
+## Pin at r9 c94bc9b (full series deferred to phase end by owner)
+
+After the red `105d48e` series, the debuggers root-caused and fixed the fork-child PC-alignment trap: the I-cache fix for the WINDOWS #49 residual, r9 `79c55b1` + `46a5c87`. r9 then gained user FP/SIMD on both arches, async notes with NSAVE and per-CPU FP, and aarch64 fault-return note delivery with the noted PSR sanitize. The final rev is `c94bc9b` (`origin/main`). Its x86_64 bytes are unchanged since `e9e5365`, and the boot-iso hash is `sha256-JQ/47nON4oZPk1SxxM5zkHARxCrH23ShgR9sJJCltCY=`.
+
+**Owner's linux boot-iso check: PASSED.** `nix build .#boot-iso --rebuild` at `c94bc9b`, relayed by the coordinator on 2026-11-22. This also settles the check owed at `105d48e`, because the hash has moved on since (`e9e5365`).
+
+**Pre-pin build (override, before the pin move).** One arm64 `subset-build.sh` ran through `boot-r9-tier1` on HVF with `--override-input r9` at `c94bc9b`, so the image carries fpprobe with its note-fault and note-mask rounds (Harvey `f525b1bf5`, `040375f26`). Exit 0; 44 OK / 23 SKIP / 0 FAIL; `fpprobe: ok`. At `e9e5365` an earlier prep pass confirmed the computed counts: 44 T1-OK on arm64, and 39 T1-OK in a fresh amd64 container (TCG `boot-r9-tier1-x64` through `stage-build.sh` + `subset-build.sh`, exit 0, 39/0/0, `T1-OK fpprobe`; container removed, Docker state restored).
+
+**Pin move.** Harvey `8160ec3f3` is the lock-only move `105d48e -> c94bc9b`; only the r9 node in `flake.lock` changed.
+
+**Full series: started, then stopped and deferred to the end of phase 20 by the owner.** The 20-06-shape series (scratchpad `series-c94bc9b.sh`, `KERNDATE=1795349967` = the commit time of `8160ec3f3`, no override, `R9_STOP_ON_FAIL=1`) was partway through when the owner deferred it, so one series at phase end covers everything. I stopped only my own process tree. Partial results, all on `r9-kernel-virt-c94bc9b`:
+
+```
+SERIES-START 2026-11-22T12:19:44Z harvey=8160ec3f3 pin=c94bc9bf2cee4255cb63afbcca30be588e6261e4 KERNDATE=1795349967
+SERIES boot-r9-tier1 accel=hvf runs=10 pass=10 fail=0 pushword=0 forks=3890
+SERIES boot-r9-net-smoke accel=hvf runs=36 pass=36 fail=0 pushword=0 forks=2556
+SERIES boot-r9-tier1 accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=1167
+SERIES boot-r9-net-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=213
+SERIES boot-r9-smoke accel=tcg runs=3 pass=3 fail=0 pushword=0 forks=24
+boot-r9-smoke accel=hvf: stopped at run 355 of 1753 (355 pass / 0 fail, 2840 forks, 0 pushword); run 356 was cut off by the stop, not failed
+```
+
+The HVF net-smoke leg that went red at `105d48e` (run 23) is 36/36 here. Series directories: `.build/hvf-series/boot-r9-*-20261122T07*`.
+
+**Confidence pass at the pin** (owner's substitute; no override; `KERNDATE=1795349967`; the first run rebuilt the userland and baked a 4486111-byte image, the rest used `R9_SKIP_BUILD=1`):
+
+| Gate | Accel | Exit | Result |
+|---|---|---|---|
+| `boot-r9-tier1` | HVF | 0 | `ALL STAGES PASS`; 44 OK / 23 SKIP / 0 FAIL |
+| `boot-r9-tier1` | TCG | 0 | `ALL STAGES PASS`; 44 OK / 23 SKIP / 0 FAIL |
+| `boot-r9-smoke` | HVF | 0 | `ALL STAGES PASS` |
+| `boot-r9-net-smoke` | HVF | 0 | `ALL STAGES PASS` |
+
+Kernel `r9-kernel-virt-c94bc9b` on every run. Captures: `.build/p20-14-conf-*.{out,log}`.
+
+SERIES-AT-PIN: deferred-to-phase-end (owner); confidence pass green at c94bc9b

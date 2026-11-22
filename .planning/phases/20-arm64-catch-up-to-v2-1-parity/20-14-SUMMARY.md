@@ -133,3 +133,14 @@ T-20-36 (the depth bound of 2 and the MAX_ARGS reject, ported unchanged), T-20-3
 - `## Group C ports` has `SHEBANG-LIVE: ok` and `REMOVE-ROUTE: devmnt-remove`.
 - The aarch64 DISPATCH has 5 `Some(sys_(remove|wstat|fwstat))` slots, and `exec_with_shebang` appears 2 times outside comments.
 - r9 `git status --porcelain` is empty.
+
+## Addendum: pin checkpoint (2026-11-21 to 22)
+
+- **r9 pushed** by the coordinator: `origin/main` went from `105d48e` to `c94bc9b`, with the debuggers' fixes on top.
+- **First pin move** `fa38402 -> 105d48e` (Harvey `4888b718b`). Its series went **RED**: HVF net-smoke run 23 hit `user trap: unhandled ec=0x22` (a PC alignment fault in a forked rc child), recorded in `f98d21fad`. The debuggers root-caused it to missing I-cache maintenance on rfork's text copies (WINDOWS #49 residual; r9 `79c55b1`, `46a5c87`).
+- **Final pin move** `105d48e -> c94bc9b` (Harvey `8160ec3f3`, lock-only).
+- **Owner's linux `nix build .#boot-iso --rebuild` at `c94bc9b`: PASSED.**
+- **The full 20-06-shape HVF series is deferred to the end of phase 20** by the owner: one series then covers everything. The partial run at `c94bc9b` was green on every leg that ran: tier1 HVF 10/10, net-smoke HVF 36/36, TCG 9/9, smoke HVF 355/355 when stopped.
+- **Confidence pass at the pin, all exit 0:** tier1 on HVF and TCG (44 OK / 23 SKIP / 0 FAIL each), smoke HVF, net-smoke HVF.
+- **Expected tier-1 counts at the pin:** 44 on arm64, 39 on x64 (both confirmed live).
+- **No Harvey push yet.** It waits on the owner's push decision.

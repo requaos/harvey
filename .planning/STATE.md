@@ -6,10 +6,10 @@ current_phase: 20
 current_phase_name: arm64 catch-up to v2.1 parity
 status: executing
 stopped_at: Completed 20-14-PLAN.md
-last_updated: "2026-11-21T15:37:45.937Z"
-last_activity: 2026-11-21
+last_updated: "2026-11-22T13:29:21.922Z"
+last_activity: 2026-11-22
 last_activity_desc: Completed 20-01-PLAN.md
-state_head: d67f23a529d11fe5211ae5c1f57ee50b1b08fef9
+state_head: 8160ec3f3480e546ba0d51826ab09536cf4eaecf
 progress:
   total_phases: 8
   completed_phases: 2
@@ -30,8 +30,8 @@ See: .planning/PROJECT.md (updated 2026-11-13)
 
 Phase: 20 (arm64 catch-up to v2.1 parity) — EXECUTING
 Plan: 15 of 17
-Status: In progress — 20-01..20-14 complete; arm64 #! exec + REMOVE/WSTAT/FWSTAT and a devmnt Tremove (rm through mounts, both arches; x86_64 boot-iso hash re-derived) landed as local r9 49ba196..105d48e on 20-13's 12bce96/de03bf7 (unpushed, pin still fa38402); pin checkpoint pending (r9 push, lock-only pin move, one HVF series for 20-13+20-14, owner linux boot-iso check at 105d48e); next 20-15
-Last activity: 2026-11-21 - Completed 20-14-PLAN.md
+Status: In progress — 20-01..20-14 complete; r9 pin advanced to c94bc9b (Harvey 8160ec3f3, lock-only; origin/main = c94bc9b: 20-13/20-14 ports + the fork-child I-cache fix, user FP/SIMD, async notes/NSAVE, aarch64 fault-return notes); owner linux boot-iso --rebuild PASSED at c94bc9b; confidence pass green at the pin; full HVF series deferred to the end of phase 20 (owner); Harvey push pending owner decision; next 20-15
+Last activity: 2026-11-22 - 20-14 pin checkpoint: pin at r9 c94bc9b, confidence pass green, full series deferred to phase end
 
 Progress: [████████░░] 86% (v2.1: 6/7 phases — 13-18 complete, 19 execution-complete pending verification; ROADMAP is authoritative — the phase-complete counter's "all phases complete" ignores unplanned phase 19)
 
@@ -348,6 +348,7 @@ Recent decisions affecting current work:
 - [Phase 20]: Owner: arm64 remove route devmnt-remove; devmnt Tremove (on a clone of the walked fid) + DEV_MNT arm in port::namec::remove_chan makes rm work through mounts on both arches (r9 98feebc); x86_64 bytes changed, boot-iso outputHash re-derived (r9 105d48e)
 - [Phase 20]: aarch64 #! exec pre-pass and REMOVE/WSTAT/FWSTAT dispatch at x86_64 parity (r9 7adb773, 9173af0); sys_remove routes through port::namec::remove_chan
 - [Phase 20]: Owner: require-remove; T1-OK writeprobe requires all eight steps including remove (Harvey d67f23a52)
+- [Phase 20]: Owner: full 20-06-shape HVF series deferred to the end of phase 20 (one series covering everything); 20-14 pin at r9 c94bc9b rests on a confidence pass (tier1 HVF+TCG, smoke + net-smoke HVF) and the partial series (all green); owner linux boot-iso --rebuild PASSED at c94bc9b
 
 ### Pending Todos
 
