@@ -1,16 +1,16 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "follow-ups of fpu-x64-notes-kernel-simd (owner, via coordinator, 2026-11-22): (a) x86_64 async note delivery — notes must interrupt ring-3 code (alarm/DEL), with noted returning through iretq for interrupted contexts (SYSRET clobbers rcx/r11); check aarch64 for the same gap and fix it there too if needed; (b) NSAVE on both arches per the 9front/Plan 9 semantics; (c) FP ownership per CPU — move the single static into the per-CPU structure, correct for SMP; r9 is single-CPU today, so a structural change verified by tests with no behaviour change"
 created: 2026-11-22T02:20:00Z
-updated: 2026-11-22T05:25:00Z
+updated: 2026-11-22T05:40:00Z
 ---
 
 ## Current Focus
 
 hypothesis: CONFIRMED and fixed — (a) x86_64 delivered notes only at the syscall boundary and NOTED returned through SYSRETQ (rcx/r11 lost for an interrupted context); aarch64 had no gap. (b) NSAVE unimplemented on both arches (and no nested-note chain). (c) FP bookkeeping was a module static. Found on the way: x86_64's interrupt entry called trap() on a stack misaligned by 8 (latent ABI violation that the new interrupt-time note boundary turned into a kernel #GP)
 test: DONE — r9 local main 3f69729 → e9e5365 (37b5f4e per-CPU, 0f7dabb x86 interrupt-stack alignment, 0ffcec6 notes, e9e5365 boot-iso hash; unpushed); Harvey 91f286f02 (fpprobe note rounds); no new tier-1 marker (T1-OK fpprobe already gates both arches and now covers the new rounds)
-expecting: owner verification
-next_action: on "confirmed fixed" — archive this session + KB entry. The HVF pin series / Harvey push move Harvey's r9 pin to >= e9e5365: the aarch64 and x64 tier-1 `T1-OK fpprobe` now need the new note rounds (NSAVE on both arches; async + regs on x86)
+expecting: DONE — owner confirmed fixed 2026-11-22; coordinator pushed r9 e9e5365
+next_action: archived; follow-up aarch64 demand-fault-return note delivery opened as its own session. The HVF pin series / Harvey push move Harvey's r9 pin to >= e9e5365: the aarch64 and x64 tier-1 `T1-OK fpprobe` now need the new note rounds (NSAVE on both arches; async + regs on x86)
 bug_class: Bohrbug (deterministic; byte-identical HVF/TCG output)
 scratch: SP=/private/tmp/claude-501/-Users-neilskinner-code-harvey/55ded085-3397-4d2c-931d-1d3a7a81443a/scratchpad — $SP/fp3/{r9 (final scratch + mut-x-* branches), r9-mut, harvey (fp3-wiring), pa/px (host-built probes), series*, run-*.log, mut-*}, $SP/x64fp2/{run4-summary.partial.txt, run5-summary.txt, run6-summary.txt, step1-summary.txt, r4-*/r5-*/r6-* captures}
 
