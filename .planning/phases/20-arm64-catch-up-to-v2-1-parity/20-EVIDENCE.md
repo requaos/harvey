@@ -1651,7 +1651,37 @@ PR-DONE
 
 **Gates on `505494e`** (HVF, override, the first run rebuilt the userland): `boot-r9-smoke` 0, `boot-r9-net-smoke` 0, `boot-r9-tier1` 0 (44 OK / 23 SKIP / 0 FAIL); kernel `r9-kernel-virt-505494e`; captures `.build/p20-15-t1-boot-r9-*.out`. devcap is not reachable on virtshell (no `'¤'` registry arm without `cap`); its after-port transcript is Task 4's, on the virtcpu kernel.
 
-<!-- 20-15-task4 -->
+**The devcap kernel (Task 4, `separate-profile`).** r9 `821db85` (local, unpushed) `feat(20-15): aarch64 virtcpu profile + kernel-virt-cpu package (devcap)`: new `aarch64/lib/config_virtcpu.toml` (`dev = ["exec", "bootchain", "cap", "ether", "ip"]`, header in the `config_q35cpu.toml` style) and one flake derivation `kernel-virt-cpu` (`--config virtcpu`, the `kernel-virt` store-path contract). No xtask test or list enumerates aarch64 config names (the only TOML list is the q35 netdev test, `xtask/src/lib.rs:144-153`), so xtask is unchanged. `cargo xtask build --arch aarch64 --config virtcpu` rc 0 (25 warnings, the same set). `nix build .#kernel-virt-cpu` holds `kernel-virt.elf` (63260392 B, sha256 `e1891bef0b062fa0…`) and both DTBs. Rebuilt from the committed tree it is `/nix/store/31bjaknv19fmbj22sxmvzh56iy83pzhg-r9-kernel-virt-cpu-821db85`, with the same ELF bytes as the probed `-wip` build. `nix build .#kernel-virt` still builds, and its ELF is **byte-identical** to the `505494e` kernel (sha256 `6e0bfc20e0203587…` both), so virtshell's gates are unaffected. `git diff origin/main..HEAD -- flake.nix`: 28 added lines (the one derivation), 0 removed, 0 lines naming `outputHash|kernel-x64|grub2|xorriso`. `config_virtshell.toml` has no diff in the range.
+
+**devcap after the port** (kernel `/nix/store/axr4dshx6mzdywpar07n69dbbczrg4zi-r9-kernel-virt-cpu-wip` = the `821db85` tree; the same two typed lines as the baseline; HVF = TCG, captures `.build/p20-15-t4-cap{A,B}-{hvf,tcg}.log`):
+
+```
+% echo PR-''U `{cat '#c/user'} `{cat '#c/hostowner'}; ls -l '#¤'; echo PR-''1 $status; cat '#¤/caphash'; echo PR-''2 $status; echo -n 0123456789abcdefghij >'#¤/caphash'; echo PR-''3 $status; echo PR-''DONE
+PR-U glenda glenda
+---w-------   10 glenda glenda 0 Feb  7  2006 '#¤/caphash'
+---w--w--w-   10 glenda glenda 0 Feb  7  2006 '#¤/capuse'
+PR-1 
+cat: error reading #¤/caphash: devcap: permission denied
+PR-2 error reading #¤/caphash: devcap: permission denied
+PR-3 
+PR-DONE
+% echo -n glenda@bogus@key >'#¤/capuse'; echo PR-''4 $status; rm '#¤/caphash'; echo PR-''5 $status; ls -l '#¤'; echo PR-''DONE $status
+echo: write error: invalid capability glenda@bogus@key
+PR-4 write error
+PR-5 
+---w--w--w-   10 glenda glenda 0 Feb  7  2006 '#¤/capuse'
+PR-DONE 
+```
+
+| # | Probe | Before (scratch cap kernel, Task 1) | After (virtcpu, HVF = TCG) |
+|---|---|---|---|
+| 1 | `ls -l '#¤'` | `pread: unknown device` | lists `caphash` (0200) and `capuse` (0222) |
+| 2 | `cat '#¤/caphash'` | `pread: unknown device` | `devcap: permission denied` (the device's own refusal; hashes never read back) |
+| 3 | 20-byte `caphash` write as the boot user | `pwrite: unknown device` | **succeeds** (status empty), matching the `CAP-WRITER` source reading: the boot user passes the eve gate |
+| 4 | bogus `capuse` write | `pwrite: unknown device` | `invalid capability glenda@bogus@key` (the device's formatted message via `err_dyn`) |
+| 5 | `rm '#¤/caphash'` | succeeds | succeeds, and the following `ls` shows only `capuse` (caphash hidden for the rest of the boot) |
+
+CAP-PROFILE: virtcpu
 
 ### devmnt remove and `#!` (20-14)
 
