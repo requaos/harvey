@@ -2063,3 +2063,86 @@ CPU-CAP-LEG: write-ok
 CPU-GATE-ROUTE: as-planned
 
 Reading for Tasks 3 and 4: every idiom the fixture needs ran on arm64's rc. The cap leg can assert a successful write. After `cpurc: DONE`, the driver stages `init: starting /bin/rc` and then the `% ` prompt, as the record shows. No prohibition on `init: starting /bin/rc` is added, because a good boot prints it.
+
+## Cpu fixture gate (local override)
+
+Plan 20-16 Tasks 3 and 4. Owner answer at the Task 2 checkpoint (relayed by the coordinator, 2026-11-22): **`as-planned`**, with the driver staging `init: starting /bin/rc` and then `% ` after `cpurc: DONE`. No r9 file is edited. Every run used `--no-write-lock-file --override-input r9 git+file:///Users/neilskinner/code/r9` at r9 `821db85` (clean).
+
+In brief:
+- `boot-r9-cpu` passed 3 times on HVF and once on TCG, plus the first run and one extra HVF run. The three existing gates pass with the fixture in the image.
+- Red proof: against the devcap-less `kernel-virt` the gate exits 1 at the `cap` leg.
+- Forks per boot: 17.
+
+**Fixture (Harvey `ba43f574e`).** `build/aarch64/root-tree/rc/bin/cpurc` (git mode 100755, `#!/arm64/bin/rc`): legs `cpurc: RAN`, `shebang` (`/lib/shebangecho`), `stat` (`cpuprobe stat`), `cap` (`cpuprobe cap`), `remove` (`rm '#¤/caphash'` then `test -e`), `ssl` (`sslprobe -m`), `cpurc: DONE`. Each leg prints `cpurc: FAIL <leg>` when it fails. `build/aarch64/root-tree/lib/shebangecho` (git mode 100755, 29 bytes): `#!/arm64/bin/echo SHEBANG-OK`. `build/aarch64/cpuprobe.c`: `stat` runs five checks (3-byte wstat -> `malformed stat buffer`; well-formed wstat and fwstat -> `wstat: device does not implement wstat`, and the fd still reads; size field + 1 -> `malformed stat buffer`; remove -> `remove: device does not implement remove`, and the file still opens). `cap` runs three (20-byte caphash write succeeds; bogus capuse -> errstr starting `invalid capability`; 10-byte caphash write -> `devcap: i/o count too small`). `subset-build.sh` compiles cpuprobe with `7c -FTVw` (no warning) and harvests it, and its magic loop covers it. `mkimage.sh` copies it to `/arm64/bin/cpuprobe` and fails the bake if either script lacks its `#!` head or mode 755 (`find -perm 755`), if shebangecho is over 32 bytes, or if `arm64/bin/cpuprobe` or `arm64/bin/sslprobe` is missing. `stage-build.sh` is untouched.
+
+**The three existing gates with the larger image** (HVF, kernel `r9-kernel-virt-821db85`): `boot-r9-smoke` exit 0 (full userland rebuild, then `== PASS: baked … (4522331 bytes …)`), `boot-r9-net-smoke` exit 0, `boot-r9-tier1` exit 0 (44 `T1-OK` / 23 `T1-SKIP` / 0 `T1-FAIL`). The second and third ran with `R9_SKIP_BUILD=1` on the userland the first had just built. The terminal smoke capture has 0 `cpurc` lines, so terminal boots never run the fixture. Captures: `.build/p20-16-t3-boot-r9-{smoke,net-smoke,tier1}.out`.
+
+**Gate (Task 4).** `nix/cpu-r9.sh` is smoke-r9.sh's pipeline with the boot string defaulted to `init=/arm64/init -c` on `/chosen/bootargs`, the capture at `build/aarch64/cpu-r9.log` (`R9_CPU_LOG`) and the driver `build/aarch64/cpu-r9.expect`. In `flake.nix`, `cpuR9Pkg` exports `R9_KERNEL_PKG` from `r9.packages.${system}.kernel-virt-cpu` with smokeR9Pkg's dependency list. The app `boot-r9-cpu` sits in its own `optionalAttrs (hasAttr system r9.packages && hasAttr "kernel-virt-cpu" r9.packages.${system})`. App count on aarch64-darwin at the current pin (`c94bc9b`, no override): `grep -c '^boot-r9'` = **4** (the cpu app is absent, and evaluation does not error). With the override: 5 (`boot-r9`, `boot-r9-cpu`, `boot-r9-net-smoke`, `boot-r9-smoke`, `boot-r9-tier1`).
+
+**First real run** (HVF, `R9_SKIP_BUILD=1`, kernel `/nix/store/31bjaknv19fmbj22sxmvzh56iy83pzhg-r9-kernel-virt-cpu-821db85` = the committed `kernel-virt-cpu`; capture `.build/p20-16-cpu-first-hvf.log`): exit 0, `cpu-r9: ALL STAGES PASS`. Transcript from `cpurc: RAN` (`fault:` and `sched:` lines dropped):
+
+```
+cpurc: RAN
+process 6 exited: ""
+SHEBANG-OK /lib/shebangecho
+process 7 exited: ""
+cpuprobe: ok stat
+process 8 exited: ""
+STAT-OK
+process 9 exited: ""
+cpuprobe: ok cap
+process 10 exited: ""
+CAP-OK
+process 11 exited: ""
+process 12 exited: ""
+process 13 exited: "false"
+REMOVE-OK
+process 14 exited: ""
+sslprobe: ok roundtrip
+process 16 exited: ""
+devmnt: server error: file does not exist
+sslprobe: ok mount
+process 15 exited: ""
+process 17 exited: ""
+SSL-OK
+process 18 exited: ""
+cpurc: DONE
+process 19 exited: ""
+process 5 exited: ""
+process 4 exited: ""
+
+init: starting /bin/rc
+% 
+```
+
+`SHEBANG-OK /lib/shebangecho` is the `#!` argv order read back on the wire: the token comes first, then the script path. `process 13 exited: "false"` is `test -e '#¤/caphash'` failing after the rm, which is the expected result. `cpuprobe: ok stat` means the kernel returned each of the five expected texts on `/lib/namespace`. This is the first live observation of wstat and fwstat on that file.
+
+**After `cpurc: DONE`: agrees with the Task 1 record (`AFTER-CPURC: prompt`).** The cpurc rc and its parent exit with empty status, so init prints no `init: rc exit status` line. Then come `init: starting /bin/rc` and rc's `% ` prompt, exactly as in the scratch boots. The driver stages both (`init-rc`, `prompt`) and types nothing. It does not prohibit `init: starting /bin/rc`, because a good boot prints it. There was no disagreement, so nothing goes back to the Task 2 checkpoint.
+
+**Gate series** (the plan's verify loop with `R9_SKIP_BUILD=1`, on the userland built by the Task 3 smoke run; captures `.build/p20-16-cpu-{hvf,tcg}.out` and `.build/p20-16-cpu-run{1..4}-*.log`):
+
+```
+hvf exit=0 pass=1 fail=0 done=1 forks=17
+hvf exit=0 pass=1 fail=0 done=1 forks=17
+hvf exit=0 pass=1 fail=0 done=1 forks=17
+tcg exit=0 pass=1 fail=0 done=1 forks=17
+```
+
+All seven markers and the bootconf line are in each capture (the driver's `marker-once` and `bootconf-present` post-passes). An extra HVF run (`.build/p20-16-cpu-run5-hvf-unmodified.{out,log}`) was a botched first attempt at the red proof. The wrapper copy was read-only, so the kernel swap below never happened and the unmodified app ran on `kernel-virt-cpu`. It passed (exit 0, forks 17) and counts only as a fifth green run.
+
+**Red proof** (the gate against a kernel without devcap). Rather than `nix develop`, where the venue rule forbids bakes because hostbin awk shadows GNU awk, I copied the app's own wrapper script (`/nix/store/0bmn5cnv…-harvey-boot-r9-cpu/bin/harvey-boot-r9-cpu`, i.e. `nix/cpu-r9.sh` under the app's exact PATH and PLAN9) to the scratchpad. I changed one line, the `R9_KERNEL_PKG` export, from `kernel-virt-cpu-821db85` to the locally built `/nix/store/3qnpmnqgiy3q7fignqvh2pxi1hlzy8h0-r9-kernel-virt-821db85` (the virtshell kernel, no `cap`). Run: `R9_SKIP_BUILD=1 R9_ACCEL=hvf bash <copy>`, captures `.build/p20-16-cpu-red-hvf.{out,log}`. **Exit 1, at the `cap` leg:**
+
+```
+cpurc: RAN
+SHEBANG-OK /lib/shebangecho
+cpuprobe: ok stat
+STAT-OK
+cpuprobe: FAIL caphash-open: namec: unknown # device
+cpurc: FAIL cap
+```
+
+with `cpu-r9: cpurc leg FAILED: cap (the cpuprobe/sslprobe line above names the errstr)` and `error: cpu gate FAILED …`. The `shebang` and `stat` legs pass on virtshell, as expected, because those arms are not devcap-gated. Without `'¤'` in namec's registry, the walk to `#¤/caphash` fails, and the gate goes red at once instead of riding a timeout.
+
+**Forks per boot.** Each of the five green captures has 17 `process N exited` lines, all of them before the final prompt (the gate types nothing). This is the figure 20-17 derives `N-HVF boot-r9-cpu` from (floor 36).
+
+CPU-FORKS-PER-BOOT = 17

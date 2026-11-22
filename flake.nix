@@ -153,6 +153,19 @@
           '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
             ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
             ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
+          # 20-16 (ARM-11): the arm64 cpu fixture gate — the SAME
+          # composed pipeline as boot-r9-smoke, but the kernel is the r9
+          # input's kernel-virt-cpu (the virtcpu profile: virtshell plus
+          # devcap, 20-15), the DTB copy carries the boot string
+          # init=/arm64/init -c, and build/aarch64/cpu-r9.expect asserts
+          # the baked /rc/bin/cpurc's legs (#!, wstat/remove, devcap,
+          # devssl) in one boot.  smokeR9Pkg's dependency list verbatim;
+          # the four kernel-virt apps are untouched.
+          cpuR9Pkg = mkScriptApp pkgs "harvey-boot-r9-cpu" ./nix/cpu-r9.sh ''
+            export R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt-cpu}"
+          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
+            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
+            ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
           # 14-07 (D-05/D-06, XEXEC-03): the x64 one-command compose —
           # the same pipeline shape as boot-r9 (kernel-package contract →
           # KERNDATE provenance → userland build → bake) but the kernel
@@ -474,6 +487,15 @@
           boot-r9-smoke = mkApp smokeR9Pkg;
           boot-r9-net-smoke = mkApp netSmokeR9Pkg;
           boot-r9-tier1 = mkApp tier1R9Pkg;
+        }
+        # 20-16: boot-r9-cpu exists only where r9 ships
+        # packages.kernel-virt-cpu (r9 821db85 onward); at an older pin
+        # the attr is simply absent, never an evaluation error (&& keeps
+        # the inner hasAttr lazy where the system has no packages).
+        // nixpkgs.lib.optionalAttrs
+          (builtins.hasAttr system r9.packages
+            && builtins.hasAttr "kernel-virt-cpu" r9.packages.${system}) {
+          boot-r9-cpu = mkApp cpuR9Pkg;
         }
         # 14-07: the x64 compose apps live ONLY where r9 exports the
         # attrs they consume (its own gates: the kernel on every linux
