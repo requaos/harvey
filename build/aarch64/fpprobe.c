@@ -37,7 +37,7 @@
  *		run the other (a woken sleeper never preempts a spinner on
  *		r9 — it resumes only from the sched loop — so the switch
  *		leg's spin rarely overlaps a peer)
- *	note	a child with a notify handler takes notes five ways:
+ *	note	a child with a notify handler takes notes six ways:
  *		sync	written to its own /proc/N/note (delivered at the
  *			write's return)
  *		sleep	an alarm interrupts a blocking sleep (delivered at
@@ -52,6 +52,10 @@
  *			with the interrupted code's FP state, take a second
  *			note (NSAVE re-enables notes), restore the pc and
  *			noted(NRSTR) back to the program (notify(2))
+ *		fault	a note pending when a child (resumed from the
+ *			sched loop, which is no note boundary) takes its
+ *			first demand fault must be delivered at that
+ *			fault's return (see faultround)
  *		For the first three the handler first stores what it
  *		started with (it must be a copy of the interrupted state),
  *		loads a different pattern, and returns with noted(NCONT);
@@ -235,6 +239,16 @@ static uintptr savedpc;
 static int nfdg;
 static uvlong gregs[24];	/* gprspin: [0] the handler's flag, [1..21] the registers */
 
+/* the fault round (see faultround) */
+enum {
+	Fpage = 4096,
+	Fpages = 256,	/* fresh stack pages one child may fault in */
+	Fgap = 64*1024,	/* the walk starts this far below the child's frame */
+	Ftrials = 6,
+};
+static volatile int fidx, fgot, fran, fgo;	/* shared with the child (RFMEM) */
+static char fmsg[32];
+
 /* fpprobeasm.s */
 extern void	gprspin(uvlong *b);
 
@@ -261,6 +275,11 @@ nhandler(void *u, char *msg)
 
 	fpstore(hnow);	/* first: the state the handler started with */
 	ur = u;
+	if(strcmp(msg, "fpprobe-f") == 0){
+		fgot = fidx;
+		fran++;
+		noted(NCONT);
+	}
 	if(strcmp(msg, "fpprobe2") == 0){
 		nested++;
 		noted(NCONT);
@@ -382,6 +401,110 @@ nsaveround(void)
 	return bad;
 }
 
+/*
+ * A volatile global read through a call: 7c keeps such a global in a
+ * register across a loop with no call in it, so the child would never
+ * see a store by its handler or its parent.
+ */
+static int
+vget(volatile int *p)
+{
+	return *p;
+}
+
+/*
+ * The fault round's child: no syscall before the walk, so the first
+ * boundaries it reaches are ticks and demand faults.  It waits for the
+ * parent's go (posted note first), then walks down its own stack well
+ * below anything the parent used: each page is a fresh stack-growth
+ * fault (stack pages are private even under RFMEM).  fidx counts the
+ * pages written.
+ */
+static void
+faultchild(void)
+{
+	volatile uchar *p;
+	uchar here;
+	long n;
+	int i;
+
+	while(vget(&fgo) == 0 && vget(&fran) == 0)
+		;
+	p = (uchar*)(((uintptr)&here - Fgap) & ~(uintptr)(Fpage-1));
+	for(i = 0; i < Fpages && vget(&fran) == 0; i++){
+		p[-i*Fpage] = 1;
+		fidx = i+1;
+	}
+	for(n = 0; n < 200000000 && vget(&fran) == 0; n++)
+		vsink += n;
+	if(vget(&fran) != 1){
+		snprint(fmsg, sizeof fmsg, "handler ran %d times", vget(&fran));
+		exits(fmsg);
+	}
+	if(vget(&fgot) != 0){
+		snprint(fmsg, sizeof fmsg, "fidx=%d", vget(&fgot));
+		exits(fmsg);
+	}
+	exits(nil);
+}
+
+/*
+ * The fault round: a note pending when a demand fault returns to EL0
+ * is delivered there (9front's notify() at the end of every user
+ * trap).  The parent forks a child sharing its data (RFMEM), posts
+ * "fpprobe-f" to it, sets fgo, and blocks in wait; the child, resumed
+ * with the note pending (the sched loop's resume is not a boundary),
+ * walks fresh stack pages (faultchild).  The handler, inherited across
+ * rfork, records fidx: delivery at the first fault's return, or at any
+ * boundary before it, leaves 0; delivery at a later tick finds the
+ * number of faults survived.  The child starts faulting only after
+ * the post, so a preemption anywhere in the parent cannot move the
+ * first fault ahead of the note.  (A kernel without the boundary still
+ * passes a trial whose tick lands inside the first fault: on a venue
+ * whose faults outlast the 1 ms tick it cannot fail this round.)
+ */
+static int
+faultround(void)
+{
+	char path[64];
+	int pid, fd, n, t, bad;
+	Waitmsg *w;
+
+	bad = 0;
+	for(t = 0; t < Ftrials; t++){
+		fidx = fgot = fran = fgo = 0;
+		pid = rfork(RFPROC|RFFDG|RFMEM);
+		if(pid < 0){
+			print("fpprobe: BAD note-fault rfork: %r\n");
+			return -1;
+		}
+		if(pid == 0)
+			faultchild();
+		snprint(path, sizeof path, "/proc/%d/note", pid);
+		n = -1;
+		fd = open(path, OWRITE);
+		if(fd >= 0)
+			n = write(fd, "fpprobe-f", 9);
+		fgo = 1;
+		if(fd >= 0)
+			close(fd);
+		w = wait();
+		if(w == nil){
+			print("fpprobe: BAD note-fault wait: %r\n");
+			return -1;
+		}
+		if(n != 9){
+			print("fpprobe: BAD note-fault post %s: %r\n", path);
+			bad = -1;
+		}else if(w->msg[0] != 0){
+			print("fpprobe: BAD note-fault trial %d %s (want fidx=0: delivered at the first fault)\n", t, w->msg);
+			bad = -1;
+		}
+		free(w);
+	}
+	return bad;
+}
+
 static int
 noteleg(void)
 {
@@ -420,6 +543,8 @@ noteleg(void)
 	if(regsround() < 0)
 		bad = -1;
 	if(nsaveround() < 0)
+		bad = -1;
+	if(faultround() < 0)
 		bad = -1;
 	exits(bad < 0? "bad": nil);
 	return 0;
