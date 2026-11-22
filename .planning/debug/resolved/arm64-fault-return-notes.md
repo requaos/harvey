@@ -1,16 +1,16 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "follow-up of notes-async-nsave-percpu-fp (owner, via coordinator, 2026-11-22): fix the aarch64 page-fault-return note delivery gap now — notes must be delivered on return to user mode from a page fault (as 9front does). Red/green: make the probe observable (a probe leg whose spin loop takes page faults with interrupts otherwise unlikely, or a deterministic check); host test if feasible; mutant; aarch64 HVF/TCG gates; x86_64 bytes unchanged (confirm); local commit, no push; keep it small"
 created: 2026-11-22T05:45:00Z
-updated: 2026-11-22T08:05:00Z
+updated: 2026-11-22T08:20:00Z
 ---
 
 ## Current Focus
 
 hypothesis: CONFIRMED and fixed in scratch — trap()'s EC 0x20/0x24 arm skipped the note boundary; user-observable through the sched loop's bare resume (a note posted to a proc the sched loop then resumes stays pending; with the gap it waits for the next tick after the faults)
 test: DONE — r9 local main e9e5365 → 5f7c4e1 (unpushed); Harvey fpprobe note-fault round (this commit); no new tier-1 marker (the round rides `T1-OK fpprobe`)
-expecting: owner verification
-next_action: on "confirmed fixed" — archive this session + KB entry. The pin series needs Harvey's r9 pin at >= 5f7c4e1 (the arm64 `T1-OK fpprobe` now includes note-fault, which e9e5365 fails) and one subset-build (the probe changed)
+expecting: DONE — owner confirmed fixed 2026-11-22
+next_action: archived; the scheduler-resume gap is a WINDOWS row; the noted IRQ-mask trust bug continues in its own session. The pin series needs Harvey's r9 pin at >= 5f7c4e1 (the arm64 `T1-OK fpprobe` now includes note-fault, which e9e5365 fails) and one subset-build (the probe changed)
 bug_class: Bohrbug (missing call); observable on one CPU via the sched loop's bare resume
 reasoning_checkpoint:
   hypothesis: "trap() returns from a resolved demand fault to EL0 without deliver_notes, so a note pending at that fault return (one that arrived while the proc was off the CPU and was resumed by the sched loop's bare trap_return) waits for the proc's next tick/syscall"
