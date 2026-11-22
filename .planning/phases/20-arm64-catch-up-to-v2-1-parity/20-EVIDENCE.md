@@ -2317,3 +2317,32 @@ HARVEY-PUSH: done
 - **The parity line** (`REMOVE-ROUTE: devmnt-remove`, plus the not-ported pin list under `## Host-test battery`): accepted with the owner's Task 4 approval.
 
 OWNER-CHECKS: approved
+
+## Post-phase pin addendum: r9 116bcc2 (legacy checkpoint pin; full HVF series deferred to the SMP work)
+
+After phase 20 closed, the debug session `x86-syscall-entry-flags` (`.planning/debug/resolved/x86-syscall-entry-flags.md`) fixed WINDOWS #71 with the owner's option A and two sibling x86_64 entry defects it uncovered. The owner confirmed the fix and kept all three commits, and the coordinator pushed r9 `origin/main` = `116bcc23c8052a1728992cdbc7b625143260d683`:
+
+- `10f675e`: IA32_FMASK = IF|TF|DF|NT|AC (WINDOWS #71; reverses D-02a's If-only value).
+- `6f8de40`: `cld` first in `intrcommon` (WINDOWS #72, the IDT-entry DF).
+- `f1cd71b`: `intrspecial` reads IA32_GS_BASE with `rdmsr` instead of RDGSBASE (WINDOWS #73, the #UD on a CPU without CR4.FSGSBASE).
+- `116bcc2`: the boot-iso hash, `sha256-JQ/47nON4oZPk1SxxM5zkHARxCrH23ShgR9sJJCltCY=` → `sha256-TIzwBaHF0R4m31l6EbW2IU3rkUl73g6ljlNE0S5hGFY=`, re-derived in an amd64 container. The wired build passed and `--rebuild` was deterministic (boot.iso `a7483ce1…`).
+
+The aarch64 kernels are byte-identical to `e6e5220`: kernel-virt `0b17869d…` and kernel-virt-cpu `b2da7e46…`, both built from the exact landed tree. That is why this pin owes no HVF series of its own. The x86_64 kernel changed: kernel-x64.elf went from `01adbea3…` to `3535848bdab363f226360c172caf95dc699a493e2c7a9ebf6af68ad10cb77ad4` (28050432 bytes). No `port/src` bytes changed.
+
+**Harvey side.** `c15b1bbab` adds the amd64 fpprobe flags leg, which the existing `T1-OK fpprobe` gates, so there is no new marker. At the `e6e5220` pin that leg halts the kernel, so the x64 tier-1 needs this pin. `be2281a4b` brings `amd64/ABI.md` up to date with the entry flags. `2422aa8d6` updates the ledger: #71 fixed, plus new rows #72 and #73, both fixed. `windows status` is ok: 51 open / 4 waived / 17 fixed / 72.
+
+**Pin move.** Harvey `a4e03344e` is the lock-only move `e6e5220 -> 116bcc2`. `nix flake update r9` changed only the r9 node's `lastModified`, `narHash` and `rev`, and `git show --name-only` prints exactly `flake.lock`. The locked rev is `116bcc23c8052a1728992cdbc7b625143260d683`, which equals r9 `origin/main`.
+
+PIN: r9 116bcc23c8052a1728992cdbc7b625143260d683 (Harvey a4e03344e)
+
+**Quick pass at the pin** (owner-directed, no override, `KERNDATE=1795379886` = the commit time of `a4e03344e`). It ran 2026-11-22T20:44:10Z to 20:45:16Z on darwin (HVF), then once in a fresh amd64 container. The arm64 runs used `R9_SKIP_BUILD=1` on the userland built at the `e6e5220` pin, which was tier-1 HVF run 1 of that pin's series. No arm64 userland source has changed since: `git diff 97cb3c7bb a4e03344e` outside `.planning` touches only `amd64/ABI.md`, `build/x86_64/fpprobe{.c,asm.s}` and `flake.lock`. The x64 run rebuilt its userland, as the default pipeline does in a fresh container. Captures are `.build/p20-pin116-conf-<app>-<accel>.{out,log}`, and the log is `.build/p20-pin116-conf.log`.
+
+| Gate | Accel | Exit | Result | Kernel |
+|---|---|---|---|---|
+| `boot-r9-tier1` | HVF | 0 | `ALL STAGES PASS`; 44 OK / 23 SKIP / 0 FAIL; the seven r9 probe markers once each; icache selftest 64/64 fresh | `r9-kernel-virt-116bcc2` |
+| `boot-r9-cpu` | HVF | 0 | `cpu-r9: ALL STAGES PASS`; the seven cpurc markers once each, 0 `cpurc: FAIL` | `r9-kernel-virt-cpu-116bcc2` |
+| `boot-r9-tier1-x64` | TCG (fresh amd64 container) | 0 | `ALL STAGES PASS`; 39 T1-OK (= computed) / 0 T1-SKIP / 0 T1-FAIL; `T1-OK fpprobe`, `fpprobe: ok` (flags leg included; the tf sub-leg's ring-3 `user trap: unhandled vector 1` line is by design); 588 s | `r9-kernel-x64-116bcc2` |
+
+No capture has an `override`, `panic` or `kernel halted` line. The container (ubuntu:24.04, single-user nix 2.36, Harvey cloned at `a4e03344e`) was removed afterwards, and Docker's container, image and volume lists match the pre-run snapshot.
+
+SERIES-AT-PIN: deferred-to-SMP-work (owner; legacy checkpoint pin); quick pass green at 116bcc2 (tier-1 HVF 44, cpu HVF, tier-1 x64 39)
