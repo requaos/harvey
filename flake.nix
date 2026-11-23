@@ -2,23 +2,12 @@
   description = "Harvey OS dev environment — plan9port toolchain, devshell and build apps";
 
   inputs.nixpkgs.url = "github:NixOS/nixpkgs/nixos-unstable";
-  # Harvey's flake owns the composition — the r9 kernel arrives
-  # as a proper flake input (exact rev + narHash pinned in flake.lock), never
-  # a sibling-checkout path or submodule.  Consumed: r9.packages.<system>.kernel-virt
-  # (the kernel-virt.elf + aarch64/lib/virt-gicv{2,3}.dtb store-path contract —
-  # the boot apps default to gicv3, with -accel hvf -cpu host on darwin-aarch64).
-  # Dev flow against a local r9 checkout: nix run .#boot-r9
-  # --override-input r9 git+file:///path/to/r9 — dev-only, never the default.
-  inputs.r9.url = "github:requaos/r9";
 
-  outputs = { self, nixpkgs, r9 }:
+  outputs = { self, nixpkgs }:
     let
       # PROJECT.md scope: darwin-aarch64 (primary dev), linux aarch64/
       # x86_64.  x86_64-darwin is OUT of scope (its nixpkgs pin-era eval
-      # throws — and Harvey never ships for it); r9 also ships no package
-      # for the tuple, so dropping it from the systems list fixes
-      # `nix flake show --all-systems` AND keeps the boot-r9 hasAttr
-      # gating truthful.
+      # throws — and Harvey never ships for it).
       systems = [ "x86_64-linux" "aarch64-linux" "aarch64-darwin" ];
       forAllSystems = nixpkgs.lib.genAttrs systems;
       pkgsFor = system: nixpkgs.legacyPackages.${system};
@@ -101,221 +90,29 @@
             else mkScriptApp pkgs "harvey-build" ./nix/vm-build.sh ''
               export LIMA_YAML="${./nix/lima-harvey.yaml}"
             '' [ pkgs.lima pkgs.openssh pkgs.rsync ];
-          # THE one command — build the aarch64
-          # userland (lima on darwin, native unshare on linux — the same
-          # mkScriptApp platform split), bake bootfs.paq with Harvey's own
-          # mkpaqfs, fdtput-patch a copy of the r9 package's DTB, and
-          # launch the flake-input kernel to the interactive % prompt.
-          # The kernel/DTB arrive ONLY as the r9 flake input's store
-          # paths — never a sibling-checkout path.
-          # qemu+dtc+git always (the launch, the DTB patch, the KERNDATE
-          # derivation); the build-transport inputs mirror the build
-          # app's platform split.
-          bootR9Pkg = mkScriptApp pkgs "harvey-boot-r9" ./nix/boot-r9.sh ''
-            export R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
-            ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
-          # The expect-style smoke as a flake app —
-          # the SAME composed pipeline as boot-r9 (R9_KERNEL_PKG store
-          # path, build → bake → DTB patch) but launched under
-          # build/aarch64/smoke-r9.expect, which drives the full
-          # sweep and exits 0/1 for CI.  boot-r9's behavior is untouched.
-          smokeR9Pkg = mkScriptApp pkgs "harvey-boot-r9-smoke" ./nix/smoke-r9.sh ''
-            export R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
-            ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
-          # 08-09 (D-13, NETIP-03's composed leg): the composed NET
-          # smoke as a flake app — the SAME composed pipeline as
-          # boot-r9-smoke (R9_KERNEL_PKG store path, build → bake →
-          # DTB patch) but launched under build/aarch64/smoke-r9-net.expect,
-          # which drives the user-visible net flows through the packaged
-          # kernel's devip #I tree in ONE boot (ping 127.0.0.1, udp
-          # echo, tcp/7 echo, ipconfig static + dhcp — the baked
-          # fixtures' markers, both NOT-L2-TRUTH venue labels, and the
-          # NET-SMOKE: ALL STAGES PASS completion marker) and exits
-          # 0/1 for CI.  smoke-r9's behavior is untouched; the
-          # packaged kernel carries devip from 08-09's virtshell dev
-          # entry.  smokeR9Pkg's shape verbatim.
-          netSmokeR9Pkg = mkScriptApp pkgs "harvey-boot-r9-net-smoke" ./nix/smoke-r9-net.sh ''
-            export R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
-            ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
-          # 06-07 (D-12, USPACE-04's second venue): the r9-side tier-1
-          # gate — the SAME composed pipeline, the tier-1 payload in the
-          # image, and build/aarch64/tier1-r9.expect driving the sweep
-          # on r9 (one typed line; r9's devcons serves reads).
-          # smokeR9Pkg's shape verbatim; smoke-r9 itself is untouched.
-          tier1R9Pkg = mkScriptApp pkgs "harvey-boot-r9-tier1" ./nix/tier1-r9.sh ''
-            export R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt}"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
-            ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
-          # 20-16 (ARM-11): the arm64 cpu fixture gate — the SAME
-          # composed pipeline as boot-r9-smoke, but the kernel is the r9
-          # input's kernel-virt-cpu (the virtcpu profile: virtshell plus
-          # devcap, 20-15), the DTB copy carries the boot string
-          # init=/arm64/init -c, and build/aarch64/cpu-r9.expect asserts
-          # the baked /rc/bin/cpurc's legs (#!, wstat/remove, devcap,
-          # devssl) in one boot.  smokeR9Pkg's dependency list verbatim;
-          # the four kernel-virt apps are untouched.
-          cpuR9Pkg = mkScriptApp pkgs "harvey-boot-r9-cpu" ./nix/cpu-r9.sh ''
-            export R9_KERNEL_PKG="${r9.packages.${system}.kernel-virt-cpu}"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.dtc pkgs.git pkgs.expect ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
-            ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
-          # 14-07 (D-05/D-06, XEXEC-03): the x64 one-command compose —
-          # the same pipeline shape as boot-r9 (kernel-package contract →
-          # KERNDATE provenance → userland build → bake) but the kernel
-          # arrives as the r9 input's kernel-x64 (the q35shell-config
-          # kernel: exec+bootchain devs — plain q35 carries no user
-          # mode), the bake is the 14-05/14-06 x64 pipeline (stage-build
-          # + mkimage → bootfs.paq + bootfs-chain.paq), and the ISO
-          # composition calls r9's exported iso-builder (ONE
-          # reproducibility implementation, un-forked) before launching
-          # qemu-system-x86_64 -M q35 -accel kvm -cdrom — NO DTB patch,
-          # NO -device loader anywhere (the aarch64 delivery is
-          # deliberately not carried: GRUB delivers bootfs as an mb2
-          # tag-3 module off the same ISO).  The aarch64 apps are their
-          # own leg: frozen at the v2.0 pin through v2.1, active again
-          # since phase 20 (the arm64 catch-up); this x64 app does not
-          # share their bodies (Phase 19's INT-05 owns any ONE-command
-          # consolidation).
-          # dtc is NOT carried: nothing in the x64 pipeline touches a
-          # DTB; git stays (the KERNDATE provenance step).
-          bootR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-x64" ./nix/boot-r9-x64.sh ''
-            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
-            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-            # 16-04 (HNET-02/D-05): the netdev argv emitter — the boot
-            # script's --net/R9_NET modes resolve to THIS bin's output
-            # (the D-04 hostfwd remap and the NixOS tap helper path are
-            # pinned r9 TOML data).  The attr first exists at the 16-04
-            # pin advance — hence "netdev-args" in the gate list below.
-            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
-            # 16-04 (D-03): the tap leg's doctor gate — 16-03's
-            # read-only checker, ONE implementation consumed two ways
-            # (its own app + this path).
-            export R9_NET_DOCTOR="${netDoctorPkg}/bin/harvey-net-doctor"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
-          # 14-07 (XEXEC-03's gate): the composed smoke — the SAME
-          # pipeline as boot-r9-x64 but launched under
-          # build/x86_64/smoke-r9.expect, which drives the full sweep
-          # (echo round-trip, empty-line safety, ls/ps/cat, DEL safety,
-          # init restart, the whole-capture post-passes) against the
-          # composed ISO and exits 0/1 for CI.  Green TWICE
-          # consecutively with both captures retained is XEXEC-03's
-          # proof (D-06: the composed-system gate lives Harvey-side,
-          # where the composed ISO exists).  boot-r9-x64's behavior is
-          # untouched; smokeR9Pkg's shape (expect in runtimeInputs).
-          # 19-09 (INT-05): the gate gained the cpu-chain leg (the §15
-          # image under the emitter's slirp argv — the D-04 hostfwd
-          # pair rides the pinned TOML data, the auth/net gates' idiom;
-          # the attr is already in the x64 block's hasAttr gate list
-          # since 16-04, so the frozen list stays byte-untouched).
-          # iproute2 is the leg's `exec ss' hostfwd observation;
-          # procps makes the EXIT trap's pkill survivor sweep real
-          # over the TWO spawns the gate now owns (the net gate's
-          # always-listed-dep rule: the 2>/dev/null || true must mask
-          # a failed sweep, never a missing binary).
-          smokeR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-smoke-x64" ./nix/smoke-r9-x64.sh ''
-            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
-            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.iproute2 pkgs.procps ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
-          # 14-08 (XEXEC-04's r9 gate): the tier-1 sweep — the SAME
-          # pipeline as boot-r9-smoke-x64 but the build is the TIER
-          # build (subset-build.sh), the bake is the TIER bake
-          # (bootfs-tier.paq), and build/x86_64/tier1-r9.expect asserts
-          # the sweep's marker set (computed from the committed tier
-          # data — never a second hardcoded list) + the float canary +
-          # T1-DONE + the exact SKIP set.  The same /amd64/bin set the
-          # k10t1 donor kernel embeds (the witness manifest) executes
-          # here — the both-kernels ABI witness's r9 half.
-          # smokeR9X64Pkg's shape verbatim (expect in runtimeInputs).
-          tier1R9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-tier1-x64" ./nix/tier1-r9-x64.sh ''
-            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
-            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
-          # 14-09 (XEXEC-05's gate, D-07/D-13): the composed NET smoke
-          # — the SAME pipeline as boot-r9-tier1-x64 but the bake
-          # carries the NET payload (mkimage's net section →
-          # bootfs-net.paq: the chain tree + the ip-container binaries
-          # + the 6c C helpers + the /lib netip fixtures) and
-          # build/x86_64/smoke-r9-net.expect drives the in-guest net
-          # flows through the prompt in ONE boot (ipconfig static +
-          # dhcp — both NOT-L2-TRUTH venue-labeled per Pitfall 10, the
-          # slirp evidence is never L2 truth and the tap-leg verdict is
-          # Phase 16's NETIP-08 — the duplicate-binding and no-address
-          # degenerate rejections, loopback ping + udp echo, the inline
-          # tcp/7 echo leg, the NET-SMOKE completion marker, and the
-          # whole-capture post-passes).  Green TWICE consecutively with
-          # both captures retained is XEXEC-05's proof.  The aarch64
-          # netSmokeR9Pkg is a separate leg (frozen at the v2.0 pin
-          # through v2.1, active again since phase 20); this app keeps
-          # smokeR9X64Pkg's shape verbatim.
-          # 16-06 (HNET-01/D-02/D-05): the gate re-keys its qemu spawn
-          # onto the emitter's slirp argv — this app exports
-          # R9_NETDEV_EMITTER (the 16-04 boot app's idiom; the attr
-          # rides the pin-advanced gate list), the script captures it
-          # once as R9_NETDEV_ARGV, and the expect driver splits the
-          # tokens (the D-04 hostfwd pair included) and observes both
-          # loopback listeners host-side (its hostfwd-* stages; hence
-          # iproute2 below — the driver's `exec ss').  procps is the
-          # EXIT trap's pkill survivor sweep — the same always-listed
-          # dep the soak app carries: `2>/dev/null || true' must mask
-          # a failed sweep, never a missing binary.
-          netSmokeR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-net-smoke-x64" ./nix/smoke-r9-net-x64.sh ''
-            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
-            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.iproute2 pkgs.procps ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
-          # 15-03 (USPACE-07's r9 leg): the SERVICES gate — the SAME
-          # pipeline as boot-r9-tier1-x64 but the bake carries the
-          # SERVICES payload (mkimage's services section →
-          # bootfs-services.paq: the chain tree + the tier-1 h* helpers
-          # + the tier-2 services set computed from
-          # tiers/tier2-services.txt + the 14-09 net members + the
-          # sweep's /boot-side members + services-sweep.rc at /lib with
-          # the services-termrc override — 15-02's committed sweep
-          # rides UNCHANGED, both venues' single source) and
-          # build/x86_64/services-r9.expect drives the sweep from the
-          # boot flow in ONE boot (the net bring-up preceding the
-          # daemons, every subject's interaction-backed verdict, the
-          # computed-expectation post-pass with the SKIP converse, zero
-          # SVC-FAIL, zero panic).  Green TWICE consecutively with both
-          # captures retained is the r9 leg's proof.  The tier-1 gate's
-          # behavior is untouched; tier1R9X64Pkg's shape verbatim.
-          servicesR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-services-x64" ./nix/services-r9-x64.sh ''
-            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
-            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
-          # 16-03 (HNET-05/D-14): the net-doctor — the READ-ONLY
-          # host-state checker (diagnose + print, never fixes): one
-          # implementation consumed two ways (its own app here, and
-          # the 16-04 boot script's tap leg via R9_NET_DOCTOR, D-03).
-          # Consumes NO r9 attrs (host-only checks: qemu on PATH,
-          # ip/ss link+addr+port state, sysctl, the netfilter read,
-          # the setuid wrapper, the ACL file) — so its app gate below
-          # is its OWN linux optionalAttrs, deliberately NOT riding
-          # the frozen kernel-x64/iso-builder gate list (research
-          # Pitfall 6: that list must not widen).  Empty extraHeader:
-          # nothing to export — the doctor takes no env contract
-          # beyond HARVEY (optional, seam lookup in tap mode).
-          # runtimeInputs mirror the checks: qemu (qemu-present),
-          # iproute2 (ip/ss), iptables (iptables-save), procps
-          # (sysctl); coreutils/gnugrep/gnused are the text plumbing
-          # (stat, grep, sed).  No unixtools needed — nothing
-          # doctor-side diverges beyond what these provide.
-          netDoctorPkg = mkScriptApp pkgs "harvey-net-doctor" ./nix/net-doctor.sh ""
-            [ pkgs.bash pkgs.qemu pkgs.iproute2 pkgs.iptables pkgs.procps
-              pkgs.coreutils pkgs.gnugrep pkgs.gnused ];
+          # 01-26 (D-08 narrowed by D-20, settled by D-26): the ONE Harvey
+          # command that keeps the flake self-sufficient without r9 — build
+          # Harvey's own amd64/9k10cpu.elf through the platform build above
+          # (build.sh on Linux, vm-build.sh on darwin) and boot it under
+          # `qemu-system-x86_64 -M q35` to the `root is from (tcp)[tcp]:`
+          # prompt.  The script is spikes/s5/boot-q35.sh's launch-and-
+          # classify harness (capture-before-start, the banner/prompt/
+          # signature classification, kill-and-reap on every exit) with the
+          # platform build wired in; KVM when /dev/kvm is writable, else an
+          # explicit HARVEY_Q35_ACCEL=tcg — never a silent downgrade.  The
+          # runtimeInputs are the build app's platform split plus qemu, git
+          # (the HARVEY and KERNDATE lookups), coreutils and gnugrep.
+          q35Pkg = mkScriptApp pkgs "harvey-q35" ./nix/q35.sh
+            (
+              if isLinux then ''
+                export GNU_SED="${pkgs.gnused}/bin/sed"
+              '' else ''
+                export LIMA_YAML="${./nix/lima-harvey.yaml}"
+              ''
+            )
+            ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.coreutils pkgs.gnugrep pkgs.git ]
+              ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]
+              ++ pkgs.lib.optionals (!isLinux) [ pkgs.lima pkgs.openssh pkgs.rsync ]);
           # 19-06 (DESK-01): the drawterm session wrapper — scrubs the
           # credential-bearing env ($cpu/$auth/$PASS/$USER), pins the
           # connection on argv via -O (the committed hostfwd pair's
@@ -325,229 +122,26 @@
           # text form; no -e flag anywhere, D-15), and execs the
           # package binary.  Headless (DISPLAY unset) runs the -G stdio
           # line LOUDLY — never a silent downgrade.  linux-only beside
-          # net-doctor: it consumes NO r9 attrs, so it must not ride
-          # (or widen) the frozen kernel-x64/iso-builder gate list.
+          # the drawterm package: it consumes NO r9 attrs (D-20 keeps it
+          # as it is today).
           drawtermX64Pkg = mkScriptApp pkgs "harvey-drawterm" ./nix/drawterm-x64.sh ''
             ${nixpkgs.lib.optionalString isLinux ''
               export DRAWTERM_BIN="${self.packages.${system}.drawterm}/bin/drawterm"
             ''}
           '' [ pkgs.bash ];
-          # 16-05 (D-12): the committed host echo peer — the NETIP-08
-          # soak's far end.  A host-cc build of nix/host-echo.c (the
-          # harness-package precedent: committed repo source, stdenv
-          # build, no fetched binaries — T-16-SC), CONCURRENT where the
-          # in-guest tcpecho is sequential (a poll loop; 8 held-open
-          # tcpblast connections are the burst leg).  Consumed as the
-          # soak app's own child via HOST_ECHO_X64 — never a daemon;
-          # it dies with the gate.
-          hostEchoX64Pkg = pkgs.stdenv.mkDerivation {
-            pname = "host-echo";
-            version = "16.05";
-            dontUnpack = true;
-            buildPhase = ''
-              cc -O2 -Wall -o host-echo ${./nix/host-echo.c}
-            '';
-            installPhase = ''
-              install -Dm755 host-echo $out/bin/host-echo
-            '';
-          };
-          # 16-05 (D-13, NETIP-08's machinery half): the tap-leg soak
-          # gate — the net-smoke pipeline re-keyed onto the tap venue:
-          # --net/R9_NET parse with the SLIRP REFUSAL (slirp evidence
-          # not accepted, before any bake or boot) → the 16-03 doctor
-          # preflight (tap, ONE implementation) → the seam parse
-          # (tap_gwv4/blastport) → the emitter's tap argv with the
-          # retained pcap capture (R9_NETDEV_ARGV for the driver to
-          # split) → the committed host echo peer as the app's own
-          # child → tier build → net bake → iso-builder compose →
-          # build/x86_64/netsoak-r9.expect driving
-          # `rc /lib/netip-tap.rc 2048 8' (baseline + 8-way burst +
-          # ARP L2-truth + the counting post-pass + wedge-loud
-          # timeouts).  The RUNS (green-twice, the kernel-fix loop,
-          # the evidence/r9-SHA close-out) are 16-08's.
-          netSoakR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-net-soak-x64" ./nix/soak-r9-net-x64.sh ''
-            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
-            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
-            export R9_NET_DOCTOR="${netDoctorPkg}/bin/harvey-net-doctor"
-            export HOST_ECHO_X64="${hostEchoX64Pkg}/bin/host-echo"
-            export HARVEY_NETADDR_SEAM="${./build/x86_64/root-tree/lib/netaddr.rc}"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.procps ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
-          # 17-02 (D-06 tier (b)): the composed churn gate — the
-          # smoke pipeline re-keyed onto the NET-FREE churn venue: no
-          # doctor, no emitter, no peer; tier build → the CHURN bake
-          # (mkimage section 12: chain + test/dc + /lib/churn-cats.rc)
-          # → iso-builder compose → build/x86_64/churn-r9.expect
-          # driving `rc /lib/churn-cats.rc' (/bin/cat x 1400 fork+exec
-          # at the #44 repro shape) with the exact-count contract +
-          # zero FAIL + the bounded-memory window (the per-exit
-          # churngate heap markers the q35churnshell kernel carries —
-          # the pinned kernel-x64 since this plan's r9-side re-point).
-          churnR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-churn-x64" ./nix/churn-r9-x64.sh ''
-            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
-            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.procps ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
-          # 17-07 (D-03, the CR-07 centerpiece's instrument): the
-          # reduced-stress gate — the soak pipeline re-keyed onto the
-          # 16-08 deferred record's REDUCED shape (rounds=1/burstn=8,
-          # burst depth 512 — the #66 window at the top of every run)
-          # with the #66 toolkit's capture: qemu runs with
-          # `-d int,guest_errors -D <per-run-file>' (pure host-side
-          # logging, no guest-visible byte change).  Venue: tap
-          # preferred (doctor-gated, #66's own) with the
-          # RACE-STRESS-labeled slirp fallback (never an L2-truth
-          # claim — the fixture's on-wire venue label is an asserted
-          # stage).  Additive to the soak app's semantics (Pitfall 7:
-          # existing gates untouched).
-          stressR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-stress-x64" ./nix/stress-r9-net-x64.sh ''
-            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
-            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
-            export R9_NET_DOCTOR="${netDoctorPkg}/bin/harvey-net-doctor"
-            export HOST_ECHO_X64="${hostEchoX64Pkg}/bin/host-echo"
-            export HARVEY_NETADDR_SEAM="${./build/x86_64/root-tree/lib/netaddr.rc}"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.procps ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
-          # 18-04 (AUTH-04/D-08 + AUTH-01's bake arm + the AUTH-05/07
-          # substrate): the AUTH gate — the net-smoke pipeline re-keyed
-          # onto the sixth bake contract: tier build → the AUTH bake
-          # (mkimage section 14: chain tree + the auth-suite set
-          # computed from the tier data + authdomain-gen INVOKED AT
-          # BAKE with the D-02 pairing assert over the staged copies —
-          # out/bootfs-auth.paq) → iso-builder compose →
-          # build/x86_64/smoke-r9-auth.expect driving the auth
-          # bring-up sweep from the boot flow (auth-termrc →
-          # `rc /lib/auth-sweep.rc r9', no typed legs): the boot
-          # pairing banner with the DEMO label, NON-interactive keyfs
-          # over the baked nvram (`N keys read'), the listener topology
-          # (listen1 -t tcp!*!567 /amd64/bin/authsrv -d + secstored -v
-          # on 5356), cs over the baked /lib/ndb/local, factotum with
-          # norbert's p9sk1 key, AUTH-DONE, the never-appears post-pass
-          # for the nvram getpass string, zero AUTH-FAIL.  netSmoke
-          # R9X64Pkg's shape verbatim (the emitter export + iproute2
-          # for the driver's hostfwd ss observation + procps for the
-          # survivor sweep); stdenv.cc is the ONE addition — the
-          # authdomain-gen host build inside the bake (the 18-03
-          # vendored-donor venue's single dependency, T-18-SC: nixpkgs
-          # toolchain, no registry fetch).  Green TWICE consecutively
-          # with both captures retained is the plan's proof.
-          authSmokeR9X64Pkg = mkScriptApp pkgs "harvey-boot-r9-auth-x64" ./nix/smoke-r9-auth-x64.sh ''
-            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
-            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.iproute2 pkgs.procps pkgs.stdenv.cc ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
-          # 19-08 (DESK-06/CPU-04/DESK-04, D-14/D-15): the -G interop
-          # gate — the auth pipeline re-keyed onto the §15 cpu image
-          # (bake ALL contracts; §15's out/auth-creds.txt read loudly
-          # post-bake; compose WITH the init append via 19-01's seam)
-          # and build/x86_64/drawterm-gate.expect driving a REAL
-          # scripted drawterm -G -O session end-to-end through the
-          # committed hostfwd pair: the bootconf boot ladder to
-          # cpurc: LISTEN-17010, both hostfwd listeners observed
-          # host-side, the pty password feedstage through p9any ->
-          # p9sk1 against the §15 domain, the ENCRYPTED rc4_256 sha1
-          # session (no -e flag — D-15, the gate IS the probe), the
-          # remote shell prompt, a fed command's echoed marker, and
-          # the session teardown.  The required green witness is
-          # LOCAL KVM green-twice (D-14, user override — hosted CI
-          # best-effort).  runtimeInputs are the auth gate's verbatim
-          # (expect + iproute2 for the driver's hostfwd ss
-          # observation + procps for the survivor sweep + stdenv.cc
-          # for the authdomain-gen host build inside the bake +
-          # util-linux for the namespace build transport); the ONE
-          # addition is the 19-06 drawterm package exported as
-          # DRAWTERM_BIN (the expect spawns it on a pty — linux-only
-          # beside the package itself).
-          drawtermGateX64Pkg = mkScriptApp pkgs "harvey-drawterm-gate-x64" ./nix/drawterm-gate-x64.sh ''
-            export R9_KERNEL_X64_PKG="${r9.packages.${system}.kernel-x64}"
-            export R9_ISO_BUILDER="${r9.packages.${system}.iso-builder}/bin/r9-iso-builder"
-            export R9_NETDEV_EMITTER="${r9.packages.${system}.netdev-args}/bin/r9-netdev-args"
-            ${nixpkgs.lib.optionalString isLinux ''
-              export DRAWTERM_BIN="${self.packages.${system}.drawterm}/bin/drawterm"
-            ''}
-          '' ([ pkgs.plan9port pkgs.bash pkgs.qemu pkgs.git pkgs.expect pkgs.iproute2 pkgs.procps pkgs.stdenv.cc ]
-            ++ pkgs.lib.optionals isLinux [ pkgs.util-linux pkgs.gnused pkgs.mount pkgs.binutils ]);
         in {
           setup = mkApp setupPkg;
           toolchain = mkApp toolchainPkg;
           build = mkApp buildPkg;
           iso = mkApp isoPkg;
           default = mkApp setupPkg;
-          # boot-r9 exists only where r9 ships packages.kernel-virt (its
-          # flake systems: aarch64-darwin, aarch64-linux, x86_64-linux).
-          # x86_64-darwin is doubly absent: r9 ships no package for it AND
-          # Harvey dropped the tuple from the systems list
-          # (PROJECT.md scope) — the hasAttr gate keeps this attrset's
-          # evaluation lazy where the package is absent.
-        } // nixpkgs.lib.optionalAttrs (builtins.hasAttr system r9.packages) {
-          boot-r9 = mkApp bootR9Pkg;
-          boot-r9-smoke = mkApp smokeR9Pkg;
-          boot-r9-net-smoke = mkApp netSmokeR9Pkg;
-          boot-r9-tier1 = mkApp tier1R9Pkg;
+          # 01-26 (D-26): the own-kernel q35 launcher.
+          q35 = mkApp q35Pkg;
         }
-        # 20-16: boot-r9-cpu exists only where r9 ships
-        # packages.kernel-virt-cpu (r9 821db85 onward); at an older pin
-        # the attr is simply absent, never an evaluation error (&& keeps
-        # the inner hasAttr lazy where the system has no packages).
-        // nixpkgs.lib.optionalAttrs
-          (builtins.hasAttr system r9.packages
-            && builtins.hasAttr "kernel-virt-cpu" r9.packages.${system}) {
-          boot-r9-cpu = mkApp cpuR9Pkg;
-        }
-        # 14-07: the x64 compose apps live ONLY where r9 exports the
-        # attrs they consume (its own gates: the kernel on every linux
-        # host, the BIOS ISO machinery — grub's i386-pc modules — on
-        # x86_64-linux only).  The hasAttr discipline re-keyed to the
-        # attrs actually consumed, so evaluation stays lazy everywhere
-        # else and widens automatically if r9 ever widens its exports.
-        # 16-04 (research Pitfall 6): the list gained "netdev-args" in
-        # the same commit set as the pin advance that carries the
-        # export — boot-r9-x64's R9_NETDEV_EMITTER consumes it.  NEVER
-        # widen this list ahead of a pin advance (every x64 app would
-        # vanish against older r9 pins), and a future re-pin must not
-        # silently drop the attr.
-        // nixpkgs.lib.optionalAttrs
-          (builtins.all (a: builtins.hasAttr a r9.packages.${system}) [ "kernel-x64" "iso-builder" "netdev-args" ]) {
-          boot-r9-x64 = mkApp bootR9X64Pkg;
-          boot-r9-smoke-x64 = mkApp smokeR9X64Pkg;
-          boot-r9-tier1-x64 = mkApp tier1R9X64Pkg;
-          boot-r9-net-smoke-x64 = mkApp netSmokeR9X64Pkg;
-          boot-r9-services-x64 = mkApp servicesR9X64Pkg;
-          # 16-05 (D-13): the NETIP-08 tap-leg soak — no new gate here;
-          # the app rides the EXISTING x64 block (its attrs: kernel-x64,
-          # iso-builder, netdev-args — the last moved in by 16-04).
-          boot-r9-net-soak-x64 = mkApp netSoakR9X64Pkg;
-          # 17-02 (D-06 tier (b)): the composed churn gate — rides the
-          # same x64 block (its attrs: kernel-x64, iso-builder; the
-          # venue is net-free, no emitter).
-          boot-r9-churn-x64 = mkApp churnR9X64Pkg;
-          # 17-07 (D-03): the CR-07 reduced-stress gate — rides the
-          # same x64 block (its attrs: kernel-x64, iso-builder,
-          # netdev-args; the doctor + peer are Harvey-side).
-          boot-r9-stress-x64 = mkApp stressR9X64Pkg;
-          # 18-04: the AUTH gate — rides the same x64 block (its attrs:
-          # kernel-x64, iso-builder, netdev-args — the emitter feeds
-          # the driver's slirp argv with the D-04 hostfwd pair).
-          boot-r9-auth-x64 = mkApp authSmokeR9X64Pkg;
-          # 19-08: the -G interop gate — rides the SAME x64 block and
-          # the SAME hasAttr gate list (its attrs are identical to the
-          # auth gate's: kernel-x64, iso-builder, netdev-args; the
-          # drawterm package is a Harvey-side self attr, never an r9
-          # attr — the frozen gate list stays byte-untouched).
-          drawterm-gate-x64 = mkApp drawtermGateX64Pkg;
-        }
-        # 16-03 (HNET-05/D-14): the doctor app — linux-only in its OWN
-        # optionalAttrs gate (the checks are linux's; darwin's vmnet
-        # leg is HNET-04 documented-manual).  It consumes no r9 attrs,
-        # so it must NOT ride (or widen) the frozen kernel-x64/
-        # iso-builder gate above — research Pitfall 6.
+        # 16-03/19-06: the drawterm session app — the wrapper above
+        # (scrub + -O pin + printed connect line + exec).  It consumes no
+        # r9 attrs, so it stays after the flip (D-20).
         // nixpkgs.lib.optionalAttrs isLinux {
-          net-doctor = mkApp netDoctorPkg;
-          # 19-06 (DESK-01): the drawterm session app — the wrapper
-          # above (scrub + -O pin + printed connect line + exec).
           drawterm = mkApp drawtermX64Pkg;
         });
 
@@ -586,7 +180,7 @@
               echo "harvey devshell: HARVEY=$HARVEY PLAN9=$PLAN9"
               echo "  host bin: $HARVEY_LINUX_BIN"
               echo "  harness: $HARNESS_BIN"
-              echo "apps: nix run .#setup -> .#toolchain -> .#build | .#iso"
+              echo "apps: nix run .#setup -> .#toolchain -> .#build | .#iso | .#q35"
               ${if isLinux then ''
                 echo "(. #build uses sudo unshare; run from the repo root)"
               '' else ''

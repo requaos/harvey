@@ -25,9 +25,6 @@
 #               minimega — D-03; KVM when /dev/kvm is writable, else the
 #               TCG fallback).  The x86_64 CI tier venue: the tier-1
 #               sweep runs on Harvey's OWN kernel (USPACE-04).
-#   tier-r9     (slow, 90m): nix run .#boot-r9-tier1 — the tier-1 sweep
-#               on the flake.lock-pinned r9 kernel (06-07's app;
-#               USPACE-04's second CI venue, D-12).  TCG on the runner.
 #   tier-2      (45m): the services-tier COMPILE gate (15-01,
 #               USPACE-07's compile half) — host-only: setup + toolchain
 #               + build/x86_64/subset-build.sh (tiers 0-2 in the Plan 9
@@ -61,7 +58,7 @@
 # poolpanic leg), never 9front — borrowing 9front-specific design
 # decisions is the deliberate anti-goal.  The aarch64 tier gates stay
 # LOCAL-only (the 9front donor pin, driven by hand from
-# build/aarch64/); tier-r9 remains the second CI venue (D-12).  The
+# build/aarch64/); the r9 legs run from the r9 repo (D-10's flip).  The
 # wave0-host venue-pin step negative-greps the retired leg's job key
 # and its gate-script basenames, so a silent reintroduction of a hosted
 # 9front dependency reds the fast leg.
@@ -231,7 +228,7 @@ jobs:
             echo "VENUE-PIN-FAIL: the tier-9k job is missing — the x86_64 tier venue must be Harvey's own kernel (the 06-09 k10t1 pair)" >&2
             exit 1
           fi
-          echo "VENUE-PIN-OK jobs: wave0-host tier-9k tier-r9 tier-2 x86_64-poolpanic"
+          echo "VENUE-PIN-OK jobs: wave0-host tier-9k tier-2 x86_64-poolpanic"
       - name: FPdbleword region assert (D-01)
         # Sed the union region out of arm64/include/u.h and require
         # exactly the two uint members (the amd64 reference shape);
@@ -248,23 +245,6 @@ jobs:
             exit 1
           fi
           echo "FPDBL-OK"
-
-  tier-r9:
-    runs-on: ubuntu-latest
-    timeout-minutes: 90 # TCG scale; the driver's per-stage 600s timeouts localize failures
-    steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
-      - name: install nix
-        uses: DeterminateSystems/nix-installer-action@3138316df39ed29be04236d7ffc686fa525866aa
-      - name: tier-1 r9 gate (boot-r9-tier1)
-        run: nix run .#boot-r9-tier1
-      - name: upload the retained gate log
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
-        with:
-          name: tier-r9-log
-          path: build/aarch64/tier1-r9.log
-          if-no-files-found: warn
 
   tier-2:
     runs-on: ubuntu-latest
